@@ -6,6 +6,13 @@
 
 ## Avoid These Mistakes
 
+- **WSL2 /mnt/c cold-start I/O hang:** Node processes started from this repo
+  on `/mnt/c` occasionally hang uninterruptibly during module load (`ps` STAT
+  `Dl`): silent, no output, HTTP listener never binds. Environment issue (9P
+  filesystem), not a code bug — non-deterministic, retries succeed.
+  → For smoke tests, poll the listener instead of using fixed sleeps:
+  `until curl -s --max-time 2 http://localhost:PORT/health; do sleep 1; done`.
+  Discovered in the stochastic HTTP-MCP phase 3 verification (2026-09-11).
 - **MCP stdio smoke tests need open stdin (SDK 1.30):** With immediately-closed
   stdin (`/dev/null` or `printf … | node dist/index.js` without a trailing
   `sleep`), the server under `@modelcontextprotocol/sdk` 1.30 starts silently
