@@ -9,7 +9,8 @@
 
 - Base setup of project governance files: root `AGENTS.md` (generated reasoning
   guide + project rules) and `memory-bank/` structure (this directory).
-- Knowledge graph index (`gitnexus analyze`) refreshed for thinking-mcp.
+- Knowledge graph index refreshed via `gitnexus analyze --no-stats`
+  (`--no-stats` mandatory — see Architecture Map).
 
 ## Recent Changes
 

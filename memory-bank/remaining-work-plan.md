@@ -17,6 +17,15 @@
   avoid losing hand-written sections | trigger: any template change in
   `src/tools/agents-guide-template.ts` | action required: regenerate via
   merge mode, never overwrite manually.
+- [RB-3] MED | GitNexus-generated "Index stale?" hint inside the
+  `<!-- gitnexus:start/end -->` block of AGENTS.md/CLAUDE.md recommends
+  `node .gitnexus/run.cjs analyze` WITHOUT `--no-stats`; an agent following it
+  verbatim reintroduces volatile counts (post-commit review 0441c70,
+  pre-existing/tool-generated). Mitigated by the Architecture Map mandate +
+  lessonsLearned entry. | trigger: any future `gitnexus analyze` run or GitNexus
+  CLI upgrade | accepted observation with mitigation; optional hardening:
+  wrapper in `.gitnexus/run.cjs` that injects `--no-stats`, or upstream
+  flag support.
 
 ## Resolved / Reclassified
 
