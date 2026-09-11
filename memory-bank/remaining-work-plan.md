@@ -31,6 +31,13 @@
   (`sudo service docker start` or Docker Desktop) | action required:
   `docker build -t paschbaer/stochasticthinking servers/server-stochasticthinking`
   then run with `-p 3001:3000` and poll `http://localhost:3001/health`.
+- [RB-5] LOW | `servers/server-stochasticthinking/README.md` still references
+  the upstream Smithery scope `@waldzellai/stochasticthinking` (badge +
+  smithery install command) and `smithery.yaml` had its `startCommand` fixed
+  to `dist/dev.js` — whether the package is published under `@paschbaer` on
+  Smithery is unknown. | trigger: any Smithery publish/deploy work for the
+  stochastic server | action required: verify Smithery scope, then update
+  badge + install command or remove them.
 
 ## Resolved / Reclassified
 

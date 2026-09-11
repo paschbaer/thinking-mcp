@@ -9,9 +9,13 @@ startCommand:
     # JSON Schema defining the configuration options for the MCP.
     type: object
 
-    properties: {}
-    description: No configuration required.
+    properties:
+      debug:
+        type: boolean
+        default: false
+        description: Enable debug logging.
+    description: Configuration for the Stochastic Thinking MCP server.
   commandFunction:
     # A function that produces the CLI command to start the MCP on stdio.
     |-
-    config => ({command:'node', args:['dist/index.js']})
+    config => ({command:'node', args:['dist/dev.js']})

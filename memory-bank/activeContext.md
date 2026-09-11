@@ -9,13 +9,20 @@
 
 - Stochastic HTTP-MCP rebuild (`feature/stochastic-http-mcp`, plan:
   `plans/stochastic-http-mcp.md`): phases 0–5 implemented and committed;
-  outstanding: docker build/run verification (RB-4) + branch review/merge.
+  feature review done, all review findings fixed (HIGH .dockerignore, dev
+  guard, smithery startCommand, testable app export); outstanding:
+  docker build/run verification (RB-4) + merge to `main`.
 
 ## Recent Changes
 
 - 2026-09-11: Created `AGENTS.md` via `agents_guide` tool (Thinking-MCP
   context), customized project-specific conventions section.
 - 2026-09-11: Created `memory-bank/` with the 8 base files.
+- 2026-09-11: Feature review of `feature/stochastic-http-mcp`: 1 HIGH + 3 MED
+  findings fixed (`.dockerignore` ported; dev/server direct-execution guards
+  via `pathToFileURL` + `.catch`; smithery `startCommand` → `dist/dev.js` with
+  debug configSchema; `app` export + guarded listen enables HTTP unit test —
+  16/16 tests green).
 - 2026-09-11: Stochastic HTTP-MCP rebuild (phases 0–5) on
   `feature/stochastic-http-mcp`: SDK 1.30 spike, clear-thought parity deps/
   tsconfig/scripts, session factory + config, HTTP server (/health, port 3001,
