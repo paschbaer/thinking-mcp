@@ -18,6 +18,10 @@
 - 2026-09-11: Created `AGENTS.md` via `agents_guide` tool (Thinking-MCP
   context), customized project-specific conventions section.
 - 2026-09-11: Created `memory-bank/` with the 8 base files.
+- 2026-09-11: Agent-guide parity for stochastic: `AGENTS.template.md` shipped
+  (package.json files), README expanded (client config, Agent Guide section),
+  root `AGENTS.md` gained an initialized stochastic guide block between
+  `stochastic-thinking:agents-guide:start/end` markers (regeneration-safe).
 - 2026-09-11: Feature review of `feature/stochastic-http-mcp`: 1 HIGH + 3 MED
   findings fixed (`.dockerignore` ported; dev/server direct-execution guards
   via `pathToFileURL` + `.catch`; smithery `startCommand` → `dist/dev.js` with

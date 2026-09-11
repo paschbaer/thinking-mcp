@@ -115,6 +115,57 @@ npm run docker:build
 npm run docker:run   # publishes the container on host port 3001
 ```
 
+### Connecting an MCP Client
+
+**Streamable HTTP** (server already running on port 3001):
+
+```json
+{
+  "mcpServers": {
+    "stochasticthinking": {
+      "url": "http://localhost:3001/mcp",
+      "type": "http"
+    }
+  }
+}
+```
+
+**stdio** (client spawns the server):
+
+```json
+{
+  "mcpServers": {
+    "stochasticthinking": {
+      "command": "npx",
+      "args": ["@paschbaer/stochasticthinking"]
+    }
+  }
+}
+```
+
+Optional server configuration: `{ "debug": false }` (enable debug logging).
+
+## Agent Guide
+
+The repository ships an **AGENTS template** for this server:
+[`AGENTS.template.md`](./AGENTS.template.md). Copy it into a consuming
+project as `AGENTS.md`, fill in the `{{PROJECT_NAME}}`, `{{DOMAIN_CONTEXT}}`
+and `{{CODEBASE_ROOT}}` placeholders, and the coding agent gets precise
+instructions for working with the `stochasticalgorithm` tool.
+
+The template covers:
+
+- **Ground rules** — name the decision before picking an algorithm, one
+  algorithm per call, stateless calls (stateful transport only), and honest
+  use of the parameter-driven summaries
+- **Algorithm routing table** — which of `mdp`, `mcts`, `bandit`, `bayesian`,
+  `hmm` fits which decision situation, including the typical parameters
+- **Workflow recipes** — decision under uncertainty, comparison of
+  strategies (feeding a previous summary back via the `result` parameter),
+  and the combined workflow with the Clear Thought server
+  (`sequentialthinking` → `decisionframework` → `stochasticalgorithm` →
+  `metacognitivemonitoring`)
+
 ### API Examples
 
 #### Markov Decision Process

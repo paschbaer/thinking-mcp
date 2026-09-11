@@ -363,3 +363,60 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+<!-- stochastic-thinking:agents-guide:start -->
+# Stochastic Thinking — Decision Tool Guide for Thinking-MCP
+
+Domain context: MCP servers providing structured reasoning and problem-solving tools (clear-thought toolset) for coding agents. Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP.
+
+You (the agent) have access to the **Stochastic Thinking** MCP server
+(`stochasticthinking`, HTTP on `localhost:3001`, tool `stochasticalgorithm`).
+It turns stochastic decision algorithms into structured, parameterized
+decision frames. This section tells you **when to use which algorithm** and
+**how to combine it with the Clear Thought tools**.
+
+## Ground rules
+
+1. **Name the decision before you pick the algorithm.** The `problem` field
+   must be a concrete, self-contained statement of the decision.
+2. **One algorithm per call.** Calls are stateless — for multi-part problems,
+   run several calls and compare the summaries.
+3. **Be honest about what the summary is.** The response is a
+   parameter-driven decision frame, not a numerical simulation. Use it to
+   structure and justify the approach; derive actual numbers yourself.
+4. **Feed results back.** Pass a previous `summary` as the optional `result`
+   string to refine a follow-up call's framing.
+
+## Calling convention
+
+| Parameter | Type | Required | Meaning |
+|---|---|---|---|
+| `algorithm` | `mdp` \| `mcts` \| `bandit` \| `bayesian` \| `hmm` | yes | decision algorithm |
+| `problem` | string | yes | concrete decision problem statement |
+| `parameters` | object | yes | algorithm-specific parameters (below) |
+| `result` | string | no | previous result to refine the framing |
+
+Response: `{ algorithm, status, summary, hasResult }`; invalid input returns
+`status: 'failed'` with `isError: true`.
+
+## Algorithm routing table
+
+| Decision situation | `algorithm` | Typical `parameters` |
+|---|---|---|
+| Sequential decisions over states/actions with long-horizon rewards | `mdp` | `states`, `actions[]`, `gamma`, `learningRate` |
+| Large search spaces / game trees with lookahead | `mcts` | `simulations`, `explorationConstant`, `maxDepth` |
+| Explore-vs-exploit among fixed options | `bandit` | `arms`, `strategy`: `epsilon-greedy` \| `UCB` \| `thompson`, `epsilon` |
+| Continuous/black-box optimization with expensive evaluations | `bayesian` | `acquisitionFunction`, `kernel`, `iterations` |
+| Latent states behind a sequence of observations | `hmm` | `states`, `algorithm`: `forward-backward` \| `viterbi`, `observations` |
+
+## Workflow: combined with Clear Thought
+
+```
+clear-thought: sequentialthinking → decisionframework (options)
+→ stochasticalgorithm: quantify the leading options
+→ clear-thought: metacognitivemonitoring before committing
+```
+
+For algorithm details and copyable templates see
+`servers/server-stochasticthinking/AGENTS.template.md`.
+<!-- stochastic-thinking:agents-guide:end -->

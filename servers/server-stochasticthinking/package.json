@@ -12,6 +12,7 @@
     },
     "files": [
         "dist",
+        "AGENTS.template.md",
         "README.md",
         "LICENSE"
     ],
