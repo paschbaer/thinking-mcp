@@ -147,24 +147,47 @@ Optional server configuration: `{ "debug": false }` (enable debug logging).
 
 ## Agent Guide
 
-The repository ships an **AGENTS template** for this server:
-[`AGENTS.template.md`](./AGENTS.template.md). Copy it into a consuming
-project as `AGENTS.md`, fill in the `{{PROJECT_NAME}}`, `{{DOMAIN_CONTEXT}}`
-and `{{CODEBASE_ROOT}}` placeholders, and the coding agent gets precise
-instructions for working with the `stochasticalgorithm` tool.
+Building an agent that consumes this server? Copy
+[`AGENTS.template.md`](./AGENTS.template.md) to your project root as
+`AGENTS.md` — it contains the algorithm routing table (`mdp` / `mcts` /
+`bandit` / `bayesian` / `hmm`), workflow recipes, and usage rules optimized
+for LLM consumption.
 
-The template covers:
+The server also exposes this guide as the `agents_guide` tool: call it to get
+the guide rendered for your project (`project_name`, `domain_context`,
+`codebase_root`), or pass your existing `AGENTS.md` content as
+`existing_agents_md` to merge the guide in — repeat calls update the inserted
+block in place instead of duplicating it. The merge only ever touches
+`stochastic-thinking:agents-guide` markers, so other guide blocks (e.g. from
+the Clear Thought server) are preserved.
 
-- **Ground rules** — name the decision before picking an algorithm, one
-  algorithm per call, stateless calls (stateful transport only), and honest
-  use of the parameter-driven summaries
-- **Algorithm routing table** — which of `mdp`, `mcts`, `bandit`, `bayesian`,
-  `hmm` fits which decision situation, including the typical parameters
-- **Workflow recipes** — decision under uncertainty, comparison of
-  strategies (feeding a previous summary back via the `result` parameter),
-  and the combined workflow with the Clear Thought server
-  (`sequentialthinking` → `decisionframework` → `stochasticalgorithm` →
-  `metacognitivemonitoring`)
+### Using `agents_guide` from chat
+
+You do not need this repository checked out — the tool ships with the server.
+Ask your coding agent in natural language; it calls the tool and writes the
+result back. Two typical prompts:
+
+Merge into an existing AGENTS.md (recommended — idempotent, in-place updates):
+
+> Read my AGENTS.md in this project. Call the `agents_guide` tool with its
+> content as `existing_agents_md`, `project_name: "Thinking-MCP"`,
+> `domain_context: "MCP servers for coding agents."` and
+> `codebase_root: "C:/repos/Thinking-MCP"`. Then write the returned `content`
+> field back to my AGENTS.md.
+
+Create a fresh document (no `existing_agents_md`):
+
+> Call `agents_guide` with `project_name: "Thinking-MCP"` and write the
+> returned `content` field to AGENTS.md at the project root.
+
+Tips:
+
+- In VS Code Copilot Chat you can also reference the tool directly: type `#`
+  and pick `agents_guide` from the stochasticthinking server.
+- The tool only returns text; your agent performs the file write. If the
+  response lists `unresolved_placeholders`, fill them in the written file.
+- Repeat merge calls stay idempotent: the inserted block is delimited by
+  `stochastic-thinking:agents-guide` markers, so updates never duplicate it.
 
 ### API Examples
 
