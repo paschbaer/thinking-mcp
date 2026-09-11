@@ -65,13 +65,13 @@ npx -y @smithery/cli install @waldzellai/stochasticthinking --client claude
 
 #### Manual Installation
 ```bash
-npm install @waldzellai/stochasticthinking
+npm install @paschbaer/stochasticthinking
 ```
 
 Or run with npx:
 
 ```bash
-npx @waldzellai/stochasticthinking
+npx @paschbaer/stochasticthinking
 ```
 
 ### API Examples

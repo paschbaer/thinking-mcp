@@ -1,9 +1,9 @@
 {
-    "name": "@waldzellai/clear-thought",
+    "name": "@paschbaer/clear-thought",
     "version": "0.0.5",
     "description": "MCP server for systematic thinking, mental models, debugging approaches, and memory management",
     "license": "MIT",
-    "author": "Waldzell AI",
+    "author": "Paschbaer",
     "homepage": "https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-clear-thought",
     "bugs": {
         "url": "https://github.com/paschbaer/thinking-mcp/issues"
@@ -29,8 +29,8 @@
         "clean": "rm -rf dist",
         "typecheck": "tsc --noEmit",
         "lint": "echo \"No linting configured\" && exit 0",
-        "docker:build": "docker build -t waldzellai/clear-thought .",
-        "docker:run": "docker run -p 3000:3000 waldzellai/clear-thought",
+        "docker:build": "docker build -t paschbaer/clear-thought .",
+        "docker:run": "docker run -p 3000:3000 paschbaer/clear-thought",
         "dev": "tsx src/dev.ts",
         "dev:http": "tsx src/server.ts",
         "start": "node dist/server.js",

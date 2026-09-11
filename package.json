@@ -1,5 +1,5 @@
 {
-    "name": "@waldzellai/thinking-mcp",
+    "name": "@paschbaer/thinking-mcp",
     "version": "0.0.1",
     "private": true,
     "description": "Thinking-focused MCP servers: Clear Thought and Stochastic Thinking",
@@ -10,12 +10,12 @@
         "build": "npm run build --workspaces",
         "watch": "npm run watch --workspaces",
         "test": "npm test --workspaces",
-        "docker": "npm run docker --workspace @waldzellai/clear-thought",
+        "docker": "npm run docker --workspace @paschbaer/clear-thought",
         "format": "prettier --write \"**/*.{ts,tsx,md}\"",
         "smithery:stochastic": "cd servers/server-stochasticthinking && smithery deploy",
         "smithery:clear-thought": "cd servers/server-clear-thought && smithery deploy"
     },
-    "author": "waldzellai",
+    "author": "paschbaer",
     "license": "MIT",
     "repository": {
         "type": "git",

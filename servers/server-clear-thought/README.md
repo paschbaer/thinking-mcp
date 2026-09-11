@@ -147,13 +147,13 @@ npx -y @smithery/cli install @waldzellai/clear-thought --client claude
 ### Manual Installation
 
 ```bash
-npm install @waldzellai/clear-thought
+npm install @paschbaer/clear-thought
 ```
 
 Or run with npx:
 
 ```bash
-npx @waldzellai/clear-thought
+npx @paschbaer/clear-thought
 ```
 
 ## Agent Guide
@@ -283,13 +283,13 @@ const response = await mcp.callTool('reasoning', {
 Build the Docker image:
 
 ```bash
-docker build -t waldzellai/clear-thought .
+docker build -t paschbaer/clear-thought .
 ```
 
 Run the container:
 
 ```bash
-docker run -it waldzellai/clear-thought
+docker run -it -p 3000:3000 paschbaer/clear-thought
 ```
 
 ## Development

@@ -26,10 +26,10 @@ npm run dev
 # Build Docker image
 npm run docker
 # or directly
-docker build -t waldzellai/clear-thought .
+docker build -t paschbaer/clear-thought .
 
 # Run Docker container
-docker run -it waldzellai/clear-thought
+docker run -it -p 3000:3000 paschbaer/clear-thought
 
 # Deploy to Smithery
 npm run deploy
