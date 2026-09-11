@@ -42,6 +42,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["node", "dist/server.js"]
 
 # Label the image
-LABEL org.opencontainers.image.source="https://github.com/waldzellai/waldzell-mcp/tree/main/servers/server-clear-thought"
+LABEL org.opencontainers.image.source="https://github.com/waldzellai/Thinking-MCP/tree/main/servers/server-clear-thought"
 LABEL org.opencontainers.image.description="MCP server for systematic thinking, mental models, debugging approaches, and memory management"
 LABEL org.opencontainers.image.licenses="MIT"

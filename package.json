@@ -17,6 +17,10 @@
     },
     "author": "waldzellai",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/waldzellai/Thinking-MCP.git"
+    },
     "engines": {
         "node": ">=18"
     },
