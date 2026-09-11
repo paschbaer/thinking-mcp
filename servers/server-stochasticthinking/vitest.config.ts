@@ -5,8 +5,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    // Pass until the real test suite lands in Phase 4 of the HTTP-MCP rebuild.
-    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

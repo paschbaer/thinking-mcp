@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import createStochasticThinkingServer from '../src/index.js';
+import { ServerConfigSchema } from '../src/config.js';
+
+/**
+ * Creates a factory-built server and a connected in-memory client.
+ * Mirrors how the Smithery SDK wires sessions in production.
+ */
+async function createConnectedPair(config: Record<string, unknown> = {}) {
+  const server = createStochasticThinkingServer({
+    sessionId: 'test-' + Math.random().toString(36).slice(2),
+    config: ServerConfigSchema.parse(config)
+  });
+  const client = new Client({ name: 'test-client', version: '0.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  return { server, client };
+}
+
+describe('createStochasticThinkingServer (factory)', () => {
+  it('lists the stochasticalgorithm tool with its required parameters', async () => {
+    const { client } = await createConnectedPair();
+
+    const { tools } = await client.listTools();
+    expect(tools).toHaveLength(1);
+    expect(tools[0].name).toBe('stochasticalgorithm');
+    expect(tools[0].inputSchema.required).toEqual(['algorithm', 'problem', 'parameters']);
+  });
+
+  it('creates independent instances per session (no shared module state)', async () => {
+    const first = await createConnectedPair({ debug: false });
+    const second = await createConnectedPair({ debug: true });
+
+    const [a, b] = await Promise.all([first.client.listTools(), second.client.listTools()]);
+    expect(a.tools).toHaveLength(1);
+    expect(b.tools).toHaveLength(1);
+  });
+});
+
+describe('stochasticalgorithm tool calls', () => {
+  it('returns an mdp summary', async () => {
+    const { client } = await createConnectedPair();
+
+    const res = await client.callTool({
+      name: 'stochasticalgorithm',
+      arguments: { algorithm: 'mdp', problem: 'route planning', parameters: { states: 12, gamma: 0.95 } }
+    });
+    expect(res.isError).toBeUndefined();
+    const payload = JSON.parse(res.content[0].text);
+    expect(payload.status).toBe('success');
+    expect(payload.summary).toContain('Optimized policy over 12 states');
+    expect(payload.summary).toContain('0.95');
+  });
+
+  it.each([
+    {
+      name: 'mcts',
+      arguments: { simulations: 2500, explorationConstant: 1.6 },
+      expected: ['Explored 2500 paths', '1.6']
+    },
+    {
+      name: 'bandit',
+      arguments: { strategy: 'thompson', epsilon: 0.2 },
+      expected: ['thompson strategy', 'ε=0.2']
+    },
+    {
+      name: 'bayesian',
+      arguments: { acquisitionFunction: 'upper confidence bound' },
+      expected: ['upper confidence bound acquisition']
+    },
+    {
+      name: 'hmm',
+      arguments: { algorithm: 'viterbi' },
+      expected: ['viterbi algorithm']
+    }
+  ])('returns a $name summary', async ({ name, arguments: parameters, expected }) => {
+    const { client } = await createConnectedPair();
+
+    const res = await client.callTool({
+      name: 'stochasticalgorithm',
+      arguments: { algorithm: name, problem: 'test problem', parameters }
+    });
+    expect(res.isError).toBeUndefined();
+    const payload = JSON.parse(res.content[0].text);
+    expect(payload.status).toBe('success');
+    for (const fragment of expected) {
+      expect(payload.summary).toContain(fragment);
+    }
+  });
+
+  it('flags invalid input as a tool error instead of throwing', async () => {
+    const { client } = await createConnectedPair();
+
+    const res = await client.callTool({
+      name: 'stochasticalgorithm',
+      arguments: { algorithm: 'mdp' } // problem + parameters missing
+    });
+    expect(res.isError).toBe(true);
+    const payload = JSON.parse(res.content[0].text);
+    expect(payload.status).toBe('failed');
+    expect(payload.error).toContain('Invalid problem');
+  });
+
+  it('rejects unknown tool names with MethodNotFound', async () => {
+    const { client } = await createConnectedPair();
+
+    await expect(
+      client.callTool({ name: 'nonexistent-tool', arguments: {} })
+    ).rejects.toThrow(/Unknown tool/);
+  });
+});
