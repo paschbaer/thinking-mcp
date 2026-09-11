@@ -16,17 +16,24 @@
         "LICENSE"
     ],
     "scripts": {
-        "build": "npx tsc --listFiles --project tsconfig.json && chmod +x dist/*.js",
-        "prepare": "npm run build",
-        "watch": "npx tsc --watch",
+        "build": "tsc -p tsconfig.build.json",
+        "build:smithery": "npx @smithery/cli build",
+        "test": "vitest run",
+        "test:live": "node scripts/funktionstest.mjs",
+        "test:coverage": "vitest --coverage",
+        "typecheck": "tsc --noEmit",
         "clean": "rm -rf dist",
+        "lint": "echo \"No linting configured\" && exit 0",
+        "docker:build": "docker build -t paschbaer/stochasticthinking .",
+        "docker:run": "docker run -p 3001:3000 paschbaer/stochasticthinking",
+        "dev": "tsx src/dev.ts",
+        "dev:http": "tsx src/server.ts",
+        "start": "node dist/server.js",
+        "start:http": "node dist/server.js",
+        "watch": "npx tsc --watch",
+        "prepare": "npm run build",
         "prebuild": "npm run clean",
         "prepublishOnly": "npm run build",
-        "start": "node dist/index.js",
-        "docker": "docker build -t paschbaer/stochasticthinking .",
-        "dev": "npm run watch",
-        "test": "echo \"No tests yet\" && exit 0",
-        "lint": "echo \"No linting configured\" && exit 0",
         "deploy": "smithery deploy"
     },
     "repository": {
@@ -35,14 +42,17 @@
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.30.0",
-        "@types/chalk": "^0.4.31",
-        "chalk": "^5.3.0",
-        "yargs": "^17.7.2"
+        "@smithery/sdk": "^1.4.3",
+        "express": "^4.18.2",
+        "zod": "^3.25.27"
     },
     "devDependencies": {
+        "@types/express": "^4.17.21",
         "@types/node": "^22",
-        "@types/yargs": "^17.0.32",
-        "typescript": "^5.3.3"
+        "@vitest/coverage-v8": "^1.2.0",
+        "tsx": "^4.7.0",
+        "typescript": "^5.3.3",
+        "vitest": "^1.2.0"
     },
     "keywords": [
         "mcp",
@@ -56,6 +66,6 @@
         "cognitive-tools"
     ],
     "engines": {
-        "node": ">=18"
+        "node": ">=20"
     }
 }
