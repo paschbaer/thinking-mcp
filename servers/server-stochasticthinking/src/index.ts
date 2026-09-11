@@ -1,6 +1,4 @@
-#!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -8,6 +6,10 @@ import {
   ErrorCode,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+import { ServerConfigSchema, type ServerConfig } from "./config.js";
+
+// Export the config schema for Smithery
+export { ServerConfigSchema as configSchema } from "./config.js";
 
 // Data Interfaces
 interface StochasticData {
@@ -176,46 +178,65 @@ Each algorithm provides a systematic approach to handling uncertainty in decisio
   }
 };
 
-// Server Instance
-const stochasticServer = new StochasticServer();
-const server = new Server(
-  {
-    name: "stochastic-thinking-server",
-    version: "0.1.0",
-  },
-  {
-    capabilities: {
-      // Tools are registered via the ListToolsRequestHandler below.
-      // Arbitrary keys are no longer accepted by MCP SDK >= 1.x.
-      tools: {},
+// Server Identity
+const SERVER_NAME = "stochastic-thinking-server";
+const SERVER_VERSION = "0.1.0";
+
+/**
+ * Creates a Stochastic Thinking MCP server instance for a specific session
+ * @param sessionId - Unique identifier for this session
+ * @param config - Server configuration
+ * @returns Server instance configured for this session
+ */
+export default function createStochasticThinkingServer({
+  sessionId,
+  config,
+}: {
+  sessionId: string;
+  config: ServerConfig;
+}): Server {
+  if (config.debug) {
+    console.error(`[Stochastic Thinking] Creating server for session ${sessionId}`);
+  }
+
+  const stochasticServer = new StochasticServer();
+
+  const server = new Server(
+    {
+      name: SERVER_NAME,
+      version: SERVER_VERSION,
     },
-  }
-);
+    {
+      capabilities: {
+        // Tools are registered via the ListToolsRequestHandler below.
+        // Arbitrary keys are no longer accepted by MCP SDK >= 1.x.
+        tools: {},
+      },
+    }
+  );
 
-// Request Handlers
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [STOCHASTIC_TOOL],
-}));
+  // Request Handlers
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [STOCHASTIC_TOOL],
+  }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  switch (request.params.name) {
-    case "stochasticalgorithm":
-      return stochasticServer.processAlgorithm(request.params.arguments);
-    default:
-      throw new McpError(
-        ErrorCode.MethodNotFound,
-        `Unknown tool: ${request.params.name}`
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    if (config.debug) {
+      console.error(
+        `[Stochastic Thinking] Tool call: ${request.params.name} (session ${sessionId})`
       );
-  }
-});
+    }
+    switch (request.params.name) {
+      case "stochasticalgorithm":
+        return stochasticServer.processAlgorithm(request.params.arguments);
+      default:
+        throw new McpError(
+          ErrorCode.MethodNotFound,
+          `Unknown tool: ${request.params.name}`
+        );
+    }
+  });
 
-async function runServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Stochastic Thinking MCP Server running on stdio");
+  // Return the underlying Server instance for the Smithery SDK
+  return server;
 }
-
-runServer().catch((error) => {
-  console.error("Fatal error running server:", error);
-  process.exit(1);
-});

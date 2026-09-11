@@ -8,7 +8,7 @@
     "bugs": "https://github.com/paschbaer/thinking-mcp/issues",
     "type": "module",
     "bin": {
-        "mcp-server-stochasticthinking": "dist/index.js"
+        "mcp-server-stochasticthinking": "dist/dev.js"
     },
     "files": [
         "dist",
