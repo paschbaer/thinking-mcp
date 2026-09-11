@@ -563,7 +563,7 @@ __metadata:
     vitest: "npm:^1.2.0"
     zod: "npm:^3.25.27"
   bin:
-    mcp-server-stochasticthinking: dist/index.js
+    mcp-server-stochasticthinking: dist/dev.js
   languageName: unknown
   linkType: soft
 
