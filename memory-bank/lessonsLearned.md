@@ -6,6 +6,13 @@
 
 ## Avoid These Mistakes
 
+- **MCP stdio smoke tests need open stdin (SDK 1.30):** With immediately-closed
+  stdin (`/dev/null` or `printf … | node dist/index.js` without a trailing
+  `sleep`), the server under `@modelcontextprotocol/sdk` 1.30 starts silently
+  (no startup line, no responses, process lingers until killed) — looks like a
+  broken build. → Hold stdin open like a real client:
+  `(sleep 1; printf '%s\n' '<requests>'; sleep 3) | node dist/index.js`.
+  Discovered in the stochastic HTTP-MCP Phase-0 spike (2026-09-11).
 - **Tool output > 2000 chars per line:** `read_file` truncates single long
   lines (e.g. JSON payloads with a `content` string). Terminal captures hard-
   wrap long lines and corrupt them (mid-word breaks). → Extract structured

@@ -468,7 +468,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modelcontextprotocol/sdk@npm:^1.20.0, @modelcontextprotocol/sdk@npm:^1.30.0, @modelcontextprotocol/sdk@npm:^1.5.0":
+"@modelcontextprotocol/sdk@npm:^1.20.0, @modelcontextprotocol/sdk@npm:^1.30.0":
   version: 1.30.0
   resolution: "@modelcontextprotocol/sdk@npm:1.30.0"
   dependencies:
@@ -552,7 +552,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@paschbaer/stochasticthinking@workspace:servers/server-stochasticthinking"
   dependencies:
-    "@modelcontextprotocol/sdk": "npm:^1.5.0"
+    "@modelcontextprotocol/sdk": "npm:^1.30.0"
     "@types/chalk": "npm:^0.4.31"
     "@types/node": "npm:^22"
     "@types/yargs": "npm:^17.0.32"
