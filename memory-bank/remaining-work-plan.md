@@ -9,9 +9,6 @@
 
 ## Tracked Follow-ups
 
-- [RB-1] LOW | `server-stochasticthinking` is a skeleton (`src/index.ts` only),
-  no tests, no parity with clear-thought patterns | trigger: any work on the
-  stochastic server | action required: define scope before implementing.
 - [RB-2] LOW | `AGENTS.md` root file mixes hand-written project rules and the
   generated guide; regeneration via `agents_guide` merge mode must be used to
   avoid losing hand-written sections | trigger: any template change in
@@ -26,7 +23,19 @@
   CLI upgrade | accepted observation with mitigation; optional hardening:
   wrapper in `.gitnexus/run.cjs` that injects `--no-stats`, or upstream
   flag support.
+- [RB-4] MED | Docker build/run of the new stochastic HTTP image not yet
+  executed (docker daemon unavailable in the WSL session; `sudo` required,
+  interactive password). Image recipe is 1:1 from the working clear-thought
+  image incl. `ENV PORT=3000` + newly generated `package-lock.json` for
+  `npm ci`. | trigger: next session with a running docker daemon
+  (`sudo service docker start` or Docker Desktop) | action required:
+  `docker build -t paschbaer/stochasticthinking servers/server-stochasticthinking`
+  then run with `-p 3001:3000` and poll `http://localhost:3001/health`.
 
 ## Resolved / Reclassified
 
-(none yet)
+- [RB-1] RESOLVED 2026-09-11 | stochastic server was a skeleton (`src/index.ts`
+  only, no tests, no HTTP) | fixed by the HTTP-MCP rebuild on
+  `feature/stochastic-http-mcp` (phases 0–5): factory + zod config, stdio dev
+  entry, Streamable HTTP server with /health, vitest suite (15 tests), live
+  funktionstest (6 checks), Docker recipe ported from clear-thought.

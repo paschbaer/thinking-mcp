@@ -7,29 +7,34 @@
 
 ## Current Focus
 
-- Base setup of project governance files: root `AGENTS.md` (generated reasoning
-  guide + project rules) and `memory-bank/` structure (this directory).
-- Knowledge graph index refreshed via `gitnexus analyze --no-stats`
-  (`--no-stats` mandatory — see Architecture Map).
+- Stochastic HTTP-MCP rebuild (`feature/stochastic-http-mcp`, plan:
+  `plans/stochastic-http-mcp.md`): phases 0–5 implemented and committed;
+  outstanding: docker build/run verification (RB-4) + branch review/merge.
 
 ## Recent Changes
 
 - 2026-09-11: Created `AGENTS.md` via `agents_guide` tool (Thinking-MCP
   context), customized project-specific conventions section.
 - 2026-09-11: Created `memory-bank/` with the 8 base files.
+- 2026-09-11: Stochastic HTTP-MCP rebuild (phases 0–5) on
+  `feature/stochastic-http-mcp`: SDK 1.30 spike, clear-thought parity deps/
+  tsconfig/scripts, session factory + config, HTTP server (/health, port 3001,
+  graceful shutdown), vitest 15/15 + live funktionstest 6/6, Dockerfile ported
+  (docker verify pending, RB-4), READMEs + root docker script updated.
 - 2026-09-11: Removed volatile GitNexus stats from AGENTS.md/CLAUDE.md via
   `gitnexus analyze --no-stats`; `--no-stats` is now the mandatory repo command
   (documented in Architecture Map, techContext, lessonsLearned).
 
 ## Next Steps
 
-1. Implement feature plan `memory-bank/plans/stochastic-http-mcp.md`
-   (stochastic server → HTTP-MCP, clear-thought parity, Option B) on branch
-   `feature/stochastic-http-mcp`, starting with the Phase-0 SDK spike.
-2. Wire memory-bank workflow into daily use: read all files before tasks,
+1. Run docker build/run verification for the stochastic image when a docker
+   daemon is available (RB-4 in `remaining-work-plan.md`).
+2. Review `feature/stochastic-http-mcp` and merge (squash per AGENTS.md
+   branch rules), then delete the branch.
+3. Wire memory-bank workflow into daily use: read all files before tasks,
    update `activeContext.md` + `progress.md` + `lessonsLearned.md` at session end.
-3. Review open follow-ups in `remaining-work-plan.md` when starting new scopes.
-4. Candidate work items: see `progress.md` → "What's left".
+4. Review open follow-ups in `remaining-work-plan.md` when starting new scopes.
+5. Candidate work items: see `progress.md` → "What's left".
 
 ## Open Questions
 

@@ -39,14 +39,14 @@ docker run -p 3000:3000 paschbaer/clear-thought
 
 The server is then reachable at `http://localhost:3000`.
 
-**Stochastic Thinking** — stdio MCP server (no HTTP port; intended for MCP clients that spawn the container):
+**Stochastic Thinking** — HTTP MCP server, listens on port `3000` inside the container (health endpoint: `/health`), published on host port `3001`:
 
 ```bash
 docker build -t paschbaer/stochasticthinking servers/server-stochasticthinking
-docker run -i paschbaer/stochasticthinking
+docker run -p 3001:3000 paschbaer/stochasticthinking
 ```
 
-`-i` keeps stdin open so an MCP client can communicate with the server over stdio — no port mapping is needed.
+The server is then reachable at `http://localhost:3001`. For stdio-based MCP clients, run the npm bin directly (`mcp-server-stochasticthinking` → stdio entry `dist/dev.js`).
 
 ## License
 

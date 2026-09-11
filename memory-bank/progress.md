@@ -16,19 +16,28 @@
 - `agents_guide` tool generates project `AGENTS.md` (full + merge modes,
   marker-based in-place updates).
 - Docker + Smithery packaging for clear-thought; yarn/npm workspaces build.
-- GitNexus code index (`thinking-mcp`).
+- GitNexus code index (`thinking-mcp`), analyzed with `--no-stats` convention.
 - Root `AGENTS.md` + `memory-bank/` governance structure.
+- `server-stochasticthinking` (branch `feature/stochastic-http-mcp`): rebuilt
+  to the clear-thought HTTP architecture — session factory + zod config,
+  Streamable HTTP server (port 3001, `/health`, graceful shutdown), stdio dev
+  entry, vitest suite (15 tests), live HTTP funktionstest (6 checks), Docker
+  recipe ported (build pending daemon, RB-4).
 
 ## What's Left
 
-- `server-stochasticthinking`: implementation (currently skeleton only).
-- No CI configuration review for the new `memory-bank/` docs flow (docs only,
-  no build impact expected).
-- Periodic refresh of the GitNexus index after larger refactors.
+- RB-4: Docker build/run verification for the stochastic HTTP image
+  (needs a running docker daemon in WSL).
+- Optional follow-up: migrate stochastic low-level `Server` to high-level
+  `McpServer` (out of scope for the HTTP rebuild, see
+  `plans/stochastic-http-mcp.md`).
+- Optional RB candidate: shared workspace HTTP scaffold for both servers
+  (decisionframework option C, deferred).
+- Periodic refresh of the GitNexus index after larger refactors
+  (`gitnexus analyze --no-stats`).
 
 ## Current State
 
-Project is in **infrastructure/governance setup** phase: server code functional
-and tested, agent-guidance layer (AGENTS.md + memory bank) newly established.
-No known failing tests at time of writing (baseline: last full run before this
-file was created).
+Stochastic HTTP-MCP rebuild (Option B) implemented on
+`feature/stochastic-http-mcp` (phases 0–5), all verification green except the
+Docker daemon check (RB-4). Awaiting review + merge to `main`.

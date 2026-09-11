@@ -10,7 +10,7 @@
         "build": "npm run build --workspaces",
         "watch": "npm run watch --workspaces",
         "test": "npm test --workspaces",
-        "docker": "npm run docker --workspace @paschbaer/clear-thought",
+        "docker:build": "npm run docker:build --workspaces",
         "format": "prettier --write \"**/*.{ts,tsx,md}\"",
         "smithery:stochastic": "cd servers/server-stochasticthinking && smithery deploy",
         "smithery:clear-thought": "cd servers/server-clear-thought && smithery deploy"

@@ -74,6 +74,47 @@ Or run with npx:
 npx @paschbaer/stochasticthinking
 ```
 
+### Running the Server
+
+The server supports both MCP transports:
+
+**stdio** (for MCP clients that spawn the server, e.g. Claude Desktop):
+
+```bash
+npm run build
+node dist/dev.js     # stdio entry (same as the npm bin / npx)
+# development: npm run dev
+```
+
+**HTTP** (Streamable HTTP, for remote/container deployments):
+
+```bash
+npm start            # dist/server.js — listens on port 3001 (override: PORT env)
+# development: npm run dev:http
+```
+
+- `GET /health` — liveness endpoint (`{"status":"ok",...}`)
+- `POST /mcp` — MCP endpoint (Streamable HTTP)
+
+### Development
+
+```bash
+npm install
+npm run build        # tsc -p tsconfig.build.json
+npm test             # vitest suite
+npm run test:live    # live HTTP smoke test (server must be running)
+npm run typecheck
+```
+
+### Docker
+
+The Docker image runs the HTTP server (in-container port `3000`, health-checked):
+
+```bash
+npm run docker:build
+npm run docker:run   # publishes the container on host port 3001
+```
+
 ### API Examples
 
 #### Markov Decision Process
