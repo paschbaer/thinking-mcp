@@ -11,7 +11,8 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 
 ## Development
 
-Requires Node.js >= 18. Yarn 4 is pinned via `packageManager` in `package.json`.
+Requires Node.js >= 20 (both server packages declare `engines.node` `>=20`).
+Yarn 4 is pinned via `packageManager` in `package.json`.
 
 ```bash
 corepack enable   # activates the pinned Yarn version
@@ -26,6 +27,7 @@ Build or test a single server:
 yarn workspace @paschbaer/clear-thought build
 yarn workspace @paschbaer/clear-thought test
 yarn workspace @paschbaer/stochasticthinking build
+yarn workspace @paschbaer/stochasticthinking test
 ```
 
 ## Docker
@@ -46,7 +48,9 @@ docker build -t paschbaer/stochasticthinking servers/server-stochasticthinking
 docker run -p 3001:3000 paschbaer/stochasticthinking
 ```
 
-The server is then reachable at `http://localhost:3001`. For stdio-based MCP clients, run the npm bin directly (`mcp-server-stochasticthinking` → stdio entry `dist/dev.js`).
+The server is then reachable at `http://localhost:3001`.
+
+The server also supports **stdio** for MCP clients that spawn it directly: use the npm bin `mcp-server-stochasticthinking` (stdio entry `dist/dev.js`, optional `debug` config).
 
 ## License
 
