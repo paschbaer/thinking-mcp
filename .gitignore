@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.smithery/
+*.tsbuildinfo
+.env
+.DS_Store
+
+# Yarn 2+ (keep cache out of VCS; CI caches it via actions/cache)
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.yarn/install-state.gz
