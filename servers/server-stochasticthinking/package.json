@@ -4,8 +4,8 @@
     "description": "MCP server for stochastic algorithms and probabilistic decision making",
     "license": "MIT",
     "author": "Waldzell AI",
-    "homepage": "https://github.com/waldzellai/Thinking-MCP/tree/main/servers/server-stochasticthinking",
-    "bugs": "https://github.com/waldzellai/Thinking-MCP/issues",
+    "homepage": "https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-stochasticthinking",
+    "bugs": "https://github.com/paschbaer/thinking-mcp/issues",
     "type": "module",
     "bin": {
         "mcp-server-stochasticthinking": "dist/index.js"
@@ -31,7 +31,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/waldzellai/Thinking-MCP.git"
+        "url": "https://github.com/paschbaer/thinking-mcp.git"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.5.0",
