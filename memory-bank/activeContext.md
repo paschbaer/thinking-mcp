@@ -23,10 +23,13 @@
 
 ## Next Steps
 
-1. Wire memory-bank workflow into daily use: read all files before tasks,
+1. Implement feature plan `memory-bank/plans/stochastic-http-mcp.md`
+   (stochastic server → HTTP-MCP, clear-thought parity, Option B) on branch
+   `feature/stochastic-http-mcp`, starting with the Phase-0 SDK spike.
+2. Wire memory-bank workflow into daily use: read all files before tasks,
    update `activeContext.md` + `progress.md` + `lessonsLearned.md` at session end.
-2. Review open follow-ups in `remaining-work-plan.md` when starting new scopes.
-3. Candidate work items: see `progress.md` → "What's left".
+3. Review open follow-ups in `remaining-work-plan.md` when starting new scopes.
+4. Candidate work items: see `progress.md` → "What's left".
 
 ## Open Questions
 
