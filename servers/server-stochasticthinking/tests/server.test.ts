@@ -24,9 +24,9 @@ describe('createStochasticThinkingServer (factory)', () => {
     const { client } = await createConnectedPair();
 
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(1);
-    expect(tools[0].name).toBe('stochasticalgorithm');
-    expect(tools[0].inputSchema.required).toEqual(['algorithm', 'problem', 'parameters']);
+    expect(tools.map((t) => t.name).sort()).toEqual(['agents_guide', 'stochasticalgorithm']);
+    const stochastic = tools.find((t) => t.name === 'stochasticalgorithm');
+    expect(stochastic?.inputSchema.required).toEqual(['algorithm', 'problem', 'parameters']);
   });
 
   it('creates independent instances per session (no shared module state)', async () => {
@@ -34,8 +34,8 @@ describe('createStochasticThinkingServer (factory)', () => {
     const second = await createConnectedPair({ debug: true });
 
     const [a, b] = await Promise.all([first.client.listTools(), second.client.listTools()]);
-    expect(a.tools).toHaveLength(1);
-    expect(b.tools).toHaveLength(1);
+    expect(a.tools).toHaveLength(2);
+    expect(b.tools).toHaveLength(2);
   });
 });
 

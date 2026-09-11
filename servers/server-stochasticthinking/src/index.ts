@@ -6,10 +6,14 @@ import {
   ErrorCode,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+import { AGENTS_TEMPLATE } from "./tools/agents-guide-template.js";
+import { AGENTS_GUIDE_TOOL, handleAgentsGuideCall } from "./tools/agents-guide.js";
 import { ServerConfigSchema, type ServerConfig } from "./config.js";
 
 // Export the config schema for Smithery
 export { ServerConfigSchema as configSchema } from "./config.js";
+// Export the embedded agent guide template for documentation tooling
+export { AGENTS_TEMPLATE as agentsGuideTemplate } from "./tools/agents-guide-template.js";
 
 // Data Interfaces
 interface StochasticData {
@@ -217,7 +221,7 @@ export default function createStochasticThinkingServer({
 
   // Request Handlers
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [STOCHASTIC_TOOL],
+    tools: [STOCHASTIC_TOOL, AGENTS_GUIDE_TOOL],
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -229,6 +233,8 @@ export default function createStochasticThinkingServer({
     switch (request.params.name) {
       case "stochasticalgorithm":
         return stochasticServer.processAlgorithm(request.params.arguments);
+      case "agents_guide":
+        return handleAgentsGuideCall(request.params.arguments);
       default:
         throw new McpError(
           ErrorCode.MethodNotFound,

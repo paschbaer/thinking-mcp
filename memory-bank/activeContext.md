@@ -15,6 +15,11 @@
 
 ## Recent Changes
 
+- 2026-09-11: agents_guide parity implemented in the stochastic server (low
+  level `Server`): embedded `AGENTS_TEMPLATE` (auto-generated from
+  `AGENTS.template.md`, sync-tested), `agents_guide` tool with full/merge
+  mode touching only `stochastic-thinking` markers, 24/24 tests; root
+  `AGENTS.md` stochastic block regenerated through the real tool handler.
 - 2026-09-11: Created `AGENTS.md` via `agents_guide` tool (Thinking-MCP
   context), customized project-specific conventions section.
 - 2026-09-11: Created `memory-bank/` with the 8 base files.
