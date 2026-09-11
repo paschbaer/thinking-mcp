@@ -13,7 +13,8 @@
 - **Tests:** vitest (`servers/server-clear-thought/tests/`)
 - **Formatting:** prettier
 - **Code intelligence:** GitNexus index (repo name: `thinking-mcp`);
-  rebuild with `gitnexus analyze` / `node .gitnexus/run.cjs analyze`
+  rebuild with `gitnexus analyze --no-stats` (`--no-stats` is mandatory here —
+  keeps AGENTS.md/CLAUDE.md free of volatile counts)
 
 ## Structure
 

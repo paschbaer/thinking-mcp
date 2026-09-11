@@ -3,7 +3,7 @@
 ## Architecture Map
 - Before answering architecture or codebase questions, use the GitNexus graph tools to analyze the codebase (skill: gitnexus-workflow.md).
 - Do not make blind edits or assumptions about execution pathways. Always query the precomputed knowledge graph for context.
-- Type `gitnexus analyze` in Terminal to build or update the knowledge graph.
+- Type `gitnexus analyze --no-stats` in Terminal to build or update the knowledge graph. The `--no-stats` flag is mandatory in this repo: it keeps AGENTS.md/CLAUDE.md free of volatile symbol/relationship counts so code changes don't dirty these files.
 
 ## Agent Working Rules
 - Always break down complex tasks into a plan first. See Reasoning & Planning Rules.
@@ -322,7 +322,7 @@ All tools share one server-side session. For long tasks:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **thinking-mcp** (751 symbols, 2181 relationships, 61 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

@@ -16,6 +16,9 @@
 - 2026-09-11: Created `AGENTS.md` via `agents_guide` tool (Thinking-MCP
   context), customized project-specific conventions section.
 - 2026-09-11: Created `memory-bank/` with the 8 base files.
+- 2026-09-11: Removed volatile GitNexus stats from AGENTS.md/CLAUDE.md via
+  `gitnexus analyze --no-stats`; `--no-stats` is now the mandatory repo command
+  (documented in Architecture Map, techContext, lessonsLearned).
 
 ## Next Steps
 

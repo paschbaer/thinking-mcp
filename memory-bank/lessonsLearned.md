@@ -18,6 +18,11 @@
 
 ## Resolved Decisions & Best Practices
 
+- **GitNexus stats pollute rule files:** plain `gitnexus analyze` rewrites the
+  GitNexus block in AGENTS.md/CLAUDE.md with volatile counts (symbols,
+  relationships, flows) on every run, dirtying committed rule files.
+  → Always run `gitnexus analyze --no-stats` in this repo; never hand-edit
+  content inside the generated block (it is rewritten anyway).
 - Guide content lives in `AGENTS_TEMPLATE` + `AGENTS.template.md`; the root
   `AGENTS.md` is generated. All three must stay in sync —
   `tests/agents-guide.test.ts` enforces the contract.
