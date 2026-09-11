@@ -178,14 +178,14 @@ result back. Two typical prompts:
 Merge into an existing AGENTS.md (recommended — idempotent, in-place updates):
 
 > Read my AGENTS.md in this project. Call the `agents_guide` tool with its
-> content as `existing_agents_md`, `project_name: "Tradix"`,
+> content as `existing_agents_md`, `project_name: "Thinking-MCP"`,
 > `domain_context: "Algorithmic trading."` and
 > `codebase_root: "C:/repos/Tradix"`. Then write the returned `content` field
 > back to my AGENTS.md.
 
 Create a fresh document (no `existing_agents_md`):
 
-> Call `agents_guide` with `project_name: "Tradix"` and write the returned
+> Call `agents_guide` with `project_name: "Thinking-MCP"` and write the returned
 > `content` field to AGENTS.md at the project root.
 
 Tips:
