@@ -9,6 +9,12 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 | [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, and memory management |
 | [Stochastic Thinking](./servers/server-stochasticthinking) | `@paschbaer/stochasticthinking` | Stochastic algorithms and probabilistic decision making |
 
+📖 **Detailed tool documentation** — every tool with parameters, responses,
+and workflow recipes — lives in each server's README:
+
+- [Clear Thought — Tool Reference & Usage](./servers/server-clear-thought/README.md)
+- [Stochastic Thinking — Tool Reference & Usage](./servers/server-stochasticthinking/README.md)
+
 ## Development
 
 Requires Node.js >= 20 (both server packages declare `engines.node` `>=20`).

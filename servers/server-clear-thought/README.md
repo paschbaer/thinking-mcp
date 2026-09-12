@@ -198,6 +198,150 @@ Tips:
 - Repeat merge calls stay idempotent: the inserted block is delimited by
   `clear-thought:agents-guide` markers, so updates never duplicate it.
 
+## Tool Reference
+
+Reference for **every** tool, grouped like the four toolsets. All tools return
+structured JSON plus a `sessionContext`/status block where noted.
+
+### Reasoning tools
+
+#### `sequentialthinking`
+Step-by-step reasoning with revision and branching.
+- **Parameters:** `thought`, `thoughtNumber`, `totalThoughts`, `nextThoughtNeeded`; optional `isRevision` + `revisesThought` (correct a thought), `branchFromThought` + `branchId` (explore alternatives), `needsMoreThoughts` (extend the estimate).
+- **Returns:** current thought, full `thoughtHistory`, `branches`, and `sessionContext` stats.
+
+#### `mentalmodel`
+Applies one of six thinking heuristics to a problem.
+- **Parameters:** `modelName` (`first_principles` | `opportunity_cost` | `error_propagation` | `rubber_duck` | `pareto_principle` | `occams_razor`), `problem`, `steps[]`, `reasoning`, `conclusion`.
+- **Returns:** model-specific `modelInsights`, `applicationResults`, `sessionContext`.
+
+#### `debuggingapproach`
+Structured bug-hunting with 12 named strategies.
+- **Parameters:** `approachName` (`binary_search`, `reverse_engineering`, `divide_conquer`, `backtracking`, `cause_elimination`, `program_slicing`, `log_analysis`, `static_analysis`, `root_cause_analysis`, `delta_debugging`, `fuzzing`, `incremental_testing`), `issue`, `steps[]`, plus `rootCause`/`resolution`/`findings` as they become known.
+- **Returns:** approach-specific analysis, `resolution`, `sessionContext`.
+
+#### `collaborativereasoning`
+Multi-persona deliberation: define personas, trade observations/questions/insights.
+- **Parameters:** `topic`, `personas[]` (name, expertise, perspective, biases, communication style/tone), `contributions[]`, `stage` (`problem-definition` → `ideation` → `critique` → `integration` → `decision` → `reflection`), `activePersonaId`, `sessionId`, `iteration`, `nextContributionNeeded`.
+- **Returns:** the processed contribution, updated persona state, `sessionContext`.
+
+#### `decisionframework`
+Weighted multi-option decision analysis over multiple stages.
+- **Parameters:** `decisionStatement`, `options[]` (name + description + pros/cons), `analysisType` (e.g. `architecture`, `technology`, `process`), `stage` (`options` → `evaluation` → `decision`), `iteration`, `nextStageNeeded`.
+- **Returns:** `recommendations` ranked per criterion, comparison matrix, accumulated `sessionContext`.
+
+#### `metacognitivemonitoring`
+Audits the quality of your own reasoning before you commit to a claim.
+- **Parameters:** `task`, `stage`, `overallConfidence` (0–1), `uncertaintyAreas[]`, `recommendedApproach`, `monitoringId`, `iteration`, `nextAssessmentNeeded`.
+- **Returns:** confidence `judgments`, identified biases/knowledge gaps, `sessionContext`.
+
+#### `socraticmethod`
+Stress-tests a claim through staged questioning.
+- **Parameters:** `claim`, `premises[]`, `conclusion`, `question`, `stage` (`clarification` → `assumptions` → `evidence` → `perspectives` → `implications` → `questions`), `argumentType` (`deductive` | `inductive` | `abductive` | `analogical`), `confidence` (0–1), `sessionId`, `iteration`, `nextArgumentNeeded`.
+- **Returns:** challenge results, refined argument state, `sessionContext`.
+
+#### `creativethinking`
+Divergent idea generation with explicit technique tracking.
+- **Parameters:** `prompt`, `ideas[]`, `techniques[]` (e.g. `first_principles`, `scamper`, `lateral_thinking`), `connections[]`, `insights[]`, `sessionId`, `iteration`, `nextIdeaNeeded`.
+- **Returns:** processed idea set with `metrics`, `sessionContext`.
+
+#### `systemsthinking`
+Models a system's components, feedback loops, and leverage points.
+- **Parameters:** `system`, `components[]`, `relationships[]` (`from`, `to`, `type`: `positive` | `negative` feedback), `feedbackLoops[]`, `emergentProperties[]`, `leveragePoints[]`, `sessionId`, `iteration`, `nextAnalysisNeeded`.
+- **Returns:** dynamics analysis, identified loops, `sessionContext`.
+
+#### `scientificmethod`
+Empirical hypothesis testing workflow.
+- **Parameters:** `stage` (`observation` → `question` → `hypothesis` → `experiment` → `analysis` → `conclusion` → `iteration`), `variables` (independent/dependent/controlled/confounding), `hypothesis`, `experiment`, `analysis`, `conclusion`, `status` (`proposed`/`testing`/`supported`/`refuted`/`refined`), `nextStageNeeded`.
+- **Returns:** stage-specific evaluation, `sessionContext`.
+
+#### `structuredargumentation`
+Builds or attacks an argument with explicit premises.
+- **Parameters:** `claim`, `premises[]`, `conclusion`, `argumentType` (`deductive` | `inductive` | `abductive` | `analogical`), `confidence` (0–1), `nextArgumentNeeded`.
+- **Returns:** argument `validity`/`soundness` checks, counterarguments, `sessionContext`.
+
+#### `visualreasoning`
+Creates and evolves visual diagrams as reasoning artifacts.
+- **Parameters:** `operation` (`create` | `update` | `delete` | `transform` | `observe`), `diagramId`, `diagramType` (e.g. `graph`, `flowchart`, `mindmap`), diagram elements, `iteration`, `nextOperationNeeded`.
+- **Returns:** updated diagram state with insights, `sessionContext`.
+
+### Visualization tools
+
+All five are **dual-mode**: called without content they return a *facilitation scaffold* (guiding questions); called with content they return the structured analysis. Never present the scaffold as a result.
+
+#### `mind_map`
+Hierarchical brainstorm.
+- **Parameters:** `topic` (required), optional `branches[]` (`title`, `subtopics[]`), `sessionId`, `iteration`.
+- **Returns:** normalized mind-map structure plus `suggestions` and stats.
+
+#### `concept_map`
+Concepts connected by labelled relations.
+- **Parameters:** `main_concept` (required), optional `related_concepts[]` and `relations[]` (`from`, `to`, `label`).
+- **Returns:** normalized concept map with cycle/grouping analysis.
+
+#### `fishbone_diagram`
+Ishikawa root-cause analysis across cause categories.
+- **Parameters:** `problem` (required), optional `causes[]` (`category`, `causes[]`) and custom `categories[]`.
+- **Returns:** normalized fishbone with per-category statistics.
+
+#### `swot_analysis`
+Weighted SWOT with TOWS strategy ranking. See the detailed example in [Usage](#usage).
+- **Parameters:** `subject` (required), optional quadrant arrays with plain strings or weighted objects `{ text, impact 1-5, likelihood 1-5, tags[] }`, `topN` (default 5 per TOWS family), `matchMode` (`all` | `tags`).
+- **Returns:** normalized quadrants, ranked `towsRanked` (`so`/`wo`/`st`/`wt`), `scores` (incl. `balance`, `riskExposure`, `weighted`) and `meta` (`truncatedPerQuadrant`, `unpaired`).
+
+#### `issue_tree`
+Hierarchical problem decomposition.
+- **Parameters:** `problem` (required), `depth` (1–5), optional `sub_questions[]`.
+- **Returns:** normalized issue tree with per-branch depth statistics.
+
+### Utility tools
+
+#### `analogical_mapper`
+Imports solution patterns from other domains. Returns per-domain guiding questions; **you** construct the analogy.
+- **Parameters:** `problem`, `seed_domains[]` (e.g. `biology`, `economics`), `k` (domains to use).
+
+#### `assumption_xray`
+Surfaces hidden assumptions in a claim via heuristic extraction (universality, causality, necessity, comparatives).
+- **Parameters:** `claim`, `context`.
+- **Returns:** assumptions with `evidence`, `heuristicConfidence`, and `falsificationTests`.
+
+#### `comparative_advantage`
+Maps tasks to the best-suited agent by skill fit.
+- **Parameters:** `skills` (map agent → { skill: level }), `tasks` (map task → required skills[]); optional `capacity` (max tasks per agent → greedy multi-task assignment) and `costs` (effective score = skill score / cost). Missing skills count as 0.
+
+#### `drag_point_audit`
+Scans a process log for drag points: per-keyword occurrence counts, repeated messages, overall drag density.
+- **Parameters:** `log` (required), optional `categories[]` (default: `error`, `warning`, `timeout`, `retry`, `slow`).
+
+#### `safe_struggle_designer`
+Designs a deliberate-practice plan from a skill gap.
+- **Parameters:** `skill`, `current_level`, `target_level` (must be greater); optional `hours_per_week`, `session_minutes`, `deadline_weeks`.
+- **Returns:** level ladder with success criteria and prerequisite chains per step, review intervals, deadline-overrun warnings.
+
+#### `seven_seekers_orchestrator`
+Orchestrates a multi-lens research sweep.
+- **Parameters:** `query`, optional `downstream_tools[]`.
+- **Returns:** scaffold for seven lenses (empirical, logical, ethical, pragmatic, systemic, creative, critical) with guiding questions; **you** answer them and synthesize.
+
+#### `value_of_information`
+Quantifies whether resolving an uncertainty is worth the research cost (EVPI-style).
+- **Parameters:** `decision_options[]`, `uncertainties[]`, `payoffs[]` (opportunity cost per uncertainty); optional `probabilities[]` (0–1), `option_payoffs` (per-option matrix), `sampled_uncertainties[]` (partial VoI).
+- **Returns:** `voi_score`, ranked uncertainties by expected impact.
+
+#### `existing_tool_example`
+Echoes the provided `text` back — smoke test for the tool wiring.
+
+#### `agents_guide`
+Returns a ready-to-use AGENTS.md reasoning-tool guide for consuming projects. See [Agent Guide](#agent-guide) for modes, markers, and chat prompts.
+
+### Session tools
+
+Reasoning state lives server-side per session. Three tools manage it:
+
+- **`session_info`** — inspect the current session: per-tool-call statistics, history, and state sizes.
+- **`session_export`** — serialize the full session state (persist it in your project, e.g. `memory-bank/`, before a context ends).
+- **`session_import`** — restore a previously exported state and continue where the stats left off.
+
 ## Usage
 
 Each individual tool (e.g., `sequentialthinking`, `mentalmodel`, `debuggingapproach`, ...) is

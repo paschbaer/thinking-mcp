@@ -189,6 +189,64 @@ Tips:
 - Repeat merge calls stay idempotent: the inserted block is delimited by
   `stochastic-thinking:agents-guide` markers, so updates never duplicate it.
 
+## Tool Reference
+
+The server exposes **two tools**. Calls are stateless; HTTP sessions only
+keep the transport connection alive.
+
+### `stochasticalgorithm`
+
+Applies one stochastic decision algorithm to a problem and returns a
+parameter-driven decision frame.
+
+**Parameters:**
+
+| Parameter | Type | Required | Meaning |
+|---|---|---|---|
+| `algorithm` | `mdp` \| `mcts` \| `bandit` \| `bayesian` \| `hmm` | yes | decision algorithm to apply |
+| `problem` | string | yes | concrete decision problem statement |
+| `parameters` | object | yes | algorithm-specific parameters (see below) |
+| `result` | string | no | previous result to refine the framing |
+
+**Response:** `{ algorithm, status, summary, hasResult }` — `status: 'success'`
+on valid input; invalid input returns `status: 'failed'` with an `error`
+message and `isError: true`.
+
+**Algorithm parameters:**
+
+| `algorithm` | Decision situation | `parameters` |
+|---|---|---|
+| `mdp` | Sequential decisions over states/actions with long-horizon rewards | `states`, `actions[]`, `gamma` (discount factor), `learningRate` |
+| `mcts` | Large search spaces / game trees with lookahead | `simulations`, `explorationConstant`, `maxDepth` |
+| `bandit` | Explore-vs-exploit among fixed options (arms) | `arms`, `strategy` (`epsilon-greedy` \| `UCB` \| `thompson`), `epsilon` |
+| `bayesian` | Continuous/black-box optimization with expensive evaluations | `acquisitionFunction`, `kernel`, `iterations` |
+| `hmm` | Latent states hidden behind a sequence of observations | `states`, `algorithm` (`forward-backward` \| `viterbi`), `observations` |
+
+> **Honesty note:** the `summary` is a parameter-driven decision frame
+> (options, exploration/exploitation balance, discounting), not a numerical
+> simulation. Use it to structure and justify an approach; derive actual
+> numbers yourself.
+
+### `agents_guide`
+
+Returns a ready-to-use AGENTS.md decision-tool guide for consuming projects.
+Full details, modes, and chat prompts: see [Agent Guide](#agent-guide).
+
+**Parameters:**
+
+| Parameter | Type | Required | Meaning |
+|---|---|---|---|
+| `project_name` | string (min 1) | no | target project name — fills `{{PROJECT_NAME}}` |
+| `domain_context` | string (min 1) | no | target domain — fills `{{DOMAIN_CONTEXT}}` |
+| `codebase_root` | string (min 1) | no | working root — fills `{{CODEBASE_ROOT}}` |
+| `existing_agents_md` | string (min 1) | no | existing AGENTS.md content → switches to merge mode |
+
+**Response:** `{ mode, block_replaced, warning?, content, unresolved_placeholders, nextSteps, status }` —
+in merge mode the guide block is delimited by
+`stochastic-thinking:agents-guide` markers, so repeat calls update in place
+and foreign guide blocks (e.g. from clear-thought) are preserved. Whitespace-only
+parameter values are rejected (`MCP error -32602`).
+
 ### API Examples
 
 #### Markov Decision Process
