@@ -7,10 +7,10 @@
 
 ## Current Focus
 
-- Hygiene round on `fix/clear-thought-hygiene`: clear-thought dev guard
-  hardened + npm bin fixed (Q1/Q2), README install path corrected (RB-6
-  closed), stochastic version aligned to 0.1.0 (Q3). Outstanding: RB-7 (CI
-  gaps) + push of the unpushed `main` commits.
+- CI round (`ab5fb96`): `test.yml` added (node 20, immutable install, build +
+  test across workspaces), `smithery.yml` bumped to node 20 + actions v4.
+  RB-7 residual: verify both workflows green in the GitHub Actions tab after
+  the next push. `main` ahead 2 — push pending (manual, SSH key).
 
 ## Recent Changes
 

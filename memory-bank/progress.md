@@ -32,9 +32,8 @@
 
 ## What's Left
 
-- RB-7: CI gaps — add a test workflow (install/build/test across workspaces
-  on node 20), align `smithery.yml` node-version (18 → 20), verify the
-  Smithery deploy runs in GitHub Actions.
+- RB-7 (residual): verify `test.yml` and the Smithery deploy run green in
+  GitHub Actions after the next push (no gh CLI locally).
 - Optional follow-up: migrate stochastic low-level `Server` to high-level
   `McpServer` (out of scope for the HTTP rebuild, see
   `plans/stochastic-http-mcp.md`).

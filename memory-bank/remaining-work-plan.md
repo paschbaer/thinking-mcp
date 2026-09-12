@@ -23,13 +23,14 @@
   CLI upgrade | accepted observation with mitigation; optional hardening:
   wrapper in `.gitnexus/run.cjs` that injects `--no-stats`, or upstream
   flag support.
-- [RB-7] MED | CI gaps: no test workflow exists — 78 (clear-thought) + 24
-  (stochastic) tests run locally only — and `smithery.yml` pins
-  `node-version: '18'` while both servers declare `engines.node >=20`. The
-  result of the Smithery deploy jobs triggered by the recent `main` pushes is
-  unverified. | trigger: next CI touch or the next `main` push | action
-  required: add `test.yml` (install/build/test across workspaces on node 20),
-  bump smithery.yml to node 20, and check the deploy runs in the Actions log.
+- [RB-7] LOW (residual) | CI implemented 2026-09-12: `test.yml` (node 20,
+  corepack yarn 4.6.0, immutable install, build + test across workspaces;
+  triggers: push to main, PRs, manual) and `smithery.yml` bumped to node 20 +
+  actions v4. Remaining: verify both workflows run green in GitHub Actions
+  after the next push, and confirm the Smithery deploy job succeeds (no `gh`
+  CLI in the WSL session — check the Actions tab in the browser). | trigger:
+  next `git push` | action required: check the Actions tab for test.yml and
+  the Smithery deploy run.
 
 ## Resolved / Reclassified
 
