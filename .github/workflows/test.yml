@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Enable Corepack
+      run: corepack enable
+
+    - name: Set Yarn Version
+      run: corepack prepare yarn@4.6.0 --activate
+
+    - name: Install dependencies
+      run: yarn install --immutable
+
+    - name: Build all workspaces
+      run: yarn build
+
+    - name: Test all workspaces
+      run: yarn test
