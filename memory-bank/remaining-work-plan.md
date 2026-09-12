@@ -23,6 +23,17 @@
   CLI upgrade | accepted observation with mitigation; optional hardening:
   wrapper in `.gitnexus/run.cjs` that injects `--no-stats`, or upstream
   flag support.
+- [RB-8] MED | First Smithery publish of `paschbaer/stochasticthinking`
+  succeeded (API: PUT /releases, stdio/node, deploymentId
+  `b6e38872-2af0-4c81-8dbd-59db43f40e67`, status SUCCESS, mcpUrl
+  `https://stochasticthinking--paschbaer.run.tools`) but the hosted endpoint
+  returned 404 during a ~75 s verification window | trigger: next Smithery
+  dashboard visit (browser, logged in) | action required: check the server
+  page (scan/verification status, deployment state) and re-test the run.tools
+  URL; if stdio bundles are download-only, document the connect flow instead
+  of hosted hosting. Note: v4 CLI has no `deploy` command (dashboard/API
+  publishing only); workflow smithery.yml deploy job is therefore dead code
+  (see RB-7).
 - [RB-7] LOW (residual) | CI implemented 2026-09-12: `test.yml` (node 20,
   corepack yarn 4.6.0, immutable install, build + test across workspaces;
   triggers: push to main, PRs, manual) and `smithery.yml` bumped to node 20 +

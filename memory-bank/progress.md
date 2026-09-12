@@ -46,8 +46,9 @@
 
 ## Current State
 
-Stochastic HTTP-MCP is merged, pushed, deployed and docker-verified: the live
-server on port 3001 serves `stochasticalgorithm` + `agents_guide` (verified
-2026-09-12), and the Docker image passed build + runtime checks (RB-4).
-Remaining tracked items: RB-7 (CI gaps). Resolved today: RB-5 + RB-6
-(stale install references) and the stochastic version alignment (0.1.0).
+Stochastic HTTP-MCP is merged, pushed, deployed and docker-verified (live on
+port 3001 with both tools). **Published to the Smithery registry**
+(`paschbaer/stochasticthinking`, stdio bundle, deployment SUCCESS,
+deploymentId `b6e38872-…`, 2026-09-12); the hosted run.tools endpoint needs a
+dashboard check (RB-8). CI: test workflow added (RB-7 residual: verify runs
+after push). Resolved today: RB-4, RB-5, RB-6.

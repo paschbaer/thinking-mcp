@@ -14,6 +14,12 @@
 
 ## Recent Changes
 
+- 2026-09-12: First Smithery publish of `paschbaer/stochasticthinking`
+  succeeded via the v4 API (correct StdioDeployPayload: type/runtime/
+  configSchema + bundle upload; deployment SUCCESS, deploymentId
+  `b6e38872-…`). The legacy CLI `deploy` path no longer exists in Smithery
+  CLI v4 — workflow deploy job is dead code. Hosted run.tools endpoint 404
+  in verification window → RB-8 (dashboard check pending).
 - 2026-09-12: Hygiene round (`fix/clear-thought-hygiene`): clear-thought dev
   guard hardened (pathToFileURL; `npm run dev` verified — drvfs cold start
   can take >20 s), npm bin → `dist/dev.js`, README install references
