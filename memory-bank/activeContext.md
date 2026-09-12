@@ -7,10 +7,11 @@
 
 ## Current Focus
 
-- CI round (`ab5fb96`): `test.yml` added (node 20, immutable install, build +
-  test across workspaces), `smithery.yml` bumped to node 20 + actions v4.
-  RB-7 residual: verify both workflows green in the GitHub Actions tab after
-  the next push. `main` ahead 2 — push pending (manual, SSH key).
+- Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
+  **published on the Smithery registry** (`paschbaer/stochasticthinking`,
+  stdio bundle — download/install distribution; run.tools hosting is
+  remote-only, RB-8 resolved with evidence). Outstanding: RB-7 residual
+  (verify CI runs after push) + push of unpushed `main` commits.
 
 ## Recent Changes
 

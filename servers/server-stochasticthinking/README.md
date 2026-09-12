@@ -53,7 +53,9 @@ A Model Context Protocol (MCP) server that provides stochastic algorithms and pr
 
 ### Installation
 
-The package is **not yet published** to npm or Smithery — install from source:
+**Published on the Smithery registry** as `paschbaer/stochasticthinking`
+(stdio bundle — Smithery distributes it as a local install, no hosted HTTP
+endpoint). Otherwise, install from source:
 
 ```bash
 git clone https://github.com/paschbaer/thinking-mcp.git

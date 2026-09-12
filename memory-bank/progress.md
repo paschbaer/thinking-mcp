@@ -48,7 +48,7 @@
 
 Stochastic HTTP-MCP is merged, pushed, deployed and docker-verified (live on
 port 3001 with both tools). **Published to the Smithery registry**
-(`paschbaer/stochasticthinking`, stdio bundle, deployment SUCCESS,
-deploymentId `b6e38872-…`, 2026-09-12); the hosted run.tools endpoint needs a
-dashboard check (RB-8). CI: test workflow added (RB-7 residual: verify runs
-after push). Resolved today: RB-4, RB-5, RB-6.
+(`paschbaer/stochasticthinking`, stdio bundle distribution — verified
+download-only via API, 1 connection exists, 2026-09-12). CI: test workflow
+added (RB-7 residual: verify runs after push). Resolved: RB-4, RB-5, RB-6,
+RB-8.
