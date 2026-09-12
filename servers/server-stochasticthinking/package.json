@@ -21,6 +21,7 @@
         "build:smithery": "npx @smithery/cli build",
         "test": "vitest run",
         "test:live": "node scripts/funktionstest.mjs",
+        "build:mcpb": "node scripts/build-mcpb.mjs",
         "test:coverage": "vitest --coverage",
         "typecheck": "tsc --noEmit",
         "clean": "rm -rf dist",

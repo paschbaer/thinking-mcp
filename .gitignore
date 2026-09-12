@@ -1,5 +1,7 @@
 node_modules/
 dist/
+*.mcpb
+.mcpb-stage/
 .smithery/
 *.tsbuildinfo
 .env

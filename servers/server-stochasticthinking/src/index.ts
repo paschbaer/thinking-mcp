@@ -95,7 +95,11 @@ class StochasticServer {
     return `Inferred hidden states using ${params.algorithm || 'forward-backward'} algorithm`;
   }
 
-  public processAlgorithm(input: unknown): { content: Array<{ type: string; text: string }>; isError?: boolean } {
+  public processAlgorithm(input: unknown): {
+    content: Array<{ type: string; text: string }>;
+    isError?: boolean;
+    structuredContent?: Record<string, unknown>;
+  } {
     try {
       const validatedInput = this.validateStochasticData(input);
       const formattedOutput = this.formatOutput(validatedInput);
@@ -120,16 +124,18 @@ class StochasticServer {
           break;
       }
 
+      const resultPayload = {
+        algorithm: validatedInput.algorithm,
+        status: 'success',
+        summary,
+        hasResult: !!validatedInput.result
+      };
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({
-            algorithm: validatedInput.algorithm,
-            status: 'success',
-            summary,
-            hasResult: !!validatedInput.result
-          }, null, 2)
-        }]
+          text: JSON.stringify(resultPayload, null, 2)
+        }],
+        structuredContent: resultPayload
       };
     } catch (error) {
       return {
@@ -147,7 +153,7 @@ class StochasticServer {
 }
 
 // Tool Definition
-const STOCHASTIC_TOOL: Tool = {
+export const STOCHASTIC_TOOL: Tool = {
   name: "stochasticalgorithm",
   description: `A tool for applying stochastic algorithms to decision-making problems.
 Supports various algorithms including:
@@ -163,6 +169,7 @@ Each algorithm provides a systematic approach to handling uncertainty in decisio
     properties: {
       algorithm: {
         type: "string",
+        description: "Decision algorithm to apply",
         enum: [
           "mdp",
           "mcts",
@@ -171,14 +178,38 @@ Each algorithm provides a systematic approach to handling uncertainty in decisio
           "hmm"
         ]
       },
-      problem: { type: "string" },
+      problem: {
+        type: "string",
+        description: "Concrete decision problem statement"
+      },
       parameters: {
         type: "object",
-        additionalProperties: true
+        additionalProperties: true,
+        description: "Algorithm-specific parameters (see the algorithm routing table in the server README)"
       },
-      result: { type: "string" }
+      result: {
+        type: "string",
+        description: "Previous result to refine the framing"
+      }
     },
     required: ["algorithm", "problem", "parameters"]
+  },
+  annotations: {
+    title: "Apply stochastic algorithm",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false
+  },
+  outputSchema: {
+    type: "object",
+    properties: {
+      algorithm: { type: "string" },
+      status: { type: "string" },
+      summary: { type: "string" },
+      hasResult: { type: "boolean" }
+    },
+    required: ["algorithm", "status", "summary", "hasResult"]
   }
 };
 

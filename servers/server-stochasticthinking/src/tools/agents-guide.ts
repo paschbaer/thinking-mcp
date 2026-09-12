@@ -54,6 +54,26 @@ export const AGENTS_GUIDE_TOOL: Tool = {
       }
     },
     additionalProperties: false
+  },
+  annotations: {
+    title: "Generate AGENTS.md guide",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false
+  },
+  outputSchema: {
+    type: "object",
+    properties: {
+      mode: { type: "string" },
+      block_replaced: { type: "boolean" },
+      warning: { type: "string" },
+      content: { type: "string" },
+      unresolved_placeholders: { type: "array", items: { type: "string" } },
+      nextSteps: { type: "array", items: { type: "string" } },
+      status: { type: "string" }
+    },
+    required: ["mode", "content", "status"]
   }
 };
 
@@ -86,6 +106,7 @@ export function parseAgentsGuideArgs(raw: unknown): AgentsGuideArgs {
 export function handleAgentsGuideCall(rawArgs: unknown): {
   content: Array<{ type: string; text: string }>;
   isError?: boolean;
+  structuredContent?: Record<string, unknown>;
 } {
   try {
     const args = parseAgentsGuideArgs(rawArgs);
@@ -122,33 +143,32 @@ export function handleAgentsGuideCall(rawArgs: unknown): {
       .filter((p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback))
       .map((p) => p.token);
 
+    const resultPayload = {
+      mode,
+      block_replaced: blockReplaced,
+      ...(warning ? { warning } : {}),
+      content,
+      unresolved_placeholders: unresolved,
+      nextSteps: [
+        mode === 'merge'
+          ? 'Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication.'
+          : 'Write `content` to the AGENTS.md at the target project root.',
+        'Fill any unresolved placeholders directly in the written file.',
+        mode === 'full'
+          ? 'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
+          : 'Repeat calls with updated content stay idempotent via the stochastic-thinking markers.'
+      ],
+      status: 'success'
+    } as const;
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(
-            {
-              mode,
-              block_replaced: blockReplaced,
-              ...(warning ? { warning } : {}),
-              content,
-              unresolved_placeholders: unresolved,
-              nextSteps: [
-                mode === 'merge'
-                  ? 'Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication.'
-                  : 'Write `content` to the AGENTS.md at the target project root.',
-                'Fill any unresolved placeholders directly in the written file.',
-                mode === 'full'
-                  ? 'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
-                  : 'Repeat calls with updated content stay idempotent via the stochastic-thinking markers.'
-              ],
-              status: 'success'
-            },
-            null,
-            2
-          )
+          text: JSON.stringify(resultPayload, null, 2)
         }
-      ]
+      ],
+      structuredContent: resultPayload
     };
   } catch (error) {
     if (error instanceof McpError) throw error;
