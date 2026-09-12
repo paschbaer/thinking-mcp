@@ -7,14 +7,16 @@
 
 ## Current Focus
 
-- Stochastic HTTP-MCP rebuild (`feature/stochastic-http-mcp`, plan:
-  `plans/stochastic-http-mcp.md`): phases 0–5 implemented and committed;
-  feature review done, all review findings fixed (HIGH .dockerignore, dev
-  guard, smithery startCommand, testable app export); outstanding:
-  docker build/run verification (RB-4) + merge to `main`.
+- Stochastic HTTP-MCP: merged, pushed, deployed and **docker-verified**
+  (RB-4 closed 2026-09-12). Outstanding: RB-5 (stale Smithery scope refs in
+  the stochastic README).
 
 ## Recent Changes
 
+- 2026-09-12: RB-4 closed: stochastic Docker image built via Docker Desktop
+  (WSL integration enabled for the Debian distro); container healthy on
+  3002→3000, `/health` + both MCP tools green over the mapped port; container
+  cleaned up.
 - 2026-09-11: agents_guide parity implemented in the stochastic server (low
   level `Server`): embedded `AGENTS_TEMPLATE` (auto-generated from
   `AGENTS.template.md`, sync-tested), `agents_guide` tool with full/merge

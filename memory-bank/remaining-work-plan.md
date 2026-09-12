@@ -23,14 +23,6 @@
   CLI upgrade | accepted observation with mitigation; optional hardening:
   wrapper in `.gitnexus/run.cjs` that injects `--no-stats`, or upstream
   flag support.
-- [RB-4] MED | Docker build/run of the new stochastic HTTP image not yet
-  executed (docker daemon unavailable in the WSL session; `sudo` required,
-  interactive password). Image recipe is 1:1 from the working clear-thought
-  image incl. `ENV PORT=3000` + newly generated `package-lock.json` for
-  `npm ci`. | trigger: next session with a running docker daemon
-  (`sudo service docker start` or Docker Desktop) | action required:
-  `docker build -t paschbaer/stochasticthinking servers/server-stochasticthinking`
-  then run with `-p 3001:3000` and poll `http://localhost:3001/health`.
 - [RB-5] LOW | `servers/server-stochasticthinking/README.md` still references
   the upstream Smithery scope `@waldzellai/stochasticthinking` (badge +
   smithery install command) and `smithery.yaml` had its `startCommand` fixed
@@ -41,6 +33,13 @@
 
 ## Resolved / Reclassified
 
+- [RB-4] RESOLVED 2026-09-12 | Docker build/run of the stochastic HTTP image
+  was unverified | verified via Docker Desktop after enabling WSL integration
+  for the Debian distro: image build ok, container on `-p 3002:3000` healthy
+  (docker HEALTHCHECK, 0 failing streaks), `/health`, initialize, session
+  header, `tools/list` (both tools), `agents_guide` full mode and
+  `stochasticalgorithm` round-trip green over the mapped port. Container
+  cleaned up afterwards.
 - [RB-1] RESOLVED 2026-09-11 | stochastic server was a skeleton (`src/index.ts`
   only, no tests, no HTTP) | fixed by the HTTP-MCP rebuild on
   `feature/stochastic-http-mcp` (phases 0–5): factory + zod config, stdio dev

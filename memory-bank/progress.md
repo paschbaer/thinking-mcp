@@ -18,26 +18,28 @@
 - Docker + Smithery packaging for clear-thought; yarn/npm workspaces build.
 - GitNexus code index (`thinking-mcp`), analyzed with `--no-stats` convention.
 - Root `AGENTS.md` + `memory-bank/` governance structure.
-- `server-stochasticthinking` (branch `feature/stochastic-http-mcp`): rebuilt
-  to the clear-thought HTTP architecture — session factory + zod config,
-  Streamable HTTP server (port 3001, `/health`, graceful shutdown), stdio dev
-  entry, vitest suite (15 tests), live HTTP funktionstest (6 checks), Docker
-  recipe ported (build pending daemon, RB-4).
+- `server-stochasticthinking`: rebuilt to the clear-thought HTTP architecture
+  (merged to `main`) — session factory + zod config, Streamable HTTP server
+  (port 3001, `/health`, graceful shutdown), stdio dev entry, `agents_guide`
+  tool (full/merge), vitest suite (24 tests incl. agents_guide), live
+  funktionstest (6 checks), Docker image built and runtime-verified (RB-4
+  closed: healthy container, full MCP round-trip on mapped port 3002).
 
 ## What's Left
 
-- RB-4: Docker build/run verification for the stochastic HTTP image
-  (needs a running docker daemon in WSL).
 - Optional follow-up: migrate stochastic low-level `Server` to high-level
   `McpServer` (out of scope for the HTTP rebuild, see
   `plans/stochastic-http-mcp.md`).
 - Optional RB candidate: shared workspace HTTP scaffold for both servers
   (decisionframework option C, deferred).
+- RB-5: stale `@waldzellai` Smithery scope references in the stochastic README
+  (verify publish scope first).
 - Periodic refresh of the GitNexus index after larger refactors
   (`gitnexus analyze --no-stats`).
 
 ## Current State
 
-Stochastic HTTP-MCP rebuild (Option B) implemented on
-`feature/stochastic-http-mcp` (phases 0–5), all verification green except the
-Docker daemon check (RB-4). Awaiting review + merge to `main`.
+Stochastic HTTP-MCP is merged, pushed, deployed and docker-verified: the live
+server on port 3001 serves `stochasticalgorithm` + `agents_guide` (verified
+2026-09-12), and the Docker image passed build + runtime checks (RB-4).
+Remaining tracked items: RB-5 only.
