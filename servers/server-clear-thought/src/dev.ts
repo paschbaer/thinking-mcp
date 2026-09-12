@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from 'node:url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import createClearThoughtServer from './index.js';
 
@@ -36,8 +37,9 @@ async function runDev() {
   });
 }
 
-// Only run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Only run if this file is executed directly (works for relative and
+// absolute argv paths, incl. tsx).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   runDev().catch(error => {
     console.error('[Clear Thought] Fatal error:', error);
     process.exit(1);

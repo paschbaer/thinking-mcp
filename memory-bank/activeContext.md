@@ -7,12 +7,17 @@
 
 ## Current Focus
 
-- Stochastic HTTP-MCP: merged, pushed, deployed, docker-verified (RB-4) and
-  npm/Smithery references cleaned up (RB-5). Outstanding: RB-6 (same stale
-  refs in the clear-thought README).
+- Hygiene round on `fix/clear-thought-hygiene`: clear-thought dev guard
+  hardened + npm bin fixed (Q1/Q2), README install path corrected (RB-6
+  closed), stochastic version aligned to 0.1.0 (Q3). Outstanding: RB-7 (CI
+  gaps) + push of the unpushed `main` commits.
 
 ## Recent Changes
 
+- 2026-09-12: Hygiene round (`fix/clear-thought-hygiene`): clear-thought dev
+  guard hardened (pathToFileURL; `npm run dev` verified — drvfs cold start
+  can take >20 s), npm bin → `dist/dev.js`, README install references
+  corrected (RB-6 closed), stochastic package version aligned to 0.1.0.
 - 2026-09-12: RB-4 closed: stochastic Docker image built via Docker Desktop
   (WSL integration enabled for the Debian distro); container healthy on
   3002→3000, `/health` + both MCP tools green over the mapped port; container

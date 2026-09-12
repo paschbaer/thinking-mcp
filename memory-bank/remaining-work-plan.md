@@ -23,15 +23,23 @@
   CLI upgrade | accepted observation with mitigation; optional hardening:
   wrapper in `.gitnexus/run.cjs` that injects `--no-stats`, or upstream
   flag support.
-- [RB-6] LOW | Same stale-reference class as RB-5 in the clear-thought README:
-  smithery badge `@waldzellai/clear-thought` plus install instructions for
-  `@paschbaer/clear-thought` — npm returns 404 for that scope (checked
-  2026-09-12) and Smithery shows no server page content | trigger: any
-  npm/Smithery publishing work for clear-thought | action required: same
-  treatment as RB-5 (from-source install instructions until published).
+- [RB-7] MED | CI gaps: no test workflow exists — 78 (clear-thought) + 24
+  (stochastic) tests run locally only — and `smithery.yml` pins
+  `node-version: '18'` while both servers declare `engines.node >=20`. The
+  result of the Smithery deploy jobs triggered by the recent `main` pushes is
+  unverified. | trigger: next CI touch or the next `main` push | action
+  required: add `test.yml` (install/build/test across workspaces on node 20),
+  bump smithery.yml to node 20, and check the deploy runs in the Actions log.
 
 ## Resolved / Reclassified
 
+- [RB-6] RESOLVED 2026-09-12 | stale npm/Smithery references in the
+  clear-thought README (badge `@waldzellai/clear-thought`, npm/npx install for
+  a 404 scope) | fact check like RB-5; README now documents from-source
+  install + planned publishing. Related hardening in the same round:
+  `src/dev.ts` guard switched to `pathToFileURL` (robust against relative
+  argv paths incl. tsx; `npm run dev` verified to start — drvfs cold start
+  can take >20 s) and npm bin corrected to the stdio entry (`dist/dev.js`).
 - [RB-5] RESOLVED 2026-09-12 | stochastic README referenced stale npm/Smithery
   scopes | fact check: npm `@paschbaer/stochasticthinking` = 404,
   `@waldzellai/stochasticthinking` = 0.0.1 (stale upstream), Smithery has no

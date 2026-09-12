@@ -544,7 +544,7 @@ __metadata:
     zod: "npm:^3.25.27"
     zod-to-json-schema: "npm:^3.22.4"
   bin:
-    mcp-server-clear-thought: dist/index.js
+    mcp-server-clear-thought: dist/dev.js
   languageName: unknown
   linkType: soft
 

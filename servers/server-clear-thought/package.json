@@ -10,7 +10,7 @@
     },
     "type": "module",
     "bin": {
-        "mcp-server-clear-thought": "dist/index.js"
+        "mcp-server-clear-thought": "dist/dev.js"
     },
     "files": [
         "dist",

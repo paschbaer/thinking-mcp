@@ -9,6 +9,11 @@
 
 - `server-clear-thought`: ~28 reasoning tools registered individually and via
   4 toolsets (`reasoning`, `visualization`, `utility`, `session`).
+- `server-clear-thought` hygiene (2026-09-12, branch
+  `fix/clear-thought-hygiene`): dev.ts guard hardened (pathToFileURL;
+  `npm run dev` verified — drvfs cold start can take >20 s), npm bin → stdio
+  entry (`dist/dev.js`), README install path corrected (RB-6 closed); 78
+  tests green.
 - Session state with per-domain stores; `session_info` / `session_export` /
   `session_import` for persistence.
 - vitest test suites in `servers/server-clear-thought/tests/` (incl.
@@ -27,6 +32,9 @@
 
 ## What's Left
 
+- RB-7: CI gaps — add a test workflow (install/build/test across workspaces
+  on node 20), align `smithery.yml` node-version (18 → 20), verify the
+  Smithery deploy runs in GitHub Actions.
 - Optional follow-up: migrate stochastic low-level `Server` to high-level
   `McpServer` (out of scope for the HTTP rebuild, see
   `plans/stochastic-http-mcp.md`).
@@ -42,4 +50,5 @@
 Stochastic HTTP-MCP is merged, pushed, deployed and docker-verified: the live
 server on port 3001 serves `stochasticalgorithm` + `agents_guide` (verified
 2026-09-12), and the Docker image passed build + runtime checks (RB-4).
-Remaining tracked items: RB-5 only.
+Remaining tracked items: RB-7 (CI gaps). Resolved today: RB-5 + RB-6
+(stale install references) and the stochastic version alignment (0.1.0).

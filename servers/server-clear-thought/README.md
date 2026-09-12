@@ -1,7 +1,5 @@
 # Clear Thought MCP Server
 
-[![smithery badge](https://smithery.ai/badge/@waldzellai/clear-thought)](https://smithery.ai/server/@waldzellai/clear-thought)
-
 A Model Context Protocol (MCP) server that provides systematic thinking, mental models, and debugging approaches for enhanced problem-solving capabilities.
 
 ## Features
@@ -136,25 +134,23 @@ Note: These are suggestions rather than rules. Tools can be used in any order or
 
 ## Installation
 
-### Installing via Smithery
-
-To install Clear Thought MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@waldzellai/clear-thought):
+The package is **not yet published** to npm or Smithery — install from source:
 
 ```bash
-npx -y @smithery/cli install @waldzellai/clear-thought --client claude
+git clone https://github.com/paschbaer/thinking-mcp.git
+cd thinking-mcp
+corepack enable && yarn install
+yarn workspace @paschbaer/clear-thought build
 ```
 
-### Manual Installation
+The stdio entry is then available at
+`servers/server-clear-thought/dist/dev.js`.
 
-```bash
-npm install @paschbaer/clear-thought
-```
-
-Or run with npx:
-
-```bash
-npx @paschbaer/clear-thought
-```
+> **Planned:** npm publishing under the `@paschbaer` scope (then
+> `npx @paschbaer/clear-thought` works as advertised below) and Smithery
+> deployment via `npm run deploy` in this directory (config: `smithery.yaml`).
+> Status 2026-09-12: `@paschbaer/clear-thought` is a 404 on npm; no Smithery
+> server exists under `@paschbaer` or the upstream `@waldzellai` scope.
 
 ## Agent Guide
 
