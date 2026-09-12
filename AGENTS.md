@@ -367,7 +367,7 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 <!-- stochastic-thinking:agents-guide:start -->
 ## Stochastic Thinking — Decision Tool Guide
 
-Project: Thinking-MCP Domain: MCP servers providing structured reasoning and problem-solving tools (clear-thought toolset) for coding agents Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP
+Project: Thinking-MCP Domain: MCP servers for coding agents.
 
 ## Ground rules
 
