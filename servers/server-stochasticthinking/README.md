@@ -1,7 +1,5 @@
 # Stochastic Thinking MCP Server
 
-[![smithery badge](https://smithery.ai/badge/@waldzellai/stochasticthinking)](https://smithery.ai/server/@waldzellai/stochasticthinking)
-
 ## Why Stochastic Thinking Matters
 
 When AI assistants make decisions - whether writing code, solving problems, or suggesting improvements - they often fall into patterns of "local thinking", similar to how we might get stuck trying the same approach repeatedly despite poor results. This is like being trapped in a valley when there's a better solution on the next mountain over, but you can't see it from where you are.
@@ -55,24 +53,24 @@ A Model Context Protocol (MCP) server that provides stochastic algorithms and pr
 
 ### Installation
 
-#### Installing via Smithery
-
-To install Stochastic Thinking MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@waldzellai/stochasticthinking):
+The package is **not yet published** to npm or Smithery — install from source:
 
 ```bash
-npx -y @smithery/cli install @waldzellai/stochasticthinking --client claude
+git clone https://github.com/paschbaer/thinking-mcp.git
+cd thinking-mcp
+corepack enable && yarn install
+yarn workspace @paschbaer/stochasticthinking build
 ```
 
-#### Manual Installation
-```bash
-npm install @paschbaer/stochasticthinking
-```
+The stdio entry is then available at
+`servers/server-stochasticthinking/dist/dev.js`.
 
-Or run with npx:
-
-```bash
-npx @paschbaer/stochasticthinking
-```
+> **Planned:** npm publishing under the `@paschbaer` scope (then
+> `npx @paschbaer/stochasticthinking` works as advertised below) and Smithery
+> deployment via `npm run deploy` in this directory (config: `smithery.yaml`).
+> Status 2026-09-12: `@paschbaer/stochasticthinking` is a 404 on npm; no
+> Smithery server exists under `@paschbaer` or the upstream `@waldzellai`
+> scope.
 
 ### Running the Server
 
@@ -82,7 +80,7 @@ The server supports both MCP transports:
 
 ```bash
 npm run build
-node dist/dev.js     # stdio entry (same as the npm bin / npx)
+node dist/dev.js     # stdio entry (same as the npm bin target)
 # development: npm run dev
 ```
 
@@ -136,12 +134,14 @@ npm run docker:run   # publishes the container on host port 3001
 {
   "mcpServers": {
     "stochasticthinking": {
-      "command": "npx",
-      "args": ["@paschbaer/stochasticthinking"]
+      "command": "node",
+      "args": ["/absolute/path/to/thinking-mcp/servers/server-stochasticthinking/dist/dev.js"]
     }
   }
 }
 ```
+
+(Adjust the path to your checkout — the package is not on npm yet.)
 
 Optional server configuration: `{ "debug": false }` (enable debug logging).
 

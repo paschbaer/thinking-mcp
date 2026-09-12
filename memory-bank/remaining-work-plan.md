@@ -23,16 +23,23 @@
   CLI upgrade | accepted observation with mitigation; optional hardening:
   wrapper in `.gitnexus/run.cjs` that injects `--no-stats`, or upstream
   flag support.
-- [RB-5] LOW | `servers/server-stochasticthinking/README.md` still references
-  the upstream Smithery scope `@waldzellai/stochasticthinking` (badge +
-  smithery install command) and `smithery.yaml` had its `startCommand` fixed
-  to `dist/dev.js` — whether the package is published under `@paschbaer` on
-  Smithery is unknown. | trigger: any Smithery publish/deploy work for the
-  stochastic server | action required: verify Smithery scope, then update
-  badge + install command or remove them.
+- [RB-6] LOW | Same stale-reference class as RB-5 in the clear-thought README:
+  smithery badge `@waldzellai/clear-thought` plus install instructions for
+  `@paschbaer/clear-thought` — npm returns 404 for that scope (checked
+  2026-09-12) and Smithery shows no server page content | trigger: any
+  npm/Smithery publishing work for clear-thought | action required: same
+  treatment as RB-5 (from-source install instructions until published).
 
 ## Resolved / Reclassified
 
+- [RB-5] RESOLVED 2026-09-12 | stochastic README referenced stale npm/Smithery
+  scopes | fact check: npm `@paschbaer/stochasticthinking` = 404,
+  `@waldzellai/stochasticthinking` = 0.0.1 (stale upstream), Smithery has no
+  server page under either scope | README reworked: dead badge, Smithery
+  install command and npm/npx instructions removed; from-source install added
+  as the only documented path; publishing declared as planned (npm `@paschbaer`
+  scope + `npm run deploy`); stdio MCP client example switched to a local
+  `node dist/dev.js` path.
 - [RB-4] RESOLVED 2026-09-12 | Docker build/run of the stochastic HTTP image
   was unverified | verified via Docker Desktop after enabling WSL integration
   for the Debian distro: image build ok, container on `-p 3002:3000` healthy

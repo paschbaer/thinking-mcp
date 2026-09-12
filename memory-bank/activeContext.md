@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-- Stochastic HTTP-MCP: merged, pushed, deployed and **docker-verified**
-  (RB-4 closed 2026-09-12). Outstanding: RB-5 (stale Smithery scope refs in
-  the stochastic README).
+- Stochastic HTTP-MCP: merged, pushed, deployed, docker-verified (RB-4) and
+  npm/Smithery references cleaned up (RB-5). Outstanding: RB-6 (same stale
+  refs in the clear-thought README).
 
 ## Recent Changes
 
