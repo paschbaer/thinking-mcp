@@ -6,6 +6,11 @@
 
 ## Avoid These Mistakes
 
+- **Escaped JSON inside MCP SSE responses:** `tools/call` results arrive as
+  `data: {...}` lines where `result.content[0].text` is itself a JSON
+  *string* — the inner quotes are escaped (`\"mode\": ...`), so grep patterns
+  like `'"mode": "full"'` silently match nothing. → Parse with a real JSON
+  pipeline (node `fetch` + `JSON.parse`), never grep raw SSE for inner fields.
 - **WSL2 /mnt/c cold-start I/O hang:** Node processes started from this repo
   on `/mnt/c` occasionally hang uninterruptibly during module load (`ps` STAT
   `Dl`): silent, no output, HTTP listener never binds. Environment issue (9P
