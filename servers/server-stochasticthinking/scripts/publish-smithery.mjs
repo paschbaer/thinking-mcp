@@ -94,3 +94,22 @@ console.log('HTTP', res.status);
 const body = await res.text();
 console.log(body.slice(0, 400));
 if (res.status !== 202 && res.status !== 200) process.exit(1);
+
+// Keep the server record metadata in sync (the score sources displayName,
+// homepage, and iconUrl from the record, not from the release).
+const recordRes = await fetch(
+  `https://api.smithery.ai/servers/${encodeURIComponent(qualifiedName)}`,
+  {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      displayName: 'Stochastic Thinking',
+      description: payload.serverCard.serverInfo.description,
+      homepage: 'https://github.com/paschbaer/thinking-mcp',
+      repositoryUrl: 'https://github.com/paschbaer/thinking-mcp',
+      iconUrl: 'https://github.com/paschbaer.png',
+      license: 'MIT'
+    })
+  }
+);
+console.log('record patch:', recordRes.status, (await recordRes.text()).slice(0, 120));
