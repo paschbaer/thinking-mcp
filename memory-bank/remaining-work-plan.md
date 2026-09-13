@@ -57,12 +57,14 @@
   hosted path applies to remote/URL servers only. 1 connection already
   exists. Note: v4 CLI has no `deploy` command (dashboard/API publishing
   only); workflow smithery.yml deploy job is therefore dead code (see RB-7).
-- [RB-7] LOW (residual) | CI implemented 2026-09-12: `test.yml` (node 20,
-  corepack yarn 4.6.0, immutable install, build + test across workspaces;
-  triggers: push to main, PRs, manual) and `smithery.yml` bumped to node 20 +
-  actions v4. Remaining: verify both workflows run green in GitHub Actions
-  after the next push, and confirm the Smithery deploy job succeeds (no `gh`
-  CLI in the WSL session — check the Actions tab in the browser). | trigger:
+- [RB-7] LOW (residual) | CI: `test.yml` added 2026-09-12 (node 20, immutable
+  install, build + test across workspaces). The `smithery.yml` deploy workflow
+  was REMOVED 2026-09-13 (revert `ci/retire-smithery-deploy` to restore): the
+  v4 CLI has no `deploy` command, `auth login` is a browser-interactive flow
+  (CI log: auth_url + Session expired) and the SMITHERY_TOKEN secret is unset
+  — the job could never succeed. Publishing happens via
+  scripts/publish-smithery.mjs against the documented API. Remaining: verify
+  `test.yml` runs green in the Actions tab after the next push. | trigger:
   next `git push` | action required: check the Actions tab for test.yml and
   the Smithery deploy run.
 
