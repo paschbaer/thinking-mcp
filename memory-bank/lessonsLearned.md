@@ -47,6 +47,12 @@
   `tests/agents-guide.test.ts` enforces the contract.
 - New reasoning tools: register in `src/tools/index.ts` AND route into the
   matching toolset in `src/toolsets/` — otherwise toolset calls break silently.
+- **Tool-metadata strategy (decision 2026-09-13):** for productive (typed)
+  outputSchemas + human-readable titles (RB-10), use a central metadata
+  registry (`src/tools/tool-metadata.ts`) applied by the existing central
+  `tool.update()` loop in `src/index.ts` — decisionframework
+  `rb10-schema-strategy-2026-09-13` — instead of editing ~25 register files
+  or keeping passthrough-only schemas. Plan: `plans/quality-distribution.md`.
 
 ## Entries
 

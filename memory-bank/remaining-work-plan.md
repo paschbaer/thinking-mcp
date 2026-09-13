@@ -22,7 +22,9 @@
   change across ~25 register calls); 8 tools have params without
   descriptions. | trigger: next Smithery dashboard visit | action required:
   read the rescan score; decide whether to add annotations/outputSchemas to
-  all tools.
+  all tools. Detailed elaboration: `plans/quality-distribution.md` (Phase 1;
+  chosen strategy: central metadata registry — decisionframework
+  `rb10-schema-strategy-2026-09-13`, Option B).
 - [RB-9] RESOLVED 2026-09-13 | Smithery quality score reached 100/100 (was
   28/100): Capability 40/40, Server Metadata 35/35, Configuration UX 25/25.
   Fix chain: full tool metadata in code + serverCard publishing + server
