@@ -1,13 +1,8 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  McpError,
-  ErrorCode,
-  Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { z } from "zod";
 import { AGENTS_TEMPLATE } from "./tools/agents-guide-template.js";
-import { AGENTS_GUIDE_TOOL, handleAgentsGuideCall } from "./tools/agents-guide.js";
+import { registerAgentsGuide } from "./tools/agents-guide.js";
 import { ServerConfigSchema, type ServerConfig } from "./config.js";
 
 // Export the config schema for Smithery
@@ -15,42 +10,9 @@ export { ServerConfigSchema as configSchema } from "./config.js";
 // Export the embedded agent guide template for documentation tooling
 export { AGENTS_TEMPLATE as agentsGuideTemplate } from "./tools/agents-guide-template.js";
 
-// Data Interfaces
-interface StochasticData {
-  algorithm: string;
-  problem: string;
-  parameters: Record<string, unknown>;
-  result?: string;
-}
-
-interface AlgorithmParameters {
-  [key: string]: unknown;
-}
-
 // Stochastic Algorithm Implementations
 class StochasticServer {
-  private validateStochasticData(input: unknown): StochasticData {
-    const data = input as Record<string, unknown>;
-
-    if (!data.algorithm || typeof data.algorithm !== 'string') {
-      throw new Error('Invalid algorithm: must be a string');
-    }
-    if (!data.problem || typeof data.problem !== 'string') {
-      throw new Error('Invalid problem: must be a string');
-    }
-    if (!data.parameters || typeof data.parameters !== 'object') {
-      throw new Error('Invalid parameters: must be an object');
-    }
-
-    return {
-      algorithm: data.algorithm,
-      problem: data.problem,
-      parameters: data.parameters as Record<string, unknown>,
-      result: typeof data.result === 'string' ? data.result : undefined
-    };
-  }
-
-  private formatOutput(data: StochasticData): string {
+  public formatOutput(data: StochasticData): string {
     const { algorithm, problem, parameters, result } = data;
     const border = '─'.repeat(Math.max(algorithm.length + 20, problem.length + 4));
 
@@ -95,123 +57,57 @@ class StochasticServer {
     return `Inferred hidden states using ${params.algorithm || 'forward-backward'} algorithm`;
   }
 
-  public processAlgorithm(input: unknown): {
-    content: Array<{ type: string; text: string }>;
-    isError?: boolean;
-    structuredContent?: Record<string, unknown>;
-  } {
-    try {
-      const validatedInput = this.validateStochasticData(input);
-      const formattedOutput = this.formatOutput(validatedInput);
-      console.error(formattedOutput);
-
-      let summary = '';
-      switch (validatedInput.algorithm) {
-        case 'mdp':
-          summary = this.mdpOneLineSummary(validatedInput.parameters);
-          break;
-        case 'mcts':
-          summary = this.mctsOneLineSummary(validatedInput.parameters);
-          break;
-        case 'bandit':
-          summary = this.banditOneLineSummary(validatedInput.parameters);
-          break;
-        case 'bayesian':
-          summary = this.bayesianOneLineSummary(validatedInput.parameters);
-          break;
-        case 'hmm':
-          summary = this.hmmOneLineSummary(validatedInput.parameters);
-          break;
-      }
-
-      const resultPayload = {
-        algorithm: validatedInput.algorithm,
-        status: 'success',
-        summary,
-        hasResult: !!validatedInput.result
-      };
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(resultPayload, null, 2)
-        }],
-        structuredContent: resultPayload
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            error: error instanceof Error ? error.message : String(error),
-            status: 'failed'
-          }, null, 2)
-        }],
-        isError: true
-      };
+  public summarize(algorithm: string, parameters: AlgorithmParameters): string {
+    switch (algorithm) {
+      case 'mdp':
+        return this.mdpOneLineSummary(parameters);
+      case 'mcts':
+        return this.mctsOneLineSummary(parameters);
+      case 'bandit':
+        return this.banditOneLineSummary(parameters);
+      case 'bayesian':
+        return this.bayesianOneLineSummary(parameters);
+      case 'hmm':
+        return this.hmmOneLineSummary(parameters);
+      default:
+        return '';
     }
   }
 }
 
-// Tool Definition
-export const STOCHASTIC_TOOL: Tool = {
-  name: "stochasticalgorithm",
-  description: `A tool for applying stochastic algorithms to decision-making problems.
-Supports various algorithms including:
-- Markov Decision Processes (MDPs): Optimize policies over long sequences of decisions
-- Monte Carlo Tree Search (MCTS): Simulate future action sequences for large decision spaces
-- Multi-Armed Bandit: Balance exploration vs exploitation in action selection
-- Bayesian Optimization: Optimize decisions with probabilistic inference
-- Hidden Markov Models (HMMs): Infer latent states affecting decision outcomes
+// Data Interfaces
+interface AlgorithmParameters {
+  [key: string]: unknown;
+}
 
-Each algorithm provides a systematic approach to handling uncertainty in decision-making.`,
-  inputSchema: {
-    type: "object",
-    properties: {
-      algorithm: {
-        type: "string",
-        description: "Decision algorithm to apply",
-        enum: [
-          "mdp",
-          "mcts",
-          "bandit",
-          "bayesian",
-          "hmm"
-        ]
-      },
-      problem: {
-        type: "string",
-        description: "Concrete decision problem statement"
-      },
-      parameters: {
-        type: "object",
-        additionalProperties: true,
-        description: "Algorithm-specific parameters (see the algorithm routing table in the server README)"
-      },
-      result: {
-        type: "string",
-        description: "Previous result to refine the framing"
-      }
-    },
-    required: ["algorithm", "problem", "parameters"]
-  },
-  annotations: {
-    title: "Apply stochastic algorithm",
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false
-  },
-  outputSchema: {
-    type: "object",
-    properties: {
-      algorithm: { type: "string" },
-      status: { type: "string" },
-      summary: { type: "string" },
-      hasResult: { type: "boolean" }
-    },
-    required: ["algorithm", "status", "summary", "hasResult"]
-  }
+interface StochasticData {
+  algorithm: string;
+  problem: string;
+  parameters: AlgorithmParameters;
+  result?: string;
+}
+
+// Tool input shape — zod is the single source of truth for validation,
+// JSON schema, and handler argument types.
+const stochasticInputShape = {
+  algorithm: z
+    .enum(["mdp", "mcts", "bandit", "bayesian", "hmm"])
+    .describe("Decision algorithm to apply"),
+  problem: z.string().describe("Concrete decision problem statement"),
+  parameters: z
+    .record(z.unknown())
+    .describe(
+      "Algorithm-specific parameters (see the algorithm routing table in the server README)"
+    ),
+  result: z.string().optional().describe("Previous result to refine the framing")
 };
+
+const stochasticOutputSchema = z.object({
+  algorithm: z.string(),
+  status: z.string(),
+  summary: z.string(),
+  hasResult: z.boolean()
+});
 
 // Server Identity
 const SERVER_NAME = "stochastic-thinking-server";
@@ -236,44 +132,65 @@ export default function createStochasticThinkingServer({
 
   const stochasticServer = new StochasticServer();
 
-  const server = new Server(
+  const mcpServer = new McpServer(
     {
       name: SERVER_NAME,
       version: SERVER_VERSION,
     },
     {
       capabilities: {
-        // Tools are registered via the ListToolsRequestHandler below.
-        // Arbitrary keys are no longer accepted by MCP SDK >= 1.x.
         tools: {},
       },
     }
   );
 
-  // Request Handlers
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [STOCHASTIC_TOOL, AGENTS_GUIDE_TOOL],
-  }));
+  mcpServer.registerTool(
+    "stochasticalgorithm",
+    {
+      title: "Apply stochastic algorithm",
+      description: `A tool for applying stochastic algorithms to decision-making problems.
+Supports various algorithms including:
+- Markov Decision Processes (MDPs): Optimize policies over long sequences of decisions
+- Monte Carlo Tree Search (MCTS): Simulate future action sequences for large decision spaces
+- Multi-Armed Bandit: Balance exploration vs exploitation in action selection
+- Bayesian Optimization: Optimize decisions with probabilistic inference
+- Hidden Markov Models (HMMs): Infer latent states affecting decision outcomes
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    if (config.debug) {
-      console.error(
-        `[Stochastic Thinking] Tool call: ${request.params.name} (session ${sessionId})`
-      );
-    }
-    switch (request.params.name) {
-      case "stochasticalgorithm":
-        return stochasticServer.processAlgorithm(request.params.arguments);
-      case "agents_guide":
-        return handleAgentsGuideCall(request.params.arguments);
-      default:
-        throw new McpError(
-          ErrorCode.MethodNotFound,
-          `Unknown tool: ${request.params.name}`
+Each algorithm provides a systematic approach to handling uncertainty in decision-making.`,
+      inputSchema: stochasticInputShape,
+      outputSchema: stochasticOutputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    async ({ algorithm, problem, parameters, result }) => {
+      if (config.debug) {
+        console.error(
+          `[Stochastic Thinking] Tool call: stochasticalgorithm (session ${sessionId})`
         );
+      }
+      console.error(
+        stochasticServer.formatOutput({ algorithm, problem, parameters, result })
+      );
+
+      const payload = {
+        algorithm,
+        status: 'success',
+        summary: stochasticServer.summarize(algorithm, parameters),
+        hasResult: !!result
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+        structuredContent: payload
+      };
     }
-  });
+  );
+
+  registerAgentsGuide(mcpServer);
 
   // Return the underlying Server instance for the Smithery SDK
-  return server;
+  return mcpServer.server;
 }

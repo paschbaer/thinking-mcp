@@ -43,10 +43,26 @@ if (!token) {
   process.exit(2);
 }
 
-const { STOCHASTIC_TOOL } = await import(pathToFileURL(path.join(pkgRoot, 'dist/index.js')));
-const { AGENTS_GUIDE_TOOL } = await import(
-  pathToFileURL(path.join(pkgRoot, 'dist/tools/agents-guide.js'))
+// Capture tool metadata at runtime (in-memory client against the factory)
+const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+const { default: createStochasticThinkingServer } = await import(
+  pathToFileURL(path.join(pkgRoot, 'dist/index.js'))
 );
+const { defaultConfig } = await import(pathToFileURL(path.join(pkgRoot, 'dist/config.js')));
+
+const captureServer = createStochasticThinkingServer({
+  sessionId: 'publish',
+  config: defaultConfig
+});
+const captureClient = new Client({ name: 'publish', version: '0' });
+const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+await Promise.all([
+  captureServer.connect(serverTransport),
+  captureClient.connect(clientTransport)
+]);
+const { tools } = await captureClient.listTools();
+console.log(`Captured ${tools.length} tools from the runtime server`);
 
 const toCardTool = (t) => ({
   name: t.name,
@@ -77,7 +93,7 @@ const payload = {
       websiteUrl: 'https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-stochasticthinking',
       icons: [{ src: 'https://github.com/paschbaer.png', mimeType: 'image/png' }]
     },
-    tools: [STOCHASTIC_TOOL, AGENTS_GUIDE_TOOL].map(toCardTool)
+    tools: tools.map(toCardTool)
   }
 };
 

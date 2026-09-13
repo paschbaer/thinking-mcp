@@ -111,9 +111,12 @@ describe('agents_guide tool', () => {
 
   it('rejects whitespace-only parameter values', async () => {
     const client = await createConnectedClient();
-    await expect(
-      client.callTool({ name: 'agents_guide', arguments: { project_name: '   ' } })
-    ).rejects.toThrow();
+    const res = await client.callTool({
+      name: 'agents_guide',
+      arguments: { project_name: '   ' }
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('Input validation error');
   });
 
   it('embedded template stays in sync with AGENTS.template.md', () => {

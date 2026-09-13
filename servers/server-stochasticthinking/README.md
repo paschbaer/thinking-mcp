@@ -210,9 +210,10 @@ parameter-driven decision frame.
 | `parameters` | object | yes | algorithm-specific parameters (see below) |
 | `result` | string | no | previous result to refine the framing |
 
-**Response:** `{ algorithm, status, summary, hasResult }` — `status: 'success'`
-on valid input; invalid input returns `status: 'failed'` with an `error`
-message and `isError: true`.
+**Response:** `{ algorithm, status, summary, hasResult }` (also provided as
+`structuredContent`) — arguments are validated against the zod schema;
+invalid input returns an `isError: true` result with the validation error
+(`MCP error -32602: Input validation error`).
 
 **Algorithm parameters:**
 

@@ -43,12 +43,22 @@ fs.copyFileSync(path.join(pkgRoot, 'package.json'), path.join(stage, 'package.js
 // 3. production dependencies into the staging directory
 run('npm', ['install', '--omit=dev', '--ignore-scripts', '--workspaces=false'], { cwd: stage });
 
-// 4. manifest with real tool metadata (mirrors src/index.ts + src/tools/agents-guide.ts)
-const { STOCHASTIC_TOOL } = await import(pathToFileURL(path.join(pkgRoot, 'dist/index.js')));
-const { AGENTS_GUIDE_TOOL } = await import(
-  pathToFileURL(path.join(pkgRoot, 'dist/tools/agents-guide.js'))
+// 4. capture tool metadata at runtime (in-memory client against the factory)
+const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+const { default: createStochasticThinkingServer } = await import(
+  pathToFileURL(path.join(stage, 'dist/index.js'))
 );
+const { defaultConfig } = await import(pathToFileURL(path.join(stage, 'dist/config.js')));
 
+const server = createStochasticThinkingServer({ sessionId: 'mcpb-build', config: defaultConfig });
+const client = new Client({ name: 'mcpb-build', version: pkg.version });
+const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+const { tools } = await client.listTools();
+console.log(`Captured ${tools.length} tools from the runtime server`);
+
+// 5. manifest (MCPB schema allows name + description per tool)
 const manifest = {
   manifest_version: '0.2',
   name: pkg.name,
@@ -65,21 +75,13 @@ const manifest = {
       env: {}
     }
   },
-  tools: [
-    {
-      name: STOCHASTIC_TOOL.name,
-      description: STOCHASTIC_TOOL.description
-    },
-    {
-      name: AGENTS_GUIDE_TOOL.name,
-      description: AGENTS_GUIDE_TOOL.description
-    }
-  ]
+  tools: tools.map((t) => ({ name: t.name, description: t.description }))
 };
 fs.writeFileSync(path.join(stage, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
-// 5. pack
+// 6. pack
 run('npx', ['-y', '@anthropic-ai/mcpb', 'pack', stage, output]);
 
 const size = (fs.statSync(output).size / 1024).toFixed(1);
 console.log(`MCPB bundle written: ${output} (${size} KB)`);
+process.exit(0); // the connected in-memory pair keeps the loop alive

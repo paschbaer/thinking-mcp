@@ -1,5 +1,5 @@
-import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { AGENTS_TEMPLATE } from './agents-guide-template.js';
 
 const START_MARKER = '<!-- stochastic-thinking:agents-guide:start -->';
@@ -20,97 +20,92 @@ interface AgentsGuideArgs {
   existing_agents_md?: string;
 }
 
-export const AGENTS_GUIDE_TOOL: Tool = {
-  name: 'agents_guide',
-  description:
-    'Return a ready-to-use AGENTS.md decision-tool guide (with algorithm ' +
-    'routing and workflow recipes) for projects consuming this server, ' +
-    'optionally merged into existing AGENTS.md content',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      project_name: {
-        type: 'string',
-        minLength: 1,
-        description: 'Name of the target project — replaces the {{PROJECT_NAME}} placeholder'
-      },
-      domain_context: {
-        type: 'string',
-        minLength: 1,
-        description: '1-3 sentences about the target project domain — replaces {{DOMAIN_CONTEXT}}'
-      },
-      codebase_root: {
-        type: 'string',
-        minLength: 1,
-        description: 'Working root for the agent — replaces the {{CODEBASE_ROOT}} placeholder'
-      },
-      existing_agents_md: {
-        type: 'string',
-        minLength: 1,
-        description:
-          'Content of an existing AGENTS.md. Providing it switches to merge mode: ' +
-          'the guide is integrated into this content (replacing a previously ' +
-          'inserted guide block if present) instead of returning a full document.'
-      }
-    },
-    additionalProperties: false
-  },
-  annotations: {
-    title: "Generate AGENTS.md guide",
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false
-  },
-  outputSchema: {
-    type: "object",
-    properties: {
-      mode: { type: "string" },
-      block_replaced: { type: "boolean" },
-      warning: { type: "string" },
-      content: { type: "string" },
-      unresolved_placeholders: { type: "array", items: { type: "string" } },
-      nextSteps: { type: "array", items: { type: "string" } },
-      status: { type: "string" }
-    },
-    required: ["mode", "content", "status"]
-  }
+const agentsGuideInputShape = {
+  project_name: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe('Name of the target project — replaces the {{PROJECT_NAME}} placeholder'),
+  domain_context: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe('1-3 sentences about the target project domain — replaces {{DOMAIN_CONTEXT}}'),
+  codebase_root: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe('Working root for the agent — replaces the {{CODEBASE_ROOT}} placeholder'),
+  existing_agents_md: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      'Content of an existing AGENTS.md. Providing it switches to merge mode: ' +
+        'the guide is integrated into this content (replacing a previously ' +
+        'inserted guide block if present) instead of returning a full document.'
+    )
 };
 
-/** Validates and normalizes arguments; throws McpError on invalid input. */
-export function parseAgentsGuideArgs(raw: unknown): AgentsGuideArgs {
-  const data = (raw ?? {}) as Record<string, unknown>;
-  const result: AgentsGuideArgs = {};
+const agentsGuideOutputSchema = z.object({
+  mode: z.string(),
+  block_replaced: z.boolean().optional(),
+  warning: z.string().optional(),
+  content: z.string(),
+  unresolved_placeholders: z.array(z.string()).optional(),
+  nextSteps: z.array(z.string()).optional(),
+  status: z.string()
+});
 
-  for (const key of [
-    'project_name',
-    'domain_context',
-    'codebase_root',
-    'existing_agents_md'
-  ] as const) {
-    const value = data[key];
-    if (value === undefined) continue;
-    if (typeof value !== 'string' || value.trim().length < 1) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `agents_guide: ${key} must be a non-empty string`
-      );
+/** Registers the agents_guide tool on a high-level McpServer instance. */
+export function registerAgentsGuide(mcpServer: McpServer): void {
+  mcpServer.registerTool(
+    'agents_guide',
+    {
+      title: 'Generate AGENTS.md guide',
+      description:
+        'Return a ready-to-use AGENTS.md decision-tool guide (with algorithm ' +
+        'routing and workflow recipes) for projects consuming this server, ' +
+        'optionally merged into existing AGENTS.md content',
+      inputSchema: agentsGuideInputShape,
+      outputSchema: agentsGuideOutputSchema,
+      annotations: {
+        title: 'Generate AGENTS.md guide',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false
+      }
+    },
+    async args => {
+      const payload = buildAgentsGuideResult(args);
+      const textBlock = {
+        type: 'text' as const,
+        text: JSON.stringify(payload, null, 2)
+      };
+      return {
+        content: [textBlock],
+        structuredContent: payload
+      };
     }
-    result[key] = value;
-  }
-
-  return result;
+  );
 }
 
-/** Handles a tools/call for agents_guide. */
-export function handleAgentsGuideCall(rawArgs: unknown): {
-  content: Array<{ type: string; text: string }>;
-  isError?: boolean;
-  structuredContent?: Record<string, unknown>;
+/** Builds the agents_guide result payload from validated arguments. */
+function buildAgentsGuideResult(args: AgentsGuideArgs): {
+  mode: 'full' | 'merge';
+  block_replaced: boolean;
+  warning?: string;
+  content: string;
+  unresolved_placeholders: string[];
+  nextSteps: string[];
+  status: 'success';
 } {
-  try {
-    const args = parseAgentsGuideArgs(rawArgs);
-    const placeholders: Placeholder[] = [
+  const placeholders: Placeholder[] = [
       { token: '{{PROJECT_NAME}}', value: args.project_name, fallback: '<your project>' },
       {
         token: '{{DOMAIN_CONTEXT}}',
@@ -158,37 +153,10 @@ export function handleAgentsGuideCall(rawArgs: unknown): {
           ? 'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
           : 'Repeat calls with updated content stay idempotent via the stochastic-thinking markers.'
       ],
-      status: 'success'
-    } as const;
+      status: 'success' as const
+    };
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(resultPayload, null, 2)
-        }
-      ],
-      structuredContent: resultPayload
-    };
-  } catch (error) {
-    if (error instanceof McpError) throw error;
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            {
-              error: error instanceof Error ? error.message : String(error),
-              status: 'failed'
-            },
-            null,
-            2
-          )
-        }
-      ],
-      isError: true
-    };
-  }
+    return resultPayload;
 }
 
 /** The AGENTS template is embedded (see agents-guide-template.ts) so it

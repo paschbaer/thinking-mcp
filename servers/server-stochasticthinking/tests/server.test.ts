@@ -90,7 +90,7 @@ describe('stochasticalgorithm tool calls', () => {
     }
   });
 
-  it('flags invalid input as a tool error instead of throwing', async () => {
+  it('rejects invalid input with a schema validation error', async () => {
     const { client } = await createConnectedPair();
 
     const res = await client.callTool({
@@ -98,16 +98,14 @@ describe('stochasticalgorithm tool calls', () => {
       arguments: { algorithm: 'mdp' } // problem + parameters missing
     });
     expect(res.isError).toBe(true);
-    const payload = JSON.parse(res.content[0].text);
-    expect(payload.status).toBe('failed');
-    expect(payload.error).toContain('Invalid problem');
+    expect(res.content[0].text).toContain('Invalid arguments for tool stochasticalgorithm');
   });
 
   it('rejects unknown tool names with MethodNotFound', async () => {
     const { client } = await createConnectedPair();
 
-    await expect(
-      client.callTool({ name: 'nonexistent-tool', arguments: {} })
-    ).rejects.toThrow(/Unknown tool/);
+    const res = await client.callTool({ name: 'nonexistent-tool', arguments: {} });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('Tool nonexistent-tool not found');
   });
 });
