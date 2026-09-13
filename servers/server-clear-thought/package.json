@@ -41,7 +41,8 @@
         "prebuild": "npm run clean",
         "prepublishOnly": "npm run build",
         "dev:watch": "npm run watch",
-        "deploy": "smithery deploy"
+        "deploy": "smithery deploy",
+        "build:mcpb": "node scripts/build-mcpb.mjs"
     },
     "repository": {
         "type": "git",
