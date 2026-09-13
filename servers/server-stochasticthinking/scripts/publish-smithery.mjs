@@ -73,7 +73,9 @@ const payload = {
       title: 'Stochastic Thinking',
       version: JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8')).version,
       description:
-        'MCP server for stochastic algorithms and probabilistic decision making: MDP, MCTS, bandit, Bayesian optimization, and HMM.'
+        'MCP server for stochastic algorithms and probabilistic decision making: MDP, MCTS, bandit, Bayesian optimization, and HMM.',
+      websiteUrl: 'https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-stochasticthinking',
+      icons: [{ src: 'https://github.com/paschbaer.png', mimeType: 'image/png' }]
     },
     tools: [STOCHASTIC_TOOL, AGENTS_GUIDE_TOOL].map(toCardTool)
   }
