@@ -3,10 +3,19 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-13
 
 ## What Works
 
+- **Real Computing (2026-09-13, feature branch
+  `feature/real-computing-stochastic`, commit 0d33ead)**: all five stochastic
+  algorithms compute measured results — mdp value iteration (hand-checked
+  V=[9,10] toy problem), mcts UCT gridworld (corridor → "right"), bandit
+  with per-session runs via runId + measurable regret, hmm Viterbi/
+  forward-backward (known weather path), bayesian GP-RBF + EI (proposes the
+  quadratic maximum at x≈2.0). 41/41 tests, typecheck/build green; guide
+  chain (template ↔ constant ↔ root AGENTS.md ↔ README) and funktionstest
+  updated to the new semantics.
 - `server-clear-thought`: ~28 reasoning tools registered individually and via
   4 toolsets (`reasoning`, `visualization`, `utility`, `session`).
 - `server-clear-thought` hygiene (2026-09-12, branch
@@ -32,17 +41,21 @@
 
 ## What's Left
 
-- RB-7 (residual): verify `test.yml` and the Smithery deploy run green in
-  GitHub Actions after the next push (no gh CLI locally).
-- Optional follow-up: migrate stochastic low-level `Server` to high-level
-  `McpServer` (out of scope for the HTTP rebuild, see
-  `plans/stochastic-http-mcp.md`).
+- Review + merge `feature/real-computing-stochastic` (squash per AGENTS.md
+  branch rules), then delete the branch; push so `test.yml` runs (covers the
+  RB-7 residual check as well).
+- Extension roadmap (`plans/extension-roadmap.md`, detail plan
+  `plans/quality-distribution.md`): E1 RB-10 typed outputSchemas (central
+  metadata registry), E2 npm publish `@paschbaer/*`, E3 eval harness; then
+  roadmap tracks C (recipe runner), B (tool families), D (resources/prompts).
 - Optional RB candidate: shared workspace HTTP scaffold for both servers
   (decisionframework option C, deferred).
-- RB-5: stale `@waldzellai` Smithery scope references in the stochastic README
-  (verify publish scope first).
 - Periodic refresh of the GitNexus index after larger refactors
-  (`gitnexus analyze --no-stats`).
+  (`gitnexus analyze --no-stats`; note: the GitNexus MCP server in the
+  2026-09-13 session could not load the rebuilt index — CLI works).
+
+(Stale entries removed 2026-09-13: stochastic McpServer migration — done via
+RB-11; RB-5 — resolved; resolutions recorded in `remaining-work-plan.md`.)
 
 ## Current State
 
@@ -55,4 +68,7 @@ port 3001 with both tools). **Published to the Smithery registry with a perfect 
 (`paschbaer/stochasticthinking`, stdio bundle distribution — verified
 download-only via API, 1 connection exists, 2026-09-12). CI: test workflow
 added (RB-7 residual: verify runs after push). Resolved: RB-4, RB-5, RB-6,
-RB-8.
+RB-8, RB-9, RB-11. **Real Computing implemented on
+`feature/real-computing-stochastic` (0d33ead)** — all five algorithms compute
+measured results; pending review/merge. Next: merge the branch, then E-plan
+Phase 1 (RB-10) per `plans/quality-distribution.md`.

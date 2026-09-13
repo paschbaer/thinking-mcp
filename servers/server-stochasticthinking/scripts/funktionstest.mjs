@@ -96,8 +96,12 @@ const callRes = await fetch(`${BASE}/mcp`, {
       name: 'stochasticalgorithm',
       arguments: {
         algorithm: 'mcts',
-        problem: 'game tree search',
-        parameters: { simulations: 500 }
+        problem: 'reach the goal in a corridor',
+        parameters: {
+          environment: { rows: 1, cols: 3, start: [0, 0], goal: [0, 2], walls: [], traps: [] },
+          simulations: 500,
+          seed: 7
+        }
       }
     }
   })
@@ -105,12 +109,20 @@ const callRes = await fetch(`${BASE}/mcp`, {
 const callData = parseSse(await callRes.text());
 const callPayload = JSON.parse(callData?.result?.content?.[0]?.text ?? '{}');
 check(
-  'tools/call round-trip',
-  callPayload.status === 'success' && /Explored 500 paths/.test(callPayload.summary ?? ''),
+  'tools/call round-trip (mcts computes)',
+  callPayload.status === 'success' && /best action "right"/.test(callPayload.summary ?? ''),
   callPayload.summary
 );
 
-// 5. Second sequential call on the SAME session (stateful transport, stateless tools)
+// 5. Bandit runs persist within the session: create a run, then continue it.
+const BANDIT_ARGS = {
+  arms: [
+    { type: 'bernoulli', p: 0.3 },
+    { type: 'bernoulli', p: 0.5 }
+  ],
+  strategy: 'thompson',
+  seed: 11
+};
 const call2Res = await fetch(`${BASE}/mcp`, {
   method: 'POST',
   headers: { ...JSON_HEADERS, 'mcp-session-id': sessionId },
@@ -122,18 +134,47 @@ const call2Res = await fetch(`${BASE}/mcp`, {
       name: 'stochasticalgorithm',
       arguments: {
         algorithm: 'bandit',
-        problem: 'exploration vs exploitation',
-        parameters: { strategy: 'thompson', epsilon: 0.2 }
+        problem: 'A/B test two buttons',
+        parameters: { ...BANDIT_ARGS, pulls: 50 }
       }
     }
   })
 });
 const call2Data = parseSse(await call2Res.text());
 const call2Payload = JSON.parse(call2Data?.result?.content?.[0]?.text ?? '{}');
+const runId = call2Payload?.details?.runId;
 check(
-  'second call on same session',
-  call2Payload.status === 'success' && /thompson strategy/.test(call2Payload.summary ?? ''),
+  'bandit creates a session run',
+  call2Payload.status === 'success' && typeof runId === 'string' &&
+    call2Payload?.details?.cumulative?.totalPulls === 50,
   call2Payload.summary
+);
+
+const call3Res = await fetch(`${BASE}/mcp`, {
+  method: 'POST',
+  headers: { ...JSON_HEADERS, 'mcp-session-id': sessionId },
+  body: JSON.stringify({
+    jsonrpc: '2.0',
+    id: 5,
+    method: 'tools/call',
+    params: {
+      name: 'stochasticalgorithm',
+      arguments: {
+        algorithm: 'bandit',
+        problem: 'continue the same run',
+        parameters: { ...BANDIT_ARGS, pulls: 25, runId }
+      }
+    }
+  })
+});
+const call3Data = parseSse(await call3Res.text());
+const call3Payload = JSON.parse(call3Data?.result?.content?.[0]?.text ?? '{}');
+check(
+  'bandit run continues across calls (regret accumulates)',
+  call3Payload.status === 'success' &&
+    call3Payload?.details?.cumulative?.totalPulls === 75 &&
+    call3Payload?.details?.cumulative?.regret >= 0,
+  call3Payload.summary
 );
 
 console.log(

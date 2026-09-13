@@ -6,6 +6,14 @@
 
 ## Avoid These Mistakes
 
+- **Direct module calls bypass zod defaults → NaN payloads:** calling the
+  algorithm modules with raw objects (instead of `schema.parse(...)`) leaves
+  defaulted fields (`stepReward`, `lengthscale`, `maxIterations`, …) as
+  `undefined`; computations silently produce NaN and `JSON.stringify` renders
+  them as `null`s — integration tests via the MCP client stayed green while 4
+  unit tests failed. → Unit tests must parse params through the zod schemas
+  (single source of truth), exactly like the dispatcher does. Found in the
+  Real Computing round (2026-09-13).
 - **Escaped JSON inside MCP SSE responses:** `tools/call` results arrive as
   `data: {...}` lines where `result.content[0].text` is itself a JSON
   *string* — the inner quotes are escaped (`\"mode\": ...`), so grep patterns

@@ -204,42 +204,53 @@ Tips:
 
 ## Tool Reference
 
-The server exposes **two tools**. Calls are stateless; HTTP sessions only
-keep the transport connection alive.
+The server exposes **two tools**. All algorithms except `bandit` are pure
+functions of their inputs; bandit runs persist per session (see below).
+HTTP sessions keep the transport connection alive.
 
 ### `stochasticalgorithm`
 
-Applies one stochastic decision algorithm to a problem and returns a
-parameter-driven decision frame.
+Runs one stochastic decision algorithm as a **real computation** and returns
+the measured result.
 
 **Parameters:**
 
 | Parameter | Type | Required | Meaning |
 |---|---|---|---|
 | `algorithm` | `mdp` \| `mcts` \| `bandit` \| `bayesian` \| `hmm` | yes | decision algorithm to apply |
-| `problem` | string | yes | concrete decision problem statement |
-| `parameters` | object | yes | algorithm-specific parameters (see below) |
-| `result` | string | no | previous result to refine the framing |
+| `problem` | string | yes | concrete decision problem statement (context; not used by the math) |
+| `parameters` | object | yes | algorithm-specific model inputs (see below) |
+| `result` | string | no | reserved; accepted but not used by the real algorithms |
 
-**Response:** `{ algorithm, status, summary, hasResult }` (also provided as
-`structuredContent`) — arguments are validated against the zod schema;
-invalid input returns an `isError: true` result with the validation error
-(`MCP error -32602: Input validation error`).
+**Response:** `{ algorithm, status, summary, hasResult, details? }` (also
+provided as `structuredContent`) — `summary` is one measured line, `details`
+carries the structured artifacts. Invalid input returns an `isError: true`
+result with `status: "failed"` and a message stating the exact expected
+parameter shape (schema errors and per-algorithm validation errors alike).
 
 **Algorithm parameters:**
 
 | `algorithm` | Decision situation | `parameters` |
 |---|---|---|
-| `mdp` | Sequential decisions over states/actions with long-horizon rewards | `states`, `actions[]`, `gamma` (discount factor), `learningRate` |
-| `mcts` | Large search spaces / game trees with lookahead | `simulations`, `explorationConstant`, `maxDepth` |
-| `bandit` | Explore-vs-exploit among fixed options (arms) | `arms`, `strategy` (`epsilon-greedy` \| `UCB` \| `thompson`), `epsilon` |
-| `bayesian` | Continuous/black-box optimization with expensive evaluations | `acquisitionFunction`, `kernel`, `iterations` |
-| `hmm` | Latent states hidden behind a sequence of observations | `states`, `algorithm` (`forward-backward` \| `viterbi`), `observations` |
+| `mdp` | Sequential decisions with an explicit transition/reward model | `transitions[s][a][s′]` (row-stochastic), `rewards[s][a]`, optional `states`/`actions` name arrays, `gamma`, `theta`, `maxIterations` |
+| `mcts` | Search in a spatial environment with goal/traps/walls | `environment { rows, cols, start, goal, walls?, traps?, goalReward?, trapReward?, stepReward?, maxSteps? }`, `simulations`, `explorationConstant`, `seed` |
+| `bandit` | Explore-vs-exploit among fixed options with measurable regret | `arms [{type:"bernoulli",p} \| {type:"gaussian",mu,sigma}]` (≥2), `strategy` (`epsilon-greedy` \| `UCB` \| `thompson`), `epsilon`, `c`, `pulls`, `seed`, optional `runId` |
+| `bayesian` | Next best evaluation of an expensive black-box function | `observations [[x,y],…]` (≥2), `bounds [lo,hi]`, `lengthscale`, `noise`, `gridPoints`, `maximize` |
+| `hmm` | Latent states behind an observed symbol sequence | `states`, `observationSymbols`, `observations`, `transitions`, `emissions`, `initial`, `algorithm` (`forward-backward` \| `viterbi` \| `both`) |
 
-> **Honesty note:** the `summary` is a parameter-driven decision frame
-> (options, exploration/exploitation balance, discounting), not a numerical
-> simulation. Use it to structure and justify an approach; derive actual
-> numbers yourself.
+**Bandit run state:** the first `bandit` call without `runId` creates a run
+(`bandit-1`, …) inside the current session and returns its id in `details`.
+Pass `runId` on later calls to continue the same run — counts, sums, regret
+and the RNG state accumulate across calls, so regret shrinks as the run
+learns. Runs never leak across sessions.
+
+> **Reading the results:** the numbers in `summary` and `details` are
+> measured outputs of real algorithms (converged value functions, UCT visit
+> counts, realized rewards and regret, Viterbi log-probabilities, GP
+> posterior stats and Expected Improvement). They carry no warranty about
+> your model: if the matrices, arms or observations misdescribe reality, you
+> get precisely computed nonsense. Validate the inputs, cite the outputs as
+> what they are.
 
 ### `agents_guide`
 

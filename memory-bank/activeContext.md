@@ -3,10 +3,21 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-13
 
 ## Current Focus
 
+- **Real Computing implemented on `feature/real-computing-stochastic`**
+  (2026-09-13, commit 0d33ead): all five stochastic algorithms compute real,
+  measured results — mdp value iteration, mcts UCT gridworld, bandit with
+  per-session run state (runId continuation, measurable regret), hmm
+  Viterbi/forward-backward, bayesian GP-RBF + Expected Improvement. Honesty
+  note replaced by "Reading the results" semantics (template ↔ constant ↔
+  root AGENTS.md via real handler ↔ README). 41/41 tests, typecheck/build
+  green. Roadmap: track A of `plans/extension-roadmap.md`.
+- Next: review + merge the feature branch, then E-plan phases
+  (`plans/quality-distribution.md`): RB-10 typed outputSchemas → npm publish
+  → eval harness.
 - Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
   **published on the Smithery registry** (`paschbaer/stochasticthinking`,
   stdio bundle — download/install distribution; run.tools hosting is
@@ -15,6 +26,19 @@
 
 ## Recent Changes
 
+- 2026-09-13: Real Computing round (feature branch `feature/real-computing-stochastic`,
+  commit 0d33ead): new `src/algorithms/*` modules (rng/mdp/mcts/bandit/hmm/
+  bayesopt + dispatcher), handler rewired (details payload, per-algorithm zod
+  validation, honest annotations idempotentHint=false), bandit run store per
+  session (runId continuation, measurable regret); guide chain regenerated
+  (AGENTS.template.md ↔ template constant ↔ root AGENTS.md via real tool
+  handler ↔ README), funktionstest on real params + run continuation.
+  41/41 tests. Lesson: direct module calls bypass zod defaults (see
+  lessonsLearned).
+- 2026-09-13: Docs commit fe181f2 on main: extension roadmap (tracks A–E,
+  `plans/extension-roadmap.md`) + detailed E-plan
+  (`plans/quality-distribution.md`; RB-10 registry → npm publish → eval
+  harness).
 - 2026-09-13: clear-thought published to Smithery (paschbaer/clear-thought,
   created + released + record patched; 33/33 tools registered). Tooling:
   scripts/build-mcpb.mjs (runtime metadata capture) + publish-smithery.mjs.
@@ -73,4 +97,6 @@
 
 ## Open Questions
 
-- Scope and feature set of `server-stochasticthinking` (currently a skeleton).
+- MCTS "Agent-as-Environment" contract vs. built-in environments only
+  (roadmap open question #2).
+- Smithery rescan score for the stochastic server after the guide updates.
