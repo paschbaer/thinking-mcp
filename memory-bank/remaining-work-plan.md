@@ -68,6 +68,13 @@
 
 ## Resolved / Reclassified
 
+- [RB-11] RESOLVED 2026-09-13 | stochastic migrated to the high-level
+  McpServer API (squash 053dea5): zod shapes as single source of truth
+  (validation/JSON schema/typed args), registerTool with annotations +
+  outputSchema + structuredContent, declarative agents-guide registration,
+  scripts capture tool metadata at runtime; tests updated to the SDK
+  validation-error convention (isError results, not rejections); release
+  381e940e republished (SUCCESS). Verified: typecheck, build, 24/24 tests.
 - [RB-6] RESOLVED 2026-09-12 | stale npm/Smithery references in the
   clear-thought README (badge `@waldzellai/clear-thought`, npm/npx install for
   a 404 scope) | fact check like RB-5; README now documents from-source
