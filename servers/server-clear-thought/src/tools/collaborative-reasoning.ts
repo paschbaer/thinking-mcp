@@ -29,14 +29,14 @@ export function registerCollaborativeReasoning(server: McpServer, sessionState: 
     'collaborativereasoning',
     'Facilitate collaborative reasoning with multiple perspectives and personas',
     {
-      topic: z.string(),
-      personas: z.array(PersonaSchema),
-      contributions: z.array(ContributionSchema),
-      stage: z.enum(['problem-definition', 'ideation', 'critique', 'integration', 'decision', 'reflection']),
-      activePersonaId: z.string(),
-      sessionId: z.string(),
-      iteration: z.number(),
-      nextContributionNeeded: z.boolean()
+      topic: z.string().describe('The topic under discussion'),
+      personas: z.array(PersonaSchema).describe('The reasoning personas participating'),
+      contributions: z.array(ContributionSchema).describe('Contributions made so far'),
+      stage: z.enum(['problem-definition', 'ideation', 'critique', 'integration', 'decision', 'reflection']).describe('Current deliberation stage'),
+      activePersonaId: z.string().describe('Id of the persona contributing next'),
+      sessionId: z.string().describe('Identifier for this deliberation session'),
+      iteration: z.number().describe('Current iteration number'),
+      nextContributionNeeded: z.boolean().describe('Whether another contribution is needed')
     },
     async (args) => {
       const collaborativeData: CollaborativeSession = {

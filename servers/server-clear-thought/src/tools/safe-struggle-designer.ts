@@ -11,9 +11,9 @@ export function registerSafeStruggleDesigner(server: McpServer, _sessionState: S
       'Time constraints (hours_per_week / session_minutes) yield an ' +
       'estimated duration and deadline-overrun warnings',
     {
-      skill: z.string().trim().min(1),
-      current_level: z.number().int().min(0),
-      target_level: z.number().int().min(0),
+      skill: z.string().trim().min(1).describe('The skill to develop'),
+      current_level: z.number().int().min(0).describe('Current proficiency level'),
+      target_level: z.number().int().min(0).describe('Target proficiency level, must be greater than current'),
       hours_per_week: z
         .number()
         .positive()

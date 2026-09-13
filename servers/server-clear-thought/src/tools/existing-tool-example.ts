@@ -7,7 +7,7 @@ export function registerExistingToolExample(server: McpServer, _sessionState: Se
     'existing_tool_example',
     'Echo back provided text',
     {
-      text: z.string()
+      text: z.string().describe('Text to echo back')
     },
     async ({ text }) => {
       return {

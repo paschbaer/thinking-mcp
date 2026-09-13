@@ -8,16 +8,16 @@ export function registerDecisionFramework(server: McpServer, sessionState: Sessi
     'decisionframework',
     'Apply structured decision-making frameworks',
     {
-      decisionStatement: z.string(),
+      decisionStatement: z.string().describe('The decision to be made'),
       options: z.array(z.object({
         name: z.string(),
         description: z.string()
-      })),
-      analysisType: z.string(),
-      stage: z.string(),
-      decisionId: z.string(),
-      iteration: z.number(),
-      nextStageNeeded: z.boolean()
+      })).describe('The options under consideration'),
+      analysisType: z.string().describe('Type of analysis (e.g. architecture, technology, process)'),
+      stage: z.string().describe('Current analysis stage'),
+      decisionId: z.string().describe('Identifier for this decision analysis'),
+      iteration: z.number().describe('Current iteration number'),
+      nextStageNeeded: z.boolean().describe('Whether another analysis stage is needed')
     },
     async (args) => {
       const decisionData: DecisionData = {

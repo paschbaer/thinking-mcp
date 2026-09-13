@@ -8,14 +8,14 @@ export function registerMetacognitiveMonitoring(server: McpServer, sessionState:
     'metacognitivemonitoring',
     'Monitor and assess thinking processes and knowledge',
     {
-      task: z.string(),
-      stage: z.string(),
-      overallConfidence: z.number(),
-      uncertaintyAreas: z.array(z.string()),
-      recommendedApproach: z.string(),
-      monitoringId: z.string(),
-      iteration: z.number(),
-      nextAssessmentNeeded: z.boolean()
+      task: z.string().describe('The task or decision being assessed'),
+      stage: z.string().describe('Current reasoning stage (e.g. planning, execution, review)'),
+      overallConfidence: z.number().describe('Overall confidence in the reasoning, 0-1'),
+      uncertaintyAreas: z.array(z.string()).describe('Areas of uncertainty affecting the confidence'),
+      recommendedApproach: z.string().describe('Recommended approach going forward'),
+      monitoringId: z.string().describe('Identifier for this monitoring session'),
+      iteration: z.number().describe('Current iteration number'),
+      nextAssessmentNeeded: z.boolean().describe('Whether another assessment is needed')
     },
     async (args) => {
       const metacognitiveData: MetacognitiveData = {

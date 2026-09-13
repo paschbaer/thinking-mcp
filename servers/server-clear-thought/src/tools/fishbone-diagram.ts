@@ -18,7 +18,7 @@ export function registerFishboneDiagram(server: McpServer, _sessionState: Sessio
       'is built from your content; without it a facilitation scaffold with ' +
       'per-category guiding questions is returned',
     {
-      problem: z.string().trim().min(1),
+      problem: z.string().trim().min(1).describe('The problem to analyze for root causes'),
       categories: z
         .array(z.string().trim().min(1))
         .optional()

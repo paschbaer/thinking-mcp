@@ -55,8 +55,8 @@ export function registerAssumptionXray(server: McpServer, _sessionState: Session
       'causality, necessity, comparatives) with matched evidence, heuristic ' +
       'confidence and falsification tests for each',
     {
-      claim: z.string().trim().min(1),
-      context: z.string().trim().min(1).optional()
+      claim: z.string().trim().min(1).describe('The claim to analyze for hidden assumptions'),
+      context: z.string().trim().min(1).optional().describe('Context surrounding the claim')
     },
     async ({ claim, context }) => {
       const assumptions: Array<{

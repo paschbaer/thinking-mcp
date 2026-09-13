@@ -8,11 +8,11 @@ export function registerVisualReasoning(server: McpServer, sessionState: Session
     'visualreasoning',
     'Process visual reasoning and diagram operations',
     {
-      operation: z.string(),
-      diagramId: z.string(),
-      diagramType: z.string(),
-      iteration: z.number(),
-      nextOperationNeeded: z.boolean()
+      operation: z.string().describe('Diagram operation to perform (create, update, delete, transform, observe)'),
+      diagramId: z.string().describe('Identifier of the diagram'),
+      diagramType: z.string().describe('Type of diagram (e.g. graph, flowchart, mindmap)'),
+      iteration: z.number().describe('Current iteration number'),
+      nextOperationNeeded: z.boolean().describe('Whether another diagram operation is needed')
     },
     async (args) => {
       const visualData: VisualData = {

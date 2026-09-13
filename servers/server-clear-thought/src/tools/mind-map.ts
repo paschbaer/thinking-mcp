@@ -9,7 +9,7 @@ export function registerMindMap(server: McpServer, _sessionState: SessionState) 
       'map is built from your content; without it a facilitation scaffold ' +
       'with guiding questions is returned',
     {
-      topic: z.string().trim().min(1),
+      topic: z.string().trim().min(1).describe('The central topic of the mind map'),
       num_branches: z
         .number()
         .int()

@@ -9,7 +9,7 @@ export function registerConceptMap(server: McpServer, _sessionState: SessionStat
       'provided the map is built from your content; without it a ' +
       'facilitation scaffold is returned',
     {
-      main_concept: z.string().trim().min(1),
+      main_concept: z.string().trim().min(1).describe('The central concept of the map'),
       related_concepts: z
         .array(z.string().trim().min(1))
         .optional()

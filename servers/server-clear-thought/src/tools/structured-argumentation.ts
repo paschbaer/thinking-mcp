@@ -8,12 +8,12 @@ export function registerStructuredArgumentation(server: McpServer, sessionState:
     'structuredargumentation',
     'Construct and analyze structured arguments',
     {
-      claim: z.string(),
-      premises: z.array(z.string()),
-      conclusion: z.string(),
-      argumentType: z.string(),
-      confidence: z.number(),
-      nextArgumentNeeded: z.boolean()
+      claim: z.string().describe('The claim being argued'),
+      premises: z.array(z.string()).describe('Supporting premises for the claim'),
+      conclusion: z.string().describe('The conclusion drawn from the premises'),
+      argumentType: z.string().describe('Type of argument: deductive, inductive, abductive, or analogical'),
+      confidence: z.number().describe('Confidence in the argument, 0-1'),
+      nextArgumentNeeded: z.boolean().describe('Whether another argument iteration is needed')
     },
     async (args) => {
       const argumentData: ArgumentData = {

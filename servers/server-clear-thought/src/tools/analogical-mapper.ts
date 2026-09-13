@@ -17,7 +17,7 @@ export function registerAnalogicalMapper(server: McpServer, _sessionState: Sessi
     'Build an analogy scaffold: per seed domain guiding questions that lead ' +
       'the caller to construct the analogy (this server does not fabricate analogies)',
     {
-      problem: z.string().trim().min(1),
+      problem: z.string().trim().min(1).describe('The problem to find analogies for'),
       seed_domains: z
         .array(z.string().trim().min(1))
         .optional()

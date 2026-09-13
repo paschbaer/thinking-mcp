@@ -19,7 +19,7 @@ export function registerSevenSeekersOrchestrator(server: McpServer, _sessionStat
       'pragmatic, systemic, creative, critical): guiding questions per lens ' +
       'plus optional downstream tools; the caller answers and synthesizes',
     {
-      query: z.string().trim().min(1),
+      query: z.string().trim().min(1).describe('The research query to examine through seven lenses'),
       downstream_tools: z
         .array(z.string().trim().min(1))
         .optional()

@@ -15,7 +15,7 @@ export function registerIssueTree(server: McpServer, _sessionState: SessionState
       'provided the tree is built from your decomposition; without it a ' +
       'facilitation scaffold with decomposition questions is returned',
     {
-      problem: z.string().trim().min(1),
+      problem: z.string().trim().min(1).describe('The core problem to decompose'),
       depth: z
         .number()
         .int()

@@ -10,7 +10,7 @@ export function registerDragPointAudit(server: McpServer, _sessionState: Session
     'Scan a process log for drag points: per-keyword occurrence counts, ' +
       'repeated messages and overall drag density (empty log returns a scaffold)',
     {
-      log: z.string(),
+      log: z.string().describe('The process log to scan for drag points'),
       categories: z
         .array(z.string())
         .optional()
