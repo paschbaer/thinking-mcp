@@ -58,6 +58,10 @@ The server is then reachable at `http://localhost:3001`.
 
 The server also supports **stdio** for MCP clients that spawn it directly: use the npm bin `mcp-server-stochasticthinking` (stdio entry `dist/dev.js`, optional `debug` config).
 
+## Publishing
+
+Both servers are published to the [Smithery registry](https://smithery.ai) as MCPB bundles. Maintainers publish via each server's tooling — see the **Publishing (maintainers)** sections in the [Clear Thought](./servers/server-clear-thought/README.md#publishing-maintainers) and [Stochastic Thinking](./servers/server-stochasticthinking/README.md#publishing-maintainers) READMEs.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE) and the per-server `LICENSE` files.

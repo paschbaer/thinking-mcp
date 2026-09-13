@@ -134,7 +134,9 @@ Note: These are suggestions rather than rules. Tools can be used in any order or
 
 ## Installation
 
-The package is **not yet published** to npm or Smithery — install from source:
+**Published on the Smithery registry** as `paschbaer/clear-thought`
+(stdio bundle — Smithery distributes it as a local install, no hosted HTTP
+endpoint). Otherwise, install from source:
 
 ```bash
 git clone https://github.com/paschbaer/thinking-mcp.git
@@ -146,11 +148,23 @@ yarn workspace @paschbaer/clear-thought build
 The stdio entry is then available at
 `servers/server-clear-thought/dist/dev.js`.
 
-> **Planned:** npm publishing under the `@paschbaer` scope (then
-> `npx @paschbaer/clear-thought` works as advertised below) and Smithery
-> deployment via `npm run deploy` in this directory (config: `smithery.yaml`).
-> Status 2026-09-12: `@paschbaer/clear-thought` is a 404 on npm; no Smithery
-> server exists under `@paschbaer` or the upstream `@waldzellai` scope.
+> **npm (still planned):** publishing under the `@paschbaer` scope to npmjs
+> (then `npx @paschbaer/clear-thought` works as advertised below).
+> Status 2026-09-13: `@paschbaer/clear-thought` remains a 404 on npm.
+
+### Publishing (maintainers)
+
+The server is published to the [Smithery registry](https://smithery.ai/servers/paschbaer/clear-thought)
+via the documented releases API:
+
+```bash
+npm run build && npm run build:mcpb && node scripts/publish-smithery.mjs
+```
+
+`publish-smithery.mjs` uploads the MCPB bundle with a static server card
+(all 33 tools' metadata — the quality-score input) and syncs the server
+record (display name, homepage, icon, license). Credentials are read from
+the local Smithery CLI login (`npx -y @smithery/cli auth login`).
 
 ## Agent Guide
 
