@@ -20,7 +20,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const qualifiedName = process.argv[2] ?? 'paschbaer/stochasticthinking';
@@ -52,7 +52,9 @@ const toCardTool = (t) => ({
   name: t.name,
   title: t.annotations?.title,
   description: t.description,
-  inputSchema: t.inputSchema
+  inputSchema: t.inputSchema,
+  outputSchema: t.outputSchema,
+  annotations: t.annotations
 });
 
 const payload = {
