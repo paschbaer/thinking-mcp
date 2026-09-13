@@ -47,7 +47,9 @@
 ## Current State
 
 Stochastic HTTP-MCP is merged, pushed, deployed and docker-verified (live on
-port 3001 with both tools). **Published to the Smithery registry with a perfect 100/100 quality score** (rescan 2026-09-13); clear-thought followed on 2026-09-13 (paschbaer/clear-thought, 33/33 tools registered, score rescan pending — known gaps: annotations/outputSchemas on high-level tools)
+port 3001 with both tools). **Published to the Smithery registry with a perfect 100/100 quality score** (rescan 2026-09-13); clear-thought followed on 2026-09-13 (paschbaer/clear-thought, 33/33 tools registered, capability round shipped 2026-09-13: annotations/outputSchemas/param
+  descriptions for all 33 tools; release 4b0dfb6a; rescan pending, expected
+  ~96/100)
 (`paschbaer/stochasticthinking`, stdio bundle distribution — verified
 download-only via API, 1 connection exists, 2026-09-12). CI: test workflow
 added (RB-7 residual: verify runs after push). Resolved: RB-4, RB-5, RB-6,

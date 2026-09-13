@@ -12,7 +12,10 @@
 - [RB-10] LOW (pending rescan) | clear-thought published to Smithery:
   paschbaer/clear-thought created (PUT /servers 201), release 954d7892
   (202/SUCCESS), record PATCHed; registry lists 33/33 tools with
-  descriptions. Quality score: first rescan 2026-09-13 = 75/100 (Descriptions 33/33,
+  descriptions. Quality score: first rescan 2026-09-13 = 75/100. Capability round shipped
+  2026-09-13 (release 4b0dfb6a): central tool.update() enhancement adds
+  annotations + passthrough outputSchema + structuredContent to all tools;
+  param descriptions completed (33/33). Expected score after rescan: ~96/100. (Descriptions 33/33,
   Metadata 35/35, Config 25/25; params 15/33, outputSchemas 0/33,
   annotations 0/33 — the quantified RB-10 gap). Known gap vs 100/100:
   annotations + outputSchemas are not set on the 33 high-level tools (code
