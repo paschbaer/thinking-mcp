@@ -105,7 +105,7 @@ const recordRes = await fetch(
     body: JSON.stringify({
       displayName: 'Stochastic Thinking',
       description: payload.serverCard.serverInfo.description,
-      homepage: 'https://github.com/paschbaer/thinking-mcp',
+      homepage: 'https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-stochasticthinking',
       repositoryUrl: 'https://github.com/paschbaer/thinking-mcp',
       iconUrl: 'https://github.com/paschbaer.png',
       license: 'MIT'
