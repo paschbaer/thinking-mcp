@@ -9,6 +9,12 @@
 
 ## Tracked Follow-ups
 
+- [RB-9] LOW | Smithery capability score 68→40/40 capability achieved via
+  serverCard publishing; server record metadata (displayName, homepage,
+  iconUrl, license) set 2026-09-13 via PATCH /servers/{qn} (card-only fields
+  did not move the metadata score). Awaiting quality rescan. Reusable
+  publisher: scripts/publish-smithery.mjs. Remaining gap: Naming ~6pt
+  (agents_guide snake_case, breaking rename deferred).
 - [RB-2] LOW | `AGENTS.md` root file mixes hand-written project rules and the
   generated guide; regeneration via `agents_guide` merge mode must be used to
   avoid losing hand-written sections | trigger: any template change in
