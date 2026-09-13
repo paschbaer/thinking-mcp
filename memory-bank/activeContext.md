@@ -15,6 +15,11 @@
 
 ## Recent Changes
 
+- 2026-09-13: clear-thought published to Smithery (paschbaer/clear-thought,
+  created + released + record patched; 33/33 tools registered). Tooling:
+  scripts/build-mcpb.mjs (runtime metadata capture) + publish-smithery.mjs.
+  RB-10 tracks the pending score rescan and the annotations/outputSchema
+  gap on high-level tools.
 - 2026-09-12: First Smithery publish of `paschbaer/stochasticthinking`
   succeeded via the v4 API (correct StdioDeployPayload: type/runtime/
   configSchema + bundle upload; deployment SUCCESS, deploymentId
