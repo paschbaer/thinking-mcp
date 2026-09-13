@@ -41,13 +41,6 @@
   next `git push` | action required: check the Actions tab for test.yml and
   the Smithery deploy run.
 
-- [RB-9] LOW (pending rescan) | Smithery capability quality improvements
-  implemented and republished (release 72236d05): per-parameter descriptions,
-  annotations (readOnly/idempotent), outputSchemas + structuredContent for
-  both tools; tools metadata now in the MCPB manifest via
-  scripts/build-mcpb.mjs. | trigger: next Smithery dashboard visit | action
-  required: check the quality score rescan (was 28/100, Capability 0/35).
-
 ## Resolved / Reclassified
 
 - [RB-6] RESOLVED 2026-09-12 | stale npm/Smithery references in the
