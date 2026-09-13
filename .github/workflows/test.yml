@@ -16,13 +16,16 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
+    # Corepack must be enabled before setup-node: its package-manager cache
+    # probe runs `yarn cache dir`, which fails on the runner's global
+    # Yarn 1.x while package.json pins yarn@4.6.0.
+    - name: Enable Corepack
+      run: corepack enable
+
     - name: Use Node.js
       uses: actions/setup-node@v5
       with:
         node-version: '20'
-
-    - name: Enable Corepack
-      run: corepack enable
 
     - name: Set Yarn Version
       run: corepack prepare yarn@4.6.0 --activate
