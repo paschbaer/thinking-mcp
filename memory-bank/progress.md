@@ -9,10 +9,10 @@
 
 - **npm publish (2026-09-14, E-Plan Phase 2)**: `@paschbaer/clear-thought@0.1.1` +
   `@paschbaer/stochasticthinking@0.1.1` live on npmjs.org (registry-verified,
-  npx-ready; bin-guard fix `0c6daca` — 0.1.0 was a silent no-op via npx
+  npx-ready; bin-guard fix `1706d2c` — 0.1.0 was a silent no-op via npx
   because bins run through .bin symlinks). READMEs document npx-based MCP
   client configs; npm-12/GAT-deprecation auth strategy recorded in the plan.
-- **Shipping round 2026-09-14**: `main` pushed (head `94be80c`) — CI
+- **Shipping round 2026-09-14**: `main` pushed (head `17c3f76`) — CI
   `test.yml` ran GREEN in Actions (RB-7 residual resolved). Clear-thought
   re-published to Smithery AFTER the RB-10 metadata merge: registry-driven
   titles/typed output schemas/honest hints now live in the registry release
@@ -20,7 +20,7 @@
   registry (33/33), central loop parametrized, 84/84 tests incl. 6 new
   metadata tests + audit script.
 - **Real Computing (2026-09-13, feature branch
-  `feature/real-computing-stochastic`, commit 0d33ead)**: all five stochastic
+  `feature/real-computing-stochastic`, commit bf1fb11)**: all five stochastic
   algorithms compute measured results — mdp value iteration (hand-checked
   V=[9,10] toy problem), mcts UCT gridworld (corridor → "right"), bandit
   with per-session runs via runId + measurable regret, hmm Viterbi/
@@ -78,10 +78,10 @@ port 3001 with both tools). **Published to the Smithery registry with a perfect 
   release 381e940e)
 (`paschbaer/stochasticthinking`, stdio bundle distribution — verified
 download-only via API, 1 connection exists, 2026-09-12). **`main` pushed
-2026-09-14 (head `94be80c`) — CI `test.yml` green (RB-7 residual resolved);
+2026-09-14 (head `17c3f76`) — CI `test.yml` green (RB-7 residual resolved);
 clear-thought re-published with the RB-10 metadata registry — rescan
 96/100 (2026-09-14): RB-10 CLOSED.** Resolved: RB-4, RB-5, RB-6, RB-7, RB-8,
-RB-9, RB-10, RB-11. Real Computing merged (`80be3d1`). **E-Plan Phase 2
+RB-9, RB-10, RB-11. Real Computing merged (`bf1fb11`). **E-Plan Phase 2
 done: both servers live on npm at 0.1.1** (Phase-2 branch
 `feature/npm-publish` pending review/merge). Next: E-plan Phase 3 (eval
 harness) per `plans/quality-distribution.md`.

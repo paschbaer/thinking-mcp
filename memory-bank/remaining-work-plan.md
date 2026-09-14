@@ -26,14 +26,14 @@
   chosen strategy: central metadata registry — decisionframework
   `rb10-schema-strategy-2026-09-13`, Option B).
   UPDATE 2026-09-14 (branch `feature/rb10-typed-output-schemas`, commit
-  9ab9f1f): code gap CLOSED via the central metadata registry
+  17c3f76): code gap CLOSED via the central metadata registry
   (`src/tools/tool-metadata.ts`, 33/33 entries — human-readable titles, typed
   output schemas with evidenced optional top-level fields + passthrough,
   honest idempotentHint=false for 16 stateful tools) applied by the central
   `tool.update()` loop. Audit script (`scripts/audit-tool-metadata.ts`):
   generic titles 33→0, passthrough outputs 33→0, undescribed params 0→0.
   Completeness/round-trip tests added; 84/84 green.
-  UPDATE 2026-09-14: squash-merged to `main` (`94be80c`) and re-published to
+  UPDATE 2026-09-14: squash-merged to `main` (`17c3f76`) and re-published to
   Smithery (user-confirmed via scripts/publish-smithery.mjs). Remaining to
   close: dashboard rescan score → record it here.
   RESOLVED 2026-09-14: rescan score **96/100** (was 75 at the 2026-09-13
@@ -61,7 +61,7 @@
 - [RB-3] MED | GitNexus-generated "Index stale?" hint inside the
   `<!-- gitnexus:start/end -->` block of AGENTS.md/CLAUDE.md recommends
   `node .gitnexus/run.cjs analyze` WITHOUT `--no-stats`; an agent following it
-  verbatim reintroduces volatile counts (post-commit review 0441c70,
+  verbatim reintroduces volatile counts (post-commit review 328ca16,
   pre-existing/tool-generated). Mitigated by the Architecture Map mandate +
   lessonsLearned entry. | trigger: any future `gitnexus analyze` run or GitNexus
   CLI upgrade | accepted observation with mitigation; optional hardening:
@@ -86,13 +86,13 @@
   `test.yml` runs green in the Actions tab after the next push. | trigger:
   next `git push` | action required: check the Actions tab for test.yml and
   the Smithery deploy run.
-  UPDATE 2026-09-14: RESOLVED — `main` pushed (head `94be80c`); user
+  UPDATE 2026-09-14: RESOLVED — `main` pushed (head `17c3f76`); user
   confirmed `test.yml` GREEN in the Actions tab.
 
 ## Resolved / Reclassified
 
 - [RB-11] RESOLVED 2026-09-13 | stochastic migrated to the high-level
-  McpServer API (squash 053dea5): zod shapes as single source of truth
+  McpServer API (squash 0fae6d4): zod shapes as single source of truth
   (validation/JSON schema/typed args), registerTool with annotations +
   outputSchema + structuredContent, declarative agents-guide registration,
   scripts capture tool metadata at runtime; tests updated to the SDK

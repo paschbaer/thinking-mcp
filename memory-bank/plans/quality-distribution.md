@@ -143,7 +143,7 @@ klassifiziert.
 `npm view --prefer-online`; npx-Configs dokumentiert in beiden READMEs).
 Zwei Lektionen auf dem Weg: 0.1.0 landete für stochastic gar nicht erst auf
 der Registry (stiller Publish-Fail trotz Exit 0), und der Bin-Guard
-no-opete via npx-Symlink (Fix 0c6daca + Regressionstests in beiden Suiten).
+no-opete via npx-Symlink (Fix 1706d2c + Regressionstests in beiden Suiten).
 
 **Ziel.** Beide Server auf npmjs.org veröffentlichen (scoped public), mit
 wiederholbarem Release-Pfad. Nebeneffekt: die Scope-Namen sind geschützt,
