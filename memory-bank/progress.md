@@ -11,8 +11,13 @@
   drei neue dual-mode Tools — `premortem` (Failure-Cause-Ranking + Mitigation-Coverage),
   `fmea` (RPN = S×O×D mit Threshold-Flagging), `fault_tree` (exakte AND/OR-Auswertung +
   Contribution-Ranking der Basic Events) — plus neues `risk`-Toolset (5. Toolset).
-  Registry-Metadaten für alle 36 Tools; 103/103 Tests. Hand-verifizierte Werte:
+  Registry-Metadaten für alle 37 Einträge; 103/103 Tests. Hand-verifizierte Werte:
   FMEA-RPN 120/40/24, Fault-Tree P_top 0.314 mit B3-Dominanz.
+- **Roadmap-Track C — Recipe Runner (2026-09-14, branch `feature/recipe-runner`, 0.3.0)**:
+  alle 6 Guide-Rezepte als Daten (`src/recipes/index.ts`), `recipe_runner` mit
+  per-session Fortschritt im neuen `WorkflowStore` (start/status/advance/reset/list,
+  Auto-Start), `workflow`-Toolset (6. Toolset). Guide + Root-AGENTS.md dreifach
+  synchron; 111/111 Tests (8 neue Workflow-Tests), Audit 39/39 sauber.
 - **CI/CD-Release-Flow (2026-09-14, branch `develop`)**: GitFlow-light — `develop` ist der
   Entwicklungs-Branch (Test-Action läuft dort + auf PRs), Releases mergen `develop` → `main`;
   auf `main` publizieren `publish-npm.yml` (npmjs.com, version-guarded, --provenance) und

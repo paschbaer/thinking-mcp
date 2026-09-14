@@ -181,6 +181,24 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     outputSchema: schema({ operation: z.unknown().optional() })
   },
 
+  // ── Workflow toolset (track C) ────────────────────────────────────────
+  recipe_runner: {
+    title: 'Recipe Runner',
+    outputSchema: schema({
+      mode: z.unknown().optional(),
+      recipe: z.unknown().optional(),
+      progress: z.unknown().optional(),
+      current_stage: z.unknown().optional(),
+      next_action: z.unknown().optional()
+    }),
+    stateful: true
+  },
+  workflow: {
+    title: 'Workflow Toolset',
+    outputSchema: schema({ operation: z.unknown().optional() }),
+    stateful: true
+  },
+
   // ── Utility family ────────────────────────────────────────────────────────
   analogical_mapper: {
     title: 'Analogical Mapper',
