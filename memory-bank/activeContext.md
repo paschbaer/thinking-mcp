@@ -3,7 +3,7 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-**Last updated:** 2026-09-13
+**Last updated:** 2026-09-14
 
 ## Current Focus
 
@@ -15,17 +15,25 @@
   note replaced by "Reading the results" semantics (template ↔ constant ↔
   root AGENTS.md via real handler ↔ README). 41/41 tests, typecheck/build
   green. Roadmap: track A of `plans/extension-roadmap.md`.
-- Next: review + merge the feature branch, then E-plan phases
-  (`plans/quality-distribution.md`): RB-10 typed outputSchemas → npm publish
-  → eval harness.
+- State 2026-09-14: Real Computing merged (`80be3d1`) + RB-10 registry merged
+  (`94be80c`); `main` pushed, CI `test.yml` GREEN (RB-7 residual resolved);
+  clear-thought re-published to Smithery with the registry metadata — rescan
+  score pending (dashboard) to close RB-10.
+- Next: record the rescan score → close RB-10; then E-plan Phase 2
+  (`plans/quality-distribution.md`): npm publish `@paschbaer/*`.
 - Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
   **published on the Smithery registry** (`paschbaer/stochasticthinking`,
   stdio bundle — download/install distribution; run.tools hosting is
-  remote-only, RB-8 resolved with evidence). Outstanding: RB-7 residual
-  (verify CI runs after push) + push of unpushed `main` commits.
+  remote-only, RB-8 resolved with evidence). (2026-09-14: all `main` commits
+  pushed; RB-7 residual resolved via green CI run.)
 
 ## Recent Changes
 
+- 2026-09-14: Shipping round — RB-10 branch reviewed + squash-merged
+  (`94be80c`: TOOL_METADATA registry 33/33, central loop parametrized, 84/84
+  tests incl. metadata suite + audit script); `main` pushed (3 commits) with
+  CI `test.yml` GREEN → RB-7 residual resolved; clear-thought re-published
+  to Smithery with registry metadata (rescan pending).
 - 2026-09-13: Real Computing round (feature branch `feature/real-computing-stochastic`,
   commit 0d33ead): new `src/algorithms/*` modules (rng/mdp/mcts/bandit/hmm/
   bayesopt + dispatcher), handler rewired (details payload, per-algorithm zod

@@ -32,8 +32,10 @@
   honest idempotentHint=false for 16 stateful tools) applied by the central
   `tool.update()` loop. Audit script (`scripts/audit-tool-metadata.ts`):
   generic titles 33→0, passthrough outputs 33→0, undescribed params 0→0.
-  Completeness/round-trip tests added; 84/84 green. Remaining to close:
-  clear-thought re-publish + Smithery rescan, then record the score here.
+  Completeness/round-trip tests added; 84/84 green.
+  UPDATE 2026-09-14: squash-merged to `main` (`94be80c`) and re-published to
+  Smithery (user-confirmed via scripts/publish-smithery.mjs). Remaining to
+  close: dashboard rescan score → record it here.
 - [RB-9] RESOLVED 2026-09-13 | Smithery quality score reached 100/100 (was
   28/100): Capability 40/40, Server Metadata 35/35, Configuration UX 25/25.
   Fix chain: full tool metadata in code + serverCard publishing + server
@@ -78,6 +80,8 @@
   `test.yml` runs green in the Actions tab after the next push. | trigger:
   next `git push` | action required: check the Actions tab for test.yml and
   the Smithery deploy run.
+  UPDATE 2026-09-14: RESOLVED — `main` pushed (head `94be80c`); user
+  confirmed `test.yml` GREEN in the Actions tab.
 
 ## Resolved / Reclassified
 

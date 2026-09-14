@@ -3,10 +3,17 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-13
+**Last updated:** 2026-09-14
 
 ## What Works
 
+- **Shipping round 2026-09-14**: `main` pushed (head `94be80c`) — CI
+  `test.yml` ran GREEN in Actions (RB-7 residual resolved). Clear-thought
+  re-published to Smithery AFTER the RB-10 metadata merge: registry-driven
+  titles/typed output schemas/honest hints now live in the registry release
+  (rescan score pending). RB-10 code gap closed on main: TOOL_METADATA
+  registry (33/33), central loop parametrized, 84/84 tests incl. 6 new
+  metadata tests + audit script.
 - **Real Computing (2026-09-13, feature branch
   `feature/real-computing-stochastic`, commit 0d33ead)**: all five stochastic
   algorithms compute measured results — mdp value iteration (hand-checked
@@ -41,13 +48,13 @@
 
 ## What's Left
 
-- Review + merge `feature/real-computing-stochastic` (squash per AGENTS.md
-  branch rules), then delete the branch; push so `test.yml` runs (covers the
-  RB-7 residual check as well).
+- Record the clear-thought Smithery rescan score (dashboard) and close RB-10
+  (re-publish already done, 2026-09-14).
 - Extension roadmap (`plans/extension-roadmap.md`, detail plan
-  `plans/quality-distribution.md`): E1 RB-10 typed outputSchemas (central
-  metadata registry), E2 npm publish `@paschbaer/*`, E3 eval harness; then
-  roadmap tracks C (recipe runner), B (tool families), D (resources/prompts).
+  `plans/quality-distribution.md`): E1 RB-10 DONE (merged `94be80c`,
+  re-published); next E2 npm publish `@paschbaer/*`, then E3 eval harness;
+  then roadmap tracks C (recipe runner), B (tool families), D
+  (resources/prompts).
 - Optional RB candidate: shared workspace HTTP scaffold for both servers
   (decisionframework option C, deferred).
 - Periodic refresh of the GitNexus index after larger refactors
@@ -66,9 +73,10 @@ port 3001 with both tools). **Published to the Smithery registry with a perfect 
   zod single-source validation, declarative registration, 24/24 tests,
   release 381e940e)
 (`paschbaer/stochasticthinking`, stdio bundle distribution — verified
-download-only via API, 1 connection exists, 2026-09-12). CI: test workflow
-added (RB-7 residual: verify runs after push). Resolved: RB-4, RB-5, RB-6,
-RB-8, RB-9, RB-11. **Real Computing implemented on
-`feature/real-computing-stochastic` (0d33ead)** — all five algorithms compute
-measured results; pending review/merge. Next: merge the branch, then E-plan
-Phase 1 (RB-10) per `plans/quality-distribution.md`.
+download-only via API, 1 connection exists, 2026-09-12). **`main` pushed
+2026-09-14 (head `94be80c`) — CI `test.yml` green (RB-7 residual resolved);
+clear-thought re-published with the RB-10 metadata registry, rescan pending.**
+Resolved: RB-4, RB-5, RB-6, RB-7, RB-8, RB-9, RB-11; RB-10 code gap closed
+(registry on main), score recording open. Real Computing merged (`80be3d1`).
+Next: E-plan Phase 2 (npm publish `@paschbaer/*`) per
+`plans/quality-distribution.md`.
