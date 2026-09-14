@@ -10,6 +10,8 @@ docker-compose.yml
 *.log
 .DS_Store
 coverage
+.mcpb-stage
+*.mcpb
 .nyc_output
 .vscode
 .idea
