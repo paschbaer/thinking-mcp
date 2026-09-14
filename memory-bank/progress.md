@@ -23,12 +23,12 @@
   session) und Session-Akkumulation. **Fand direkt einen shipped Bug**: session_export mit
   advertised outputSchema warf `-32602` (structuredContent fehlte für Array-/Markdown-Payloads) —
   gefixt in 0.1.2 (explizites structuredContent im Handler). 96/96 Tests.
-- **npm publish (2026-09-14, E-Plan Phase 2)**: `@paschbaer/clear-thought@0.1.1` +
+- **npm publish (2026-09-14, E-Plan Phase 2)**: `@paschbaer/clear-thought` (aktuell
+  **0.2.0** inkl. Risiko-Familie, manuell published nach 2FA-Modus-Umstellung) +
   `@paschbaer/stochasticthinking@0.1.1` live on npmjs.org (registry-verified,
   npx-ready; bin-guard fix `0c6daca` — 0.1.0 was a silent no-op via npx
   because bins run through .bin symlinks). READMEs document npx-based MCP
   client configs; npm-12/GAT-deprecation auth strategy recorded in the plan.
-  ⚠️ clear-thought 0.1.1 enthält den session_export-Bug — 0.1.2 nach Merge publishen.
 - **Shipping round 2026-09-14**: `main` pushed (head `94be80c`) — CI
   `test.yml` ran GREEN in Actions (RB-7 residual resolved). Clear-thought
   re-published to Smithery AFTER the RB-10 metadata merge: registry-driven

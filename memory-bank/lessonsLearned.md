@@ -6,6 +6,12 @@
 
 ## Avoid These Mistakes
 
+- **npm account 2FA mode „authorization and publishing" blocks OIDC trusted publishing:** with
+  this mode the registry demands an OTP per publish — an OIDC workflow cannot supply one, so the
+  publish fails with `403 OIDC permission denied for this action` even with a correctly
+  configured trusted publisher. Deceptive: provenance SIGNING still succeeds (masking the
+  cause). → Switch the account 2FA mode to „authorization only" for OIDC releases. Found
+  during the 0.2.0 release (2026-09-14).
 - **Advertised outputSchema requires structuredContent on EVERY call path:** once a tool declares
   an output schema, the SDK rejects results without structuredContent (`-32602: ...no structured
   content was provided`). The central text→structuredContent derivation silently skips non-JSON

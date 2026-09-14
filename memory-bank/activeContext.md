@@ -7,25 +7,15 @@
 
 ## Current Focus
 
-- **Real Computing implemented on `feature/real-computing-stochastic`**
-  (2026-09-13, commit 0d33ead): all five stochastic algorithms compute real,
-  measured results — mdp value iteration, mcts UCT gridworld, bandit with
-  per-session run state (runId continuation, measurable regret), hmm
-  Viterbi/forward-backward, bayesian GP-RBF + Expected Improvement. Honesty
-  note replaced by "Reading the results" semantics (template ↔ constant ↔
-  root AGENTS.md via real handler ↔ README). 41/41 tests, typecheck/build
-  green. Roadmap: track A of `plans/extension-roadmap.md`.
-- State 2026-09-14: Real Computing merged (`80be3d1`) + RB-10 registry merged
-  (`94be80c`); `main` pushed, CI `test.yml` GREEN (RB-7 residual resolved);
-  clear-thought re-published — **rescan 96/100: RB-10 CLOSED** (output
-  schemas + annotations now score 33/33; residual ~4pt = Naming, deferred
-  breaking rename).
-- State 2026-09-14 (III): **Phase 3 Tier 1 implementiert** (branch
-  `feature/eval-harness`): contract evals + session_export-Bugfix (0.1.2) —
-  pending review/merge + npm republish.
-- Next: merge `feature/eval-harness`, clear-thought 0.1.2 auf npm publishen
-  (User-Terminal, Web-2FA); danach Tier 2 (LLM-Task-Evals, optional) oder
-  Roadmap-Tracks C/B/D.
+- **Release 0.2.0 shipped (2026-09-14)**: PR `develop → main` gemerged; GitHub Actions —
+  `publish-containers` hat beide Images nach ghcr.io gepusht (private, Visibility-Flip
+  manuell pending), `publish-npm` wurde vom Account-2FA-Modus blockiert → **0.2.0 manuell
+  published** (inkl. Risiko-Familie + Contract-Eval-Fixes). 2FA-Modus inzwischen auf
+  „authorization only“ umgestellt — der **erste echte OIDC-Trusted-Publishing-Lauf fällt
+  beim nächsten Version-Bump** an.
+- Next: ghcr-Packages auf public stellen; OIDC-Lauf beim nächsten Release verifizieren;
+  dann Roadmap B2–B5 (Argument-Map, Kausal, Fermi, Spieltheorie) oder D-Track
+  (Resources/Prompts/Persistence); optional Tier 2 (LLM-Task-Evals).
 - Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
   **published on the Smithery registry** (`paschbaer/stochasticthinking`,
   stdio bundle — download/install distribution; run.tools hosting is
@@ -34,6 +24,11 @@
 
 ## Recent Changes
 
+- 2026-09-14 (V): Release 0.2.0 über PR `develop → main` (Branch-Protection aktiv);
+  GitHub-Actions: ghcr-Images gepusht, npm-Publish durch Account-2FA-Modus
+  (auth-and-writes) blockiert → 0.2.0 manuell published; Modus auf „authorization only“
+  umgestellt (Trusted-Publisher-Einträge für beide Packages vorhanden) — OIDC-Test
+  fällt beim nächsten Release an.
 - 2026-09-14 (IV): Roadmap-Track B1 (branch `feature/risk-family`, 0.2.0): Risiko-Familie
   `premortem`/`fmea`/`fault_tree` als dual-mode Tools über neues `risk`-Toolset;
   Registry-Metadaten für 36 Tools; 103/103 Tests. Öffentlicher Punkt: Guide-Erweiterung
