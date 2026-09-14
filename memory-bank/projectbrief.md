@@ -17,8 +17,8 @@ reasoning and problem-solving capabilities:
 
 1. **`server-clear-thought`** (`@paschbaer/clear-thought`, v0.2.0) — MCP server
    for systematic thinking, mental models, debugging approaches, and memory
-   management. 36 registered tools (incl. the risk family: premortem, fmea,
-   fault_tree) plus 5 grouped toolsets.
+   management. 39 registered tools — 33 individual (incl. the risk family
+   and recipe_runner) plus 6 grouped toolsets.
 2. **`server-stochasticthinking`** (`@paschbaer/stochasticthinking`, v0.1.1) —
    stochastic decision server: mdp/mcts/bandit/bayesian/hmm compute real,
    measured results (bandit runs persist per session); HTTP + stdio.

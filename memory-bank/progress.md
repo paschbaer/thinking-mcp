@@ -7,12 +7,33 @@
 
 ## What Works
 
+- **Roadmap-Track D (2026-09-14, branch `feature/track-d`, 0.3.0)**: D1 Session-Resources
+  (`clear-thought://session/{stats,export,thoughts,workflows}` via `registerResource`),
+  D2 Workflow-Prompts (6 Rezept-Prompts via `registerPrompt`, je eine User-Message mit
+  recipe_runner-Anweisung), D3 File-Persistence (`session_save`/`session_load` im Session-
+  Toolset, `dataDir`-Config, Pfad-Sanitizing). **Fand dabei einen latenten Factory-Bug**:
+  unparsed Config → `sessionTimeout` undefined → sofortiger Cleanup-Timer leerte den Store
+  zwischen Tool-Calls — Factory parst jetzt defensiv (`ServerConfigSchema.parse`).
+  129/129 Tests (8 neue Track-D-Tests).
+- **Roadmap-Track B2–B5 (2026-09-14, branch `feature/track-b2-b5`, 0.3.0)**: vier neue
+  statelose Analyse-Tools im `reasoning`-Toolset — `argument_map` (Toulmin-Vollständigkeit
+  mit Leitfragen, 6 Elemente), `causal_graph` (dual-mode: Intervention/Counterfactual-Fragen,
+  Confounder- + Root-Kandidaten, Zyklen/Unknown-Refs-Validierung), `fermi_estimate`
+  (Multiplikations-/Summenkette + Sensitivitätsranking, deterministisch), `game_matrix`
+  (strikte Dominanz, beste Antworten, Pure-Nash, gemischte 2×2 geschlossen). 10 neue
+  Hand-verifizierte Tests (PD-Nash, Stag-Hunt 2×Nash + Mixed 0.5, Fermi-Sensitivität
+  ±20 % > ±10 %); 121/121 Tests, Audit 43/43 sauber.
 - **Roadmap-Track B1 — Risiko-Familie (2026-09-14, branch `feature/risk-family`, 0.2.0)**:
   drei neue dual-mode Tools — `premortem` (Failure-Cause-Ranking + Mitigation-Coverage),
   `fmea` (RPN = S×O×D mit Threshold-Flagging), `fault_tree` (exakte AND/OR-Auswertung +
   Contribution-Ranking der Basic Events) — plus neues `risk`-Toolset (5. Toolset).
-  Registry-Metadaten für alle 36 Tools; 103/103 Tests. Hand-verifizierte Werte:
+  Registry-Metadaten für alle 37 Einträge; 103/103 Tests. Hand-verifizierte Werte:
   FMEA-RPN 120/40/24, Fault-Tree P_top 0.314 mit B3-Dominanz.
+- **Roadmap-Track C — Recipe Runner (2026-09-14, branch `feature/recipe-runner`, 0.3.0)**:
+  alle 6 Guide-Rezepte als Daten (`src/recipes/index.ts`), `recipe_runner` mit
+  per-session Fortschritt im neuen `WorkflowStore` (start/status/advance/reset/list,
+  Auto-Start), `workflow`-Toolset (6. Toolset). Guide + Root-AGENTS.md dreifach
+  synchron; 111/111 Tests (8 neue Workflow-Tests), Audit 39/39 sauber.
 - **CI/CD-Release-Flow (2026-09-14, branch `develop`)**: GitFlow-light — `develop` ist der
   Entwicklungs-Branch (Test-Action läuft dort + auf PRs), Releases mergen `develop` → `main`;
   auf `main` publizieren `publish-npm.yml` (npmjs.com, version-guarded, --provenance) und
@@ -23,12 +44,12 @@
   session) und Session-Akkumulation. **Fand direkt einen shipped Bug**: session_export mit
   advertised outputSchema warf `-32602` (structuredContent fehlte für Array-/Markdown-Payloads) —
   gefixt in 0.1.2 (explizites structuredContent im Handler). 96/96 Tests.
-- **npm publish (2026-09-14, E-Plan Phase 2)**: `@paschbaer/clear-thought@0.1.1` +
+- **npm publish (2026-09-14, E-Plan Phase 2)**: `@paschbaer/clear-thought` (aktuell
+  **0.2.0** inkl. Risiko-Familie, manuell published nach 2FA-Modus-Umstellung) +
   `@paschbaer/stochasticthinking@0.1.1` live on npmjs.org (registry-verified,
   npx-ready; bin-guard fix `0c6daca` — 0.1.0 was a silent no-op via npx
   because bins run through .bin symlinks). READMEs document npx-based MCP
   client configs; npm-12/GAT-deprecation auth strategy recorded in the plan.
-  ⚠️ clear-thought 0.1.1 enthält den session_export-Bug — 0.1.2 nach Merge publishen.
 - **Shipping round 2026-09-14**: `main` pushed (head `94be80c`) — CI
   `test.yml` ran GREEN in Actions (RB-7 residual resolved). Clear-thought
   re-published to Smithery AFTER the RB-10 metadata merge: registry-driven

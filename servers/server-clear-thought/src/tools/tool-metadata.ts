@@ -21,6 +21,10 @@ export interface ToolMetadata {
    * mutations) → idempotentHint: false in annotations.
    */
   stateful?: boolean;
+  /** false = the tool writes outside server-internal state (default true). */
+  readOnly?: boolean;
+  /** true = the tool may destroy/overwrite external content (default false). */
+  destructive?: boolean;
 }
 
 /** status + optional extras, passthrough for payload evolution. */
@@ -180,6 +184,64 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     title: 'Risk Toolset',
     outputSchema: schema({ operation: z.unknown().optional() })
   },
+  // ── Track B2–B5 ─────────────────────────────────────────────────────────
+  argument_map: {
+    title: 'Argument Map',
+    outputSchema: schema({
+      claim: z.unknown().optional(),
+      elements: z.unknown().optional(),
+      missing_elements: z.unknown().optional(),
+      completeness: z.unknown().optional(),
+      verdict: z.unknown().optional()
+    })
+  },
+  causal_graph: {
+    title: 'Causal Graph',
+    outputSchema: schema({
+      mode: z.unknown().optional(),
+      outcome: z.unknown().optional(),
+      root_candidates: z.unknown().optional(),
+      confounder_candidates: z.unknown().optional(),
+      questions: z.unknown().optional(),
+      ...dualMode
+    })
+  },
+  fermi_estimate: {
+    title: 'Fermi Estimate',
+    outputSchema: schema({
+      target: z.unknown().optional(),
+      estimate: z.unknown().optional(),
+      sensitivity: z.unknown().optional(),
+      most_sensitive: z.unknown().optional()
+    })
+  },
+  game_matrix: {
+    title: 'Game Matrix',
+    outputSchema: schema({
+      best_responses: z.unknown().optional(),
+      strictly_dominated: z.unknown().optional(),
+      pure_nash: z.unknown().optional(),
+      nash_count: z.unknown().optional(),
+      mixed_strategies: z.unknown().optional()
+    })
+  },
+  // ── Workflow toolset (track C) ────────────────────────────────────────
+  recipe_runner: {
+    title: 'Recipe Runner',
+    outputSchema: schema({
+      mode: z.unknown().optional(),
+      recipe: z.unknown().optional(),
+      progress: z.unknown().optional(),
+      current_stage: z.unknown().optional(),
+      next_action: z.unknown().optional()
+    }),
+    stateful: true
+  },
+  workflow: {
+    title: 'Workflow Toolset',
+    outputSchema: schema({ operation: z.unknown().optional() }),
+    stateful: true
+  },
 
   // ── Utility family ────────────────────────────────────────────────────────
   analogical_mapper: {
@@ -235,6 +297,23 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   session_import: {
     title: 'Session Import',
     outputSchema: schema({ restored: z.unknown().optional() }),
+    stateful: true
+  },
+  session_save: {
+    title: 'Session Save',
+    outputSchema: schema({
+      saved: z.unknown().optional(),
+      bytes: z.unknown().optional()
+    }),
+    readOnly: false
+  },
+  session_load: {
+    title: 'Session Load',
+    outputSchema: schema({
+      loaded: z.unknown().optional(),
+      savedAt: z.unknown().optional(),
+      stats: z.unknown().optional()
+    }),
     stateful: true
   },
 

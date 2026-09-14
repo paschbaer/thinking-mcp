@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SessionState } from '../state/SessionState.js';
@@ -37,7 +40,7 @@ export function registerSessionManagement(server: McpServer, sessionState: Sessi
       const format = args.format || 'json';
       
       if (format === 'json') {
-        const exportData = sessionState.export();
+        const exportData = sessionState.export(); console.error('[DBG] session_export len:', Array.isArray(exportData) ? exportData.length : 'obj');
         return {
           content: [{
             type: 'text',
@@ -128,6 +131,101 @@ export function registerSessionManagement(server: McpServer, sessionState: Sessi
             }, null, 2)
           }]
         };
+      }
+    }
+  );
+
+  // Session Persistence Tools (D3) — enabled via the `dataDir` config.
+  const NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+
+  function persistenceError(message: string) {
+    return {
+      isError: true as const,
+      content: [{
+        type: 'text' as const,
+        text: JSON.stringify({ status: 'error', error: message }, null, 2)
+      }]
+    };
+  }
+
+  server.tool(
+    'session_save',
+    'Persist the current session state to a JSON file under the configured dataDir',
+    {
+      name: z
+        .string()
+        .regex(NAME_PATTERN, 'name may contain letters, digits, dot, underscore and dash only')
+        .describe('File name (without extension) for the saved session')
+    },
+    async ({ name }) => {
+      const dataDir = sessionState.getConfig().dataDir;
+      if (!dataDir) {
+        return persistenceError(
+          'session persistence is disabled — configure the server with a dataDir to enable session_save/session_load'
+        );
+      }
+      try {
+        const sessionsDir = path.join(dataDir, 'sessions');
+        await fs.mkdir(sessionsDir, { recursive: true });
+        const file = path.join(sessionsDir, `${name}.json`);
+        const payload = {
+          savedAt: new Date().toISOString(),
+          sessionId: sessionState.sessionId,
+          data: ((d) => { console.error('[DBG] session_save len:', Array.isArray(d) ? d.length : 'obj'); return d; })(sessionState.export())
+        };
+        await fs.writeFile(file, JSON.stringify(payload, null, 2), 'utf8');
+        const response = {
+          status: 'success',
+          saved: file,
+          bytes: (await fs.stat(file)).size
+        };
+        return { content: [{ type: 'text', text: JSON.stringify(response, null, 2) }] };
+      } catch (error) {
+        return persistenceError(
+          error instanceof Error ? error.message : 'Failed to save session state'
+        );
+      }
+    }
+  );
+
+  server.tool(
+    'session_load',
+    'Load a previously saved session state file from the configured dataDir into this session',
+    {
+      name: z
+        .string()
+        .regex(NAME_PATTERN, 'name may contain letters, digits, dot, underscore and dash only')
+        .describe('File name (without extension) of the saved session'),
+      merge: z.boolean().optional().describe('Whether to merge with existing session data (default: false)')
+    },
+    async ({ name, merge }) => {
+      const dataDir = sessionState.getConfig().dataDir;
+      if (!dataDir) {
+        return persistenceError(
+          'session persistence is disabled — configure the server with a dataDir to enable session_save/session_load'
+        );
+      }
+      try {
+        const file = path.join(dataDir, 'sessions', `${name}.json`);
+        if (!fsSync.existsSync(file)) {
+          return persistenceError(`no saved session named "${name}" (looked at ${file})`);
+        }
+        const parsed = JSON.parse(await fs.readFile(file, 'utf8'));
+        if (!merge) {
+          sessionState.cleanup();
+        }
+        sessionState.import(parsed.data);
+        const response = {
+          status: 'success',
+          loaded: file,
+          savedAt: parsed.savedAt ?? null,
+          stats: sessionState.getStats()
+        };
+        return { content: [{ type: 'text', text: JSON.stringify(response, null, 2) }] };
+      } catch (error) {
+        return persistenceError(
+          error instanceof Error ? error.message : 'Failed to load session state'
+        );
       }
     }
   );

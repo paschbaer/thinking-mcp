@@ -6,7 +6,7 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 
 | Server | Package | Description |
 |--------|---------|-------------|
-| [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, and memory management |
+| [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, risk analysis (pre-mortem, FMEA, fault trees), causal & game-theoretic analysis, Fermi estimation, and guided workflow recipes |
 | [Stochastic Thinking](./servers/server-stochasticthinking) | `@paschbaer/stochasticthinking` | Stochastic algorithms and probabilistic decision making |
 
 📖 **Detailed tool documentation** — every tool with parameters, responses,

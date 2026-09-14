@@ -16,7 +16,14 @@ export const ServerConfigSchema = z.object({
   debug: z.boolean().default(false).describe('Enable debug logging'),
   maxThoughtsPerSession: z.number().min(1).max(1000).default(100).describe('Maximum number of thoughts allowed per session'),
   sessionTimeout: z.number().min(60000).default(3600000).describe('Session timeout in milliseconds'),
-  enableMetrics: z.boolean().default(false).describe('Enable metrics collection')
+  enableMetrics: z.boolean().default(false).describe('Enable metrics collection'),
+  dataDir: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'Directory for session persistence files — enables the session_save/session_load tools'
+    )
 });
 
 /**

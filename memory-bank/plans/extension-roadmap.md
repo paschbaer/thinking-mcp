@@ -61,7 +61,7 @@ keine schweren externen Dependencies.
 
 ---
 
-## B) Neue Tool-Familien (server-clear-thought)
+## B) Neue Tool-Familien (server-clear-thought) — ✅ B1 2026-09-14 (0.2.0), ✅ B2–B5 2026-09-14 (0.3.0)
 
 Pattern-Vorlage existiert und ist bewährt: dual-mode
 (Facilitation/Analysis) + dual registration (Tool + Toolset). Je Familie:
@@ -94,7 +94,11 @@ Tool-Metadaten-Registry.
 
 ---
 
-## C) Recipe Runner (Workflows ausführbar machen)
+## C) Recipe Runner (Workflows ausführbar machen) — ✅ Minimalvariante implementiert 2026-09-14 (0.3.0)
+
+> **Status:** `recipe_runner` + `workflow`-Toolset live (Navigation + Hints,
+> per-session Fortschritt, 6 Rezepte als Daten in `src/recipes/index.ts`).
+> Offen: orchestrierte Variante (Server ruft Stage-Handler direkt).
 
 **Ist.** Vier Workflow-Rezepte existieren nur als Doku in `AGENTS_TEMPLATE`
 (Debug, Architektur-Entscheidung, Stress-Test, Ideation).
@@ -115,7 +119,12 @@ Tool-Metadaten-Registry.
 
 ---
 
-## D) MCP-Protokoll-Features
+## D) MCP-Protokoll-Features — ✅ D1–D3 2026-09-14 (0.3.0); D4 bewusst zurückgestellt
+
+> **Status:** D1 Session-Resources (4 URIs via `registerResource`), D2 Workflow-Prompts
+> (6 Rezept-Prompts via `registerPrompt`), D3 File-Persistence (`session_save`/
+> `session_load`, `dataDir`-Config, Pfad-Sanitizing) live. D4 (Sampling) bewusst
+> zuletzt — client-/kostenabhängig.
 
 - **D1 — Resources**: Session-State als MCP-Resources exponieren
   (Thought-History je Store, Decision-Records, `session_export`-Snapshot);

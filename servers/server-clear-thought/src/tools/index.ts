@@ -28,6 +28,11 @@ import { registerIssueTree } from './issue-tree.js';
 import { registerPremortem } from './premortem.js';
 import { registerFmea } from './fmea.js';
 import { registerFaultTree } from './fault-tree.js';
+import { registerRecipeRunner } from './recipe-runner.js';
+import { registerArgumentMap } from './argument-map.js';
+import { registerCausalGraph } from './causal-graph.js';
+import { registerFermiEstimate } from './fermi-estimate.js';
+import { registerGameMatrix } from './game-matrix.js';
 import { registerExistingToolExample } from './existing-tool-example.js';
 import { registerAgentsGuide } from './agents-guide.js';
 import { registerSessionManagement } from './session-management.js';
@@ -37,6 +42,7 @@ import { registerVisualizationToolset } from '../toolsets/visualization.js';
 import { registerUtilityToolset } from '../toolsets/utility.js';
 import { registerSessionToolset } from '../toolsets/session.js';
 import { registerRiskToolset } from '../toolsets/risk.js';
+import { registerWorkflowToolset } from '../toolsets/workflow.js';
 
 /**
  * Registers all Clear Thought tools and toolsets with the provided MCP server instance
@@ -76,6 +82,15 @@ export function registerTools(server: McpServer, sessionState: SessionState): vo
   registerFmea(server, sessionState);
   registerFaultTree(server, sessionState);
 
+  // Workflows (C)
+  registerRecipeRunner(server, sessionState);
+
+  // Track B2–B5
+  registerArgumentMap(server, sessionState);
+  registerCausalGraph(server, sessionState);
+  registerFermiEstimate(server, sessionState);
+  registerGameMatrix(server, sessionState);
+
   registerExistingToolExample(server, sessionState);
   registerAgentsGuide(server, sessionState);
 
@@ -88,5 +103,6 @@ export function registerTools(server: McpServer, sessionState: SessionState): vo
   registerUtilityToolset(server, sessionState);
   registerSessionToolset(server, sessionState);
   registerRiskToolset(server, sessionState);
+  registerWorkflowToolset(server, sessionState);
 }
 
