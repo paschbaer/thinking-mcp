@@ -420,6 +420,8 @@ MIT License - see LICENSE for details.
 
 ## Acknowledgments
 
+- Architecture and agent-guide patterns adopted from the Clear Thought MCP
+  server by glassBead ([@waldzellai](https://github.com/waldzellai))
 - Based on the Model Context Protocol (MCP) by Anthropic
 - Extends the sequential thinking server with stochastic capabilities
 - Inspired by classic works in reinforcement learning and decision theory

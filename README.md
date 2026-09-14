@@ -62,6 +62,14 @@ The server also supports **stdio** for MCP clients that spawn it directly: use t
 
 Both servers are published to the [Smithery registry](https://smithery.ai) as MCPB bundles. Maintainers publish via each server's tooling — see the **Publishing (maintainers)** sections in the [Clear Thought](./servers/server-clear-thought/README.md#publishing-maintainers) and [Stochastic Thinking](./servers/server-stochasticthinking/README.md#publishing-maintainers) READMEs.
 
+## Acknowledgments
+
+- **Clear Thought** is a maintained fork of the original Clear Thought MCP
+  server by glassBead ([@waldzellai](https://github.com/waldzellai)) — thank
+  you for the excellent reasoning-toolset foundation (MIT).
+- Built on the [Model Context Protocol](https://modelcontextprotocol.io) by
+  Anthropic.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE) and the per-server `LICENSE` files.

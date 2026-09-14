@@ -478,5 +478,6 @@ MIT License - see LICENSE for details.
 
 ## Acknowledgments
 
+- This repository maintains a fork of the original Clear Thought MCP server by glassBead ([@waldzellai](https://github.com/waldzellai))
 - Based on the Model Context Protocol (MCP) by Anthropic, and uses the code for the sequentialthinking server
 - Mental Models framework inspired by [James Clear's comprehensive guide to mental models](https://jamesclear.com/mental-models), which provides an excellent overview of how these thinking tools can enhance decision-making and problem-solving capabilities
