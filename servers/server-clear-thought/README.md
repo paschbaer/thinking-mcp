@@ -66,6 +66,23 @@ Note: Compatible with various modern web frameworks and architectures.
 
 Each tool in the Clear Thought MCP Server has specific strengths. Here are some scenarios where each tool might be particularly useful:
 
+### Risk Analysis
+
+- **Pre-Mortem** (`premortem`) — imagine the project failed; rank failure causes by likelihood × impact, check mitigation coverage
+- **FMEA** (`fmea`) — failure modes with Risk Priority Numbers (severity × occurrence × detection), threshold flagging
+- **Fault Tree Analysis** (`fault_tree`) — exact AND/OR tree evaluation, top-event probability, contribution ranking of basic events
+
+### Reasoning Extensions
+
+- **Argument Map** (`argument_map`) — Toulmin completeness check; missing elements (warrant, backing, qualifiers, rebuttals) come back with guiding questions
+- **Causal Graph** (`causal_graph`) — intervention/counterfactual questions per cause, confounder and root-cause candidates
+- **Fermi Estimate** (`fermi_estimate`) — assumption chains with point estimate and deterministic sensitivity ranking
+- **Game Matrix** (`game_matrix`) — strict dominance, best responses, pure Nash equilibria, closed-form mixed strategies (2×2)
+
+### Workflow Recipes
+
+- **Recipe Runner** (`recipe_runner`) — guided navigation through the six workflow recipes (debug, architecture decision, stress-test, ideation, delegation, research); per-session progress, `start` → work → `advance`
+
 ### Mental Models
 
 Best suited for:

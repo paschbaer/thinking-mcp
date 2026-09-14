@@ -5,6 +5,8 @@ import { SessionState } from './state/SessionState.js';
 import { ServerConfigSchema, type ServerConfig } from './config.js';
 import { registerTools } from './tools/index.js';
 import { TOOL_METADATA } from './tools/tool-metadata.js';
+import { registerSessionResources } from './resources/session-resources.js';
+import { registerWorkflowPrompts } from './prompts/workflow-prompts.js';
 
 // Export the config schema for Smithery
 export { ServerConfigSchema as configSchema } from './config.js';
@@ -25,14 +27,21 @@ export default function createClearThoughtServer({
   // Create a new MCP server instance for each session
   const mcpServer = new McpServer({
     name: 'clear-thought',
-    version: '0.2.0'
+    version: '0.3.0'
   });
 
-  // Initialize session state
-  const sessionState = new SessionState(sessionId, config);
+  // Initialize session state — parse defensively so raw/partial configs get
+  // schema defaults (e.g. sessionTimeout); an unparsed config would leave
+  // sessionTimeout undefined and arm an immediate cleanup timer.
+  const resolvedConfig = ServerConfigSchema.parse(config);
+  const sessionState = new SessionState(sessionId, resolvedConfig);
 
   // Register all tools for this session
   registerTools(mcpServer, sessionState);
+
+  // Register session-state resources and workflow prompts (tracks D1/D2)
+  registerSessionResources(mcpServer, sessionState);
+  registerWorkflowPrompts(mcpServer);
 
   // Capability metadata for every registered tool: annotations, a generic
   // object output schema, and structuredContent derived from the JSON text
@@ -57,8 +66,8 @@ export default function createClearThoughtServer({
     tool.update({
       annotations: {
         title: metadata?.title ?? toolName,
-        readOnlyHint: true,
-        destructiveHint: false,
+        readOnlyHint: metadata?.readOnly ?? true,
+        destructiveHint: metadata?.destructive ?? false,
         idempotentHint: !(metadata?.stateful ?? false),
         openWorldHint: false
       },
