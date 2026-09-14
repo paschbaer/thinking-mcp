@@ -7,6 +7,10 @@
 
 ## What Works
 
+- **CI/CD-Release-Flow (2026-09-14, branch `develop`)**: GitFlow-light — `develop` ist der
+  Entwicklungs-Branch (Test-Action läuft dort + auf PRs), Releases mergen `develop` → `main`;
+  auf `main` publizieren `publish-npm.yml` (npmjs.com, version-guarded, --provenance) und
+  `publish-containers.yml` (ghcr.io, latest+version+sha Tags, HTTP-Server-Images Port 3000).
 - **E-Plan Phase 3, Tier 1 (2026-09-14, branch `feature/eval-harness`)**: contract evals in
   `tests/contracts.test.ts` — dual-mode sweep (concept_map/fishbone_diagram/issue_tree, die zuvor
   ungetestet waren), Toolset-Parität (individual ≡ toolset über reasoning/visualization/utility/

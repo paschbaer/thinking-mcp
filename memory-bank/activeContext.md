@@ -34,6 +34,10 @@
 
 ## Recent Changes
 
+- 2026-09-14 (III): GitFlow-light CI — `develop`-Branch angelegt (Test-Action dort),
+  `publish-npm.yml` (npmjs.com, version-guarded, provenance) +
+  `publish-containers.yml` (ghcr.io) für Release-Merges nach `main`;
+  Root-README Publishing-Abschnitt erweitert.
 - 2026-09-14 (II): npm publish round (E-Plan Phase 2, branch
   `feature/npm-publish`): package hygiene + dry-run audits; first publish
   0.1.0 (stochastic silently failed); bin-guard bug found via npx

@@ -62,6 +62,11 @@ The server also supports **stdio** for MCP clients that spawn it directly: use t
 
 Both servers are published to the [Smithery registry](https://smithery.ai) as MCPB bundles. Maintainers publish via each server's tooling — see the **Publishing (maintainers)** sections in the [Clear Thought](./servers/server-clear-thought/README.md#publishing-maintainers) and [Stochastic Thinking](./servers/server-stochasticthinking/README.md#publishing-maintainers) READMEs.
 
+On every release merge (`develop` → `main`) GitHub Actions publish automatically:
+
+- **npmjs.com** — `@paschbaer/clear-thought` + `@paschbaer/stochasticthinking` (`.github/workflows/publish-npm.yml`; only when the package version changed, provenance attested). One-time setup: either configure a **Trusted Publisher** on each npm package (repo `paschbaer/thinking-mcp`, workflow `publish-npm.yml`) or add an `NPM_TOKEN` repository secret.
+- **GitHub Container Registry** — `ghcr.io/paschbaer/clear-thought` + `ghcr.io/paschbaer/stochasticthinking`, tagged `latest` + package version + sha (`.github/workflows/publish-containers.yml`; images run the HTTP server on port 3000). One-time setup: flip the created packages to **public** in their package settings.
+
 ## Acknowledgments
 
 - **Clear Thought** is a maintained fork of the original Clear Thought MCP

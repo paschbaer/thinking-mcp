@@ -1,0 +1,74 @@
+name: Publish npm
+
+# Release-Pfad: develop → main merge (oder Push auf main) publiziert beide
+# Server auf npmjs.com — aber NUR wenn sich die Package-Version geändert hat
+# (Guard gegen doppelte Versionen). Bei unveränderter Version skippt der Job.
+#
+# Auth (eine von zwei Möglichkeiten):
+#  1. Empfohlen: Trusted Publishing (OIDC) — auf npmjs.com pro Package unter
+#     Settings → Trusted Publisher Repo `paschbaer/thinking-mcp` + Workflow
+#     `publish-npm.yml` eintragen. `--provenance` + `id-token: write` (oben
+#     gesetzt) erledigen die Authentifizierung dann tokenlos.
+#  2. Alternativ: Secret `NPM_TOKEN` (Granular Token, nur Packages
+#     `@paschbaer/*` lesend+schreibend). Hinweis: 2FA-Bypass-Tokens verlieren
+#     ab ~2027 das direkte Publishen (GitHub-Changelog 2026-07-08).
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.scope }} to npmjs.com
+    runs-on: ubuntu-latest
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: server-clear-thought
+            scope: clear-thought
+          - package: server-stochasticthinking
+            scope: stochasticthinking
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build workspace
+        run: yarn workspace @paschbaer/${{ matrix.scope }} build
+
+      - name: Publish only when the version changed
+        id: guard
+        working-directory: servers/${{ matrix.package }}
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npm view "@paschbaer/${{ matrix.scope }}" version 2>/dev/null || echo "none")
+          if [ "$LOCAL" = "$REMOTE" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "local=$LOCAL remote=$REMOTE publish=$(grep -o 'true\|false' "$GITHUB_OUTPUT" | tail -1)"
+
+      - name: Publish to npmjs.com
+        if: steps.guard.outputs.publish == 'true'
+        working-directory: servers/${{ matrix.package }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
