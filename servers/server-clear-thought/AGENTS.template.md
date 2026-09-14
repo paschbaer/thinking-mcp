@@ -75,6 +75,9 @@ Toolset routing:
 | Root-cause analysis (many causes) | `fishbone_diagram` | `problem`; optional `causes[]` ({ category, causes[] }) — without it a facilitation scaffold is returned |
 | Strategic assessment of one subject | `swot_analysis` | `subject` (required); optional quadrant arrays — plain strings or weighted objects `{ text, impact 1-5, likelihood 1-5, tags[] }`; `topN`, `matchMode` — **see dual-mode note below** |
 | Decompose a problem into sub-issues | `issue_tree` | `problem`, `depth`; optional `sub_questions[]` — without them a facilitation scaffold is returned |
+| Run a pre-mortem on a plan | `premortem` | `project`; optional `timeframe_months`, `failure_causes[]` ({ cause, likelihood 1-5, impact 1-5, mitigation }), `top_n` — without causes a facilitation scaffold is returned; analysis ranks by likelihood × impact and reports mitigation coverage |
+| Analyze failure modes with RPN ranking | `fmea` | `scope`; optional `failure_modes[]` ({ failure_mode, severity 1-10, occurrence 1-10, detection 1-10, causes/effects/controls/actions }), `rpn_threshold` (default 100) — RPN = S × O × D, flagged rows reported |
+| Evaluate a fault tree exactly | `fault_tree` | `top_event`, `gates[]` ({ id, type: `basic` \| `and` \| `or`, probability (basics), `inputs[]` (gates) }) — exact top-event probability + contribution ranking of basic events; the LAST gate is the top gate |
 | Import solution patterns from other domains | `analogical_mapper` | `problem`, `seed_domains[]`, `k` — returns per-domain guiding questions (scaffold; you construct the analogy) |
 | Surface hidden assumptions | `assumption_xray` | `claim`, `context` — heuristic extraction (universality, causality, necessity, comparatives) with evidence, heuristic confidence and falsification tests |
 | Pick the best executor for tasks | `comparative_advantage` | `skills` (map of agent → { skill: level }), `tasks` (map of task → required skills[]); optional `capacity` (max tasks per agent → greedy multi-task assignment) and `costs` (effective score = skill score / cost); missing skills count as 0 |
@@ -90,8 +93,8 @@ Toolset routing:
 ## Dual-mode tools: facilitation vs. analysis
 
 Several tools (`swot_analysis`, `mind_map`, `concept_map`, `fishbone_diagram`,
-`issue_tree`, `analogical_mapper`, `seven_seekers_orchestrator`,
-`drag_point_audit` on empty logs) work in two modes:
+`issue_tree`, `premortem`, `fmea`, `fault_tree`, `analogical_mapper`,
+`seven_seekers_orchestrator`, `drag_point_audit` on empty logs) work in two modes:
 
 - `mode: 'facilitation'` — you have not provided content yet. The response
   contains guiding questions. **Answer them yourself and call the tool again
