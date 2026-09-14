@@ -139,6 +139,48 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     })
   },
 
+  // ── Risk family (B1) ───────────────────────────────────────────────────
+  premortem: {
+    title: 'Pre-Mortem',
+    outputSchema: schema({
+      mode: z.unknown().optional(),
+      project: z.unknown().optional(),
+      timeframe_months: z.unknown().optional(),
+      risks: z.unknown().optional(),
+      top_risks: z.unknown().optional(),
+      mitigation_coverage: z.unknown().optional(),
+      ...dualMode
+    })
+  },
+  fmea: {
+    title: 'FMEA',
+    outputSchema: schema({
+      mode: z.unknown().optional(),
+      scope: z.unknown().optional(),
+      rows: z.unknown().optional(),
+      mean_rpn: z.unknown().optional(),
+      max_rpn: z.unknown().optional(),
+      flagged_count: z.unknown().optional(),
+      ...dualMode
+    })
+  },
+  fault_tree: {
+    title: 'Fault Tree Analysis',
+    outputSchema: schema({
+      mode: z.unknown().optional(),
+      top_event: z.unknown().optional(),
+      top_probability: z.unknown().optional(),
+      basic_events: z.unknown().optional(),
+      ...dualMode
+    })
+  },
+
+  // ── Risk toolset (family toolset for the B1 risk tools) ──────────────
+  risk: {
+    title: 'Risk Toolset',
+    outputSchema: schema({ operation: z.unknown().optional() })
+  },
+
   // ── Utility family ────────────────────────────────────────────────────────
   analogical_mapper: {
     title: 'Analogical Mapper',
