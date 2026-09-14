@@ -7,6 +7,14 @@
 
 ## What Works
 
+- **Roadmap-Track B2–B5 (2026-09-14, branch `feature/track-b2-b5`, 0.3.0)**: vier neue
+  statelose Analyse-Tools im `reasoning`-Toolset — `argument_map` (Toulmin-Vollständigkeit
+  mit Leitfragen, 6 Elemente), `causal_graph` (dual-mode: Intervention/Counterfactual-Fragen,
+  Confounder- + Root-Kandidaten, Zyklen/Unknown-Refs-Validierung), `fermi_estimate`
+  (Multiplikations-/Summenkette + Sensitivitätsranking, deterministisch), `game_matrix`
+  (strikte Dominanz, beste Antworten, Pure-Nash, gemischte 2×2 geschlossen). 10 neue
+  Hand-verifizierte Tests (PD-Nash, Stag-Hunt 2×Nash + Mixed 0.5, Fermi-Sensitivität
+  ±20 % > ±10 %); 121/121 Tests, Audit 43/43 sauber.
 - **Roadmap-Track B1 — Risiko-Familie (2026-09-14, branch `feature/risk-family`, 0.2.0)**:
   drei neue dual-mode Tools — `premortem` (Failure-Cause-Ranking + Mitigation-Coverage),
   `fmea` (RPN = S×O×D mit Threshold-Flagging), `fault_tree` (exakte AND/OR-Auswertung +
