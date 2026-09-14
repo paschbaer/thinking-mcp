@@ -1,0 +1,75 @@
+name: Publish Smithery
+
+# Release-Pfad: develop → main merge (oder Push auf main) republished beide
+# Server auf der Smithery-Registry — aber NUR wenn sich die Package-Version
+# geändert hat (Guard gegen Dubletten). Erfordert das Repository-Secret
+# SMITHERY_API_KEY (das smry_…-Token aus ~/.config/smithery/settings.json,
+# das `npx @smithery/cli auth login` lokal anlegt).
+#
+# Hinweis: Das Skript captures die Tool-Metadaten zur Laufzeit (in-memory
+# client) — deshalb muss `yarn build` vor dem Publish laufen.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Republish ${{ matrix.name }} on Smithery
+    runs-on: ubuntu-latest
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: server-clear-thought
+            workspace: clear-thought
+            name: paschbaer/clear-thought
+          - package: server-stochasticthinking
+            workspace: stochasticthinking
+            name: paschbaer/stochasticthinking
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build workspace + MCPB bundle
+        working-directory: servers/${{ matrix.package }}
+        run: |
+          yarn workspace @paschbaer/${{ matrix.workspace }} build
+          npm run build:mcpb
+
+      - name: Republish only when the version changed
+        id: guard
+        working-directory: servers/${{ matrix.package }}
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(curl -sf "https://registry.smithery.ai/servers/${{ matrix.name }}" \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).version||'none')}catch{console.log('none')}})" \
+            || echo "none")
+          if [ "$LOCAL" = "$REMOTE" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "local=$LOCAL remote=$REMOTE"
+
+      - name: Republish on Smithery
+        if: steps.guard.outputs.publish == 'true'
+        working-directory: servers/${{ matrix.package }}
+        run: node scripts/publish-smithery.mjs ${{ matrix.name }}
+        env:
+          SMITHERY_API_KEY: ${{ secrets.SMITHERY_API_KEY }}

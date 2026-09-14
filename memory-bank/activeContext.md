@@ -23,6 +23,10 @@
 
 ## Recent Changes
 
+- 2026-09-14 (VIII): `publish-smithery.yml` (Release-Pipelines vervollständigt): beide
+  Server werden bei Release-Merges automatisch republished (version-guarded via
+  registry.smithery.ai-Record); beide publish-smithery.mjs akzeptieren jetzt
+  SMITHERY_API_KEY-Env (Secret) zusätzlich zur lokalen Settings-Datei.
 - 2026-09-14 (VII): Roadmap-Track D (branch `feature/track-d`, noch 0.3.0): D1 Session-
   Resources (4 URIs), D2 Workflow-Prompts (6), D3 Persistence (session_save/load + dataDir);
   Factory-Bug behoben (unparsed Config → sofortiger Cleanup-Timer); 129/129 Tests.
