@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { SessionState } from './state/SessionState.js';
 import { ServerConfigSchema, type ServerConfig } from './config.js';
 import { registerTools } from './tools/index.js';
+import { TOOL_METADATA } from './tools/tool-metadata.js';
 
 // Export the config schema for Smithery
 export { ServerConfigSchema as configSchema } from './config.js';
@@ -44,16 +45,24 @@ export default function createClearThoughtServer({
     mcpServer as unknown as { _registeredTools: Record<string, any> }
   )._registeredTools;
   for (const [toolName, tool] of Object.entries(registeredTools ?? {})) {
+    // RB-10: registry-driven metadata — human-readable titles, honest
+    // idempotent hints (stateful tools accumulate session state) and typed
+    // output schemas. Fallback keeps the loop total if a tool ships without
+    // an entry; the completeness test makes that gap visible.
+    const metadata = TOOL_METADATA[toolName];
+    const outputSchema =
+      metadata?.outputSchema ??
+      (z.object({}).passthrough() as z.ZodObject<Record<string, z.ZodTypeAny>>);
     const originalHandler = tool.handler.bind(tool);
     tool.update({
       annotations: {
-        title: toolName,
+        title: metadata?.title ?? toolName,
         readOnlyHint: true,
         destructiveHint: false,
-        idempotentHint: true,
+        idempotentHint: !(metadata?.stateful ?? false),
         openWorldHint: false
       },
-      outputSchema: {},
+      outputSchema: outputSchema.shape,
       callback: async (args: unknown, extra: unknown) => {
         const result = await originalHandler(args, extra);
         if (result?.structuredContent) return result;
@@ -70,10 +79,10 @@ export default function createClearThoughtServer({
         return result;
       }
     });
-    // update() builds the schema via objectFromShape({}) which serializes as
-    // additionalProperties:false — clients validate structuredContent against
-    // it and would reject every payload. Override with a passthrough object.
-    tool.outputSchema = z.object({}).passthrough();
+    // update() builds the schema via objectFromShape(shape) which serializes
+    // conservatively — assign the full zod object so clients get defined
+    // properties + additionalProperties (passthrough) for payload evolution.
+    tool.outputSchema = outputSchema;
   }
 
   // Return the underlying Server instance for Smithery SDK

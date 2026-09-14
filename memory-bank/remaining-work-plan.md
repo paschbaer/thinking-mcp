@@ -25,6 +25,15 @@
   all tools. Detailed elaboration: `plans/quality-distribution.md` (Phase 1;
   chosen strategy: central metadata registry — decisionframework
   `rb10-schema-strategy-2026-09-13`, Option B).
+  UPDATE 2026-09-14 (branch `feature/rb10-typed-output-schemas`, commit
+  9ab9f1f): code gap CLOSED via the central metadata registry
+  (`src/tools/tool-metadata.ts`, 33/33 entries — human-readable titles, typed
+  output schemas with evidenced optional top-level fields + passthrough,
+  honest idempotentHint=false for 16 stateful tools) applied by the central
+  `tool.update()` loop. Audit script (`scripts/audit-tool-metadata.ts`):
+  generic titles 33→0, passthrough outputs 33→0, undescribed params 0→0.
+  Completeness/round-trip tests added; 84/84 green. Remaining to close:
+  clear-thought re-publish + Smithery rescan, then record the score here.
 - [RB-9] RESOLVED 2026-09-13 | Smithery quality score reached 100/100 (was
   28/100): Capability 40/40, Server Metadata 35/35, Configuration UX 25/25.
   Fix chain: full tool metadata in code + serverCard publishing + server
