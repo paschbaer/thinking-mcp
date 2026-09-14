@@ -24,6 +24,10 @@
 
 ## Recent Changes
 
+- 2026-09-14 (VI): Roadmap-Track B2–B5 (branch `feature/track-b2-b5`, noch 0.3.0):
+  `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix` im reasoning-Toolset;
+  fermi-Feld `operation`→`combine` (reservierter Toolset-Diskriminator); Mixed-Formel
+  für den Spalten-Spieler korrigiert ((h−g)/denom); 121/121 Tests.
 - 2026-09-14 (V): Roadmap-Track C (branch `feature/recipe-runner`, 0.3.0): `recipe_runner`
   + `workflow`-Toolset — 6 Guide-Rezepte als Daten, per-session Fortschritt im neuen
   `WorkflowStore`, Auto-Start/advance/reset; Guide (Routing + Rezept-Intro) und

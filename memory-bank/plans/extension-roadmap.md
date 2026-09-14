@@ -61,7 +61,7 @@ keine schweren externen Dependencies.
 
 ---
 
-## B) Neue Tool-Familien (server-clear-thought)
+## B) Neue Tool-Familien (server-clear-thought) — ✅ B1 2026-09-14 (0.2.0), ✅ B2–B5 2026-09-14 (0.3.0)
 
 Pattern-Vorlage existiert und ist bewährt: dual-mode
 (Facilitation/Analysis) + dual registration (Tool + Toolset). Je Familie:

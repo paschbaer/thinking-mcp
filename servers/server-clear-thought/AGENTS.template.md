@@ -69,6 +69,10 @@ Toolset routing:
 | Model a system's dynamics | `systemsthinking` | components + relationships (type: `positive` \| `negative` feedback), emerging patterns |
 | Test a hypothesis empirically | `scientificmethod` | `stage`: `observation` → `question` → `hypothesis` → `experiment` → `analysis` → `conclusion` → `iteration`; variables (independent/dependent/controlled/confounding), status: `proposed`/`testing`/`supported`/`refuted`/`refined` |
 | Build or attack an argument | `structuredargumentation` | `claim`, `premises[]`, `conclusion`, `argumentType`, `confidence` (0–1) |
+| Check an argument's Toulmin completeness | `argument_map` | `claim` required; optional `warrant`, `backing[]`, `qualifiers[]`, `rebuttals[]`, `evidence[]` — missing elements come back with guiding questions |
+| Separate causation from correlation | `causal_graph` | `outcome`; optional `causes[]` + `links[]` ({ from, to, kind: `causes` \| `contributes_to` \| `confounds` }) — intervention/counterfactual questions, confounder + root-cause candidates |
+| Rough-estimate a quantity | `fermi_estimate` | `target`, `assumptions[]` ({ label, value, uncertainty_pct }), `combine`: `multiply` \| `sum` — point estimate + sensitivity ranking |
+| Analyze strategic interaction | `game_matrix` | `row_labels[]`, `col_labels[]`, `payoff_matrix[row][col]` ({ row, col }) — strict dominance, best responses, pure Nash, mixed 2×2 |
 | Sketch a diagram of reasoning | `visualreasoning` | `operation`: `create` \| `update` \| `delete` \| `transform` \| `observe`; `diagramId`, `diagramType`, `iteration`, `nextOperationNeeded` |
 | Hierarchical brainstorm | `mind_map` | `topic`; optional `branches[]` ({ title, subtopics[] }) — without it a facilitation scaffold is returned |
 | Relate concepts with labels | `concept_map` | `main_concept`; optional `related_concepts[]` + `relations[]` — without them a facilitation scaffold is returned |
@@ -94,7 +98,7 @@ Toolset routing:
 ## Dual-mode tools: facilitation vs. analysis
 
 Several tools (`swot_analysis`, `mind_map`, `concept_map`, `fishbone_diagram`,
-`issue_tree`, `premortem`, `fmea`, `fault_tree`, `analogical_mapper`,
+`issue_tree`, `premortem`, `fmea`, `fault_tree`, `causal_graph`, `analogical_mapper`,
 `seven_seekers_orchestrator`, `drag_point_audit` on empty logs) work in two modes:
 
 - `mode: 'facilitation'` — you have not provided content yet. The response
