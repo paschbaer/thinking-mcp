@@ -119,6 +119,10 @@ structured reasoning tools. This guide tells you **which tool to use when**,
 **how to call it correctly**, and **how to chain tools into workflows**.
 
 <!-- clear-thought:agents-guide:start -->
+## Clear Thought — Reasoning Tool Guide
+
+Project: Thinking-MCP Domain: MCP servers providing structured reasoning and problem-solving tools (clear-thought toolset) for coding agents. Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP
+
 ## Ground rules
 
 1. **Think before you act.** For any non-trivial task, start with
@@ -175,6 +179,9 @@ Toolset routing:
 | Root-cause analysis (many causes) | `fishbone_diagram` | `problem`; optional `causes[]` ({ category, causes[] }) — without it a facilitation scaffold is returned |
 | Strategic assessment of one subject | `swot_analysis` | `subject` (required); optional quadrant arrays — plain strings or weighted objects `{ text, impact 1-5, likelihood 1-5, tags[] }`; `topN`, `matchMode` — **see dual-mode note below** |
 | Decompose a problem into sub-issues | `issue_tree` | `problem`, `depth`; optional `sub_questions[]` — without them a facilitation scaffold is returned |
+| Run a pre-mortem on a plan | `premortem` | `project`; optional `timeframe_months`, `failure_causes[]` ({ cause, likelihood 1-5, impact 1-5, mitigation }), `top_n` — without causes a facilitation scaffold is returned; analysis ranks by likelihood × impact and reports mitigation coverage |
+| Analyze failure modes with RPN ranking | `fmea` | `scope`; optional `failure_modes[]` ({ failure_mode, severity 1-10, occurrence 1-10, detection 1-10, causes/effects/controls/actions }), `rpn_threshold` (default 100) — RPN = S × O × D, flagged rows reported |
+| Evaluate a fault tree exactly | `fault_tree` | `top_event`, `gates[]` ({ id, type: `basic` \| `and` \| `or`, probability (basics), `inputs[]` (gates) }) — exact top-event probability + contribution ranking of basic events; the LAST gate is the top gate |
 | Import solution patterns from other domains | `analogical_mapper` | `problem`, `seed_domains[]`, `k` — returns per-domain guiding questions (scaffold; you construct the analogy) |
 | Surface hidden assumptions | `assumption_xray` | `claim`, `context` — heuristic extraction (universality, causality, necessity, comparatives) with evidence, heuristic confidence and falsification tests |
 | Pick the best executor for tasks | `comparative_advantage` | `skills` (map of agent → { skill: level }), `tasks` (map of task → required skills[]); optional `capacity` (max tasks per agent → greedy multi-task assignment) and `costs` (effective score = skill score / cost); missing skills count as 0 |
@@ -190,8 +197,8 @@ Toolset routing:
 ## Dual-mode tools: facilitation vs. analysis
 
 Several tools (`swot_analysis`, `mind_map`, `concept_map`, `fishbone_diagram`,
-`issue_tree`, `analogical_mapper`, `seven_seekers_orchestrator`,
-`drag_point_audit` on empty logs) work in two modes:
+`issue_tree`, `premortem`, `fmea`, `fault_tree`, `analogical_mapper`,
+`seven_seekers_orchestrator`, `drag_point_audit` on empty logs) work in two modes:
 
 - `mode: 'facilitation'` — you have not provided content yet. The response
   contains guiding questions. **Answer them yourself and call the tool again
@@ -302,21 +309,13 @@ All tools share one server-side session. For long tasks:
 
 ## Project-specific conventions
 
-<!-- Customize this section per project. -->
+<!-- Customize this section per project. Example: -->
 
-- This repo **develops** the Clear Thought server itself (TypeScript). Server
-  code lives in `servers/server-clear-thought/`; run its tests with
-  `npx vitest` from that directory.
-- If you change the guide content (`AGENTS_TEMPLATE` in
-  `src/tools/agents-guide-template.ts` or `AGENTS.template.md`), keep all
-  three in sync — `tests/agents-guide.test.ts` enforces this — and regenerate
-  this root `AGENTS.md` by calling `agents_guide` with this file passed as
-  `existing_agents_md`.
-- New reasoning tools must be registered in `src/tools/index.ts` **and**
-  routed into the matching toolset in `src/toolsets/` (toolset calls and
-  individual tool calls are equivalent — see "Calling conventions" above).
-- Record the chosen option of every `decisionframework` run about architecture
-  or API changes in the pull request description.
+- For trading decisions, always run `value_of_information` before requesting
+  additional market data.
+- For refactors, `issue_tree` depth must not exceed 3.
+- Record the chosen option of every `decisionframework` run in
+  `memory-bank/decisions.md`.
 <!-- clear-thought:agents-guide:end -->
 
 <!-- gitnexus:start -->

@@ -7,6 +7,12 @@
 
 ## What Works
 
+- **Roadmap-Track B1 — Risiko-Familie (2026-09-14, branch `feature/risk-family`, 0.2.0)**:
+  drei neue dual-mode Tools — `premortem` (Failure-Cause-Ranking + Mitigation-Coverage),
+  `fmea` (RPN = S×O×D mit Threshold-Flagging), `fault_tree` (exakte AND/OR-Auswertung +
+  Contribution-Ranking der Basic Events) — plus neues `risk`-Toolset (5. Toolset).
+  Registry-Metadaten für alle 36 Tools; 103/103 Tests. Hand-verifizierte Werte:
+  FMEA-RPN 120/40/24, Fault-Tree P_top 0.314 mit B3-Dominanz.
 - **CI/CD-Release-Flow (2026-09-14, branch `develop`)**: GitFlow-light — `develop` ist der
   Entwicklungs-Branch (Test-Action läuft dort + auf PRs), Releases mergen `develop` → `main`;
   auf `main` publizieren `publish-npm.yml` (npmjs.com, version-guarded, --provenance) und
