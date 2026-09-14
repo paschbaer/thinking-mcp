@@ -25,6 +25,9 @@ import { registerConceptMap } from './concept-map.js';
 import { registerFishboneDiagram } from './fishbone-diagram.js';
 import { registerSwotAnalysis } from './swot-analysis.js';
 import { registerIssueTree } from './issue-tree.js';
+import { registerPremortem } from './premortem.js';
+import { registerFmea } from './fmea.js';
+import { registerFaultTree } from './fault-tree.js';
 import { registerExistingToolExample } from './existing-tool-example.js';
 import { registerAgentsGuide } from './agents-guide.js';
 import { registerSessionManagement } from './session-management.js';
@@ -33,6 +36,7 @@ import { registerReasoningToolset } from '../toolsets/reasoning.js';
 import { registerVisualizationToolset } from '../toolsets/visualization.js';
 import { registerUtilityToolset } from '../toolsets/utility.js';
 import { registerSessionToolset } from '../toolsets/session.js';
+import { registerRiskToolset } from '../toolsets/risk.js';
 
 /**
  * Registers all Clear Thought tools and toolsets with the provided MCP server instance
@@ -66,6 +70,12 @@ export function registerTools(server: McpServer, sessionState: SessionState): vo
   registerFishboneDiagram(server, sessionState);
   registerSwotAnalysis(server, sessionState);
   registerIssueTree(server, sessionState);
+
+  // Risk family (B1)
+  registerPremortem(server, sessionState);
+  registerFmea(server, sessionState);
+  registerFaultTree(server, sessionState);
+
   registerExistingToolExample(server, sessionState);
   registerAgentsGuide(server, sessionState);
 
@@ -77,5 +87,6 @@ export function registerTools(server: McpServer, sessionState: SessionState): vo
   registerVisualizationToolset(server, sessionState);
   registerUtilityToolset(server, sessionState);
   registerSessionToolset(server, sessionState);
+  registerRiskToolset(server, sessionState);
 }
 

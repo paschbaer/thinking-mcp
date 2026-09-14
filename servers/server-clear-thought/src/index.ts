@@ -25,7 +25,7 @@ export default function createClearThoughtServer({
   // Create a new MCP server instance for each session
   const mcpServer = new McpServer({
     name: 'clear-thought',
-    version: '0.1.2'
+    version: '0.2.0'
   });
 
   // Initialize session state

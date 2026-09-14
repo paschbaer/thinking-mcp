@@ -4,14 +4,20 @@ name: Publish npm
 # Server auf npmjs.com — aber NUR wenn sich die Package-Version geändert hat
 # (Guard gegen doppelte Versionen). Bei unveränderter Version skippt der Job.
 #
-# Auth (eine von zwei Möglichkeiten):
-#  1. Empfohlen: Trusted Publishing (OIDC) — auf npmjs.com pro Package unter
-#     Settings → Trusted Publisher Repo `paschbaer/thinking-mcp` + Workflow
-#     `publish-npm.yml` eintragen. `--provenance` + `id-token: write` (oben
-#     gesetzt) erledigen die Authentifizierung dann tokenlos.
-#  2. Alternativ: Secret `NPM_TOKEN` (Granular Token, nur Packages
-#     `@paschbaer/*` lesend+schreibend). Hinweis: 2FA-Bypass-Tokens verlieren
-#     ab ~2027 das direkte Publishen (GitHub-Changelog 2026-07-08).
+# Auth: Trusted Publishing (OIDC) — einmalig auf npmjs.com PRO Package
+# konfigurieren (Package-Seite → Settings → "Publishing access" →
+# Trusted Publisher):
+#   Organization/user : paschbaer
+#   Repository        : thinking-mcp
+#   Workflow filename : publish-npm.yml
+#   Environment       : (leer lassen)
+# Danach authentifiziert sich `npm publish --provenance` in diesem Workflow
+# tokenlos über den GitHub-Actions-OIDC-Token (id-token: write, unten
+# gesetzt; benötigt npm ≥ 11.5 → daher Node 24). Kein NPM_TOKEN-Secret nötig.
+# Fallback, falls du stattdessen ein Token nutzen willst: im Publish-Step
+# wieder `env: NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` ergänzen — beachte
+# aber, dass 2FA-Bypass-Tokens ab ~2027 nur noch gestagte Publishes
+# erlauben (GitHub-Changelog 2026-07-08).
 
 on:
   push:
@@ -44,7 +50,8 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          # npm >= 11.5 benötigt (OIDC Trusted Publishing)
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -66,9 +73,7 @@ jobs:
           fi
           echo "local=$LOCAL remote=$REMOTE publish=$(grep -o 'true\|false' "$GITHUB_OUTPUT" | tail -1)"
 
-      - name: Publish to npmjs.com
+      - name: Publish to npmjs.com (OIDC — tokenlos)
         if: steps.guard.outputs.publish == 'true'
         working-directory: servers/${{ matrix.package }}
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
