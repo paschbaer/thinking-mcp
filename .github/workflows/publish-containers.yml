@@ -1,0 +1,67 @@
+name: Publish Containers
+
+# Release-Pfad: develop → main merge (oder Push auf main) baut beide
+# Server-Images und pushed sie nach ghcr.io:
+#   ghcr.io/paschbaer/clear-thought:{latest,VERSION,sha-*}
+#   ghcr.io/paschbaer/stochasticthinking:{latest,VERSION,sha-*}
+#
+# Auth läuft automatisch über GITHUB_TOKEN (permissions.packages: write).
+# Einmalig manuell: Packages unter ghcr.io auf public stellen
+# (Package-Seite → Package settings → Visibility), damit `docker run`
+# ohne Login funktioniert. Images starten den HTTP-Server (Port 3000).
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    name: Build & push ghcr.io/${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - server: server-clear-thought
+            image: clear-thought
+          - server: server-stochasticthinking
+            image: stochasticthinking
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute image tags (latest + version + sha)
+        id: tags
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          VERSION=$(node -p "require('./servers/${{ matrix.server }}/package.json').version")
+          OWNER_LC="${OWNER,,}"
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/${OWNER_LC}/${{ matrix.image }}:latest"
+            echo "ghcr.io/${OWNER_LC}/${{ matrix.image }}:${VERSION}"
+            echo "ghcr.io/${OWNER_LC}/${{ matrix.image }}:sha-${SHA}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: servers/${{ matrix.server }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
