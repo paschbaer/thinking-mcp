@@ -48,13 +48,12 @@
 
 ## What's Left
 
-- Record the clear-thought Smithery rescan score (dashboard) and close RB-10
-  (re-publish already done, 2026-09-14).
 - Extension roadmap (`plans/extension-roadmap.md`, detail plan
-  `plans/quality-distribution.md`): E1 RB-10 DONE (merged `94be80c`,
-  re-published); next E2 npm publish `@paschbaer/*`, then E3 eval harness;
-  then roadmap tracks C (recipe runner), B (tool families), D
-  (resources/prompts).
+  `plans/quality-distribution.md`): E1 RB-10 DONE + CLOSED (rescan 96/100,
+  2026-09-14); next E2 npm publish `@paschbaer/*`, then E3 eval harness; then
+  roadmap tracks C (recipe runner), B (tool families), D (resources/prompts).
+- Optional (breaking, deferred): tool-name de-snake-casing to close the
+  Smithery Naming gap (~4pt, see RB-9-history) — needs a major version.
 - Optional RB candidate: shared workspace HTTP scaffold for both servers
   (decisionframework option C, deferred).
 - Periodic refresh of the GitNexus index after larger refactors
@@ -75,8 +74,7 @@ port 3001 with both tools). **Published to the Smithery registry with a perfect 
 (`paschbaer/stochasticthinking`, stdio bundle distribution — verified
 download-only via API, 1 connection exists, 2026-09-12). **`main` pushed
 2026-09-14 (head `94be80c`) — CI `test.yml` green (RB-7 residual resolved);
-clear-thought re-published with the RB-10 metadata registry, rescan pending.**
-Resolved: RB-4, RB-5, RB-6, RB-7, RB-8, RB-9, RB-11; RB-10 code gap closed
-(registry on main), score recording open. Real Computing merged (`80be3d1`).
-Next: E-plan Phase 2 (npm publish `@paschbaer/*`) per
-`plans/quality-distribution.md`.
+clear-thought re-published with the RB-10 metadata registry — rescan
+96/100 (2026-09-14): RB-10 CLOSED.** Resolved: RB-4, RB-5, RB-6, RB-7, RB-8,
+RB-9, RB-10, RB-11. Real Computing merged (`80be3d1`). Next: E-plan Phase 2
+(npm publish `@paschbaer/*`) per `plans/quality-distribution.md`.

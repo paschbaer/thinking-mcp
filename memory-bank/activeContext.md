@@ -17,10 +17,12 @@
   green. Roadmap: track A of `plans/extension-roadmap.md`.
 - State 2026-09-14: Real Computing merged (`80be3d1`) + RB-10 registry merged
   (`94be80c`); `main` pushed, CI `test.yml` GREEN (RB-7 residual resolved);
-  clear-thought re-published to Smithery with the registry metadata — rescan
-  score pending (dashboard) to close RB-10.
-- Next: record the rescan score → close RB-10; then E-plan Phase 2
-  (`plans/quality-distribution.md`): npm publish `@paschbaer/*`.
+  clear-thought re-published — **rescan 96/100: RB-10 CLOSED** (output
+  schemas + annotations now score 33/33; residual ~4pt = Naming, deferred
+  breaking rename).
+- Next: E-plan Phase 2 (`plans/quality-distribution.md`): npm publish
+  `@paschbaer/*` (package hygiene first: publishConfig, files, dead root
+  scripts, dry-run tarball audit).
 - Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
   **published on the Smithery registry** (`paschbaer/stochasticthinking`,
   stdio bundle — download/install distribution; run.tools hosting is
@@ -33,7 +35,8 @@
   (`94be80c`: TOOL_METADATA registry 33/33, central loop parametrized, 84/84
   tests incl. metadata suite + audit script); `main` pushed (3 commits) with
   CI `test.yml` GREEN → RB-7 residual resolved; clear-thought re-published
-  to Smithery with registry metadata (rescan pending).
+  to Smithery with registry metadata; rescan 96/100 (2026-09-14) → RB-10
+  CLOSED.
 - 2026-09-13: Real Computing round (feature branch `feature/real-computing-stochastic`,
   commit 0d33ead): new `src/algorithms/*` modules (rng/mdp/mcts/bandit/hmm/
   bayesopt + dispatcher), handler rewired (details payload, per-algorithm zod

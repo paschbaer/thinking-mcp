@@ -36,6 +36,12 @@
   UPDATE 2026-09-14: squash-merged to `main` (`94be80c`) and re-published to
   Smithery (user-confirmed via scripts/publish-smithery.mjs). Remaining to
   close: dashboard rescan score → record it here.
+  RESOLVED 2026-09-14: rescan score **96/100** (was 75 at the 2026-09-13
+  first rescan). Capability 36/40 — Descriptions 33/33 (10.37pt), Param
+  descriptions 33/33 (8.89pt), Output schemas 33/33 (10.37pt, was 0),
+  Annotations 33/33 (5.93pt, was 0), Naming 4.44pt; Server Metadata 35/35;
+  Config UX 25/25. Residual ~4pt = Naming (snake_case tool names, breaking
+  rename deferred — tracked in RB-9-history). RB-10 CLOSED.
 - [RB-9] RESOLVED 2026-09-13 | Smithery quality score reached 100/100 (was
   28/100): Capability 40/40, Server Metadata 35/35, Configuration UX 25/25.
   Fix chain: full tool metadata in code + serverCard publishing + server
