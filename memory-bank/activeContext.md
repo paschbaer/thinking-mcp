@@ -24,6 +24,9 @@
 
 ## Recent Changes
 
+- 2026-09-14 (VII): Roadmap-Track D (branch `feature/track-d`, noch 0.3.0): D1 Session-
+  Resources (4 URIs), D2 Workflow-Prompts (6), D3 Persistence (session_save/load + dataDir);
+  Factory-Bug behoben (unparsed Config → sofortiger Cleanup-Timer); 129/129 Tests.
 - 2026-09-14 (VI): Roadmap-Track B2–B5 (branch `feature/track-b2-b5`, noch 0.3.0):
   `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix` im reasoning-Toolset;
   fermi-Feld `operation`→`combine` (reservierter Toolset-Diskriminator); Mixed-Formel

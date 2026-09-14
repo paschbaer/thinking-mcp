@@ -5,8 +5,16 @@
 > (AGENTS.md → Lessons Learned / Automatic Post-Bugfix Documentation).
 
 ## Avoid These Mistakes
-
-- **npm account 2FA mode „authorization and publishing" blocks OIDC trusted publishing:** with
+- **Factories must parse config defensively — raw configs arm broken defaults:** the clear-thought
+  factory trusted the caller to pass a schema-parsed config; a raw/partial config left
+  `sessionTimeout` undefined → `setTimeout(cleanup, undefined)` = **immediate cleanup**, wiping the
+  session store between two tool calls (symptom: session_save exported empty data; looked like a
+  store bug). → `ServerConfigSchema.parse(config)` inside the factory. Found while building
+  track-D persistence tests (2026-09-14).
+- **read_file can serve stale editor-buffer content after external (sed/python) writes:**
+  grep/disk showed the broken line, read_file showed clean content. → Trust grep/disk tools after
+  out-of-band edits; verify with `sed -n` before re-editing. Hit during the session-timeout
+  debugging (2026-09-14).- **npm account 2FA mode „authorization and publishing" blocks OIDC trusted publishing:** with
   this mode the registry demands an OTP per publish — an OIDC workflow cannot supply one, so the
   publish fails with `403 OIDC permission denied for this action` even with a correctly
   configured trusted publisher. Deceptive: provenance SIGNING still succeeds (masking the

@@ -21,6 +21,10 @@ export interface ToolMetadata {
    * mutations) → idempotentHint: false in annotations.
    */
   stateful?: boolean;
+  /** false = the tool writes outside server-internal state (default true). */
+  readOnly?: boolean;
+  /** true = the tool may destroy/overwrite external content (default false). */
+  destructive?: boolean;
 }
 
 /** status + optional extras, passthrough for payload evolution. */
@@ -293,6 +297,23 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
   session_import: {
     title: 'Session Import',
     outputSchema: schema({ restored: z.unknown().optional() }),
+    stateful: true
+  },
+  session_save: {
+    title: 'Session Save',
+    outputSchema: schema({
+      saved: z.unknown().optional(),
+      bytes: z.unknown().optional()
+    }),
+    readOnly: false
+  },
+  session_load: {
+    title: 'Session Load',
+    outputSchema: schema({
+      loaded: z.unknown().optional(),
+      savedAt: z.unknown().optional(),
+      stats: z.unknown().optional()
+    }),
     stateful: true
   },
 
