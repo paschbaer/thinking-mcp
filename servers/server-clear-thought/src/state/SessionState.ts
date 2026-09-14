@@ -441,6 +441,11 @@ export class SessionState {
   /**
    * Get comprehensive session statistics
    */
+  /** Server configuration (read-only access for tools). */
+  getConfig(): ServerConfig {
+    return this.config;
+  }
+
   /** Workflow recipe progress (recipe_runner). */
   getWorkflowStore(): WorkflowStore {
     return this.workflowStore;

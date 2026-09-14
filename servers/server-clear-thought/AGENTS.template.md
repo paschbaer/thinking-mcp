@@ -93,6 +93,7 @@ Toolset routing:
 | Get this guide as AGENTS.md content | `agents_guide` | optional `project_name`, `domain_context`, `codebase_root`; pass `existing_agents_md` to merge into existing content |
 | Inspect session state | `session_info` | — |
 | Persist / restore state | `session_export` / `session_import` | — |
+| Save / load sessions as files | `session_save` / `session_load` | `name`; optional `merge` (load) — requires the server to be configured with `dataDir` |
 | Follow a guided multi-tool workflow | `recipe_runner` | `recipe`: `debug-failure` \| `architecture-decision` \| `stress-test-conclusion` \| `open-ended-ideation` \| `multi-agent-delegation` \| `long-research-question`; `action`: `list` \| `start` \| `status` \| `advance` \| `reset` — per-session progress, navigation only (YOU execute the stages) |
 
 ## Dual-mode tools: facilitation vs. analysis
@@ -207,10 +208,19 @@ assumption_xray (on the question itself)
 All tools share one server-side session. For long tasks:
 
 1. Check state: `session_info`.
-2. Before your context ends or gets compacted: `session_export`, store the
-   payload in the project (e.g. `memory-bank/`).
-3. On resume: `session_import`, then continue where the stats say you left
+2. Read it without tool calls via the session **resources**:
+   `clear-thought://session/stats`, `clear-thought://session/export`,
+   `clear-thought://session/thoughts`, `clear-thought://session/workflows`.
+3. Before your context ends or gets compacted: `session_export`, store the
+   payload in the project (e.g. `memory-bank/`), or — when the server runs
+   with a `dataDir` — `session_save` and later `session_load`.
+4. On resume: `session_import`, then continue where the stats say you left
    off.
+
+The server also exposes **workflow prompts** (one per recipe:
+`debug-failure`, `architecture-decision`, `stress-test-conclusion`,
+`open-ended-ideation`, `multi-agent-delegation`, `long-research-question`) —
+clients render them as ready-to-send starting messages.
 
 ## Project-specific conventions
 

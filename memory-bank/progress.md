@@ -7,6 +7,14 @@
 
 ## What Works
 
+- **Roadmap-Track D (2026-09-14, branch `feature/track-d`, 0.3.0)**: D1 Session-Resources
+  (`clear-thought://session/{stats,export,thoughts,workflows}` via `registerResource`),
+  D2 Workflow-Prompts (6 Rezept-Prompts via `registerPrompt`, je eine User-Message mit
+  recipe_runner-Anweisung), D3 File-Persistence (`session_save`/`session_load` im Session-
+  Toolset, `dataDir`-Config, Pfad-Sanitizing). **Fand dabei einen latenten Factory-Bug**:
+  unparsed Config → `sessionTimeout` undefined → sofortiger Cleanup-Timer leerte den Store
+  zwischen Tool-Calls — Factory parst jetzt defensiv (`ServerConfigSchema.parse`).
+  129/129 Tests (8 neue Track-D-Tests).
 - **Roadmap-Track B2–B5 (2026-09-14, branch `feature/track-b2-b5`, 0.3.0)**: vier neue
   statelose Analyse-Tools im `reasoning`-Toolset — `argument_map` (Toulmin-Vollständigkeit
   mit Leitfragen, 6 Elemente), `causal_graph` (dual-mode: Intervention/Counterfactual-Fragen,

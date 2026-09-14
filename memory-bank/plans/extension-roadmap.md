@@ -119,7 +119,12 @@ Tool-Metadaten-Registry.
 
 ---
 
-## D) MCP-Protokoll-Features
+## D) MCP-Protokoll-Features — ✅ D1–D3 2026-09-14 (0.3.0); D4 bewusst zurückgestellt
+
+> **Status:** D1 Session-Resources (4 URIs via `registerResource`), D2 Workflow-Prompts
+> (6 Rezept-Prompts via `registerPrompt`), D3 File-Persistence (`session_save`/
+> `session_load`, `dataDir`-Config, Pfad-Sanitizing) live. D4 (Sampling) bewusst
+> zuletzt — client-/kostenabhängig.
 
 - **D1 — Resources**: Session-State als MCP-Resources exponieren
   (Thought-History je Store, Decision-Records, `session_export`-Snapshot);
