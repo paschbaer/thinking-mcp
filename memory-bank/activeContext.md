@@ -24,6 +24,10 @@
 
 ## Recent Changes
 
+- 2026-09-14 (V): Roadmap-Track C (branch `feature/recipe-runner`, 0.3.0): `recipe_runner`
+  + `workflow`-Toolset — 6 Guide-Rezepte als Daten, per-session Fortschritt im neuen
+  `WorkflowStore`, Auto-Start/advance/reset; Guide (Routing + Rezept-Intro) und
+  Root-AGENTS.md regeneriert; 111/111 Tests.
 - 2026-09-14 (V): Release 0.2.0 über PR `develop → main` (Branch-Protection aktiv);
   GitHub-Actions: ghcr-Images gepusht, npm-Publish durch Account-2FA-Modus
   (auth-and-writes) blockiert → 0.2.0 manuell published; Modus auf „authorization only“
