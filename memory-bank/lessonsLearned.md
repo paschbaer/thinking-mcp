@@ -6,6 +6,13 @@
 
 ## Avoid These Mistakes
 
+- **Advertised outputSchema requires structuredContent on EVERY call path:** once a tool declares
+  an output schema, the SDK rejects results without structuredContent (`-32602: ...no structured
+  content was provided`). The central text→structuredContent derivation silently skips non-JSON
+  payloads (arrays, markdown) — session_export broke exactly this way for MCP clients when the
+  capability round advertised its schema. → Handlers with array payloads or non-JSON text
+  (markdown summaries) must provide explicit structuredContent. Found by the Tier-1 contract
+  eval; fixed in 0.1.2 (2026-09-14).
 - **npm bins run through .bin symlinks — direct-execution guards must compare realpaths:** when
   npm/npx invokes a bin, `process.argv[1]` is the `.bin` symlink path while `import.meta.url` is the
   resolved real file — a plain equality guard (`import.meta.url === pathToFileURL(argv[1]).href`)

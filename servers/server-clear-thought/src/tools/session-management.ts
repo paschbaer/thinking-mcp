@@ -42,7 +42,11 @@ export function registerSessionManagement(server: McpServer, sessionState: Sessi
           content: [{
             type: 'text',
             text: JSON.stringify(exportData, null, 2)
-          }]
+          }],
+          // exportData is an array — the central text→structuredContent
+          // derivation skips arrays, so provide it explicitly (RB-10 schema
+          // is advertised; without this the SDK rejects the call with -32602).
+          structuredContent: { export: exportData, status: 'success' }
         };
       } else {
         // Summary format
@@ -72,7 +76,10 @@ export function registerSessionManagement(server: McpServer, sessionState: Sessi
           content: [{
             type: 'text',
             text: summary
-          }]
+          }],
+          // Markdown is not JSON — provide structuredContent explicitly so
+          // the advertised output schema does not reject the call.
+          structuredContent: { format: 'summary', summary, status: 'success' }
         };
       }
     }
