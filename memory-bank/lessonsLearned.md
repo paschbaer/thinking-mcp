@@ -6,6 +6,14 @@
 
 ## Avoid These Mistakes
 
+- **npm bins run through .bin symlinks — direct-execution guards must compare realpaths:** when
+  npm/npx invokes a bin, `process.argv[1]` is the `.bin` symlink path while `import.meta.url` is the
+  resolved real file — a plain equality guard (`import.meta.url === pathToFileURL(argv[1]).href`)
+  silently no-ops (exit 0, zero output) for every npx/global install. Use
+  `realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)`. Found after publishing 0.1.0:
+  `npx @paschbaer/clear-thought` was a silent no-op; bin-invocation regression tests now cover it.
+  Related: with `/dev/null` stdin the stdio server exits cleanly right after startup (EOF) — hold
+  stdin open in smoke tests, and give drvfs module loads ≥120 s in spawn-based tests.
 - **Direct module calls bypass zod defaults → NaN payloads:** calling the
   algorithm modules with raw objects (instead of `schema.parse(...)`) leaves
   defaulted fields (`stepReward`, `lengthscale`, `maxIterations`, …) as

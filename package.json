@@ -12,8 +12,10 @@
         "test": "npm test --workspaces",
         "docker:build": "npm run docker:build --workspaces",
         "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-        "smithery:stochastic": "cd servers/server-stochasticthinking && smithery deploy",
-        "smithery:clear-thought": "cd servers/server-clear-thought && smithery deploy"
+        "publish:stochastic": "cd servers/server-stochasticthinking && node scripts/publish-smithery.mjs",
+        "publish:clear-thought": "cd servers/server-clear-thought && node scripts/publish-smithery.mjs",
+        "npm:publish:stochastic": "cd servers/server-stochasticthinking && npm publish",
+        "npm:publish:clear-thought": "cd servers/server-clear-thought && npm publish"
     },
     "author": "paschbaer",
     "license": "MIT",

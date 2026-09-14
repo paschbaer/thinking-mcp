@@ -136,7 +136,14 @@ klassifiziert.
 
 ---
 
-## Phase 2 — npm-Publish (`@paschbaer/*`)
+## Phase 2 — npm-Publish (`@paschbaer/*`) — ✅ ERLEDIGT 2026-09-14
+
+**Ergebnis.** Beide Packages live: `@paschbaer/clear-thought@0.1.1` +
+`@paschbaer/stochasticthinking@0.1.1` (Registry-Verifikation via
+`npm view --prefer-online`; npx-Configs dokumentiert in beiden READMEs).
+Zwei Lektionen auf dem Weg: 0.1.0 landete für stochastic gar nicht erst auf
+der Registry (stiller Publish-Fail trotz Exit 0), und der Bin-Guard
+no-opete via npx-Symlink (Fix 0c6daca + Regressionstests in beiden Suiten).
 
 **Ziel.** Beide Server auf npmjs.org veröffentlichen (scoped public), mit
 wiederholbarem Release-Pfad. Nebeneffekt: die Scope-Namen sind geschützt,
@@ -144,10 +151,19 @@ sobald das erste Package online ist.
 
 ### Schritt 1 — Voraussetzungen (~0,5 h, Nutzer-Aktionen)
 
+> **UPDATE 2026-09-14 (npm-12/GAT-Deprecation, GitHub-Changelog 2026-07-08):**
+> 2FA-bypass Granular Access Tokens verlieren schrittweise die
+> Publishing-Fähigkeit (ab ~Jan 2027: nur noch Lesen privater Packages +
+> gestagte Publishes mit menschlicher 2FA-Freigabe). Für den Erst-Publish
+> daher **kein** 2FA-Bypass-Token: interaktiver `npm login` (Web-Flow + 2FA).
+> Für Automation später: **Trusted Publishing (OIDC)** aus GitHub Actions
+> bzw. Staged Publishing statt langlebigem Publish-Token.
+
 1. npm-Account `paschbaer` verifizieren (RB-5-Fakcheck zeigte: Scope noch
    frei/unbesetzt); 2FA aktivieren.
-2. Für CI später: **Granular Token** (nur `publish` für `@paschbaer`,
-   zeitlich begrenzt) statt Automation-Token; lokal geht auch `--otp`.
+2. Login lokal: `npm login --auth-type=web` — die CLI druckt eine URL; im
+   WSL die URL manuell in den Windows-Browser kopieren (mutmaßliche Ursache
+   des Exit-1 beim ersten Versuch). Danach `npm whoami` → `paschbaer`?
 
 ### Schritt 2 — Package-Hygiene (vor dem ersten Publish, ~0,5 d)
 
@@ -197,8 +213,12 @@ Root:
 - GitHub-Action `release.yml` auf Tag-Pattern `pkg/*@*`: **zuerst**
   `corepack enable`, **dann** `setup-node` (Lektion aus
   `ci/fix-corepack-order`: der package-manager-Cache-Probe von setup-node
-  scheitert am globalen Yarn 1.x), immutable install, build,
-  `npm publish` mit `NODE_AUTH_TOKEN`-Secret.
+  scheitert am globalen Yarn 1.x), immutable install, build.
+- Auth in CI: **Trusted Publishing (OIDC)** statt `NODE_AUTH_TOKEN` —
+  2FA-Bypass-GATs verlieren das direkte Publishen (Deprecation 2026-07-08);
+  auf npmjs.org im Package-Settings den Workflow als Trusted Publisher
+  eintragen (repo + workflow-Datei). Übergangsweise funktioniert ein
+  Non-Bypass-GAT; ab ~Jan 2027 stagged dieser nur noch (Freigabe mit 2FA).
 
 **AC Phase 2:** beide Packages öffentlich installierbar (`npx`-Smoke grün),
 Metadaten/Keywords/Repository korrekt, Release-Pfad dokumentiert (README +
@@ -208,7 +228,8 @@ Root-Scripts), Root-`package.json` bleibt privat.
 
 | Risiko | Mitigation |
 |---|---|
-| 2FA/OTP blockt nicht-interaktiven Publish | Granular Token via `NODE_AUTH_TOKEN`; lokal `--otp` |
+| 2FA/OTP blockt nicht-interaktiven Publish | Interaktiver Login für den Erst-Publish; Automation über OIDC Trusted Publishing (GAT-2FA-Bypass wird deprecated) |
+| npm 12 Install-Defaults (`allowScripts` off, `--allow-git`/`--allow-remote` none) | Unsere Packages shippen KEINE Lifecycle-Scripts → Consumer unberührt; für frische Repo-Installs ggf. `npm approve-scripts`-Allowlist (esbuild) committen |
 | Tarball enthält zu viel/wenig | `--dry-run`-Audit als Pflichtschritt vor jedem Publish |
 | Versionierungs-Chaos im Monorepo | Tags `pkg@version` je Workspace; Changesets erst bei echtem Bedarf |
 

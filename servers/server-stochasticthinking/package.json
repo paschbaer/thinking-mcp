@@ -1,6 +1,6 @@
 {
     "name": "@paschbaer/stochasticthinking",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "MCP server for stochastic algorithms and probabilistic decision making",
     "license": "MIT",
     "author": "Paschbaer",
@@ -13,9 +13,13 @@
     "files": [
         "dist",
         "AGENTS.template.md",
+        "smithery.yaml",
         "README.md",
         "LICENSE"
     ],
+    "publishConfig": {
+        "access": "public"
+    },
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "build:smithery": "npx @smithery/cli build",
@@ -40,7 +44,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/paschbaer/thinking-mcp.git"
+        "url": "git+https://github.com/paschbaer/thinking-mcp.git"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.30.0",

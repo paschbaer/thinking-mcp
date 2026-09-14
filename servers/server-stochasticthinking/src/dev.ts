@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import createStochasticThinkingServer from './index.js';
 import { defaultConfig } from './config.js';
@@ -37,9 +38,20 @@ async function runDev() {
   });
 }
 
-// Only run if this file is executed directly (works for relative and
-// absolute argv paths, incl. tsx).
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Only run if this file is executed directly. Compare REAL paths so the
+// guard also matches when npm invokes the bin through its .bin symlink
+// (npx / npm i -g): there argv[1] is the symlink path while import.meta.url
+// is the resolved real file, so a plain equality check silently no-ops.
+function isDirectInvocation(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectInvocation()) {
   runDev().catch((error) => {
     console.error('[Stochastic Thinking] Fatal error running dev server:', error);
     process.exit(1);

@@ -53,9 +53,26 @@ A Model Context Protocol (MCP) server that provides stochastic algorithms and pr
 
 ### Installation
 
-**Published on the Smithery registry** as `paschbaer/stochasticthinking`
-(stdio bundle — Smithery distributes it as a local install, no hosted HTTP
-endpoint). Otherwise, install from source:
+**npm (recommended):** published as
+[`@paschbaer/stochasticthinking`](https://www.npmjs.com/package/@paschbaer/stochasticthinking) —
+no checkout needed; MCP clients run it directly:
+
+```json
+{
+  "mcpServers": {
+    "stochasticthinking": {
+      "command": "npx",
+      "args": ["-y", "@paschbaer/stochasticthinking"]
+    }
+  }
+}
+```
+
+**Smithery:** also published on the Smithery registry as
+`paschbaer/stochasticthinking` (stdio bundle — local install, no hosted HTTP
+endpoint).
+
+**From source:**
 
 ```bash
 git clone https://github.com/paschbaer/thinking-mcp.git
@@ -66,10 +83,6 @@ yarn workspace @paschbaer/stochasticthinking build
 
 The stdio entry is then available at
 `servers/server-stochasticthinking/dist/dev.js`.
-
-> **npm (still planned):** publishing under the `@paschbaer` scope to npmjs
-> (then `npx @paschbaer/stochasticthinking` works as advertised below).
-> Status 2026-09-13: `@paschbaer/stochasticthinking` remains a 404 on npm.
 
 ### Publishing (maintainers)
 
@@ -154,7 +167,18 @@ npm run docker:run   # publishes the container on host port 3001
 }
 ```
 
-(Adjust the path to your checkout — the package is not on npm yet.)
+Or the shortest path — run it straight from npm (no checkout):
+
+```json
+{
+  "mcpServers": {
+    "stochasticthinking": {
+      "command": "npx",
+      "args": ["-y", "@paschbaer/stochasticthinking"]
+    }
+  }
+}
+```
 
 Optional server configuration: `{ "debug": false }` (enable debug logging).
 

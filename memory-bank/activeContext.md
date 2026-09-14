@@ -20,9 +20,12 @@
   clear-thought re-published — **rescan 96/100: RB-10 CLOSED** (output
   schemas + annotations now score 33/33; residual ~4pt = Naming, deferred
   breaking rename).
-- Next: E-plan Phase 2 (`plans/quality-distribution.md`): npm publish
-  `@paschbaer/*` (package hygiene first: publishConfig, files, dead root
-  scripts, dry-run tarball audit).
+- State 2026-09-14 (II): **Phase 2 done** — both packages live on npm at
+  0.1.1 (`@paschbaer/clear-thought`, `@paschbaer/stochasticthinking`);
+  bin-guard fix (npx symlink no-op) shipped with regression tests. Branch
+  `feature/npm-publish` pending review/merge.
+- Next: E-plan Phase 3 (`plans/quality-distribution.md`): eval harness
+  (Tier 1 contract evals in CI; Tier 2 LLM task evals on demand).
 - Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
   **published on the Smithery registry** (`paschbaer/stochasticthinking`,
   stdio bundle — download/install distribution; run.tools hosting is
@@ -31,6 +34,12 @@
 
 ## Recent Changes
 
+- 2026-09-14 (II): npm publish round (E-Plan Phase 2, branch
+  `feature/npm-publish`): package hygiene + dry-run audits; first publish
+  0.1.0 (stochastic silently failed); bin-guard bug found via npx
+  verification (0.1.0 was a silent no-op through .bin symlinks) and fixed
+  (`0c6daca`) → **0.1.1 both live on npm**; READMEs switched to npm-first
+  (npx configs); npm-12/GAT-deprecation auth strategy recorded in the plan.
 - 2026-09-14: Shipping round — RB-10 branch reviewed + squash-merged
   (`94be80c`: TOOL_METADATA registry 33/33, central loop parametrized, 84/84
   tests incl. metadata suite + audit script); `main` pushed (3 commits) with

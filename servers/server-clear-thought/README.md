@@ -134,9 +134,26 @@ Note: These are suggestions rather than rules. Tools can be used in any order or
 
 ## Installation
 
-**Published on the Smithery registry** as `paschbaer/clear-thought`
-(stdio bundle — Smithery distributes it as a local install, no hosted HTTP
-endpoint). Otherwise, install from source:
+**npm (recommended):** published as
+[`@paschbaer/clear-thought`](https://www.npmjs.com/package/@paschbaer/clear-thought) —
+no checkout needed; MCP clients run it directly:
+
+```json
+{
+  "mcpServers": {
+    "clear-thought": {
+      "command": "npx",
+      "args": ["-y", "@paschbaer/clear-thought"]
+    }
+  }
+}
+```
+
+**Smithery:** also published on the Smithery registry as
+`paschbaer/clear-thought` (stdio bundle — local install, no hosted HTTP
+endpoint).
+
+**From source:**
 
 ```bash
 git clone https://github.com/paschbaer/thinking-mcp.git
@@ -147,10 +164,6 @@ yarn workspace @paschbaer/clear-thought build
 
 The stdio entry is then available at
 `servers/server-clear-thought/dist/dev.js`.
-
-> **npm (still planned):** publishing under the `@paschbaer` scope to npmjs
-> (then `npx @paschbaer/clear-thought` works as advertised below).
-> Status 2026-09-13: `@paschbaer/clear-thought` remains a 404 on npm.
 
 ### Publishing (maintainers)
 

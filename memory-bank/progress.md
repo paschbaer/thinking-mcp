@@ -7,6 +7,11 @@
 
 ## What Works
 
+- **npm publish (2026-09-14, E-Plan Phase 2)**: `@paschbaer/clear-thought@0.1.1` +
+  `@paschbaer/stochasticthinking@0.1.1` live on npmjs.org (registry-verified,
+  npx-ready; bin-guard fix `0c6daca` — 0.1.0 was a silent no-op via npx
+  because bins run through .bin symlinks). READMEs document npx-based MCP
+  client configs; npm-12/GAT-deprecation auth strategy recorded in the plan.
 - **Shipping round 2026-09-14**: `main` pushed (head `94be80c`) — CI
   `test.yml` ran GREEN in Actions (RB-7 residual resolved). Clear-thought
   re-published to Smithery AFTER the RB-10 metadata merge: registry-driven
@@ -49,9 +54,9 @@
 ## What's Left
 
 - Extension roadmap (`plans/extension-roadmap.md`, detail plan
-  `plans/quality-distribution.md`): E1 RB-10 DONE + CLOSED (rescan 96/100,
-  2026-09-14); next E2 npm publish `@paschbaer/*`, then E3 eval harness; then
-  roadmap tracks C (recipe runner), B (tool families), D (resources/prompts).
+  `plans/quality-distribution.md`): E1 RB-10 CLOSED (rescan 96/100) + E2 npm
+  publish DONE (0.1.1 both, 2026-09-14); next E3 eval harness; then roadmap
+  tracks C (recipe runner), B (tool families), D (resources/prompts).
 - Optional (breaking, deferred): tool-name de-snake-casing to close the
   Smithery Naming gap (~4pt, see RB-9-history) — needs a major version.
 - Optional RB candidate: shared workspace HTTP scaffold for both servers
@@ -76,5 +81,7 @@ download-only via API, 1 connection exists, 2026-09-12). **`main` pushed
 2026-09-14 (head `94be80c`) — CI `test.yml` green (RB-7 residual resolved);
 clear-thought re-published with the RB-10 metadata registry — rescan
 96/100 (2026-09-14): RB-10 CLOSED.** Resolved: RB-4, RB-5, RB-6, RB-7, RB-8,
-RB-9, RB-10, RB-11. Real Computing merged (`80be3d1`). Next: E-plan Phase 2
-(npm publish `@paschbaer/*`) per `plans/quality-distribution.md`.
+RB-9, RB-10, RB-11. Real Computing merged (`80be3d1`). **E-Plan Phase 2
+done: both servers live on npm at 0.1.1** (Phase-2 branch
+`feature/npm-publish` pending review/merge). Next: E-plan Phase 3 (eval
+harness) per `plans/quality-distribution.md`.

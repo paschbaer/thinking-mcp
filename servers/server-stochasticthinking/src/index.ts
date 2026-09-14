@@ -49,7 +49,7 @@ const stochasticOutputSchema = z.object({
 
 // Server Identity
 const SERVER_NAME = "stochastic-thinking-server";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "0.1.1";
 
 /**
  * Creates a Stochastic Thinking MCP server instance for a specific session
