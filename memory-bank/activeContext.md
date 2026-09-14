@@ -31,8 +31,8 @@
   fällt beim nächsten Release an.
 - 2026-09-14 (IV): Roadmap-Track B1 (branch `feature/risk-family`, 0.2.0): Risiko-Familie
   `premortem`/`fmea`/`fault_tree` als dual-mode Tools über neues `risk`-Toolset;
-  Registry-Metadaten für 36 Tools; 103/103 Tests. Öffentlicher Punkt: Guide-Erweiterung
-  (AGENTS.template.md) für die neue Familie noch offen.
+  Registry-Metadaten für 37 Einträge; 103/103 Tests. Öffentlicher Punkt: Guide-Erweiterung
+  (AGENTS.template.md) für die neue Familie erledigt (Routing-Tabelle + Dual-Mode-Liste).
 - 2026-09-14 (III): GitFlow-light CI — `develop`-Branch angelegt (Test-Action dort),
   `publish-npm.yml` (npmjs.com, version-guarded, provenance) +
   `publish-containers.yml` (ghcr.io) für Release-Merges nach `main`;

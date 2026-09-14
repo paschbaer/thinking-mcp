@@ -33,6 +33,7 @@ import { ScientificStore } from './stores/ScientificStore.js';
 import { CreativeStore } from './stores/CreativeStore.js';
 import { SystemsStore } from './stores/SystemsStore.js';
 import { VisualStore } from './stores/VisualStore.js';
+import { WorkflowStore } from './stores/WorkflowStore.js';
 
 /**
  * Comprehensive session statistics
@@ -90,6 +91,7 @@ export class SessionState {
   private readonly creativeStore: CreativeStore;
   private readonly systemsStore: SystemsStore;
   private readonly visualStore: VisualStore;
+  private readonly workflowStore: WorkflowStore;
   
   /**
    * Create a new session state
@@ -113,6 +115,7 @@ export class SessionState {
     this.creativeStore = new CreativeStore();
     this.systemsStore = new SystemsStore();
     this.visualStore = new VisualStore();
+    this.workflowStore = new WorkflowStore();
     
     // Start timeout timer
     this.resetTimeout();
@@ -438,6 +441,11 @@ export class SessionState {
   /**
    * Get comprehensive session statistics
    */
+  /** Workflow recipe progress (recipe_runner). */
+  getWorkflowStore(): WorkflowStore {
+    return this.workflowStore;
+  }
+
   getStats(): SessionStatistics {
     this.touch();
     

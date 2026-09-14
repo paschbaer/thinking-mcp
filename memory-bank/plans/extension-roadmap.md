@@ -94,7 +94,11 @@ Tool-Metadaten-Registry.
 
 ---
 
-## C) Recipe Runner (Workflows ausführbar machen)
+## C) Recipe Runner (Workflows ausführbar machen) — ✅ Minimalvariante implementiert 2026-09-14 (0.3.0)
+
+> **Status:** `recipe_runner` + `workflow`-Toolset live (Navigation + Hints,
+> per-session Fortschritt, 6 Rezepte als Daten in `src/recipes/index.ts`).
+> Offen: orchestrierte Variante (Server ruft Stage-Handler direkt).
 
 **Ist.** Vier Workflow-Rezepte existieren nur als Doku in `AGENTS_TEMPLATE`
 (Debug, Architektur-Entscheidung, Stress-Test, Ideation).

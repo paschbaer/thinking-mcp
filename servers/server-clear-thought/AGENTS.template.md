@@ -89,6 +89,7 @@ Toolset routing:
 | Get this guide as AGENTS.md content | `agents_guide` | optional `project_name`, `domain_context`, `codebase_root`; pass `existing_agents_md` to merge into existing content |
 | Inspect session state | `session_info` | — |
 | Persist / restore state | `session_export` / `session_import` | — |
+| Follow a guided multi-tool workflow | `recipe_runner` | `recipe`: `debug-failure` \| `architecture-decision` \| `stress-test-conclusion` \| `open-ended-ideation` \| `multi-agent-delegation` \| `long-research-question`; `action`: `list` \| `start` \| `status` \| `advance` \| `reset` — per-session progress, navigation only (YOU execute the stages) |
 
 ## Dual-mode tools: facilitation vs. analysis
 
@@ -122,6 +123,10 @@ Several tools (`swot_analysis`, `mind_map`, `concept_map`, `fishbone_diagram`,
 - Never present the facilitation scaffold as an analysis result.
 
 ## Workflow recipes
+
+Each recipe is available as guided navigation via `recipe_runner`: call it
+with `action: 'start'` and the recipe id (ids match the recipe names below),
+then `action: 'advance'` between stages. Progress persists for the session.
 
 ### 1. Debug a failure
 
