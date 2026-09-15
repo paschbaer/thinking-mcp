@@ -69,8 +69,29 @@ const JUDGE_BASE_URL = (
 ).replace(/\/$/, '');
 const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? ACTOR_MODEL;
 
-const ACTOR = { role: 'actor', model: ACTOR_MODEL, baseUrl: ACTOR_BASE_URL, apiKey: ACTOR_API_KEY };
-const JUDGE = { role: 'judge', model: JUDGE_MODEL, baseUrl: JUDGE_BASE_URL, apiKey: JUDGE_API_KEY };
+// GLM-family reasoning control. Default: actor WITHOUT thinking — reasoning
+// models can grind for >6 minutes on computation-heavy prompts (observed:
+// 2.8 MB of reasoning deltas without finishing), which no HTTP timeout
+// survives; judge keeps thinking (small JSON outputs, better scoring).
+// Set EVAL_ACTOR_THINKING / EVAL_JUDGE_THINKING to override; leave EMPTY to
+// omit the parameter entirely (providers that reject unknown fields).
+const ACTOR_THINKING = process.env.EVAL_ACTOR_THINKING ?? 'disabled';
+const JUDGE_THINKING = process.env.EVAL_JUDGE_THINKING ?? 'enabled';
+
+const ACTOR = {
+  role: 'actor',
+  model: ACTOR_MODEL,
+  baseUrl: ACTOR_BASE_URL,
+  apiKey: ACTOR_API_KEY,
+  thinking: ACTOR_THINKING
+};
+const JUDGE = {
+  role: 'judge',
+  model: JUDGE_MODEL,
+  baseUrl: JUDGE_BASE_URL,
+  apiKey: JUDGE_API_KEY,
+  thinking: JUDGE_THINKING
+};
 
 if (!ACTOR_API_KEY) {
   console.error('Missing API key — set OPENAI_API_KEY (or EVAL_API_KEY / EVAL_ACTOR_API_KEY).');
@@ -118,8 +139,8 @@ function writeConfig() {
     JSON.stringify(
       {
         tasksFile,
-        actor: { model: ACTOR_MODEL, baseUrl: ACTOR_BASE_URL },
-        judge: { model: JUDGE_MODEL, baseUrl: JUDGE_BASE_URL }
+        actor: { model: ACTOR_MODEL, baseUrl: ACTOR_BASE_URL, thinking: ACTOR_THINKING || 'unset' },
+        judge: { model: JUDGE_MODEL, baseUrl: JUDGE_BASE_URL, thinking: JUDGE_THINKING || 'unset' }
       },
       null,
       2
@@ -130,7 +151,7 @@ function writeConfig() {
 /** Incremental: a crash mid-run keeps every completed task. */
 function writeReport() {
   fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(results, null, 2));
-  let md = `# LLM Eval Report — ${new Date().toISOString()}\n\nActor: \`${ACTOR_MODEL}\` @ ${hostOf(ACTOR_BASE_URL)} · Judge: \`${JUDGE_MODEL}\` @ ${hostOf(JUDGE_BASE_URL)} · Tasks: \`${tasksFile}\`\n\n| Task | Baseline | With Server | Δ | Expected tools | Actually used |\n|---|---|---|---|---|---|\n`;
+  let md = `# LLM Eval Report — ${new Date().toISOString()}\n\nActor: \`${ACTOR_MODEL}\` @ ${hostOf(ACTOR_BASE_URL)} (thinking: ${ACTOR_THINKING || 'unset'}) · Judge: \`${JUDGE_MODEL}\` @ ${hostOf(JUDGE_BASE_URL)} (thinking: ${JUDGE_THINKING || 'unset'}) · Tasks: \`${tasksFile}\`\n\n| Task | Baseline | With Server | Δ | Expected tools | Actually used |\n|---|---|---|---|---|---|\n`;
   for (const r of results) {
     const delta = r.with_server.judge.total - r.baseline.judge.total;
     md += `| ${r.id} | ${r.baseline.judge.total}/${r.baseline.max} | ${r.with_server.judge.total}/${r.with_server.max} | ${delta >= 0 ? '+' : ''}${delta} | ${r.expected_tools.join(', ')} | ${r.with_server.toolsUsed.join(', ') || '—'} |\n`;
@@ -151,7 +172,13 @@ async function chatOnce(messages, tools, endpoint = ACTOR, timeoutMs = 180000) {
     // (observed: every non-streaming hard-set call died at 180-300s while a
     // trivial request answered in 3s). Chunks are re-assembled into the
     // familiar non-streaming response shape so callers stay unchanged.
-    body: JSON.stringify({ model: endpoint.model, messages, stream: true, ...(tools ? { tools } : {}) }),
+    body: JSON.stringify({
+      model: endpoint.model,
+      messages,
+      stream: true,
+      ...(endpoint.thinking ? { thinking: { type: endpoint.thinking } } : {}),
+      ...(tools ? { tools } : {})
+    }),
     signal: AbortSignal.timeout(timeoutMs)
   });
   if (!res.ok) {
@@ -365,8 +392,8 @@ async function judge(task, answer) {
 
 // ── main ────────────────────────────────────────────────────────────────
 console.log(`LLM eval: ${selected.length} task(s) from ${tasksFile}`);
-console.log(`  actor: ${ACTOR_MODEL} @ ${hostOf(ACTOR_BASE_URL)}`);
-console.log(`  judge: ${JUDGE_MODEL} @ ${hostOf(JUDGE_BASE_URL)}`);
+console.log(`  actor: ${ACTOR_MODEL} @ ${hostOf(ACTOR_BASE_URL)} (thinking: ${ACTOR_THINKING || 'unset'})`);
+console.log(`  judge: ${JUDGE_MODEL} @ ${hostOf(JUDGE_BASE_URL)} (thinking: ${JUDGE_THINKING || 'unset'})`);
 if (ACTOR_MODEL === JUDGE_MODEL && ACTOR_BASE_URL === JUDGE_BASE_URL) {
   console.log(
     `  ⚠ self-bias risk: actor and judge are the same model on the same endpoint — ` +
