@@ -161,3 +161,17 @@
   Nicht durch diesen Diff verursacht (kein src/dist-Change). | trigger: falls in CI
   (natives Linux, kein drvfs) rot → echt untersuchen; lokal: fokussiert nachlaufen
   lassen, bevor ein Regression angenommen wird.
+
+- [EV-1] RESOLVED 2026-09-15 | Run 3 mit tasks-hard.json + unabhängigem Judge
+  (glm-5.3-flash Actor [thinking off] ↔ glm-5.3 Judge) ausgeführt: Δ +11 Bandit /
+  +2 Fault-Tree / 0 Fermi / −4 Game (Transcribe-Slip). Hard Set differenziert wie
+  konzipiert — der statefulle Bandit-Task ist der saubeste Tool-Wert-Nachweis.
+- [EV-6] MEDIUM (neu, Run 3) | Scoring-Anzeige-Bug: Judge-Rohsumme (max 16 bei
+  4 Kriterien) wird gegen gewichtetes rubricMax (40) ins Report geschrieben —
+  Prozentangaben deflationiert, Deltas unverändert valide | trigger: vor Run 4 |
+  action required: total = Σ score×weight im Runner rechnen; Kompatibilität zu
+  alten Reports in README vermerken.
+- [EV-7] MEDIUM (freigegeben) | Run-4-Härtung: verbatim-parameter System-Prompt
+  für den Server-Modus (Fixt Game-Matrix-Transcribe-Fehler-Klasse), EVAL_MAX_TOOL_
+  ROUNDS (Default 8), Tool-Call-Log (Args + Result-Preview) in report.json,
+  Rundungstoleranz/Äquivalenz in H1-Rubrik | trigger: nach EV-6, dann Run 4.

@@ -125,5 +125,15 @@
   nachlaufen lassen und die Testdauer prüfen; erst bei isoliert-rot von einer
   echten Regression ausgehen. Dauerhafter Fix (Backlog): Probe-Fenster in der
   Umgebung konfigurierbar machen.
+- **2026-09-15 — Reasoning-Modelle können in Reasoning-Loops enden:** z.ai
+  glm-5.3-flash lieferte auf einem rechenlastigen Fault-Tree-Prompt >6 min
+  durchgehend reasoning_content-Deltas (2,8 MB!) ohne je zu rendern — 3× HTTP-
+  Timeout über drei Versuche, obwohl ein Ping in 3,2 s antwortete und der Stream
+  gesund war (SSE, first byte 4,2 s). Der Reihe nach falsch diagnostiziert als
+  „Timeout zu kurz" und „Gateway-Buffering". Richtig: rohen Stream anzapfen und
+  Byte-Ankunft messen; dann fixte `thinking:{type:'disabled'}` denselben Prompt
+  in 24 s. Regel: An Eval-/Agent-Endpoints das Think-Budget pro Rolle steuerbar
+  machen (Actor schnell, Judge gründlich) — nicht erst im Störfall suchen.
+
 
 

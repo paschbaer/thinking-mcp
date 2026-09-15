@@ -7,6 +7,15 @@
 
 ## What Works
 
+- **Eval Run 3 (2026-09-15, HARD SET, glm-5.3-flash Actor [thinking:disabled] ↔ glm-5.3 Judge)**:
+  erster vollständiger Hard-Set-Lauf — **Bandit-Task Δ +11 (5→16/16, voll)**: Baseline kann
+  seeded kumulative Zahlen strukturell nicht faken, Actor machte runId-Fortsetzung exakt
+  (regret 16.140). Fault-Tree Δ +2 (14→16/16: Tool liefert Basic-Event-Beiträge exakt).
+  Game-Matrix Δ −4 (16→12): Actor verhieb einen Payoff beim Tool-Call-Transcribing
+  (col 5 statt 2) → Dominanz-Kriterium 0. Fermi/VoI Δ 0 (beide 16/16, Ceiling).
+  Aggregate: Server 60/64 vs. Baseline 51/64 (raw 16er-Skala). Infra-Lektionen:
+  Streaming-Reassembly + thinking-Steuerung je Rolle (Actor disabled — Reasoning-Loop
+  >6 min/2.8 MB; Judge enabled), attempt-skalierte Timeouts, .env-Loader.
 - **RELEASE 1.0.0 (2026-09-15)**: PR `develop → main` gemerged (Branch-Protection),
   Pipelines grün — **npm 1.0.0 via OIDC Trusted Publishing** (tokenlos, Provenance),
   ghcr-Images 1.0.0, Smithery-Re-Publish mit snake_case-Namen. Inhalt: Snake-Case-Rename

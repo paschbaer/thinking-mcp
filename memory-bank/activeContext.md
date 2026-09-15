@@ -178,3 +178,16 @@
   Judge-Cap 12000, Transport-Cleanup, Rubrik-Dual-Dominator. NITs/Flake als
   EV-4/EV-5 accepted dokumentiert. bin-invocation-Fehler in Full-Suite = drvfs-
   Last-Flake (isoliert grün), nicht diff-bedingt.
+
+## 2026-09-15: Run 3 durchgeführt (Hard Set, Split Actor/Judge)
+
+- Ergebnisse (s. progress.md): Bandit +11 / Fault-Tree +2 / Fermi 0 / Game −4.
+  Rig-Fixes unterwegs: Streaming-SSE-Reassembly, attempt-skalierte Timeouts,
+  thinking je Rolle (Actor disabled fixt Reasoning-Loop), .env-Loader,
+  eval:llm:hard-Script, Final-Answer-Nudge, Judge-Anker.
+- Offen für Run 4 (User freigegeben): verbatim-parameter System-Prompt für den
+  Actor-Modus, EVAL_MAX_TOOL_ROUNDS, Tool-Call-Log im report.json (hätte den
+  Game-Matrix-Transcribe-Fehler sofort gezeigt), Rundungstoleranz H1-Rubrik.
+- NEU entdeckt: Scoring-Anzeige-Bug — Judge summiert raw 0-4 je Kriterium
+  (max 16), report zeigt aber gewichtetes max (40). Deltas valide, Prozent-
+  angaben deflationiert. Fix: total = Σ score×weight im Runner.
