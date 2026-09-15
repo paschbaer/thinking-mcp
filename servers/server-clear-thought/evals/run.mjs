@@ -32,6 +32,20 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_TOOL_ROUNDS = 6;
 
+// Minimal .env loader (no dependency): reads the server-local .env and the
+// monorepo-root .env if they exist. Real environment variables always win —
+// file values only fill gaps, so CLI-level exports can still override.
+// Both paths are gitignored; keys must never be committed.
+for (const envPath of [path.join(pkgRoot, '.env'), path.join(pkgRoot, '../../.env')]) {
+  if (!fs.existsSync(envPath)) continue;
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) {
+      process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    }
+  }
+}
+
 const hostOf = (url) => {
   try {
     return new URL(url).host;

@@ -36,7 +36,10 @@ runner prints a self-bias warning at startup.
    The sibling `../server-stochasticthinking/dist/dev.js` is attached
    automatically when it exists, so tasks can also use its stateful
    algorithm tools (bandit runs continued via `runId`).
-2. API key: `EVAL_ACTOR_API_KEY`, `EVAL_API_KEY` or `OPENAI_API_KEY`.
+2. Credentials: either export the env vars, or copy `.env.example` to
+   `.env` (server dir or repo root) and fill in your key — the runner
+   loads both locations; real environment variables take precedence.
+   `.env` is gitignored.
 3. Optional: `EVAL_BASE_URL` / `EVAL_ACTOR_BASE_URL` (any OpenAI-compatible
    endpoint) and the model vars from the table above.
 
