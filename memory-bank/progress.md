@@ -111,12 +111,14 @@
 
 ## What's Left
 
-- Extension roadmap (`plans/extension-roadmap.md`, detail plan
-  `plans/quality-distribution.md`): E1 RB-10 CLOSED (rescan 96/100) + E2 npm
-  publish DONE (0.1.1 both, 2026-09-14); next E3 eval harness; then roadmap
-  tracks C (recipe runner), B (tool families), D (resources/prompts).
-- Optional (breaking, deferred): tool-name de-snake-casing to close the
-  Smithery Naming gap (~4pt, see RB-9-history) — needs a major version.
+- Extension roadmap (`plans/extension-roadmap.md`): **A ✅ B1–B5 ✅ C ✅ D1–D3 ✅
+  E1–E3 ✅ — Roadmap vollständig abgearbeitet (Release 1.0.0, 2026-09-15).**
+  Verbleibende optionale Punkte: D4 (Sampling), orchestrierter Recipe Runner
+  (in geänderter Form, bewusst zurückgestellt — Anleitungs-Form ist drin),
+  Naming-Score-Rescan (Smithery) auswerten und ggf. Revert entscheiden.
+- Optional (done, pending rescan): tool-name de-snake-casing executed in 1.0.0
+  to close the Smithery Naming gap (~4pt, see RB-9-history) — the breaking
+  major version.
 - Optional RB candidate: shared workspace HTTP scaffold for both servers
   (decisionframework option C, deferred).
 - Periodic refresh of the GitNexus index after larger refactors
