@@ -5,6 +5,13 @@
 > (AGENTS.md → Lessons Learned / Automatic Post-Bugfix Documentation).
 
 ## Avoid These Mistakes
+
+- **Smithery Naming score is rename-resistant — don't chase it:** renaming all 12
+  compact-lowercase tools to snake_case (breaking 1.0.0) left the Smithery "Naming"
+  score EXACTLY unchanged at 4.44pt. The scoring rule is unknown (possibly camelCase
+  preferred, possibly a structural plateau). → 96/100 is the practical ceiling; never
+  do another breaking rename toward an UNKNOWN scoring target. Falsified empirically
+  via before/after rescan (2026-09-15).
 - **Factories must parse config defensively — raw configs arm broken defaults:** the clear-thought
   factory trusted the caller to pass a schema-parsed config; a raw/partial config left
   `sessionTimeout` undefined → `setTimeout(cleanup, undefined)` = **immediate cleanup**, wiping the

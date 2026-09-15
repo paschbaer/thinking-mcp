@@ -114,8 +114,9 @@
 - Extension roadmap (`plans/extension-roadmap.md`): **A ✅ B1–B5 ✅ C ✅ D1–D3 ✅
   E1–E3 ✅ — Roadmap vollständig abgearbeitet (Release 1.0.0, 2026-09-15).**
   Verbleibende optionale Punkte: D4 (Sampling), orchestrierter Recipe Runner
-  (in geänderter Form, bewusst zurückgestellt — Anleitungs-Form ist drin),
-  Naming-Score-Rescan (Smithery) auswerten und ggf. Revert entscheiden.
+  (in geänderter Form, bewusst zurückgestellt — Anleitungs-Form ist drin).
+  Naming: 4.44pt trotz Rename (Hypothese falsifiziert) — akzeptiert, kein
+  weiterer Breaking-Rename.
 - Optional (done, pending rescan): tool-name de-snake-casing executed in 1.0.0
   to close the Smithery Naming gap (~4pt, see RB-9-history) — the breaking
   major version.
