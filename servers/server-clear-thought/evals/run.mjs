@@ -42,16 +42,35 @@ const maxTasks = maxIdx >= 0 ? Number(argv[maxIdx + 1]) : Infinity;
 const { tasks } = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'evals/tasks.json'), 'utf8'));
 const selected = Number.isFinite(maxTasks) ? tasks.slice(0, maxTasks) : tasks;
 
-async function chat(messages, tools) {
+async function chatOnce(messages, tools) {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
-    body: JSON.stringify({ model: MODEL, messages, ...(tools ? { tools } : {}) })
+    body: JSON.stringify({ model: MODEL, messages, ...(tools ? { tools } : {}) }),
+    signal: AbortSignal.timeout(180000)
   });
   if (!res.ok) {
     throw new Error(`LLM API ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }
   return res.json();
+}
+
+/** Retries transient failures (timeouts, 5xx, rate limits) with backoff. */
+async function chat(messages, tools, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await chatOnce(messages, tools);
+    } catch (error) {
+      const transient =
+        /UND_ERR|fetch failed|timeout|ECONN|\b5\d\d:|\b429:/.test(String(error.cause?.code ?? '')) ||
+        /UND_ERR|timeout|ECONN/i.test(error.message) ||
+        /\b(5\d\d|429)\b/.test(String(error.message).slice(0, 40));
+      if (i === attempts || !transient) throw error;
+      const wait = i * 5000;
+      console.log(`    transient LLM error (attempt ${i}/${attempts}), retry in ${wait / 1000}s …`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
 }
 
 /** Mode A — baseline: no server, single completion. */
@@ -149,44 +168,6 @@ function rubricMax(task) {
 
 // ── main ────────────────────────────────────────────────────────────────
 const results = [];
-console.log(`LLM eval: ${selected.length} task(s), model ${MODEL}, base ${BASE_URL}\n`);
-
-for (const task of selected) {
-  console.log(`▶ ${task.id}`);
-  process.stdout.write('  baseline (no tools) … ');
-  const base = await runBaseline(task);
-  const baseJudge = await judge(task, 'baseline', base.answer);
-  console.log(`score ${baseJudge.total}/${rubricMax(task)}`);
-
-  process.stdout.write('  with server … ');
-  const withServer = await runWithServer(task);
-  const serverJudge = await judge(task, 'with-server', withServer.answer);
-  console.log(`score ${serverJudge.total}/${rubricMax(task)}`);
-
-  results.push({
-    id: task.id,
-    baseline: { answer: base.answer, toolsUsed: [], judge: baseJudge, max: rubricMax(task) },
-    with_server: {
-      answer: withServer.answer,
-      toolsUsed: withServer.toolsUsed,
-      judge: serverJudge,
-      max: rubricMax(task)
-    },
-    expected_tools: task.expects_tools,
-    rubric: task.rubric
-  });
-}
-
-const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-const outDir = path.join(pkgRoot, 'evals/results', stamp);
-fs.mkdirSync(outDir, { recursive: true });
-fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(results, null, 2));
-
-let md = `# LLM Eval Report — ${new Date().toISOString()}\n\nModel: \`${MODEL}\`\n\n| Task | Baseline | With Server | Δ | Expected tools | Actually used |\n|---|---|---|---|---|---|\n`;
-for (const r of results) {
-  md += `| ${r.id} | ${r.baseline.judge.total}/${r.baseline.max} | ${r.with_server.judge.total}/${r.with_server.max} | ${r.with_server.judge.total - r.baseline.judge.total >= 0 ? '+' : ''}${r.with_server.judge.total - r.baseline.judge.total} | ${r.expected_tools.join(', ')} | ${r.with_server.toolsUsed.join(', ') || '—'} |\n`;
-}
-fs.writeFileSync(path.join(outDir, 'report.md'), md);
 
 const avg = (key) =>
   (results.reduce((acc, r) => acc + r[key].judge.total / r[key].max, 0) / results.length) * 100;
