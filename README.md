@@ -60,7 +60,7 @@ The server also supports **stdio** for MCP clients that spawn it directly: use t
 
 ## Publishing
 
-Both servers are published to the [Smithery registry](https://smithery.ai) as MCPB bundles. Maintainers publish via each server's tooling — see the **Publishing (maintainers)** sections in the [Clear Thought](./servers/server-clear-thought/README.md#publishing-maintainers) and [Stochastic Thinking](./servers/server-stochasticthinking/README.md#publishing-maintainers) READMEs.
+Both servers are published to the [Smithery registry](https://smithery.ai) as MCPB bundles. Maintainers publish via each server's tooling — see the **Publishing (maintainers)** sections in the [Clear Thought](./servers/server-clear-thought/README.md#publishing-maintainers) and [Stochastic Thinking](./servers/server-stochasticthinking/README.md#publishing-maintainers) READMEs. On release merges (`develop` → `main`), the `publish-smithery.yml` workflow also republishes both automatically (version-guarded; requires the `SMITHERY_API_KEY` repository secret — the `smry_…` token from `npx @smithery/cli auth login`).
 
 On every release merge (`develop` → `main`) GitHub Actions publish automatically:
 

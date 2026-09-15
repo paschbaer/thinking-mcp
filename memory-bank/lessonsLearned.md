@@ -20,6 +20,16 @@
   configured trusted publisher. Deceptive: provenance SIGNING still succeeds (masking the
   cause). → Switch the account 2FA mode to „authorization only" for OIDC releases. Found
   during the 0.2.0 release (2026-09-14).
+  **Second ring (same 403 after the account fix):** packages first published interactively get
+  PACKAGE-level 2FA enforcement ("require 2FA to publish") — also incompatible with OIDC. →
+  Package Settings → disable the per-package 2FA requirement, then re-run the failed job.
+  **Third ring (found in the TP settings UI):** check the trusted publisher's PERMISSIONS label —
+  ours read `npm stage publish` (stage-only!) while "Publishing access" was on the legacy option
+  2 ("... or granular access token with bypass 2fa enabled"). Fix sequence: switch Publishing
+  access to option 1 ("disallow bypass 2fa tokens (recommended)") → Update → DELETE and re-CREATE
+  the trusted publisher (permissions are frozen per connection) → re-run the job. Target state:
+  permissions show `npm publish`. Account mode + package access + TP permission must ALL be
+  OIDC-friendly (2026-09-14, pending final confirmation).
 - **Advertised outputSchema requires structuredContent on EVERY call path:** once a tool declares
   an output schema, the SDK rejects results without structuredContent (`-32602: ...no structured
   content was provided`). The central text→structuredContent derivation silently skips non-JSON

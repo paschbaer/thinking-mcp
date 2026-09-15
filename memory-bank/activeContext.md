@@ -7,15 +7,14 @@
 
 ## Current Focus
 
-- **Release 0.2.0 shipped (2026-09-14)**: PR `develop → main` gemerged; GitHub Actions —
-  `publish-containers` hat beide Images nach ghcr.io gepusht (private, Visibility-Flip
-  manuell pending), `publish-npm` wurde vom Account-2FA-Modus blockiert → **0.2.0 manuell
-  published** (inkl. Risiko-Familie + Contract-Eval-Fixes). 2FA-Modus inzwischen auf
-  „authorization only“ umgestellt — der **erste echte OIDC-Trusted-Publishing-Lauf fällt
-  beim nächsten Version-Bump** an.
-- Next: ghcr-Packages auf public stellen; OIDC-Lauf beim nächsten Release verifizieren;
-  dann Roadmap B2–B5 (Argument-Map, Kausal, Fermi, Spieltheorie) oder D-Track
-  (Resources/Prompts/Persistence); optional Tier 2 (LLM-Task-Evals).
+- **RELEASE 0.3.0 SHIPPED (2026-09-14)** — alle Roadmap-Haupt-Tracks abgeschlossen
+  (A, B1–B5, C, D1–D3, E1–E3). Erster erfolgreicher **OIDC-Trusted-Publishing**-Lauf
+  (tokenlos, Provenance-Badge) nach dem 3-Ringe-Debug (Account-2FA-Modus →
+  Package-Access-Option → TP-Stage-Permission, siehe lessonsLearned). ghcr-Images
+  0.3.0 gepusht. Registry-verifiziert (`npm view` → latest 0.3.0).
+- Next: ghcr-Packages auf public stellen (falls noch nicht geschehen); Smithery-Re-Publish
+  (neue Tools sichtbar machen); optionale Punkte: D4 (Sampling), Tier 2 (LLM-Evals),
+  orchestrierter Recipe Runner, Naming-Rename (Breaking, ~4 pt).
 - Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
   **published on the Smithery registry** (`paschbaer/stochasticthinking`,
   stdio bundle — download/install distribution; run.tools hosting is
@@ -24,6 +23,10 @@
 
 ## Recent Changes
 
+- 2026-09-14 (VIII): `publish-smithery.yml` (Release-Pipelines vervollständigt): beide
+  Server werden bei Release-Merges automatisch republished (version-guarded via
+  registry.smithery.ai-Record); beide publish-smithery.mjs akzeptieren jetzt
+  SMITHERY_API_KEY-Env (Secret) zusätzlich zur lokalen Settings-Datei.
 - 2026-09-14 (VII): Roadmap-Track D (branch `feature/track-d`, noch 0.3.0): D1 Session-
   Resources (4 URIs), D2 Workflow-Prompts (6), D3 Persistence (session_save/load + dataDir);
   Factory-Bug behoben (unparsed Config → sofortiger Cleanup-Timer); 129/129 Tests.
