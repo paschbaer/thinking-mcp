@@ -168,3 +168,13 @@
   Tools, runId über Calls). SDK-Falle: Constructor-Option heißt
   `defaultRequestTimeoutMsec`, `timeout` wirkt nur pro Request (drvfs-Kaltstart!).
 - Offen: Run 3 mit hartem Set + unabhängigem Judge (braucht API-Keys + User-Go).
+
+## 2026-09-15: Post-Commit-Review Eval-Rig (abgeschlossen)
+
+- Review-Subagent über 37cc9a6..HEAD: **APPROVE, 0 HIGH/CRITICAL**, 1 MEDIUM,
+  5 LOW, 3 NIT. Alle Ground-Truth-Zahlen der harten Tasks unabhängig handverifiziert
+  (inkl. Pseudo-Regret-Formel 0.46·140 − Σpᵢ·pullsᵢ = 16.14).
+- Fixes committet: MEDIUM → Pinning-Test (stochastic, 17/17); LOWs → Arg-Guards,
+  Judge-Cap 12000, Transport-Cleanup, Rubrik-Dual-Dominator. NITs/Flake als
+  EV-4/EV-5 accepted dokumentiert. bin-invocation-Fehler in Full-Suite = drvfs-
+  Last-Flake (isoliert grün), nicht diff-bedingt.

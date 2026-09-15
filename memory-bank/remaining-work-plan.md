@@ -138,3 +138,26 @@
   (Ground-Truth-Rubrics) und unabhängigem Judge (`EVAL_JUDGE_MODEL` +
   `EVAL_JUDGE_BASE_URL`/`EVAL_JUDGE_API_KEY` auf anderen Provider); rig ist
   gebaut (Branch `feature/harder-evals-actor-judge-split`), needs API keys + Go.
+
+- [EV-2] FIXED 2026-09-15 (review finding, was MEDIUM) | Bandit-Rubrik-Konstanten
+  (regret 16.14, pulls 31/13/96, mean 0.271) waren seed-locked ohne Regressionsschutz
+  — RNG-Änderung würde Rubrik still invalidieren | **Behoben mit Pinning-Test**
+  `tests/algorithms.test.ts` (thompson/seed 7, 80+60 via createBanditRun/runBanditCall,
+  exakte Assertions; 17/17 grün). Trigger falls er rot wird: Rubrik-Ground-Truth in
+  tasks-hard.json per echten Tool-Läufen regenerieren, bevor ein Eval-Lauf gewertet wird.
+- [EV-3] FIXED 2026-09-15 (review findings, LOW) | Runner-Argument-Guards
+  (`--max-tasks` NaN → exit 2 statt still „alle Tasks"; `--tasks` ohne Wert → exit 2
+  statt TypeError), Judge-Antwort-Cap 6000→12000 Zeichen, stdio-Transport-Cleanup bei
+  fehlgeschlagenem connect, Game-Matrix-Rubrik: `chaotic` wird auch von `aggressive`
+  dominiert (beide Begründungen jetzt als korrekt akzeptiert).
+- [EV-4] ACCEPTED with rationale (review NIT) | Self-Bias-Warnung vergleicht volle
+  URLs — gleiches Modell hinter URL-Alias/Proxy wird nicht erkannt; dokumentiertes
+  Heuristik-Verhalten. `chat()` gibt bei attempts<=0 undefined zurück — mit aktuellen
+  Call-Sites (3/1) unerreichbar, latenter Kontrakt-Wartezustand. | trigger: falls
+  Proxy-basierte Judge-Setups genutzt werden, Heuristik auf Hostnormalisierung ausbauen.
+- [EV-5] ACCEPTED with rationale (infra, pre-existing) | `bin-invocation.test.ts`
+  (npx-Symlink-Startup-Probe) ist lastempfindlich auf drvfs: isoliert grün
+  (58,5 s Testzeit — Probe-Fenster knapp), in Full-Suite unter Parallel-Last 2× rot.
+  Nicht durch diesen Diff verursacht (kein src/dist-Change). | trigger: falls in CI
+  (natives Linux, kein drvfs) rot → echt untersuchen; lokal: fokussiert nachlaufen
+  lassen, bevor ein Regression angenommen wird.
