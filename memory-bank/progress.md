@@ -3,10 +3,24 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-15
 
 ## What Works
 
+- **RELEASE 1.0.0 (2026-09-15)**: PR `develop → main` gemerged (Branch-Protection),
+  Pipelines grün — **npm 1.0.0 via OIDC Trusted Publishing** (tokenlos, Provenance),
+  ghcr-Images 1.0.0, Smithery-Re-Publish mit snake_case-Namen. Inhalt: Snake-Case-Rename
+  (BREAKING, 12 Tools), Recipe-Runner-Briefings mit example_arguments + result_guidance,
+  LLM-Task-Evals (E3 Tier 2), Tier-1-Contract-Evals, Risk-Familie (B1), B2–B5,
+  D1–D3, Real Computing. 129/129 Tests. npx-Smoke verifiziert (45 Tools neue Namen,
+  recipe_runner-Briefing, prompts).
+- **Eval Run 2 (2026-09-15, glm-5.3 als Actor+Judge, korrigierte Rubrik)**: alle Tasks
+  Δ = 0 — Baseline holt stark auf (42/120 vs. 25/120 in Run 1), Tools korrekt genutzt
+  (recipe_runner-Navigation über Stages, fermi_estimate, value_of_information) aber
+  kein Score-Gewinn bei starkem Modell. Methodik-Erkenntnis: Tool-Wert hängt von
+  Actor-Stärke und Task-Schwierigkeit ab; härtere Tasks + statefulle Flows (Bandit-
+  runId) + evtl. schwächerer Actor für differenzierende Messungen nötig. Judge-Gleich-
+  Modell-Bias bleibt Konfounder.
 - **Naming-Rename + 1.0.0 (2026-09-15, branch `feature/track-b2-b5`→develop)**: alle 12
   kompakten Tool-Namen auf snake_case vereinheitlicht (`sequential_thinking`,
   `mental_model`, …) — Breaking, Version 1.0.0. ~200 Referenzen über src/tests/Guides/
