@@ -131,3 +131,10 @@
   `feature/stochastic-http-mcp` (phases 0–5): factory + zod config, stdio dev
   entry, Streamable HTTP server with /health, vitest suite (15 tests), live
   funktionstest (6 checks), Docker recipe ported from clear-thought.
+
+- [EV-1] MEDIUM | Eval Run 2 (easy tasks, glm-5.3 Actor+Judge): alle Tasks
+  Δ = 0 — Selbst-Bias-Konfounder + zu leichte Tasks | trigger: nächste
+  Eval-Messung | action required: Run 3 mit `evals/tasks-hard.json`
+  (Ground-Truth-Rubrics) und unabhängigem Judge (`EVAL_JUDGE_MODEL` +
+  `EVAL_JUDGE_BASE_URL`/`EVAL_JUDGE_API_KEY` auf anderen Provider); rig ist
+  gebaut (Branch `feature/harder-evals-actor-judge-split`), needs API keys + Go.

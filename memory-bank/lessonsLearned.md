@@ -111,3 +111,11 @@
 ## Entries
 
 (dated log of resolved bugs / decisions will accumulate here)
+
+- **2026-09-15 — MCP-SDK-Timeout-Falle:** `new Client(info, { timeout })` wird
+  still ignoriert (Timeout blieb 60 s → MCP -32001 beim drvfs-Kaltstart).
+  Richtig: Constructor-Option `defaultRequestTimeoutMsec` UND pro Request
+  `{ timeout }` an `connect`/`listTools`/`callTool` (connect akzeptiert
+  `options?: RequestOptions`). Applies to every spawned-server script in
+  `evals/` — Kaltstarts auf drvfs brauchen >60 s.
+
