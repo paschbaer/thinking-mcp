@@ -118,4 +118,12 @@
   `{ timeout }` an `connect`/`listTools`/`callTool` (connect akzeptiert
   `options?: RequestOptions`). Applies to every spawned-server script in
   `evals/` — Kaltstarts auf drvfs brauchen >60 s.
+- **2026-09-15 — Startup-Proben unter drvfs-Last:** `bin-invocation.test.ts`
+  (Symlink-Startup-Probe) schlägt in der Full-Suite fehl, isoliert aber grün —
+  die Probe hat ein festes Zeitfenster und drvfs-Parallellast (collect 1200–1700 s
+  pro Suite-Lauf) sprengt es. Regel: Bei Full-Suite-Rot zuerst den Test isoliert
+  nachlaufen lassen und die Testdauer prüfen; erst bei isoliert-rot von einer
+  echten Regression ausgehen. Dauerhafter Fix (Backlog): Probe-Fenster in der
+  Umgebung konfigurierbar machen.
+
 
