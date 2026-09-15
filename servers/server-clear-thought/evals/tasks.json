@@ -1,0 +1,37 @@
+{
+  "tasks": [
+    {
+      "id": "release-delay-risk-analysis",
+      "prompt": "Our releases have been delayed three times in a row. Failure causes we suspect: flaky end-to-end tests (likely 4/5, impact 4/5), late scope additions (likely 3/5, impact 5/5, mitigation: freeze after code-complete), an undersized staging environment (likely 2/5, impact 3/5). Analyze the release-delay risk for us: which cause should we mitigate first and how well are we covered overall?",
+      "expects_tools": ["premortem"],
+      "rubric": [
+        { "criterion": "Uses a structured risk-analysis tool instead of answering from intuition", "weight": 3 },
+        { "criterion": "Correctly identifies 'flaky end-to-end tests' as the top risk (score 20)", "weight": 3 },
+        { "criterion": "Reports a quantified mitigation coverage around 33% (1 of 3 causes has a mitigation)", "weight": 2 },
+        { "criterion": "Gives a concrete, actionable recommendation for the top risk", "weight": 2 }
+      ]
+    },
+    {
+      "id": "postmortem-reasoning-quality",
+      "prompt": "Claim: 'Our API is slow because the database is undersized.' Evidence: p99 latency is 3x the SLO during business hours; CPU on the DB host peaks at 40%; a query added last sprint does 12,000 row scans per call. Stress-test this conclusion: how solid is the causal claim, what is missing, and what would you check before asking management for a bigger database?",
+      "expects_tools": ["argument_map", "causal_graph", "assumption_xray"],
+      "rubric": [
+        { "criterion": "Structurally maps the argument (e.g. claim/warrant/evidence via a structured tool) instead of free-form opinion", "weight": 3 },
+        { "criterion": "Identifies the hidden assumption 'slowness correlates with DB size' and separates correlation from causation", "weight": 3 },
+        { "criterion": "Points at the 12,000-row-scan query as a cheaper alternative explanation worth checking first", "weight": 2 },
+        { "criterion": "Recommends concrete verification steps before the hardware purchase", "weight": 2 }
+      ]
+    },
+    {
+      "id": "guided-decision-workflow",
+      "prompt": "We must decide whether to self-host our search or keep using the managed SaaS. Costs: self-host ~2 engineer-days/month upkeep plus 400$/month infra; SaaS 1,200$/month. Risks: self-host has a data-loss failure mode (severity 8, occurrence 3, detection 6). Walk us through a structured decision and give a recommendation.",
+      "expects_tools": ["decision_framework", "premortem", "fmea"],
+      "rubric": [
+        { "criterion": "Runs a guided multi-step decision flow (e.g. recipe_runner/decision_framework) rather than a single-shot opinion", "weight": 3 },
+        { "criterion": "Quantifies the cost comparison (self-host ~ 1,000$/month total vs 1,200$/month SaaS) instead of hand-waving", "weight": 2 },
+        { "criterion": "Analyzes the data-loss failure mode structurally (e.g. premortem/fmea) including detectability", "weight": 3 },
+        { "criterion": "States a clear recommendation with explicit trade-offs and residual risks", "weight": 2 }
+      ]
+    }
+  ]
+}
