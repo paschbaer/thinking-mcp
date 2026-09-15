@@ -7,6 +7,13 @@
 
 ## What Works
 
+- **Eval Run 5 (2026-09-15, Hard Set + EV-8-Gegenmittel)**: **98,8 % vs. 74,4 %** —
+  3 von 4 Tasks perfekt (Fault-Tree 40/40 Δ+16, Bandit 40/40 Δ+22, Fermi 40/40 Δ0,
+  Game 38/40 Δ+1). Die EV-8-Fixes haben beide Run-4-Fehlerklassen eliminiert: kein
+  Schema-Flailing mehr (3 Runden statt 6), fermi_estimate korrekt genutzt. Bandit-Actor
+  korrigierte sich selbst (falsches epsilon-greedy → thompson 80+60, regret 16.140 ✓).
+  Ergebnisreihe Run 3→4→5 (Server-%, gewichtet nachberechnet): 92,5 → 86,9 → 98,8 — Run 4 war der Schema-Flailing-Einbruch, EV-8 hat ihn geschlossen. Rig-Entwicklung abgeschlossen;
+  Ergebnisreihe dokumentiert tool-valueThese: Compute-Gap bestimmt Tool-Wert.
 - **Eval Run 4 (2026-09-15, Hard Set, gehärtetes Rig: Operator-Prompt/Tool-Call-Log/gewichtetes Scoring)**:
   Aggregat 86,9 % vs. 80,0 %. **Bandit 18→40/40 (Δ +22) und Fault-Tree 36→40/40 (Δ +4)** —
   dort, wo Tools exakt rechnen, was das Modell nicht kann, volle Punktzahl. Game-Matrix −6

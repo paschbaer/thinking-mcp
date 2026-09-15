@@ -191,3 +191,9 @@
   Tool-Beschreibung; nextSteps-Prominenz prüfen. Fermi-Task: fermi_estimate
   wurde übersprungen (VoI zweimal falsch parametrisiert) — Operator-Prompt-
   Variante "compute every requested number WITH the matching tool" denkbar.
+
+- [EV-8] RESOLVED 2026-09-15 | payoff_matrix-Beispiel in game_matrix-Schema-
+  Beschreibung (Commit 9bd6812, dist neu gebaut) + Operator-Prompt „matching
+  tool / real JSON objects". Run 5: beide Run-4-Fehlerklassen verschwunden
+  (Game 38/40 mit sauberen Calls, Fermi 40/40 mit fermi_estimate-Nutzung).
+  Kein weiterer Handlungsbedarf; Rig-Freeze auf Run-5-Stand empfohlen.

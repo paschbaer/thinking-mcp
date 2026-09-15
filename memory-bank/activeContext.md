@@ -199,3 +199,13 @@
   fermi_estimate. Deltas/kumulierte Zahlen exakt (16.140 ✓ Pinning-Test-Werte).
 - EV-6 (gewichtetes Scoring) + EV-7 (Operator-Prompt/Log/Runden) RESOLVED,
   committet `2db88c9`. Run-4-Report: evals/results/2026-09-15T15-10-16/.
+
+## 2026-09-15: Run 5 — Abschluss der Eval-Härtung (98,8 %)
+
+- Feature-Branch `feature/harder-evals-actor-judge-split` per fast-forward nach
+  develop gemergt (9bd6812) und gelöscht; Parallelsession-WIP (decisions.md,
+  merge-plan) via Stash erhalten.
+- Run 5 (Report evals/results/2026-09-15T15-47-23/): Server 158/160. EV-8
+  RESOLVED — beide Run-4-Fehlerklassen (Schema-Flailing, skipped fermi_estimate)
+  treten nicht mehr auf. Verbleibender 2-Punkt-Verlust Game-Matrix: Detail,∉
+  blocking. Eval-Track damit abgeschlossen; Rest: git push develop (User).
