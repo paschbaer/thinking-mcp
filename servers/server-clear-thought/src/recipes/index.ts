@@ -80,6 +80,12 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'decisionStatement, options[], analysisType, stage, nextStageNeeded'
       },
       {
+        tool: 'stochasticalgorithm',
+        purpose: 'Quantify the leading options with a real algorithm (mdp for phase models, bayesian for expensive evaluations, mcts for search).',
+        argument_hints: 'algorithm, problem, parameters (per-algorithm model inputs; bandit runs continue via runId)',
+        optional: true
+      },
+      {
         tool: 'metacognitive_monitoring',
         purpose: 'Confidence check before committing.',
         argument_hints: 'task, overallConfidence (0–1), uncertaintyAreas[]'
@@ -190,6 +196,33 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'format: json | summary'
       }
     ]
+  },
+  'decision-under-uncertainty': {
+    id: 'decision-under-uncertainty',
+    title: 'Decision under uncertainty',
+    description: 'Quantify what a decision is worth, frame the options, measure with a real algorithm, commit with a confidence check.',
+    stages: [
+      {
+        tool: 'value_of_information',
+        purpose: 'Rank the uncertainties by expected opportunity cost — research the cheap-but-decisive ones first.',
+        argument_hints: 'decision_options[], uncertainties[], payoffs[]; optional probabilities[]'
+      },
+      {
+        tool: 'decision_framework',
+        purpose: 'Frame the options and the weighted analysis.',
+        argument_hints: 'decisionStatement, options[], analysisType, stage, nextStageNeeded'
+      },
+      {
+        tool: 'stochasticalgorithm',
+        purpose: 'Measure the leading option: mdp for sequential phase decisions, bayesian for the next best evaluation, mcts for search-like bets, bandit for adaptive exploration (runId continues a run).',
+        argument_hints: 'algorithm, problem, parameters'
+      },
+      {
+        tool: 'metacognitive_monitoring',
+        purpose: 'Commit, citing the measured numbers AND the model assumptions.',
+        argument_hints: 'task, overallConfidence (0–1), uncertaintyAreas[]'
+      }
+    ]
   }
 };
 
@@ -232,6 +265,10 @@ export const STAGE_GUIDANCE: Record<string, { example_arguments: Record<string, 
     result_guidance: 'Record the chosen option and its top criteria in your decision log.'
   },
   'architecture-decision::4': {
+    example_arguments: { algorithm: 'mdp', problem: '<which option wins over phases>', parameters: { states: ['now', 'later'], actions: ['<option A>', '<option B>'], transitions: [[[0.5, 0.5], [0.5, 0.5]], [[0, 1], [0, 1]]], rewards: [[0, 0], [3, 1]], gamma: 0.9 } },
+    result_guidance: 'Feed the measured numbers (value function, policy, regret, EI) into the confidence check — and record the model assumptions next to them.'
+  },
+  'architecture-decision::5': {
     example_arguments: { task: 'Commit to <chosen option>', overallConfidence: 0.8, uncertaintyAreas: ['<residual unknown>'] },
     result_guidance: 'Low confidence -> revisit the VoI-high uncertainties before committing.'
   },
@@ -294,6 +331,22 @@ export const STAGE_GUIDANCE: Record<string, { example_arguments: Record<string, 
   'long-research-question::3': {
     example_arguments: { format: 'json' },
     result_guidance: 'Store the export next to your project notes (or via session_save with dataDir).'
+  },
+  'decision-under-uncertainty::0': {
+    example_arguments: { decision_options: ['<option A>', '<option B>'], uncertainties: ['<unknown that could flip the choice>'], payoffs: [10000, 8000] },
+    result_guidance: 'Resolve high-VoI uncertainties cheaply first; carry the ranking into the model assumptions.'
+  },
+  'decision-under-uncertainty::1': {
+    example_arguments: { decisionStatement: 'Choose <what>', options: [{ name: '<option A>', description: '<one line>' }, { name: '<option B>', description: '<one line>' }], analysisType: 'weighted', stage: 'decision', decisionId: '<id>', iteration: 1, nextStageNeeded: false },
+    result_guidance: 'The leading option becomes the model to quantify in the next stage.'
+  },
+  'decision-under-uncertainty::2': {
+    example_arguments: { algorithm: 'mdp', problem: '<which option wins over phases>', parameters: { states: ['now', 'later'], actions: ['<option A>', '<option B>'], transitions: [[[0.5, 0.5], [0.5, 0.5]], [[0, 1], [0, 1]]], rewards: [[0, 0], [3, 1]], gamma: 0.9 } },
+    result_guidance: 'Cite the measured summary (value function / policy / regret / EI) and note that it holds only under the modeled assumptions.'
+  },
+  'decision-under-uncertainty::3': {
+    example_arguments: { task: 'Commit to <chosen option>', overallConfidence: 0.75, uncertaintyAreas: ['<model assumption not yet validated>'], monitoringId: '<id>', iteration: 1, nextAssessmentNeeded: false },
+    result_guidance: 'Low confidence -> refine the model inputs and re-measure before committing.'
   }
 };
 

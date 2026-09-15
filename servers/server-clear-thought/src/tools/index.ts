@@ -36,6 +36,7 @@ import { registerGameMatrix } from './game-matrix.js';
 import { registerExistingToolExample } from './existing-tool-example.js';
 import { registerAgentsGuide } from './agents-guide.js';
 import { registerSessionManagement } from './session-management.js';
+import { registerStochasticAlgorithm } from './stochastic-algorithm.js';
 
 import { registerReasoningToolset } from '../toolsets/reasoning.js';
 import { registerVisualizationToolset } from '../toolsets/visualization.js';
@@ -43,6 +44,7 @@ import { registerUtilityToolset } from '../toolsets/utility.js';
 import { registerSessionToolset } from '../toolsets/session.js';
 import { registerRiskToolset } from '../toolsets/risk.js';
 import { registerWorkflowToolset } from '../toolsets/workflow.js';
+import { registerStochasticToolset } from '../toolsets/stochastic.js';
 
 /**
  * Registers all Clear Thought tools and toolsets with the provided MCP server instance
@@ -97,6 +99,9 @@ export function registerTools(server: McpServer, sessionState: SessionState): vo
   // Register session management tools
   registerSessionManagement(server, sessionState);
 
+  // Stochastic algorithms (merged from server-stochasticthinking)
+  registerStochasticAlgorithm(server, sessionState);
+
   // Register the grouped toolsets (dispatch via `operation` parameter)
   registerReasoningToolset(server, sessionState);
   registerVisualizationToolset(server, sessionState);
@@ -104,5 +109,6 @@ export function registerTools(server: McpServer, sessionState: SessionState): vo
   registerSessionToolset(server, sessionState);
   registerRiskToolset(server, sessionState);
   registerWorkflowToolset(server, sessionState);
+  registerStochasticToolset(server, sessionState);
 }
 

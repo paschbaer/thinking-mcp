@@ -36,7 +36,7 @@ const PROMPTS: PromptDef[] = [
     recipeId: 'architecture-decision',
     framing: (v) =>
       `We need to make this decision: ${v}\n\n` +
-      "Please work through the architecture-decision workflow: call recipe_runner with recipe 'architecture-decision' and action 'start', then execute the stages (issue_tree, swot_analysis per serious option, value_of_information, decision_framework, metacognitive_monitoring)."
+      "Please work through the architecture-decision workflow: call recipe_runner with recipe 'architecture-decision' and action 'start', then execute the stages (issue_tree, swot_analysis per serious option, value_of_information, decision_framework, stochasticalgorithm to quantify the leader, metacognitive_monitoring)."
   },
   {
     name: 'stress-test-conclusion',
@@ -77,6 +77,16 @@ const PROMPTS: PromptDef[] = [
     framing: (v) =>
       `Research this question thoroughly: ${v}\n\n` +
       "Please work through the research workflow: call recipe_runner with recipe 'long-research-question' and action 'start', then execute the stages (assumption_xray, seven_seekers_orchestrator, sequential_thinking, session_export to persist the findings)."
+  },
+  {
+    name: 'decision-under-uncertainty',
+    title: 'Decision under uncertainty',
+    description: 'Guided decision: check research value, frame options, quantify with a real stochastic algorithm, commit with a confidence check.',
+    arg: { name: 'decision', description: 'The decision to make, the options you see, and what you are unsure about' },
+    recipeId: 'decision-under-uncertainty',
+    framing: (v) =>
+      `Help me decide under uncertainty: ${v}\n\n` +
+      "Please work through the decision-under-uncertainty workflow: call recipe_runner with recipe 'decision-under-uncertainty' and action 'start', then execute the stages (value_of_information, decision_framework, stochasticalgorithm, metacognitive_monitoring)."
   }
 ];
 

@@ -61,7 +61,7 @@ const run = async () => {
   const list = await rpc('tools/list');
   const tools = list?.result?.tools ?? [];
   const names = new Set(tools.map((t) => t.name));
-  const expected = ['sequentialthinking','mentalmodel','debuggingapproach','collaborativereasoning','decisionframework','metacognitivemonitoring','socraticmethod','creativethinking','systemsthinking','scientificmethod','structuredargumentation','visualreasoning','analogical_mapper','assumption_xray','comparative_advantage','drag_point_audit','safe_struggle_designer','seven_seekers_orchestrator','value_of_information','mind_map','concept_map','fishbone_diagram','swot_analysis','issue_tree','existing_tool_example','session_info','session_export','session_import','agents_guide','reasoning','visualization','utility','session'];
+  const expected = ['sequentialthinking','mentalmodel','debuggingapproach','collaborativereasoning','decisionframework','metacognitivemonitoring','socraticmethod','creativethinking','systemsthinking','scientificmethod','structuredargumentation','visualreasoning','analogical_mapper','assumption_xray','comparative_advantage','drag_point_audit','safe_struggle_designer','seven_seekers_orchestrator','value_of_information','mind_map','concept_map','fishbone_diagram','swot_analysis','issue_tree','existing_tool_example','session_info','session_export','session_import','agents_guide','reasoning','visualization','utility','session','stochasticalgorithm','stochastic'];
   const missing = expected.filter((n) => names.has(n) === false);
   results.push({ name: 'tools/list completeness', ok: missing.length === 0, detail: missing.join(', ') });
   console.log(`${missing.length === 0 ? '✅' : '❌'} tools/list: ${tools.length} tools, expected ${expected.length}${missing.length ? ', missing: ' + missing.join(', ') : ''}`);
@@ -75,6 +75,31 @@ const run = async () => {
 
   const call = async (tool, args) => parse(await rpc('tools/call', { name: tool, arguments: args }));
   const callTs = async (ts, args) => parse(await rpc('tools/call', { name: ts, arguments: { operation: args.operation, ...args } }));
+
+  // --- stochastic algorithms (merged from server-stochasticthinking) ---
+  const MDP_LIVE = {
+    states: ['poor', 'rich'],
+    actions: ['work', 'slack'],
+    transitions: [[[0, 1], [1, 0]], [[0, 1], [0, 1]]],
+    rewards: [[0, 0.1], [1, 1]],
+    gamma: 0.9
+  };
+  record('stochasticalgorithm mdp (hand-checked V=[9,10])', await call('stochasticalgorithm', { algorithm: 'mdp', problem: 'save or spend', parameters: MDP_LIVE }),
+    (d) => {
+      if (d.status !== 'success') throw new Error('no success');
+      const vf = d.details?.valueFunction ?? [];
+      if (Math.abs(vf[0] - 9) > 1e-6 || Math.abs(vf[1] - 10) > 1e-6) throw new Error('value function mismatch');
+    });
+  record('stochastic toolset dispatch (operation=mdp)', await callTs('stochastic', { operation: 'mdp', problem: 'parity', parameters: MDP_LIVE }),
+    (d) => { if (d.status !== 'success') throw new Error('toolset dispatch failed'); });
+  const bandit1 = await call('stochasticalgorithm', { algorithm: 'bandit', problem: 'live bandit', parameters: { arms: [{ type: 'bernoulli', p: 0.9 }, { type: 'bernoulli', p: 0.1 }], strategy: 'UCB', pulls: 50, seed: 11 } });
+  record('stochastic bandit run creation', bandit1,
+    (d) => { if (d.status !== 'success' || !String(d.details?.runId ?? '').startsWith('bandit-')) throw new Error('no runId'); });
+  record('stochastic bandit run continuation (runId, same session)', await call('stochasticalgorithm', { algorithm: 'bandit', problem: 'live bandit', parameters: { arms: [{ type: 'bernoulli', p: 0.9 }, { type: 'bernoulli', p: 0.1 }], strategy: 'UCB', pulls: 30, seed: 11, runId: bandit1?.details?.runId } }),
+    (d) => {
+      if (d.status !== 'success') throw new Error('continuation failed');
+      if (d.details?.cumulative?.totalPulls !== 80) throw new Error('expected 80 total pulls, got ' + d.details?.cumulative?.totalPulls);
+    });
 
   // --- reasoning tools (individual) ---
   record('sequentialthinking', await call('sequentialthinking', { thought: 'step', thoughtNumber: 1, totalThoughts: 2, nextThoughtNeeded: true }),

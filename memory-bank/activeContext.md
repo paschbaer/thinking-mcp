@@ -209,3 +209,21 @@
   RESOLVED — beide Run-4-Fehlerklassen (Schema-Flailing, skipped fermi_estimate)
   treten nicht mehr auf. Verbleibender 2-Punkt-Verlust Game-Matrix: Detail,∉
   blocking. Eval-Track damit abgeschlossen; Rest: git push develop (User).
+- **MERGE IMPLEMENTIERT (2026-09-15, Branch `feature/merge-stochastic-into-clear-thought`)**:
+  Phasen 0-5 des Umsetzungsplans (`plans/merge-stochastic-into-clear-thought.md`)
+  ausgefuehrt. Port: `src/algorithms/*` (7 Module), `BanditRunStore` in SessionState
+  (cleanup-integriert), Dual-Registration (`stochasticalgorithm` Name/Signatur
+  unveraendert + Toolset `stochastic`, operation mdp/mcts/bandit/bayesian/hmm),
+  2 TOOL_METADATA-Eintraege (stateful:true), Tests portiert (`algorithms.test.ts`)
+  + neue Merge-Contracts (`stochastic-merge.test.ts`: Paritaet, Bandit-runId ueber
+  beide Call-Pfade, Fehlerkontrakte). Orchestrator: Rezept 7
+  `decision-under-uncertainty` + stochastic-Stage in `architecture-decision`
+  (STAGE_GUIDANCE reindiziert), 7. Workflow-Prompt. Guide: Template erweitert,
+  Konstante via neuem `sync:guide`-Skript regeneriert; Root-AGENTS.md ueber echten
+  Handler (`scripts/regen-root-agents.ts`) regeneriert — verwaister
+  stochastic-thinking-Markerblock entfernt (verifiziert: 0 Marker, Rezept 7 sichtbar).
+  Docs: Root-README Single-Server + Migrations-Abschnitt; stochastic-README
+  Deprecation-Banner; MG-1/2/3 in remaining-work-plan getrackt. Gezielte Tests
+  30/30 gruen; Typecheck gruen. Offen: Full-Suite-Auswertung + Phase 6 (Release
+  1.1.0 + Deprecation, wartet auf Freigabe). Stale-Buffer-Trap dokumentiert
+  (lessonsLearned).

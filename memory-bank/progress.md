@@ -186,3 +186,13 @@ RB-9, RB-10, RB-11. Real Computing merged (`80be3d1`). **E-Plan Phase 2
 done: both servers live on npm at 0.1.1** (Phase-2 branch
 `feature/npm-publish` pending review/merge). Next: E-plan Phase 3 (eval
 harness) per `plans/quality-distribution.md`.
+
+- 2026-09-15 (Server-Merge, nachgetragen via Terminal-Append): Merge
+  stochastic → clear-thought auf `feature/merge-stochastic-into-clear-thought`
+  implementiert (Phasen 0-5 des Plans) — Algorithmen als Toolset `stochastic`
+  bei unverändertem Tool-Namen `stochasticalgorithm`, BanditRunStore in
+  SessionState, Rezept 7 `decision-under-uncertainty` + stochastic-Stage in
+  `architecture-decision`, 7. Prompt, konsolidierter Guide (Root-AGENTS.md via
+  echtem Handler regeneriert), READMEs migriert. Gezielte Tests 30/30 + 18/18
+  grün; Typecheck grün; Full-Suite lokal unter drvfs unter Worker-Timeouts
+  (CI autoritativ). Offen: Phase 6 (Release 1.1.0 + Deprecation, MG-1).

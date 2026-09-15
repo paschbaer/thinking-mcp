@@ -35,6 +35,9 @@ import { SystemsStore } from './stores/SystemsStore.js';
 import { VisualStore } from './stores/VisualStore.js';
 import { WorkflowStore } from './stores/WorkflowStore.js';
 
+/** Bandit run state (stochastic algorithms — merged from server-stochasticthinking). */
+import type { BanditRunState } from '../algorithms/index.js';
+
 /**
  * Comprehensive session statistics
  */
@@ -92,6 +95,8 @@ export class SessionState {
   private readonly systemsStore: SystemsStore;
   private readonly visualStore: VisualStore;
   private readonly workflowStore: WorkflowStore;
+  /** Per-session bandit runs (runId continuation; cleared on session cleanup). */
+  private readonly banditRuns = new Map<string, BanditRunState>();
   
   /**
    * Create a new session state
@@ -451,6 +456,12 @@ export class SessionState {
     return this.workflowStore;
   }
 
+  /** Per-session bandit runs (stochastic algorithms; runId continuation). */
+  getBanditRuns(): Map<string, BanditRunState> {
+    this.touch();
+    return this.banditRuns;
+  }
+
   getStats(): SessionStatistics {
     this.touch();
     
@@ -667,6 +678,7 @@ export class SessionState {
     this.creativeStore.clear();
     this.systemsStore.clear();
     this.visualStore.clear();
+    this.banditRuns.clear();
   }
   
   /**
