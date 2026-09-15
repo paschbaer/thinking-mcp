@@ -146,13 +146,47 @@ async function chatOnce(messages, tools, endpoint = ACTOR, timeoutMs = 180000) {
   const res = await fetch(`${endpoint.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${endpoint.apiKey}` },
-    body: JSON.stringify({ model: endpoint.model, messages, ...(tools ? { tools } : {}) }),
+    // Streaming is REQUIRED for long generations: gateways drop idle
+    // non-streaming connections before slow reasoning models finish
+    // (observed: every non-streaming hard-set call died at 180-300s while a
+    // trivial request answered in 3s). Chunks are re-assembled into the
+    // familiar non-streaming response shape so callers stay unchanged.
+    body: JSON.stringify({ model: endpoint.model, messages, stream: true, ...(tools ? { tools } : {}) }),
     signal: AbortSignal.timeout(timeoutMs)
   });
   if (!res.ok) {
     throw new Error(`LLM API ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }
-  return res.json();
+  const content = [];
+  const toolCalls = new Map(); // index → accumulated call fragments
+  for (const line of (await res.text()).split('\n')) {
+    const s = line.trim();
+    if (!s.startsWith('data:')) continue; // skips SSE comments/keep-alives
+    const payload = s.slice(5).trim();
+    if (payload === '[DONE]') break;
+    let chunk;
+    try {
+      chunk = JSON.parse(payload);
+    } catch {
+      continue; // tolerate malformed/partial lines
+    }
+    const delta = chunk.choices?.[0]?.delta;
+    if (!delta) continue;
+    if (typeof delta.content === 'string') content.push(delta.content);
+    for (const tc of delta.tool_calls ?? []) {
+      const idx = tc.index ?? 0;
+      const cur = toolCalls.get(idx) ?? { id: '', type: 'function', function: { name: '', arguments: '' } };
+      if (tc.id) cur.id = tc.id;
+      if (tc.function?.name) cur.function.name = tc.function.name; // name arrives once
+      if (tc.function?.arguments) cur.function.arguments += tc.function.arguments;
+      toolCalls.set(idx, cur);
+    }
+  }
+  const message = { role: 'assistant', content: content.join('') };
+  if (toolCalls.size) {
+    message.tool_calls = [...toolCalls.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+  }
+  return { choices: [{ message }] };
 }
 
 /** Retries transient failures (timeouts, 5xx, rate limits) with backoff. */
