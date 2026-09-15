@@ -369,7 +369,7 @@ export function registerSwotAnalysis(server: McpServer, _sessionState: SessionSt
         response.nextSteps = [
           'towsRanked lists strategic pairs sorted by impact x likelihood; provide weights (impact/likelihood) and tags to steer ranking and matching.',
           'Derive concrete actions from the TOWS strategies (SO grow, WO fix, ST defend, WT protect).',
-          'Feed the prioritized result into decisionframework or mentalmodel (first_principles) for the follow-up decision.'
+          'Feed the prioritized result into decision_framework or mental_model (first_principles) for the follow-up decision.'
         ];
       } else {
         response.guidingQuestions = GUIDING_QUESTIONS;

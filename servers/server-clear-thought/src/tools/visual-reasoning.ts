@@ -5,7 +5,7 @@ import type { VisualData } from '../types/index.js';
 
 export function registerVisualReasoning(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'visualreasoning',
+    'visual_reasoning',
     'Process visual reasoning and diagram operations',
     {
       operation: z.string().describe('Diagram operation to perform (create, update, delete, transform, observe)'),

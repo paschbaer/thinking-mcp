@@ -45,7 +45,7 @@ describe('D1 — session resources', () => {
 
   it('stats resource reflects live session state', async () => {
     const client = await createConnectedClient();
-    await call(client, 'sequentialthinking', {
+    await call(client, 'sequential_thinking', {
       thought: 'resource probe',
       thoughtNumber: 1,
       totalThoughts: 2,
@@ -103,7 +103,7 @@ describe('D3 — file-backed persistence', () => {
     const writer = await createConnectedClient({ dataDir });
 
     // Make the session non-empty.
-    await call(writer, 'sequentialthinking', {
+    await call(writer, 'sequential_thinking', {
       thought: 'persist me',
       thoughtNumber: 1,
       totalThoughts: 1,

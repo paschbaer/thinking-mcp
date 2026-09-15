@@ -5,7 +5,7 @@ import type { MentalModelData } from '../types/index.js';
 
 export function registerMentalModel(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'mentalmodel',
+    'mental_model',
     'Apply mental models to analyze problems systematically',
     {
       modelName: z.enum(['first_principles', 'opportunity_cost', 'error_propagation', 'rubber_duck', 'pareto_principle', 'occams_razor']).describe('Name of the mental model'),

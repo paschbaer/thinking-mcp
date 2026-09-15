@@ -5,7 +5,7 @@ import type { DebuggingApproachData } from '../types/index.js';
 
 export function registerDebuggingApproach(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'debuggingapproach',
+    'debugging_approach',
     'Apply systematic debugging approaches to identify and resolve issues',
     {
       approachName: z.enum([

@@ -5,7 +5,7 @@ import type { ArgumentData } from '../types/index.js';
 
 export function registerStructuredArgumentation(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'structuredargumentation',
+    'structured_argumentation',
     'Construct and analyze structured arguments',
     {
       claim: z.string().describe('The claim being argued'),
