@@ -7,6 +7,16 @@
 
 ## What Works
 
+- **Eval Run 4 (2026-09-15, Hard Set, gehärtetes Rig: Operator-Prompt/Tool-Call-Log/gewichtetes Scoring)**:
+  Aggregat 86,9 % vs. 80,0 %. **Bandit 18→40/40 (Δ +22) und Fault-Tree 36→40/40 (Δ +4)** —
+  dort, wo Tools exakt rechnen, was das Modell nicht kann, volle Punktzahl. Game-Matrix −6
+  und Fermi −9: Tool-Call-Log zeigt zwei neue Fehlerklassen — (a) Schema-Flailing (4×
+  payoff_matrix als Strings statt {row,col}-Objekten, Budget verbrannt), danach Über-
+  vertrauen auf den Full-Game-Dominanz-Output statt 2×2-Subgame; (b) falsche Tool-Wahl
+  (fermi_estimate übersprungen, VoI mit Sensitivitätsdaten gefüttert, Monats- als
+  Jahressumme präsentiert). **These validiert: Tool-Wert = f(Compute-Gap)** — groß bei
+  Seeded-State/Enumeration, negativ wo das Modell Solo schon stark ist und Transkription
+  neuen Fehleroberflächen schafft.
 - **Eval Run 3 (2026-09-15, HARD SET, glm-5.3-flash Actor [thinking:disabled] ↔ glm-5.3 Judge)**:
   erster vollständiger Hard-Set-Lauf — **Bandit-Task Δ +11 (5→16/16, voll)**: Baseline kann
   seeded kumulative Zahlen strukturell nicht faken, Actor machte runId-Fortsetzung exakt

@@ -175,3 +175,19 @@
   für den Server-Modus (Fixt Game-Matrix-Transcribe-Fehler-Klasse), EVAL_MAX_TOOL_
   ROUNDS (Default 8), Tool-Call-Log (Args + Result-Preview) in report.json,
   Rundungstoleranz/Äquivalenz in H1-Rubrik | trigger: nach EV-6, dann Run 4.
+
+- [EV-6] RESOLVED 2026-09-15 | gewichtetes Scoring im Runner (total = Σ
+  score×weight, clamp 0-4), Report-Skala jetzt konsistent (40er) — alte
+  Reports (Rohsummen) nicht vergleichbar, README-Doku dazu.
+- [EV-7] RESOLVED 2026-09-15 | Operator-Prompt (verbatim params, runId reuse,
+  full precision), EVAL_MAX_TOOL_ROUNDS (8), Tool-Call-Log in report.json,
+  Judge-Äquivalenzregel, H1-Rundungstoleranz. Bewirkt: Bandit/Fault-Tree 40/40.
+- [EV-8] OBSERVATION (Run 4, kein sofortiger Handlungsbedarf) | Tool-Schema-
+  Flailing: flash-no-think schickte 4× payoff_matrix als String-Arrays statt
+  {row,col}-Objekten (Erstaufruf-Formatfehler, Budgetverlust), übernahm danach
+  den Full-Game-Dominanz-Output ungefiltert statt nextSteps zu folgen
+  ("aggregating strategies to reach a 2×2 form"). | trigger: falls game_matrix-
+  Fehlaufrufe wieder auftreten | action: payoff_matrix-Beispiel-JSON in die
+  Tool-Beschreibung; nextSteps-Prominenz prüfen. Fermi-Task: fermi_estimate
+  wurde übersprungen (VoI zweimal falsch parametrisiert) — Operator-Prompt-
+  Variante "compute every requested number WITH the matching tool" denkbar.
