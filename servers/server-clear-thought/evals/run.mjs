@@ -11,7 +11,8 @@
  * Usage:
  *   npm run build && node evals/run.mjs [--max-tasks N]
  * Output:
- *   evals/results/<timestamp>/report.json + report.md
+ *   evals/results/<timestamp>/report.json + report.md (written incrementally
+ *   after every task, so a crash only loses the in-flight task)
  */
 
 import fs from 'node:fs';
@@ -42,6 +43,26 @@ const maxTasks = maxIdx >= 0 ? Number(argv[maxIdx + 1]) : Infinity;
 const { tasks } = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'evals/tasks.json'), 'utf8'));
 const selected = Number.isFinite(maxTasks) ? tasks.slice(0, maxTasks) : tasks;
 
+const results = [];
+const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const outDir = path.join(pkgRoot, 'evals/results', stamp);
+fs.mkdirSync(outDir, { recursive: true });
+
+/** Incremental: a crash mid-run keeps every completed task. */
+function writeReport() {
+  fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(results, null, 2));
+  let md = `# LLM Eval Report — ${new Date().toISOString()}\n\nModel: \`${MODEL}\`\n\n| Task | Baseline | With Server | Δ | Expected tools | Actually used |\n|---|---|---|---|---|---|\n`;
+  for (const r of results) {
+    const delta = r.with_server.judge.total - r.baseline.judge.total;
+    md += `| ${r.id} | ${r.baseline.judge.total}/${r.baseline.max} | ${r.with_server.judge.total}/${r.with_server.max} | ${delta >= 0 ? '+' : ''}${delta} | ${r.expected_tools.join(', ')} | ${r.with_server.toolsUsed.join(', ') || '—'} |\n`;
+  }
+  fs.writeFileSync(path.join(outDir, 'report.md'), md);
+}
+
+function rubricMax(task) {
+  return task.rubric.reduce((acc, r) => acc + 4 * r.weight, 0);
+}
+
 async function chatOnce(messages, tools) {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -61,10 +82,10 @@ async function chat(messages, tools, attempts = 3) {
     try {
       return await chatOnce(messages, tools);
     } catch (error) {
+      const causeCode = String(error.cause?.code ?? '');
       const transient =
-        /UND_ERR|fetch failed|timeout|ECONN|\b5\d\d:|\b429:/.test(String(error.cause?.code ?? '')) ||
-        /UND_ERR|timeout|ECONN/i.test(error.message) ||
-        /\b(5\d\d|429)\b/.test(String(error.message).slice(0, 40));
+        /UND_ERR|timeout|ECONN/i.test(causeCode + ' ' + error.message) ||
+        /\b(5\d\d|429)\b/.test(error.message.slice(0, 60));
       if (i === attempts || !transient) throw error;
       const wait = i * 5000;
       console.log(`    transient LLM error (attempt ${i}/${attempts}), retry in ${wait / 1000}s …`);
@@ -124,7 +145,7 @@ async function runWithServer(task) {
 }
 
 /** Judge: score the rubric 0–4 per criterion (JSON-enforced with fallback). */
-async function judge(task, variant, answer) {
+async function judge(task, answer) {
   const rubric = task.rubric
     .map((r, i) => `${i + 1}. (${r.weight}pt) ${r.criterion}`)
     .join('\n');
@@ -140,20 +161,9 @@ async function judge(task, variant, answer) {
       content: `Task given to the assistant:\n${task.prompt}\n\nRubric:\n${rubric}\n\nAssistant answer:\n${answer.slice(0, 6000)}`
     }
   ];
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      response_format: { type: 'json_object' }
-    })
-  });
-  if (!res.ok) {
-    return { scores: [], total: 0, error: `judge ${res.status}` };
-  }
+  const res = await chat(messages);
   try {
-    const parsed = JSON.parse((await res.json()).choices[0].message.content);
+    const parsed = JSON.parse(res.choices[0].message.content);
     const scores = parsed.scores ?? [];
     const total = scores.reduce((acc, s) => acc + (Number(s.score) || 0), 0);
     return { scores, total };
@@ -162,14 +172,41 @@ async function judge(task, variant, answer) {
   }
 }
 
-function rubricMax(task) {
-  return task.rubric.reduce((acc, r) => acc + 4 * r.weight, 0);
-}
-
 // ── main ────────────────────────────────────────────────────────────────
-const results = [];
+console.log(`LLM eval: ${selected.length} task(s), model ${MODEL}, base ${BASE_URL}\n`);
 
 const avg = (key) =>
   (results.reduce((acc, r) => acc + r[key].judge.total / r[key].max, 0) / results.length) * 100;
-console.log(`\nBaseline avg: ${avg('baseline').toFixed(1)}% | With server avg: ${avg('with_server').toFixed(1)}%`);
-console.log(`Report: ${outDir}`);
+
+for (const task of selected) {
+  console.log(`▶ ${task.id}`);
+  process.stdout.write('  baseline (no tools) … ');
+  const base = await runBaseline(task);
+  const baseJudge = await judge(task, base.answer);
+  console.log(`score ${baseJudge.total}/${rubricMax(task)}`);
+
+  process.stdout.write('  with server … ');
+  const withServer = await runWithServer(task);
+  const serverJudge = await judge(task, withServer.answer);
+  console.log(`score ${serverJudge.total}/${rubricMax(task)}`);
+
+  results.push({
+    id: task.id,
+    baseline: { answer: base.answer, toolsUsed: [], judge: baseJudge, max: rubricMax(task) },
+    with_server: {
+      answer: withServer.answer,
+      toolsUsed: withServer.toolsUsed,
+      judge: serverJudge,
+      max: rubricMax(task)
+    },
+    expected_tools: task.expects_tools,
+    rubric: task.rubric
+  });
+  writeReport();
+
+  const delta = serverJudge.total - baseJudge.total;
+  console.log(`  Δ ${delta >= 0 ? '+' : ''}${delta} (baseline ${baseJudge.total} → server ${serverJudge.total})\n`);
+}
+
+console.log(`\nBaseline avg: ${results.length ? avg('baseline').toFixed(1) + '%' : 'n/a'} | With server avg: ${results.length ? avg('with_server').toFixed(1) + '%' : 'n/a'}`);
+console.log(`Report: ${path.join(outDir, 'report.md')}`);
