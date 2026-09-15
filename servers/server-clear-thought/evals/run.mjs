@@ -243,6 +243,17 @@ async function runWithServer(task) {
         messages.push({ role: 'tool', tool_call_id: call.id, content: resultText.slice(0, 8000) });
       }
     }
+    // Round budget exhausted — the model must answer NOW. Without this nudge
+    // an actor deep in a multi-stage workflow keeps announcing next stages
+    // and the task scores 0 on a finished-looking but empty answer
+    // (observed: "All attack stages complete. Let me advance …").
+    messages.push({
+      role: 'user',
+      content:
+        'Your tool budget is exhausted. Do not announce further stages or steps. ' +
+        'Write your FINAL answer to the original request now, including every requested ' +
+        'number, ranking and recommendation, using the tool outputs you already received.'
+    });
     const final = await chat(messages, null, 3, `${task.id} · final synthesis`, ACTOR);
     return { answer: final.choices[0].message.content ?? '', toolsUsed };
   } finally {
@@ -262,6 +273,11 @@ async function judge(task, answer) {
       role: 'system',
       content:
         'You are a strict eval judge. Score each rubric criterion 0-4 based ONLY on the answer text. ' +
+        'Anchors: 4 = fully satisfies the criterion; 3 = minor gaps; 2 = partially satisfies or ' +
+        'misses requested specifics; 1 = barely touches it; 0 = absent or wrong. ' +
+        'Apply the anchors with identical strictness to every answer — do not reward length or ' +
+        'format, and do not penalize correctly derived numbers just because they differ from an ' +
+        'example value written inside a criterion. ' +
         'Respond with JSON only: {"scores":[{"criterion":string,"score":number,"justification":string}]}.'
     },
     {
