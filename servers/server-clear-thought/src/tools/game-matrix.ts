@@ -18,7 +18,11 @@ export const gameMatrixInputShape = {
   payoff_matrix: z
     .array(z.array(cellSchema))
     .min(2)
-    .describe('Payoff cells: payoff_matrix[row][col] = { row, col }')
+    .describe(
+      'Payoff cells: payoff_matrix[row][col] = { row, col }. Example for 2x2: ' +
+        '[[{"row":5,"col":3},{"row":0,"col":4}],[{"row":3,"col":3},{"row":6,"col":2}]] ' +
+        '— nested objects with numbers, never strings'
+    )
 };
 
 export function runGameMatrix(args: z.infer<z.ZodObject<typeof gameMatrixInputShape>>) {

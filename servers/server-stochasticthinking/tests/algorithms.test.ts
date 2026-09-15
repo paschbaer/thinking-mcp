@@ -152,6 +152,35 @@ describe('bandit (real pulls with persisted run state)', () => {
     expect(result.perArm[0].estimate).toBeGreaterThan(0.8);
     expect(result.perArm[1].estimate).toBeLessThan(0.2);
   });
+
+  // Pins the exact draw sequence baked into the rubric of
+  // servers/server-clear-thought/evals/tasks-hard.json (vendor-bandit task).
+  // If this test fails after an RNG change, regenerate that rubric's ground
+  // truth by calling the real tools before trusting any eval run.
+  it('pins the thompson/seed-7 80+60 continuation used by the hard eval rubric', () => {
+    const params = banditParamsSchema.parse({
+      arms: [
+        { type: 'bernoulli', p: 0.28 },
+        { type: 'bernoulli', p: 0.46 },
+        { type: 'bernoulli', p: 0.35 }
+      ],
+      strategy: 'thompson',
+      pulls: 80,
+      seed: 7
+    });
+    const run = createBanditRun(params, 'bandit-1', params.seed);
+    const first = runBanditCall(run, params);
+    expect(first.runId).toBe('bandit-1');
+    expect(first.cumulative.totalPulls).toBe(80);
+    expect(first.cumulative.regret).toBeCloseTo(9.13, 2);
+
+    const second = runBanditCall(run, { ...params, pulls: 60 });
+    expect(second.cumulative.totalPulls).toBe(140);
+    expect(second.cumulative.regret).toBeCloseTo(16.14, 2);
+    expect(second.cumulative.meanReward).toBeCloseTo(0.271, 3);
+    expect(second.perArm.map((a) => a.pulls)).toEqual([31, 13, 96]);
+    expect(second.bestArm).toBe(1);
+  });
 });
 
 describe('hmm (viterbi + forward-backward)', () => {
