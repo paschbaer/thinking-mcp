@@ -6,7 +6,7 @@
       "expects_tools": ["premortem"],
       "rubric": [
         { "criterion": "Uses a structured risk-analysis tool instead of answering from intuition", "weight": 3 },
-        { "criterion": "Correctly identifies 'flaky end-to-end tests' as the top risk (score 20)", "weight": 3 },
+        { "criterion": "Correctly identifies 'flaky end-to-end tests' as the top risk (score 16)", "weight": 3 },
         { "criterion": "Reports a quantified mitigation coverage around 33% (1 of 3 causes has a mitigation)", "weight": 2 },
         { "criterion": "Gives a concrete, actionable recommendation for the top risk", "weight": 2 }
       ]

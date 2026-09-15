@@ -1,0 +1,48 @@
+{
+  "tasks": [
+    {
+      "id": "turbine-fault-tree-exact-probability",
+      "prompt": "Unplanned shutdowns of our turbine are traced to this fault tree. Basic events: bearing lubrication failure p=0.02, pump seal leak p=0.03, pump cavitation p=0.015, control firmware fault p=0.04, sensor drift p=0.025, sensor power loss p=0.01, grid voltage sag p=0.05, UPS battery depleted p=0.008. Gate structure: 'lube pump failure' is the OR of pump seal leak and pump cavitation; 'bearing seizure' is the AND of bearing lubrication failure and lube pump failure; 'sensor voting corruption' is the AND of sensor drift and sensor power loss; 'control system failure' is the OR of sensor voting corruption and control firmware fault; 'ride-through failure' is the AND of grid voltage sag and UPS battery depleted; the top event 'unplanned turbine shutdown' is the OR of bearing seizure, control system failure and ride-through failure. Compute the exact top-event probability, rank the basic events by their contribution, and tell us which single component to improve first and why.",
+      "expects_tools": ["fault_tree"],
+      "rubric": [
+        { "criterion": "States the top-event probability 0.041479 — equivalently 0.04148, 0.0415 or ≈4.15% (same value, different rounding; any of these scores 4); 2 if within ±0.0005 of it; 0 otherwise", "weight": 3 },
+        { "criterion": "Identifies 'control firmware fault' as the by far largest single contributor (~0.0399 of the top probability — an order of magnitude above the rest)", "weight": 3 },
+        { "criterion": "Gives the correct #2 and #3 contributors: bearing lubrication failure (~0.00085) then pump seal leak (~0.00057)", "weight": 2 },
+        { "criterion": "Derives the recommendation from the quantified ranking (mitigate firmware fault first, citing its contribution), not from generic advice", "weight": 2 }
+      ]
+    },
+    {
+      "id": "market-game-iterated-dominance",
+      "prompt": "Two firms choose simultaneously. Our strategies: expand, hold, exit. Competitor strategies: aggressive, stable, chaotic. Payoffs as (ours, theirs): expand/aggressive (5,3), expand/stable (0,4), expand/chaotic (5,2), hold/aggressive (3,3), hold/stable (6,2), hold/chaotic (1,1), exit/aggressive (2,1), exit/stable (5,7), exit/chaotic (0,7). Solve the game rigorously: eliminate dominated strategies step by step in the correct order, and then give the mixed-strategy equilibrium of the remaining game — the exact probability each player puts on each surviving strategy, plus the expected payoff for each player.",
+      "expects_tools": ["game_matrix"],
+      "rubric": [
+        { "criterion": "First eliminates 'exit' (strictly dominated by 'hold' for the row player in the full 3×3 game)", "weight": 3 },
+        { "criterion": "Then eliminates 'chaotic' (strictly dominated for the column player once 'exit' is removed — by 'stable' (4>2, 2>1) and equally by 'aggressive' (3>2, 3>1); either justification is correct) — the order of the two steps must be exactly this", "weight": 3 },
+        { "criterion": "Mixed equilibrium probabilities all four exact: ours {expand 0.50, hold 0.50}, competitor {aggressive 0.75, stable 0.25}", "weight": 3 },
+        { "criterion": "Expected payoffs ≈ 3.75 (ours) and 3.0 (competitor)", "weight": 1 }
+      ]
+    },
+    {
+      "id": "downtime-fermi-value-of-information",
+      "prompt": "Our production line suffers roughly 3 unplanned downtime incidents per month, each lasting about 6 hours at a cost of 4,000 EUR per downtime hour; secondary delays add a 1.15 factor; we plan over 12 months. Engineering estimates the uncertainty of each of these inputs at 40%, 25%, 15%, 10% and 5% respectively. A vendor offers a 25,000 EUR measurement study that would pin down the true failure rate; our engineers think there is a 35% chance the failure-rate assumption is materially wrong, and if it is, we would waste 180,000 EUR on unnecessary redundancy. Deliver: the annual downtime cost estimate, the ranked list of which input to tighten first (with the quantified reason), and a reasoned yes/no on buying the study.",
+      "expects_tools": ["fermi_estimate", "value_of_information"],
+      "rubric": [
+        { "criterion": "Point estimate 993,600 EUR (score 4 if within ±0.5%; 2 if within ±5%; 0 otherwise)", "weight": 3 },
+        { "criterion": "Sensitivity ranking led by 'incidents per month' (40% uncertainty, largest impact ~794,880 EUR) as the first input to tighten", "weight": 3 },
+        { "criterion": "Quantifies the value of resolving the uncertainty at ~63,000 EUR expected (180,000 × 0.35, EVPI-style)", "weight": 3 },
+        { "criterion": "Clear yes on the study, explicitly because 63,000 > 25,000 (consistent with the computed value, not gut feeling)", "weight": 1 }
+      ]
+    },
+    {
+      "id": "vendor-bandit-runid-continuation",
+      "prompt": "We are scoring three vendors by sampled delivery success: vendor A succeeds with probability 0.28, vendor B with 0.46, vendor C with 0.35. Simulate vendor selection with a Thompson-sampling bandit, random seed 7: run 80 pulls first, and THEN continue THE SAME run for another 60 pulls (one continuous experiment, not two separate ones). From the completed 140-pull experiment report: the cumulative regret, the cumulative number of pulls per vendor, the cumulative mean reward, and which vendor we should pick. Explain briefly why the two stages must be the same run.",
+      "expects_tools": ["stochasticalgorithm"],
+      "rubric": [
+        { "criterion": "One continuous bandit run across both stages — cumulative 140-pull numbers (regret ≈ 16.14, pulls A 31 / B 13 / C 96) can only come from a single continued run; numbers from two independent 80/60-pull runs score 0 here", "weight": 3 },
+        { "criterion": "Cumulative regret after 140 pulls ≈ 16.14 (±0.05)", "weight": 3 },
+        { "criterion": "Cumulative pulls per vendor A 31, B 13, C 96 (±1 each) and recommendation: vendor B (best arm, true mean 0.46)", "weight": 3 },
+        { "criterion": "Cumulative mean reward ≈ 0.271 over 140 pulls", "weight": 1 }
+      ]
+    }
+  ]
+}

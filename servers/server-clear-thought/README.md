@@ -491,6 +491,54 @@ docker run -it -p 3000:3000 paschbaer/clear-thought
 4. Start the server: `npm run start:http` (or `npm start`) — listens on the `PORT` environment variable (default: `3000`)
 5. Run tests: `npm test`
 6. After every **deployment**, run the live functional test against the running instance: `npm run test:live` (or `BASE=<url>/mcp node scripts/funktionstest.mjs`). It exercises every registered tool — individual and toolset dispatch, dual-mode behavior and the session lifecycle — and exits non-zero on any failure. Treat it as the regression gate for deployments.
+7. Optional — LLM task evals: see [Benchmark (LLM Task Evals)](#benchmark-llm-task-evals) below.
+
+## Benchmark (LLM Task Evals)
+
+The `evals/` harness answers "do the tools actually help?" — it runs the
+same tasks twice (with and without the server) and scores both answers
+with an independent judge model against weighted rubrics.
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `npm run build` | Required first — the runner spawns `dist/dev.js` over stdio and auto-attaches `../server-stochasticthinking/dist/dev.js` when present (stateful algorithm tools, `runId` continuation) |
+| `npm run eval:llm` | Easy set — `evals/tasks.json`: 3 reasoning-quality tasks (risk analysis, argument stress-test, guided decision) |
+| `npm run eval:llm:hard` | Hard set — `evals/tasks-hard.json`: 4 computation-forcing tasks with ground-truth numbers baked into the rubric (exact fault-tree probability, iterated dominance + mixed equilibrium, Fermi + value of information, bandit `runId` continuation across two calls) |
+| `node evals/run.mjs --max-tasks 1` | Cost-limited smoke (first task only) |
+| `node evals/run.mjs --tasks <file>` | Run a custom task file |
+
+Per task the runner (1) asks the actor **baseline-style** without tools,
+(2) reruns with the full MCP toolset in a tool-use loop, and (3) has an
+independent **judge** model score both answers 0–4 per rubric criterion,
+weighted by criterion weight (max 40 per task). Reports are written
+incrementally to `evals/results/<timestamp>/`: `report.json` (scores,
+justifications and the full per-call tool log), `report.md` (summary
+table with Δ) and `config.json` (endpoint snapshot — API keys are never
+written). The harness never runs in CI.
+
+### Configuration
+
+Via environment variables or `.env` (copy `.env.example`; the runner
+reads `.env` from the server dir and the repo root — real environment
+variables always win; the file is gitignored):
+
+| Variable | Role | Default |
+|---|---|---|
+| `EVAL_ACTOR_API_KEY` | actor API key (**required**) | `EVAL_API_KEY` → `OPENAI_API_KEY` |
+| `EVAL_ACTOR_BASE_URL` | actor endpoint | `EVAL_BASE_URL` → `https://api.openai.com/v1` |
+| `EVAL_ACTOR_MODEL` | actor model (solves the tasks) | `EVAL_MODEL` → `gpt-4o-mini` |
+| `EVAL_JUDGE_MODEL` | judge model (scores the answers) | actor model |
+| `EVAL_JUDGE_BASE_URL` / `EVAL_JUDGE_API_KEY` | judge endpoint | actor values |
+| `EVAL_ACTOR_THINKING` / `EVAL_JUDGE_THINKING` | reasoning mode: `enabled` / `disabled` (set empty to omit the field on providers that reject it) | `disabled` / `enabled` |
+| `EVAL_MAX_TOOL_ROUNDS` | tool-call rounds per task | `8` |
+
+Actor and judge are independent endpoints — use a different model
+(ideally a different provider) for the judge to avoid same-model
+self-bias; the runner prints a warning at startup if both roles resolve
+identically. Full protocol, task authoring rules and the tool-call log
+format: [`evals/README.md`](evals/README.md).
 
 ## Contributing
 

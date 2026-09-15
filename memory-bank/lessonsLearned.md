@@ -5,6 +5,13 @@
 > (AGENTS.md → Lessons Learned / Automatic Post-Bugfix Documentation).
 
 ## Avoid These Mistakes
+
+- **Smithery Naming score is rename-resistant — don't chase it:** renaming all 12
+  compact-lowercase tools to snake_case (breaking 1.0.0) left the Smithery "Naming"
+  score EXACTLY unchanged at 4.44pt. The scoring rule is unknown (possibly camelCase
+  preferred, possibly a structural plateau). → 96/100 is the practical ceiling; never
+  do another breaking rename toward an UNKNOWN scoring target. Falsified empirically
+  via before/after rescan (2026-09-15).
 - **Factories must parse config defensively — raw configs arm broken defaults:** the clear-thought
   factory trusted the caller to pass a schema-parsed config; a raw/partial config left
   `sessionTimeout` undefined → `setTimeout(cleanup, undefined)` = **immediate cleanup**, wiping the
@@ -104,3 +111,29 @@
 ## Entries
 
 (dated log of resolved bugs / decisions will accumulate here)
+
+- **2026-09-15 — MCP-SDK-Timeout-Falle:** `new Client(info, { timeout })` wird
+  still ignoriert (Timeout blieb 60 s → MCP -32001 beim drvfs-Kaltstart).
+  Richtig: Constructor-Option `defaultRequestTimeoutMsec` UND pro Request
+  `{ timeout }` an `connect`/`listTools`/`callTool` (connect akzeptiert
+  `options?: RequestOptions`). Applies to every spawned-server script in
+  `evals/` — Kaltstarts auf drvfs brauchen >60 s.
+- **2026-09-15 — Startup-Proben unter drvfs-Last:** `bin-invocation.test.ts`
+  (Symlink-Startup-Probe) schlägt in der Full-Suite fehl, isoliert aber grün —
+  die Probe hat ein festes Zeitfenster und drvfs-Parallellast (collect 1200–1700 s
+  pro Suite-Lauf) sprengt es. Regel: Bei Full-Suite-Rot zuerst den Test isoliert
+  nachlaufen lassen und die Testdauer prüfen; erst bei isoliert-rot von einer
+  echten Regression ausgehen. Dauerhafter Fix (Backlog): Probe-Fenster in der
+  Umgebung konfigurierbar machen.
+- **2026-09-15 — Reasoning-Modelle können in Reasoning-Loops enden:** z.ai
+  glm-5.3-flash lieferte auf einem rechenlastigen Fault-Tree-Prompt >6 min
+  durchgehend reasoning_content-Deltas (2,8 MB!) ohne je zu rendern — 3× HTTP-
+  Timeout über drei Versuche, obwohl ein Ping in 3,2 s antwortete und der Stream
+  gesund war (SSE, first byte 4,2 s). Der Reihe nach falsch diagnostiziert als
+  „Timeout zu kurz" und „Gateway-Buffering". Richtig: rohen Stream anzapfen und
+  Byte-Ankunft messen; dann fixte `thinking:{type:'disabled'}` denselben Prompt
+  in 24 s. Regel: An Eval-/Agent-Endpoints das Think-Budget pro Rolle steuerbar
+  machen (Actor schnell, Judge gründlich) — nicht erst im Störfall suchen.
+
+
+

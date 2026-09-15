@@ -3,10 +3,50 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-15
 
 ## What Works
 
+- **Eval Run 5 (2026-09-15, Hard Set + EV-8-Gegenmittel)**: **98,8 % vs. 74,4 %** —
+  3 von 4 Tasks perfekt (Fault-Tree 40/40 Δ+16, Bandit 40/40 Δ+22, Fermi 40/40 Δ0,
+  Game 38/40 Δ+1). Die EV-8-Fixes haben beide Run-4-Fehlerklassen eliminiert: kein
+  Schema-Flailing mehr (3 Runden statt 6), fermi_estimate korrekt genutzt. Bandit-Actor
+  korrigierte sich selbst (falsches epsilon-greedy → thompson 80+60, regret 16.140 ✓).
+  Ergebnisreihe Run 3→4→5 (Server-%, gewichtet nachberechnet): 92,5 → 86,9 → 98,8 — Run 4 war der Schema-Flailing-Einbruch, EV-8 hat ihn geschlossen. Rig-Entwicklung abgeschlossen;
+  Ergebnisreihe dokumentiert tool-valueThese: Compute-Gap bestimmt Tool-Wert.
+- **Eval Run 4 (2026-09-15, Hard Set, gehärtetes Rig: Operator-Prompt/Tool-Call-Log/gewichtetes Scoring)**:
+  Aggregat 86,9 % vs. 80,0 %. **Bandit 18→40/40 (Δ +22) und Fault-Tree 36→40/40 (Δ +4)** —
+  dort, wo Tools exakt rechnen, was das Modell nicht kann, volle Punktzahl. Game-Matrix −6
+  und Fermi −9: Tool-Call-Log zeigt zwei neue Fehlerklassen — (a) Schema-Flailing (4×
+  payoff_matrix als Strings statt {row,col}-Objekten, Budget verbrannt), danach Über-
+  vertrauen auf den Full-Game-Dominanz-Output statt 2×2-Subgame; (b) falsche Tool-Wahl
+  (fermi_estimate übersprungen, VoI mit Sensitivitätsdaten gefüttert, Monats- als
+  Jahressumme präsentiert). **These validiert: Tool-Wert = f(Compute-Gap)** — groß bei
+  Seeded-State/Enumeration, negativ wo das Modell Solo schon stark ist und Transkription
+  neuen Fehleroberflächen schafft.
+- **Eval Run 3 (2026-09-15, HARD SET, glm-5.3-flash Actor [thinking:disabled] ↔ glm-5.3 Judge)**:
+  erster vollständiger Hard-Set-Lauf — **Bandit-Task Δ +11 (5→16/16, voll)**: Baseline kann
+  seeded kumulative Zahlen strukturell nicht faken, Actor machte runId-Fortsetzung exakt
+  (regret 16.140). Fault-Tree Δ +2 (14→16/16: Tool liefert Basic-Event-Beiträge exakt).
+  Game-Matrix Δ −4 (16→12): Actor verhieb einen Payoff beim Tool-Call-Transcribing
+  (col 5 statt 2) → Dominanz-Kriterium 0. Fermi/VoI Δ 0 (beide 16/16, Ceiling).
+  Aggregate: Server 60/64 vs. Baseline 51/64 (raw 16er-Skala). Infra-Lektionen:
+  Streaming-Reassembly + thinking-Steuerung je Rolle (Actor disabled — Reasoning-Loop
+  >6 min/2.8 MB; Judge enabled), attempt-skalierte Timeouts, .env-Loader.
+- **RELEASE 1.0.0 (2026-09-15)**: PR `develop → main` gemerged (Branch-Protection),
+  Pipelines grün — **npm 1.0.0 via OIDC Trusted Publishing** (tokenlos, Provenance),
+  ghcr-Images 1.0.0, Smithery-Re-Publish mit snake_case-Namen. Inhalt: Snake-Case-Rename
+  (BREAKING, 12 Tools), Recipe-Runner-Briefings mit example_arguments + result_guidance,
+  LLM-Task-Evals (E3 Tier 2), Tier-1-Contract-Evals, Risk-Familie (B1), B2–B5,
+  D1–D3, Real Computing. 129/129 Tests. npx-Smoke verifiziert (45 Tools neue Namen,
+  recipe_runner-Briefing, prompts).
+- **Eval Run 2 (2026-09-15, glm-5.3 als Actor+Judge, korrigierte Rubrik)**: alle Tasks
+  Δ = 0 — Baseline holt stark auf (42/120 vs. 25/120 in Run 1), Tools korrekt genutzt
+  (recipe_runner-Navigation über Stages, fermi_estimate, value_of_information) aber
+  kein Score-Gewinn bei starkem Modell. Methodik-Erkenntnis: Tool-Wert hängt von
+  Actor-Stärke und Task-Schwierigkeit ab; härtere Tasks + statefulle Flows (Bandit-
+  runId) + evtl. schwächerer Actor für differenzierende Messungen nötig. Judge-Gleich-
+  Modell-Bias bleibt Konfounder.
 - **Naming-Rename + 1.0.0 (2026-09-15, branch `feature/track-b2-b5`→develop)**: alle 12
   kompakten Tool-Namen auf snake_case vereinheitlicht (`sequential_thinking`,
   `mental_model`, …) — Breaking, Version 1.0.0. ~200 Referenzen über src/tests/Guides/
@@ -111,12 +151,15 @@
 
 ## What's Left
 
-- Extension roadmap (`plans/extension-roadmap.md`, detail plan
-  `plans/quality-distribution.md`): E1 RB-10 CLOSED (rescan 96/100) + E2 npm
-  publish DONE (0.1.1 both, 2026-09-14); next E3 eval harness; then roadmap
-  tracks C (recipe runner), B (tool families), D (resources/prompts).
-- Optional (breaking, deferred): tool-name de-snake-casing to close the
-  Smithery Naming gap (~4pt, see RB-9-history) — needs a major version.
+- Extension roadmap (`plans/extension-roadmap.md`): **A ✅ B1–B5 ✅ C ✅ D1–D3 ✅
+  E1–E3 ✅ — Roadmap vollständig abgearbeitet (Release 1.0.0, 2026-09-15).**
+  Verbleibende optionale Punkte: D4 (Sampling), orchestrierter Recipe Runner
+  (in geänderter Form, bewusst zurückgestellt — Anleitungs-Form ist drin).
+  Naming: 4.44pt trotz Rename (Hypothese falsifiziert) — akzeptiert, kein
+  weiterer Breaking-Rename.
+- Optional (done, pending rescan): tool-name de-snake-casing executed in 1.0.0
+  to close the Smithery Naming gap (~4pt, see RB-9-history) — the breaking
+  major version.
 - Optional RB candidate: shared workspace HTTP scaffold for both servers
   (decisionframework option C, deferred).
 - Periodic refresh of the GitNexus index after larger refactors

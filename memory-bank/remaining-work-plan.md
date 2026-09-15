@@ -54,9 +54,11 @@
   publisher: scripts/publish-smithery.mjs. Remaining gap: Naming ~6pt
   (agents_guide snake_case, breaking rename deferred).
   UPDATE 2026-09-15: rename EXECUTED in 1.0.0 (all 12 compact-lowercase names
-  → snake_case, branch feature/snake-case-rename merged to develop); direction
-  risk remains (unclear whether Smithery prefers snake or camel) — verify via
-  rescan after the 1.0.0 Smithery publish; git revert is the fallback.
+  → snake_case, branch feature/snake-case-rename merged to develop) and
+  published — rescan result: **Naming STILL 4.44pt (unchanged)**. Hypothesis
+  "snake_case closes the gap" FALSIFIED; scoring rule unknown. RESOLVED AS
+  ACCEPTED: 96/100 is the practical ceiling without another breaking rename
+  toward an unknown target — do not retry.
 - [RB-2] LOW | `AGENTS.md` root file mixes hand-written project rules and the
   generated guide; regeneration via `agents_guide` merge mode must be used to
   avoid losing hand-written sections | trigger: any template change in
@@ -129,3 +131,69 @@
   `feature/stochastic-http-mcp` (phases 0–5): factory + zod config, stdio dev
   entry, Streamable HTTP server with /health, vitest suite (15 tests), live
   funktionstest (6 checks), Docker recipe ported from clear-thought.
+
+- [EV-1] MEDIUM | Eval Run 2 (easy tasks, glm-5.3 Actor+Judge): alle Tasks
+  Δ = 0 — Selbst-Bias-Konfounder + zu leichte Tasks | trigger: nächste
+  Eval-Messung | action required: Run 3 mit `evals/tasks-hard.json`
+  (Ground-Truth-Rubrics) und unabhängigem Judge (`EVAL_JUDGE_MODEL` +
+  `EVAL_JUDGE_BASE_URL`/`EVAL_JUDGE_API_KEY` auf anderen Provider); rig ist
+  gebaut (Branch `feature/harder-evals-actor-judge-split`), needs API keys + Go.
+
+- [EV-2] FIXED 2026-09-15 (review finding, was MEDIUM) | Bandit-Rubrik-Konstanten
+  (regret 16.14, pulls 31/13/96, mean 0.271) waren seed-locked ohne Regressionsschutz
+  — RNG-Änderung würde Rubrik still invalidieren | **Behoben mit Pinning-Test**
+  `tests/algorithms.test.ts` (thompson/seed 7, 80+60 via createBanditRun/runBanditCall,
+  exakte Assertions; 17/17 grün). Trigger falls er rot wird: Rubrik-Ground-Truth in
+  tasks-hard.json per echten Tool-Läufen regenerieren, bevor ein Eval-Lauf gewertet wird.
+- [EV-3] FIXED 2026-09-15 (review findings, LOW) | Runner-Argument-Guards
+  (`--max-tasks` NaN → exit 2 statt still „alle Tasks"; `--tasks` ohne Wert → exit 2
+  statt TypeError), Judge-Antwort-Cap 6000→12000 Zeichen, stdio-Transport-Cleanup bei
+  fehlgeschlagenem connect, Game-Matrix-Rubrik: `chaotic` wird auch von `aggressive`
+  dominiert (beide Begründungen jetzt als korrekt akzeptiert).
+- [EV-4] ACCEPTED with rationale (review NIT) | Self-Bias-Warnung vergleicht volle
+  URLs — gleiches Modell hinter URL-Alias/Proxy wird nicht erkannt; dokumentiertes
+  Heuristik-Verhalten. `chat()` gibt bei attempts<=0 undefined zurück — mit aktuellen
+  Call-Sites (3/1) unerreichbar, latenter Kontrakt-Wartezustand. | trigger: falls
+  Proxy-basierte Judge-Setups genutzt werden, Heuristik auf Hostnormalisierung ausbauen.
+- [EV-5] ACCEPTED with rationale (infra, pre-existing) | `bin-invocation.test.ts`
+  (npx-Symlink-Startup-Probe) ist lastempfindlich auf drvfs: isoliert grün
+  (58,5 s Testzeit — Probe-Fenster knapp), in Full-Suite unter Parallel-Last 2× rot.
+  Nicht durch diesen Diff verursacht (kein src/dist-Change). | trigger: falls in CI
+  (natives Linux, kein drvfs) rot → echt untersuchen; lokal: fokussiert nachlaufen
+  lassen, bevor ein Regression angenommen wird.
+
+- [EV-1] RESOLVED 2026-09-15 | Run 3 mit tasks-hard.json + unabhängigem Judge
+  (glm-5.3-flash Actor [thinking off] ↔ glm-5.3 Judge) ausgeführt: Δ +11 Bandit /
+  +2 Fault-Tree / 0 Fermi / −4 Game (Transcribe-Slip). Hard Set differenziert wie
+  konzipiert — der statefulle Bandit-Task ist der saubeste Tool-Wert-Nachweis.
+- [EV-6] MEDIUM (neu, Run 3) | Scoring-Anzeige-Bug: Judge-Rohsumme (max 16 bei
+  4 Kriterien) wird gegen gewichtetes rubricMax (40) ins Report geschrieben —
+  Prozentangaben deflationiert, Deltas unverändert valide | trigger: vor Run 4 |
+  action required: total = Σ score×weight im Runner rechnen; Kompatibilität zu
+  alten Reports in README vermerken.
+- [EV-7] MEDIUM (freigegeben) | Run-4-Härtung: verbatim-parameter System-Prompt
+  für den Server-Modus (Fixt Game-Matrix-Transcribe-Fehler-Klasse), EVAL_MAX_TOOL_
+  ROUNDS (Default 8), Tool-Call-Log (Args + Result-Preview) in report.json,
+  Rundungstoleranz/Äquivalenz in H1-Rubrik | trigger: nach EV-6, dann Run 4.
+
+- [EV-6] RESOLVED 2026-09-15 | gewichtetes Scoring im Runner (total = Σ
+  score×weight, clamp 0-4), Report-Skala jetzt konsistent (40er) — alte
+  Reports (Rohsummen) nicht vergleichbar, README-Doku dazu.
+- [EV-7] RESOLVED 2026-09-15 | Operator-Prompt (verbatim params, runId reuse,
+  full precision), EVAL_MAX_TOOL_ROUNDS (8), Tool-Call-Log in report.json,
+  Judge-Äquivalenzregel, H1-Rundungstoleranz. Bewirkt: Bandit/Fault-Tree 40/40.
+- [EV-8] OBSERVATION (Run 4, kein sofortiger Handlungsbedarf) | Tool-Schema-
+  Flailing: flash-no-think schickte 4× payoff_matrix als String-Arrays statt
+  {row,col}-Objekten (Erstaufruf-Formatfehler, Budgetverlust), übernahm danach
+  den Full-Game-Dominanz-Output ungefiltert statt nextSteps zu folgen
+  ("aggregating strategies to reach a 2×2 form"). | trigger: falls game_matrix-
+  Fehlaufrufe wieder auftreten | action: payoff_matrix-Beispiel-JSON in die
+  Tool-Beschreibung; nextSteps-Prominenz prüfen. Fermi-Task: fermi_estimate
+  wurde übersprungen (VoI zweimal falsch parametrisiert) — Operator-Prompt-
+  Variante "compute every requested number WITH the matching tool" denkbar.
+
+- [EV-8] RESOLVED 2026-09-15 | payoff_matrix-Beispiel in game_matrix-Schema-
+  Beschreibung (Commit 9bd6812, dist neu gebaut) + Operator-Prompt „matching
+  tool / real JSON objects". Run 5: beide Run-4-Fehlerklassen verschwunden
+  (Game 38/40 mit sauberen Calls, Fermi 40/40 mit fermi_estimate-Nutzung).
+  Kein weiterer Handlungsbedarf; Rig-Freeze auf Run-5-Stand empfohlen.
