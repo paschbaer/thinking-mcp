@@ -31,12 +31,12 @@ export const RECIPES: Record<string, Recipe> = {
     description: 'Systematic path from failure to a verified root cause.',
     stages: [
       {
-        tool: 'sequentialthinking',
+        tool: 'sequential_thinking',
         purpose: 'Plan the investigation, form hypotheses (totalThoughts 3–5).',
         argument_hints: 'thought, thoughtNumber, totalThoughts, nextThoughtNeeded — call repeatedly as needed'
       },
       {
-        tool: 'debuggingapproach',
+        tool: 'debugging_approach',
         purpose: 'Apply the systematic approach matching the symptom class.',
         argument_hints: 'approachName (binary_search | reverse_engineering | delta_debugging | …), issue, steps[]'
       },
@@ -47,7 +47,7 @@ export const RECIPES: Record<string, Recipe> = {
         optional: true
       },
       {
-        tool: 'metacognitivemonitoring',
+        tool: 'metacognitive_monitoring',
         purpose: 'Confidence check before claiming the root cause.',
         argument_hints: 'task, overallConfidence (0–1), uncertaintyAreas[]'
       }
@@ -75,12 +75,12 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'decision_options[], uncertainties[], payoffs[]'
       },
       {
-        tool: 'decisionframework',
+        tool: 'decision_framework',
         purpose: 'Weighted decision over the options.',
         argument_hints: 'decisionStatement, options[], analysisType, stage, nextStageNeeded'
       },
       {
-        tool: 'metacognitivemonitoring',
+        tool: 'metacognitive_monitoring',
         purpose: 'Confidence check before committing.',
         argument_hints: 'task, overallConfidence (0–1), uncertaintyAreas[]'
       }
@@ -92,12 +92,12 @@ export const RECIPES: Record<string, Recipe> = {
     description: 'State, attack and revise a conclusion before reporting it.',
     stages: [
       {
-        tool: 'structuredargumentation',
+        tool: 'structured_argumentation',
         purpose: 'State claim + premises + confidence.',
         argument_hints: 'claim, premises[], conclusion, argumentType, confidence (0–1)'
       },
       {
-        tool: 'socraticmethod',
+        tool: 'socratic_method',
         purpose: 'Walk clarification → assumptions → evidence → perspectives.',
         argument_hints: 'claim, stage, argumentType'
       },
@@ -107,7 +107,7 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'claim, context'
       },
       {
-        tool: 'structuredargumentation',
+        tool: 'structured_argumentation',
         purpose: 'Revise the argument; set confidence honestly.',
         argument_hints: 'updated claim/premises/confidence'
       }
@@ -119,7 +119,7 @@ export const RECIPES: Record<string, Recipe> = {
     description: 'Diverge, import patterns from other domains, check dynamics, structure what survives.',
     stages: [
       {
-        tool: 'creativethinking',
+        tool: 'creative_thinking',
         purpose: 'Diverge — generate options (several iterations).',
         argument_hints: 'prompt, ideas[], techniques[], connections[]'
       },
@@ -129,7 +129,7 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'problem, seed_domains[]'
       },
       {
-        tool: 'systemsthinking',
+        tool: 'systems_thinking',
         purpose: 'Check the dynamics of the top ideas.',
         argument_hints: 'system, components[], relationships[]'
       },
@@ -180,7 +180,7 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'query, optional downstream_tools[]'
       },
       {
-        tool: 'sequentialthinking',
+        tool: 'sequential_thinking',
         purpose: 'Synthesize the findings.',
         argument_hints: 'thought, thoughtNumber, totalThoughts, nextThoughtNeeded'
       },

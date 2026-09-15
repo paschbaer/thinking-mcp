@@ -10,10 +10,10 @@ import { registerIssueTree } from '../tools/issue-tree.js';
 
 export function registerVisualizationToolset(server: McpServer, state: SessionState): void {
   const registry = new ToolsetRegistry('visualization', 'Visualization operations');
-  // NOTE: `visualreasoning` is intentionally NOT part of this toolset: its own
+  // NOTE: `visual_reasoning` is intentionally NOT part of this toolset: its own
   // schema declares an `operation` data field, which collides with the
   // toolset discriminator (ToolsetRegistry.addOperation rejects it). The
-  // individual `visualreasoning` tool remains registered and fully functional.
+  // individual `visual_reasoning` tool remains registered and fully functional.
   [
     registerMindMap,
     registerConceptMap,
