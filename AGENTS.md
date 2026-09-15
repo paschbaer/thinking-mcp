@@ -126,23 +126,23 @@ Project: Thinking-MCP Domain: MCP servers providing structured reasoning and pro
 ## Ground rules
 
 1. **Think before you act.** For any non-trivial task, start with
-   `sequentialthinking` to plan before using domain tools.
+   `sequential_thinking` to plan before using domain tools.
 2. **One reasoning step per tool call.** Feed each tool's output into the next
    call — the tools are designed to chain.
 3. **Close what you open.** Iterative tools end with a `next*Needed` flag; set
    it to `false` when done. Never leave a thinking sequence dangling.
 4. **State lives server-side per session.** The stateful reasoning tools
-   (e.g. `sequentialthinking`, `mentalmodel`, `debuggingapproach`) return a
+   (e.g. `sequential_thinking`, `mental_model`, `debugging_approach`) return a
    `sessionContext` block with accumulated stats — read it, don't duplicate it.
    Stateless utilities (e.g. `swot_analysis`, `value_of_information`) do not.
-5. **Prefer the cheapest sufficient tool.** A `mentalmodel` pass is cheaper
-   than a full `decisionframework`; use the heavier tools for heavier stakes.
+5. **Prefer the cheapest sufficient tool.** A `mental_model` pass is cheaper
+   than a full `decision_framework`; use the heavier tools for heavier stakes.
 
 ## Calling conventions
 
-Every tool exists **twice**: as an individual tool (e.g. `mentalmodel`) and as
+Every tool exists **twice**: as an individual tool (e.g. `mental_model`) and as
 an operation inside a grouped toolset (e.g. `reasoning` with
-`operation: 'mentalmodel'`). Both are equivalent. Use whichever your client
+`operation: 'mental_model'`). Both are equivalent. Use whichever your client
 exposes; the parameter names are identical except that toolset calls add:
 
 ```
@@ -153,7 +153,7 @@ Toolset routing:
 
 | Toolset | Operations |
 |---|---|
-| `reasoning` | `sequentialthinking`, `mentalmodel`, `debuggingapproach`, `collaborativereasoning`, `decisionframework`, `metacognitivemonitoring`, `socraticmethod`, `creativethinking`, `systemsthinking`, `scientificmethod`, `structuredargumentation` |
+| `reasoning` | `sequential_thinking`, `mental_model`, `debugging_approach`, `collaborative_reasoning`, `decision_framework`, `metacognitive_monitoring`, `socratic_method`, `creative_thinking`, `systems_thinking`, `scientific_method`, `structured_argumentation` |
 | `visualization` | `mind_map`, `concept_map`, `fishbone_diagram`, `swot_analysis`, `issue_tree` |
 | `utility` | `analogical_mapper`, `assumption_xray`, `comparative_advantage`, `drag_point_audit`, `safe_struggle_designer`, `seven_seekers_orchestrator`, `value_of_information`, `existing_tool_example`, `agents_guide` |
 | `session` | `session_info`, `session_export`, `session_import` |
@@ -162,22 +162,22 @@ Toolset routing:
 
 | When you need to… | Use | Essential parameters |
 |---|---|---|
-| Plan or reason step by step | `sequentialthinking` | `thought`, `thoughtNumber`, `totalThoughts`, `nextThoughtNeeded`; optional: `isRevision` + `revisesThought` to correct, `branchFromThought` + `branchId` to explore alternatives, `needsMoreThoughts` to extend |
-| Apply a thinking heuristic | `mentalmodel` | `modelName`: `first_principles` \| `opportunity_cost` \| `error_propagation` \| `rubber_duck` \| `pareto_principle` \| `occams_razor`; plus `problem`, `steps`, `reasoning`, `conclusion` |
-| Find a bug's root cause | `debuggingapproach` | `approachName`: `binary_search` \| `reverse_engineering` \| `divide_conquer` \| `backtracking` \| `cause_elimination` \| `program_slicing` \| `log_analysis` \| `static_analysis` \| `root_cause_analysis` \| `delta_debugging` \| `fuzzing` \| `incremental_testing`; plus `issue`, `steps[]` |
-| Deliberate from multiple personas | `collaborativereasoning` | persona + message + iteration pattern; set `nextContributionNeeded` |
-| Make a weighted decision | `decisionframework` | `decisionStatement`, `options[]` (name + description), `analysisType`, `stage`, `nextStageNeeded` |
-| Audit your own reasoning quality | `metacognitivemonitoring` | `task`, `stage`, `overallConfidence` (0–1), `uncertaintyAreas[]`, `recommendedApproach`, `nextAssessmentNeeded` |
-| Stress-test a claim with questions | `socraticmethod` | `stage`: `clarification` → `assumptions` → `evidence` → `perspectives` → `implications` → `questions`; `argumentType`: `deductive` \| `inductive` \| `abductive` \| `analogical` |
-| Generate creative options | `creativethinking` | `prompt`, `ideas[]`, `techniques[]`, `connections[]`, `insights[]`, `nextIdeaNeeded` |
-| Model a system's dynamics | `systemsthinking` | components + relationships (type: `positive` \| `negative` feedback), emerging patterns |
-| Test a hypothesis empirically | `scientificmethod` | `stage`: `observation` → `question` → `hypothesis` → `experiment` → `analysis` → `conclusion` → `iteration`; variables (independent/dependent/controlled/confounding), status: `proposed`/`testing`/`supported`/`refuted`/`refined` |
-| Build or attack an argument | `structuredargumentation` | `claim`, `premises[]`, `conclusion`, `argumentType`, `confidence` (0–1) |
+| Plan or reason step by step | `sequential_thinking` | `thought`, `thoughtNumber`, `totalThoughts`, `nextThoughtNeeded`; optional: `isRevision` + `revisesThought` to correct, `branchFromThought` + `branchId` to explore alternatives, `needsMoreThoughts` to extend |
+| Apply a thinking heuristic | `mental_model` | `modelName`: `first_principles` \| `opportunity_cost` \| `error_propagation` \| `rubber_duck` \| `pareto_principle` \| `occams_razor`; plus `problem`, `steps`, `reasoning`, `conclusion` |
+| Find a bug's root cause | `debugging_approach` | `approachName`: `binary_search` \| `reverse_engineering` \| `divide_conquer` \| `backtracking` \| `cause_elimination` \| `program_slicing` \| `log_analysis` \| `static_analysis` \| `root_cause_analysis` \| `delta_debugging` \| `fuzzing` \| `incremental_testing`; plus `issue`, `steps[]` |
+| Deliberate from multiple personas | `collaborative_reasoning` | persona + message + iteration pattern; set `nextContributionNeeded` |
+| Make a weighted decision | `decision_framework` | `decisionStatement`, `options[]` (name + description), `analysisType`, `stage`, `nextStageNeeded` |
+| Audit your own reasoning quality | `metacognitive_monitoring` | `task`, `stage`, `overallConfidence` (0–1), `uncertaintyAreas[]`, `recommendedApproach`, `nextAssessmentNeeded` |
+| Stress-test a claim with questions | `socratic_method` | `stage`: `clarification` → `assumptions` → `evidence` → `perspectives` → `implications` → `questions`; `argumentType`: `deductive` \| `inductive` \| `abductive` \| `analogical` |
+| Generate creative options | `creative_thinking` | `prompt`, `ideas[]`, `techniques[]`, `connections[]`, `insights[]`, `nextIdeaNeeded` |
+| Model a system's dynamics | `systems_thinking` | components + relationships (type: `positive` \| `negative` feedback), emerging patterns |
+| Test a hypothesis empirically | `scientific_method` | `stage`: `observation` → `question` → `hypothesis` → `experiment` → `analysis` → `conclusion` → `iteration`; variables (independent/dependent/controlled/confounding), status: `proposed`/`testing`/`supported`/`refuted`/`refined` |
+| Build or attack an argument | `structured_argumentation` | `claim`, `premises[]`, `conclusion`, `argumentType`, `confidence` (0–1) |
 | Check an argument's Toulmin completeness | `argument_map` | `claim` required; optional `warrant`, `backing[]`, `qualifiers[]`, `rebuttals[]`, `evidence[]` — missing elements come back with guiding questions |
 | Separate causation from correlation | `causal_graph` | `outcome`; optional `causes[]` + `links[]` ({ from, to, kind: `causes` \| `contributes_to` \| `confounds` }) — intervention/counterfactual questions, confounder + root-cause candidates |
 | Rough-estimate a quantity | `fermi_estimate` | `target`, `assumptions[]` ({ label, value, uncertainty_pct }), `combine`: `multiply` \| `sum` — point estimate + sensitivity ranking |
 | Analyze strategic interaction | `game_matrix` | `row_labels[]`, `col_labels[]`, `payoff_matrix[row][col]` ({ row, col }) — strict dominance, best responses, pure Nash, mixed 2×2 |
-| Sketch a diagram of reasoning | `visualreasoning` | `operation`: `create` \| `update` \| `delete` \| `transform` \| `observe`; `diagramId`, `diagramType`, `iteration`, `nextOperationNeeded` |
+| Sketch a diagram of reasoning | `visual_reasoning` | `operation`: `create` \| `update` \| `delete` \| `transform` \| `observe`; `diagramId`, `diagramType`, `iteration`, `nextOperationNeeded` |
 | Hierarchical brainstorm | `mind_map` | `topic`; optional `branches[]` ({ title, subtopics[] }) — without it a facilitation scaffold is returned |
 | Relate concepts with labels | `concept_map` | `main_concept`; optional `related_concepts[]` + `relations[]` — without them a facilitation scaffold is returned |
 | Root-cause analysis (many causes) | `fishbone_diagram` | `problem`; optional `causes[]` ({ category, causes[] }) — without it a facilitation scaffold is returned |
@@ -240,10 +240,10 @@ then `action: 'advance'` between stages. Progress persists for the session.
 ### 1. Debug a failure
 
 ```
-sequentialthinking (plan, totalThoughts 3–5)
-→ debuggingapproach (pick the approachName matching the symptom class)
+sequential_thinking (plan, totalThoughts 3–5)
+→ debugging_approach (pick the approachName matching the symptom class)
 → fishbone_diagram (only if multiple candidate causes)
-→ metacognitivemonitoring (confidence check before claiming the root cause)
+→ metacognitive_monitoring (confidence check before claiming the root cause)
 ```
 
 ### 2. Architecture / technology decision
@@ -252,15 +252,15 @@ sequentialthinking (plan, totalThoughts 3–5)
 issue_tree (decompose the decision)
 → swot_analysis per serious option (pass content you already know)
 → value_of_information (is more research worth it? if yes: research, then re-run swot)
-→ decisionframework (options + weighted analysis)
-→ metacognitivemonitoring (before committing)
+→ decision_framework (options + weighted analysis)
+→ metacognitive_monitoring (before committing)
 ```
 
 ### 3. Stress-test a conclusion you are about to report
 
 ```
-structuredargumentation (state claim + premises + confidence)
-→ socraticmethod (walk clarification → assumptions → evidence)
+structured_argumentation (state claim + premises + confidence)
+→ socratic_method (walk clarification → assumptions → evidence)
 → assumption_xray (on the weakest premise)
 → revise the argument; set confidence honestly
 ```
@@ -268,9 +268,9 @@ structuredargumentation (state claim + premises + confidence)
 ### 4. Open-ended ideation
 
 ```
-creativethinking (diverge, several iterations)
+creative_thinking (diverge, several iterations)
 → analogical_mapper (import solutions from other domains)
-→ systemsthinking (check the dynamics of the top ideas)
+→ systems_thinking (check the dynamics of the top ideas)
 → mind_map (structure the surviving ideas)
 ```
 
@@ -288,7 +288,7 @@ comparative_advantage (map tasks to the best-suited agent)
 ```
 assumption_xray (on the question itself)
 → seven_seekers_orchestrator (multi-lens sweep; downstream_tools to refine)
-→ sequentialthinking (synthesize)
+→ sequential_thinking (synthesize)
 → session_export (persist findings before the context closes)
 ```
 
@@ -297,11 +297,11 @@ assumption_xray (on the question itself)
 - **Do not** call `swot_analysis` with only `subject` when you already know
   quadrant content — you would get scaffolding instead of analysis.
 - **Do not** claim a root cause or decision without having run
-  `metacognitivemonitoring` when stakes are high.
+  `metacognitive_monitoring` when stakes are high.
 - **Do not** set `totalThoughts: 1` and then issue 15 revisions. Estimate
   honestly; use `needsMoreThoughts` if you underestimated.
 - **Do not** interleave two unfinished sequences (e.g. two open
-  `sequentialthinking` branches) without distinct `branchId`s.
+  `sequential_thinking` branches) without distinct `branchId`s.
 - **Do not** ignore `sessionContext` stats returned by tools — they tell you
   what has already been tried.
 - **Do not** re-derive what a tool already structured (e.g. re-listing SWOT
@@ -333,7 +333,7 @@ clients render them as ready-to-send starting messages.
 - For trading decisions, always run `value_of_information` before requesting
   additional market data.
 - For refactors, `issue_tree` depth must not exceed 3.
-- Record the chosen option of every `decisionframework` run in
+- Record the chosen option of every `decision_framework` run in
   `memory-bank/decisions.md`.
 <!-- clear-thought:agents-guide:end -->
 
@@ -407,7 +407,7 @@ Project: Thinking-MCP Domain: MCP servers providing structured reasoning and dec
 5. **Iterate like a scientist.** Add the proposed point to your `bayesian`
    observations and call again; continue a `bandit` run via `runId` and
    watch regret shrink; feed `hmm` posteriors back into clear-thought
-   `decisionframework`.
+   `decision_framework`.
 
 ## Calling convention
 
@@ -487,9 +487,9 @@ Model the problem explicitly (transitions, arms, observations)
 ### 2. Combined with Clear Thought
 
 ```
-clear-thought: sequentialthinking → decisionframework (options)
+clear-thought: sequential_thinking → decision_framework (options)
 → stochasticalgorithm: quantify the leading options (mdp/mcts/bayesian)
-→ clear-thought: metacognitivemonitoring before committing
+→ clear-thought: metacognitive_monitoring before committing
 ```
 
 ### 3. Iterate to a decision

@@ -408,7 +408,7 @@ it('seven_seekers_orchestrator returns seven lens scaffolds with guiding questio
   const data = await call(server, {
     operation: 'seven_seekers_orchestrator',
     query: 'Should we rewrite the scanner?',
-    downstream_tools: ['decisionframework']
+    downstream_tools: ['decision_framework']
   });
 
   expect(data.mode).toBe('facilitation');
@@ -416,7 +416,7 @@ it('seven_seekers_orchestrator returns seven lens scaffolds with guiding questio
   for (const lens of data.lenses) {
     expect(lens.guiding_questions).toHaveLength(2);
   }
-  expect(data.suggested_downstream_tools).toEqual(['decisionframework']);
+  expect(data.suggested_downstream_tools).toEqual(['decision_framework']);
   expect(data.resonance_map).toBeUndefined(); // fake resonance removed
   expect(data.nextSteps.join(' ')).toMatch(/synthesize/i);
 });

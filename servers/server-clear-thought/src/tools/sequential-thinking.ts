@@ -5,7 +5,7 @@ import type { ThoughtData } from '../types/index.js';
 
 export function registerSequentialThinking(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'sequentialthinking',
+    'sequential_thinking',
     'Process sequential thoughts with branching, revision, and memory management capabilities',
     {
       thought: z.string().describe('The thought content'),

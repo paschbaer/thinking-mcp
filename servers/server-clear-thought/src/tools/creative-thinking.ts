@@ -5,7 +5,7 @@ import type { CreativeData } from '../types/index.js';
 
 export function registerCreativeThinking(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'creativethinking',
+    'creative_thinking',
     'Engage in creative and lateral thinking approaches',
     {
       prompt: z.string().describe('Creative prompt or challenge'),

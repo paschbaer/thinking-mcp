@@ -5,7 +5,7 @@ import type { SocraticData } from '../types/index.js';
 
 export function registerSocraticMethod(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'socraticmethod',
+    'socratic_method',
     'Guide inquiry through systematic questioning',
     {
       claim: z.string().describe('The main claim or topic being explored'),

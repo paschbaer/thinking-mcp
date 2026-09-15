@@ -68,7 +68,7 @@ export function registerFishboneDiagram(server: McpServer, _sessionState: Sessio
                   mode === 'analysis'
                     ? [
                         'Mark the 1-2 causes with the highest impact x likelihood as prime suspects.',
-                        'Verify prime suspects with debuggingapproach before fixing anything.'
+                        'Verify prime suspects with debugging_approach before fixing anything.'
                       ]
                     : [
                         'Answer the guiding question per category, then call again with the `causes` parameter.'

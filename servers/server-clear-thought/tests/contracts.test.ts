@@ -94,7 +94,7 @@ describe('contract: dual-mode tools (facilitation vs analysis)', () => {
 describe('contract: toolset parity (individual ≡ toolset call)', () => {
   const cases = [
     {
-      tool: 'sequentialthinking',
+      tool: 'sequential_thinking',
       toolset: 'reasoning',
       args: { thought: 'parity check', thoughtNumber: 1, totalThoughts: 3, nextThoughtNeeded: true }
     },
@@ -133,15 +133,15 @@ describe('contract: toolset parity (individual ≡ toolset call)', () => {
 });
 
 describe('contract: session state accumulates within a session', () => {
-  it('sequentialthinking counts thoughts per session (and not across sessions)', async () => {
+  it('sequential_thinking counts thoughts per session (and not across sessions)', async () => {
     const clientA = await createConnectedClient();
     const base = { thought: 'x', totalThoughts: 5, nextThoughtNeeded: true };
-    await clientA.callTool({ name: 'sequentialthinking', arguments: { ...base, thoughtNumber: 1 } });
-    const second = await call(clientA, 'sequentialthinking', { ...base, thoughtNumber: 2 });
+    await clientA.callTool({ name: 'sequential_thinking', arguments: { ...base, thoughtNumber: 1 } });
+    const second = await call(clientA, 'sequential_thinking', { ...base, thoughtNumber: 2 });
     expect(second.sessionContext.totalThoughts).toBe(2);
 
     const clientB = await createConnectedClient();
-    const fresh = await call(clientB, 'sequentialthinking', { ...base, thoughtNumber: 1 });
+    const fresh = await call(clientB, 'sequential_thinking', { ...base, thoughtNumber: 1 });
     expect(fresh.sessionContext.totalThoughts).toBe(1);
   });
 });
