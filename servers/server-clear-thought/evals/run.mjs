@@ -69,8 +69,19 @@ if (!fs.existsSync(path.join(pkgRoot, 'dist/dev.js'))) {
 
 const argv = process.argv.slice(2);
 const maxIdx = argv.indexOf('--max-tasks');
-const maxTasks = maxIdx >= 0 ? Number(argv[maxIdx + 1]) : Infinity;
+let maxTasks = Infinity;
+if (maxIdx >= 0) {
+  maxTasks = Number(argv[maxIdx + 1]);
+  if (!Number.isFinite(maxTasks) || maxTasks < 1) {
+    console.error('--max-tasks expects a positive number');
+    process.exit(2);
+  }
+}
 const tasksIdx = argv.indexOf('--tasks');
+if (tasksIdx >= 0 && !argv[tasksIdx + 1]) {
+  console.error('--tasks expects a file path');
+  process.exit(2);
+}
 const tasksFile = tasksIdx >= 0 ? argv[tasksIdx + 1] : 'evals/tasks.json';
 const tasksPath = path.isAbsolute(tasksFile) ? tasksFile : path.join(pkgRoot, tasksFile);
 if (!fs.existsSync(tasksPath)) {
@@ -168,7 +179,12 @@ async function runBaseline(task) {
 async function connectStdio(scriptPath, name) {
   const transport = new StdioClientTransport({ command: process.execPath, args: [scriptPath] });
   const client = new Client({ name, version: '0.0.0' }, { defaultRequestTimeoutMsec: 300000 });
-  await client.connect(transport, { timeout: 300000 });
+  try {
+    await client.connect(transport, { timeout: 300000 });
+  } catch (error) {
+    await transport.close().catch(() => {}); // no leaked stdio child on failed init
+    throw error;
+  }
   return client;
 }
 
@@ -250,7 +266,7 @@ async function judge(task, answer) {
     },
     {
       role: 'user',
-      content: `Task given to the assistant:\n${task.prompt}\n\nRubric:\n${rubric}\n\nAssistant answer:\n${answer.slice(0, 6000)}`
+      content: `Task given to the assistant:\n${task.prompt}\n\nRubric:\n${rubric}\n\nAssistant answer:\n${answer.slice(0, 12000)}`
     }
   ];
 
