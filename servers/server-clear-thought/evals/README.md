@@ -56,6 +56,16 @@ Never runs in CI (needs a key, costs money). Results land in
 incrementally after every task) plus `config.json` — an endpoint snapshot
 (actor/judge model + base URL, keys never written) for reproducibility.
 
+Scoring: the judge rates each criterion 0–4, the runner multiplies by the
+criterion weight — totals are on the weighted scale (`max` = Σ 4×weight,
+40 for the shipped task sets). Since the 2026-09-15 fix, weighted totals
+are **not** comparable with older reports that logged raw sums.
+Tool budget: 8 rounds per task by default (`EVAL_MAX_TOOL_ROUNDS` to
+override). Every server-mode call is logged in `with_server.toolCalls`
+(arguments + first 500 chars of each result) for failure diagnosis —
+Run 3's −4 on the game task was a single miscopied payoff parameter that
+only this log made visible.
+
 ## Tasks
 
 Two task sets ship:

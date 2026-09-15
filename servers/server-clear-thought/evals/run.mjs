@@ -30,7 +30,18 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const MAX_TOOL_ROUNDS = 6;
+const MAX_TOOL_ROUNDS = Number(process.env.EVAL_MAX_TOOL_ROUNDS) || 8;
+
+// Neutral operator briefing for tool-use mode. Contains no task content — it
+// only fixes HOW to drive tools: parameters verbatim from the request, reuse
+// continuation ids, report computed numbers at full precision. Fixes the
+// Run-3 failure class where the actor miscopied a payoff into a tool call.
+const OPERATOR_PROMPT =
+  'You are operating in tool-use mode. Pick the tool that fits the task. ' +
+  'Copy every parameter value VERBATIM from the user request into the tool call ' +
+  '(numbers, labels, payoffs, probabilities, seeds — never retype from memory). ' +
+  'Reuse continuation ids the tool returns (e.g. runId) to continue the same run. ' +
+  'In your final answer, report the tool-computed numbers verbatim at full precision and label them.';
 
 // Minimal .env loader (no dependency): reads the server-local .env and the
 // monorepo-root .env if they exist. Real environment variables always win —
@@ -295,15 +306,19 @@ async function runWithServer(task) {
         });
       }
     }
-    const messages = [{ role: 'user', content: task.prompt }];
+    const messages = [
+      { role: 'system', content: OPERATOR_PROMPT },
+      { role: 'user', content: task.prompt }
+    ];
     const toolsUsed = [];
+    const toolCalls = [];
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const res = await chat(messages, openaiTools, 3, `${task.id} · server (round ${round + 1})`, ACTOR);
       const msg = res.choices[0].message;
       messages.push(msg);
       if (!msg.tool_calls?.length) {
-        return { answer: msg.content ?? '', toolsUsed };
+        return { answer: msg.content ?? '', toolsUsed, toolCalls };
       }
       for (const call of msg.tool_calls) {
         const { name, arguments: args } = call.function;
@@ -317,6 +332,9 @@ async function runWithServer(task) {
         } catch (error) {
           resultText = `tool error: ${error.message}`;
         }
+        // Full call log — Run 3 showed this is where failures hide (a single
+        // miscopied payoff parameter silently cost 4 rubric points).
+        toolCalls.push({ tool: name, arguments: (args ?? '').slice(0, 400), result: resultText.slice(0, 500) });
         messages.push({ role: 'tool', tool_call_id: call.id, content: resultText.slice(0, 8000) });
       }
     }
@@ -332,7 +350,7 @@ async function runWithServer(task) {
         'number, ranking and recommendation, using the tool outputs you already received.'
     });
     const final = await chat(messages, null, 3, `${task.id} · final synthesis`, ACTOR);
-    return { answer: final.choices[0].message.content ?? '', toolsUsed };
+    return { answer: final.choices[0].message.content ?? '', toolsUsed, toolCalls };
   } finally {
     for (const client of clients) await client.close().catch(() => {});
   }
@@ -354,7 +372,8 @@ async function judge(task, answer) {
         'misses requested specifics; 1 = barely touches it; 0 = absent or wrong. ' +
         'Apply the anchors with identical strictness to every answer — do not reward length or ' +
         'format, and do not penalize correctly derived numbers just because they differ from an ' +
-        'example value written inside a criterion. ' +
+        'example value written inside a criterion. Equivalent roundings of the same number ' +
+        '(e.g. 0.041479 ≈ 0.04148 ≈ 4.15%) are full matches. ' +
         'Respond with JSON only: {"scores":[{"criterion":string,"score":number,"justification":string}]}.'
     },
     {
@@ -366,8 +385,14 @@ async function judge(task, answer) {
   const parse = (raw) => {
     const parsed = JSON.parse(raw);
     const scores = parsed.scores ?? [];
-    const total = scores.reduce((acc, s) => acc + (Number(s.score) || 0), 0);
     if (!scores.length) throw new Error('empty scores');
+    // Weighted total: judge rates each criterion 0–4, the runner applies the
+    // rubric weight so totals live on the same scale as rubricMax (Σ 4×weight).
+    // Match by index — the judge receives the criteria in rubric order.
+    const total = scores.reduce(
+      (acc, s, i) => acc + Math.min(4, Math.max(0, Number(s.score) || 0)) * (task.rubric[i]?.weight ?? 1),
+      0
+    );
     return { scores, total };
   };
 
@@ -424,6 +449,7 @@ for (const task of selected) {
     with_server: {
       answer: withServer.answer,
       toolsUsed: withServer.toolsUsed,
+      toolCalls: withServer.toolCalls ?? [],
       judge: serverJudge,
       max: rubricMax(task)
     },
