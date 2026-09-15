@@ -40,6 +40,9 @@ const OPERATOR_PROMPT =
   'You are operating in tool-use mode. Pick the tool that fits the task. ' +
   'Copy every parameter value VERBATIM from the user request into the tool call ' +
   '(numbers, labels, payoffs, probabilities, seeds — never retype from memory). ' +
+  'Pass structured parameters as real JSON objects and numbers, never as strings. ' +
+  'Compute every requested number WITH the matching tool rather than in your head, ' +
+  'even for parts you could do alone. ' +
   'Reuse continuation ids the tool returns (e.g. runId) to continue the same run. ' +
   'In your final answer, report the tool-computed numbers verbatim at full precision and label them.';
 
