@@ -40,6 +40,8 @@ describe('recipe_runner', () => {
     expect(data.total_stages).toBe(4);
     expect(data.progress).toBe('1/4');
     expect(data.current_stage.tool).toBe('sequential_thinking');
+    expect(data.current_stage.example_arguments).toBeTruthy();
+    expect(data.current_stage.result_guidance).toContain('debugging stage');
     expect(data.next_action).toContain('advance');
   });
 

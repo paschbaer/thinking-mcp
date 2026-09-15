@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SessionState } from '../state/SessionState.js';
-import { RECIPES, RECIPE_IDS } from '../recipes/index.js';
+import { RECIPES, RECIPE_IDS, STAGE_GUIDANCE } from '../recipes/index.js';
 
 /**
  * Guided navigation through the workflow recipes (roadmap track C,
@@ -19,6 +19,8 @@ function stageBriefing(recipe: (typeof RECIPES)[string], stageIndex: number) {
     tool: stage.tool,
     purpose: stage.purpose,
     argument_hints: stage.argument_hints ?? null,
+    example_arguments: STAGE_GUIDANCE[`${recipe.id}::${stageIndex}`]?.example_arguments ?? null,
+    result_guidance: STAGE_GUIDANCE[`${recipe.id}::${stageIndex}`]?.result_guidance ?? null,
     optional: stage.optional ?? false
   };
 }
@@ -51,10 +53,11 @@ export function registerRecipeRunner(server: McpServer, sessionState: SessionSta
     'Guided navigation through the workflow recipes (debug a failure, ' +
       'architecture decision, stress-test a conclusion, open-ended ideation, ' +
       'multi-agent delegation, long research question). `start` returns the ' +
-      'first stage briefing, `advance` moves to the next stage after you did ' +
-      'the work, `status` shows where you are, `list` shows all recipes. ' +
-      'Navigation only — the stages are executed by YOU calling the tools. ' +
-      'Progress persists for the current session.',
+      'first stage briefing — the recommended next tool with ready-to-adapt ' +
+      'example arguments and result guidance — `advance` moves to the next ' +
+      'stage after you did the work, `status` shows where you are, `list` ' +
+      'shows all recipes. Navigation only — the stages are executed by YOU ' +
+      'calling the tools. Progress persists for the current session.',
     {
       recipe: z
         .enum(RECIPE_IDS as [string, ...string[]])

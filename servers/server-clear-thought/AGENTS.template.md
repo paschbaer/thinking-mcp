@@ -94,7 +94,7 @@ Toolset routing:
 | Inspect session state | `session_info` | — |
 | Persist / restore state | `session_export` / `session_import` | — |
 | Save / load sessions as files | `session_save` / `session_load` | `name`; optional `merge` (load) — requires the server to be configured with `dataDir` |
-| Follow a guided multi-tool workflow | `recipe_runner` | `recipe`: `debug-failure` \| `architecture-decision` \| `stress-test-conclusion` \| `open-ended-ideation` \| `multi-agent-delegation` \| `long-research-question`; `action`: `list` \| `start` \| `status` \| `advance` \| `reset` — per-session progress, navigation only (YOU execute the stages) |
+| Follow a guided multi-tool workflow | `recipe_runner` | `recipe`: `debug-failure` \| `architecture-decision` \| `stress-test-conclusion` \| `open-ended-ideation` \| `multi-agent-delegation` \| `long-research-question`; `action`: `list` \| `start` \| `status` \| `advance` \| `reset` — per-session progress; briefings include the recommended tool with ready-to-adapt example arguments and result guidance; navigation only (YOU execute the stages) |
 
 ## Dual-mode tools: facilitation vs. analysis
 
