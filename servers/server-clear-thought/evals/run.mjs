@@ -77,18 +77,27 @@ async function chatOnce(messages, tools) {
 }
 
 /** Retries transient failures (timeouts, 5xx, rate limits) with backoff. */
-async function chat(messages, tools, attempts = 3) {
+async function chat(messages, tools, attempts = 3, label = 'llm call') {
   for (let i = 1; i <= attempts; i++) {
+    const start = Date.now();
+    console.log(`    → LLM call [${label}] (attempt ${i}/${attempts}) …`);
+    const ticker = setInterval(() => {
+      console.log(`    ⏳ [${label}] waiting … ${Math.round((Date.now() - start) / 1000)}s`);
+    }, 20000);
     try {
-      return await chatOnce(messages, tools);
+      const json = await chatOnce(messages, tools);
+      clearInterval(ticker);
+      console.log(`    ✓ [${label}] done in ${((Date.now() - start) / 1000).toFixed(1)}s`);
+      return json;
     } catch (error) {
+      clearInterval(ticker);
       const causeCode = String(error.cause?.code ?? '');
       const transient =
         /UND_ERR|timeout|ECONN/i.test(causeCode + ' ' + error.message) ||
         /\b(5\d\d|429)\b/.test(error.message.slice(0, 60));
       if (i === attempts || !transient) throw error;
       const wait = i * 5000;
-      console.log(`    transient LLM error (attempt ${i}/${attempts}), retry in ${wait / 1000}s …`);
+      console.log(`    ✗ [${label}] transient error (${error.message.slice(0, 80)}) — retry in ${wait / 1000}s …`);
       await new Promise((r) => setTimeout(r, wait));
     }
   }
@@ -96,7 +105,7 @@ async function chat(messages, tools, attempts = 3) {
 
 /** Mode A — baseline: no server, single completion. */
 async function runBaseline(task) {
-  const res = await chat([{ role: 'user', content: task.prompt }]);
+  const res = await chat([{ role: 'user', content: task.prompt }], null, 3, `${task.id} · baseline`);
   return { answer: res.choices[0].message.content ?? '', toolsUsed: [] };
 }
 
@@ -118,7 +127,7 @@ async function runWithServer(task) {
     const toolsUsed = [];
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const res = await chat(messages, openaiTools);
+      const res = await chat(messages, openaiTools, 3, `${task.id} · server (round ${round + 1})`);
       const msg = res.choices[0].message;
       messages.push(msg);
       if (!msg.tool_calls?.length) {
@@ -137,7 +146,7 @@ async function runWithServer(task) {
         messages.push({ role: 'tool', tool_call_id: call.id, content: resultText.slice(0, 8000) });
       }
     }
-    const final = await chat(messages);
+    const final = await chat(messages, null, 3, `${task.id} · final synthesis`);
     return { answer: final.choices[0].message.content ?? '', toolsUsed };
   } finally {
     await client.close();
@@ -161,7 +170,7 @@ async function judge(task, answer) {
       content: `Task given to the assistant:\n${task.prompt}\n\nRubric:\n${rubric}\n\nAssistant answer:\n${answer.slice(0, 6000)}`
     }
   ];
-  const res = await chat(messages);
+  const res = await chat(messages, null, 3, `${task.id} · judge`);
   try {
     const parsed = JSON.parse(res.choices[0].message.content);
     const scores = parsed.scores ?? [];
