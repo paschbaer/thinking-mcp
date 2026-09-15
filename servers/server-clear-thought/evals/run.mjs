@@ -66,7 +66,7 @@ async function runWithServer(task) {
     command: process.execPath,
     args: [path.join(pkgRoot, 'dist/dev.js')]
   });
-  const client = new Client({ name: 'llm-eval', version: pkg.version ?? '0.0.0' });
+  const client = new Client({ name: 'llm-eval', version: '0.0.0' });
   await client.connect(transport);
   try {
     const { tools } = await client.listTools();
