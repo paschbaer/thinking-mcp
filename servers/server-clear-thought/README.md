@@ -81,7 +81,13 @@ Each tool in the Clear Thought MCP Server has specific strengths. Here are some 
 
 ### Workflow Recipes
 
-- **Recipe Runner** (`recipe_runner`) — guided navigation through the six workflow recipes (debug, architecture decision, stress-test, ideation, delegation, research); per-session progress, `start` → work → `advance`
+- **Recipe Runner** (`recipe_runner`) — guided navigation through the six workflow recipes (debug, architecture decision, stress-test, ideation, delegation, research); per-session progress, `start` → work → `advance`. Stage briefings include the recommended tool with ready-to-adapt example arguments and result guidance
+
+### Session Resources, Prompts & Persistence
+
+- **Resources** (read-only, no tool calls needed): `clear-thought://session/stats`, `…/export`, `…/thoughts`, `…/workflows` — live views of the current session
+- **Prompts** (one per workflow recipe): `debug-failure`, `architecture-decision`, `stress-test-conclusion`, `open-ended-ideation`, `multi-agent-delegation`, `long-research-question` — render a ready-to-send user message that kicks off the matching recipe
+- **Persistence**: `session_save` / `session_load` store and restore the full session state as JSON under the configured `dataDir` (path-sanitized; clear error results when `dataDir` is unset)
 
 ### Mental Models
 
