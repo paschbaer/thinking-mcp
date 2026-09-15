@@ -17,7 +17,7 @@
       "expects_tools": ["game_matrix"],
       "rubric": [
         { "criterion": "First eliminates 'exit' (strictly dominated by 'hold' for the row player in the full 3×3 game)", "weight": 3 },
-        { "criterion": "Then eliminates 'chaotic' (strictly dominated by 'stable' for the column player, valid only AFTER 'exit' is removed) — the order of the two steps must be exactly this", "weight": 3 },
+        { "criterion": "Then eliminates 'chaotic' (strictly dominated for the column player once 'exit' is removed — by 'stable' (4>2, 2>1) and equally by 'aggressive' (3>2, 3>1); either justification is correct) — the order of the two steps must be exactly this", "weight": 3 },
         { "criterion": "Mixed equilibrium probabilities all four exact: ours {expand 0.50, hold 0.50}, competitor {aggressive 0.75, stable 0.25}", "weight": 3 },
         { "criterion": "Expected payoffs ≈ 3.75 (ours) and 3.0 (competitor)", "weight": 1 }
       ]
