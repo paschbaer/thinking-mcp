@@ -7,6 +7,11 @@
 
 ## What Works
 
+- **Naming-Rename + 1.0.0 (2026-09-15, branch `feature/track-b2-b5`→develop)**: alle 12
+  kompakten Tool-Namen auf snake_case vereinheitlicht (`sequential_thinking`,
+  `mental_model`, …) — Breaking, Version 1.0.0. ~200 Referenzen über src/tests/Guides/
+  READMEs ersetzt; Sync-Kette regeneriert; Smithery-Naming-Score-Effekt beim nächsten
+  Rescan verifizieren (Richtung war uneindeutig — Revert via git möglich).
 - **Roadmap-Track E3 Tier 2 — LLM-Task-Evals (2026-09-15, branch `feature/llm-evals`)**:
   `evals/run.mjs` (OpenAI-kompatibel, env-gesteuert) läuft je Task **mit/ohne** Server
   (MCP-Stdio-Client + Tool-Loop) und bewertet beide Antworten per LLM-Judge gegen
