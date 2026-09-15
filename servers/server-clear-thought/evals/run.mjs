@@ -7,7 +7,9 @@
  * Env:
  *   OPENAI_API_KEY / EVAL_API_KEY   API key (required)
  *   EVAL_BASE_URL                   default https://api.openai.com/v1
- *   EVAL_MODEL                      default gpt-4o-mini
+ *   EVAL_MODEL                      default gpt-4o-mini (the actor model)
+ *   EVAL_JUDGE_MODEL                judge model — use a STRONGER model than
+ *                                   the actor for reliable scoring
  * Usage:
  *   npm run build && node evals/run.mjs [--max-tasks N]
  * Output:
@@ -25,6 +27,7 @@ const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const API_KEY = process.env.EVAL_API_KEY ?? process.env.OPENAI_API_KEY;
 const BASE_URL = (process.env.EVAL_BASE_URL ?? 'https://api.openai.com/v1').replace(/\/$/, '');
 const MODEL = process.env.EVAL_MODEL ?? 'gpt-4o-mini';
+const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? MODEL;
 const MAX_TOOL_ROUNDS = 6;
 
 if (!API_KEY) {
@@ -51,7 +54,7 @@ fs.mkdirSync(outDir, { recursive: true });
 /** Incremental: a crash mid-run keeps every completed task. */
 function writeReport() {
   fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(results, null, 2));
-  let md = `# LLM Eval Report — ${new Date().toISOString()}\n\nModel: \`${MODEL}\`\n\n| Task | Baseline | With Server | Δ | Expected tools | Actually used |\n|---|---|---|---|---|---|\n`;
+  let md = `# LLM Eval Report — ${new Date().toISOString()}\n\nModel: \`${MODEL}\` · Judge: \`${JUDGE_MODEL}\`\n\n| Task | Baseline | With Server | Δ | Expected tools | Actually used |\n|---|---|---|---|---|---|\n`;
   for (const r of results) {
     const delta = r.with_server.judge.total - r.baseline.judge.total;
     md += `| ${r.id} | ${r.baseline.judge.total}/${r.baseline.max} | ${r.with_server.judge.total}/${r.with_server.max} | ${delta >= 0 ? '+' : ''}${delta} | ${r.expected_tools.join(', ')} | ${r.with_server.toolsUsed.join(', ') || '—'} |\n`;
@@ -63,11 +66,11 @@ function rubricMax(task) {
   return task.rubric.reduce((acc, r) => acc + 4 * r.weight, 0);
 }
 
-async function chatOnce(messages, tools) {
+async function chatOnce(messages, tools, model = MODEL) {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
-    body: JSON.stringify({ model: MODEL, messages, ...(tools ? { tools } : {}) }),
+    body: JSON.stringify({ model, messages, ...(tools ? { tools } : {}) }),
     signal: AbortSignal.timeout(180000)
   });
   if (!res.ok) {
@@ -77,15 +80,15 @@ async function chatOnce(messages, tools) {
 }
 
 /** Retries transient failures (timeouts, 5xx, rate limits) with backoff. */
-async function chat(messages, tools, attempts = 3, label = 'llm call') {
+async function chat(messages, tools, attempts = 3, label = 'llm call', model = MODEL) {
   for (let i = 1; i <= attempts; i++) {
     const start = Date.now();
-    console.log(`    → LLM call [${label}] (attempt ${i}/${attempts}) …`);
+    console.log(`    → LLM call [${label}] (attempt ${i}/${attempts}, model ${model}) …`);
     const ticker = setInterval(() => {
       console.log(`    ⏳ [${label}] waiting … ${Math.round((Date.now() - start) / 1000)}s`);
     }, 20000);
     try {
-      const json = await chatOnce(messages, tools);
+      const json = await chatOnce(messages, tools, model);
       clearInterval(ticker);
       console.log(`    ✓ [${label}] done in ${((Date.now() - start) / 1000).toFixed(1)}s`);
       return json;
@@ -153,7 +156,9 @@ async function runWithServer(task) {
   }
 }
 
-/** Judge: score the rubric 0–4 per criterion (JSON-enforced with fallback). */
+/** Judge: score the rubric 0–4 per criterion. Uses the separate judge model
+ * (EVAL_JUDGE_MODEL) and applies ONE corrective retry when the output is not
+ * valid JSON — an unparseable judge result otherwise silently zeroes a task. */
 async function judge(task, answer) {
   const rubric = task.rubric
     .map((r, i) => `${i + 1}. (${r.weight}pt) ${r.criterion}`)
@@ -170,19 +175,36 @@ async function judge(task, answer) {
       content: `Task given to the assistant:\n${task.prompt}\n\nRubric:\n${rubric}\n\nAssistant answer:\n${answer.slice(0, 6000)}`
     }
   ];
-  const res = await chat(messages, null, 3, `${task.id} · judge`);
-  try {
-    const parsed = JSON.parse(res.choices[0].message.content);
+
+  const parse = (raw) => {
+    const parsed = JSON.parse(raw);
     const scores = parsed.scores ?? [];
     const total = scores.reduce((acc, s) => acc + (Number(s.score) || 0), 0);
+    if (!scores.length) throw new Error('empty scores');
     return { scores, total };
+  };
+
+  const res = await chat(messages, null, 3, `${task.id} · judge`, JUDGE_MODEL);
+  try {
+    return parse(res.choices[0].message.content);
   } catch {
-    return { scores: [], total: 0, error: 'judge output unparseable' };
+    console.log(`    ⚠ judge output unparseable — asking for corrected JSON …`);
+    messages.push({ role: 'assistant', content: res.choices[0].message.content ?? '' });
+    messages.push({
+      role: 'user',
+      content: 'That was not valid JSON per the schema. Return ONLY the JSON object, no other text.'
+    });
+    const retry = await chat(messages, null, 1, `${task.id} · judge (retry)`, JUDGE_MODEL);
+    try {
+      return parse(retry.choices[0].message.content);
+    } catch {
+      return { scores: [], total: 0, error: 'judge output unparseable after retry' };
+    }
   }
 }
 
 // ── main ────────────────────────────────────────────────────────────────
-console.log(`LLM eval: ${selected.length} task(s), model ${MODEL}, base ${BASE_URL}\n`);
+console.log(`LLM eval: ${selected.length} task(s), actor ${MODEL}, judge ${JUDGE_MODEL}, base ${BASE_URL}\n`);
 
 const avg = (key) =>
   (results.reduce((acc, r) => acc + r[key].judge.total / r[key].max, 0) / results.length) * 100;
