@@ -26,7 +26,7 @@ const PROMPTS: PromptDef[] = [
     recipeId: 'debug-failure',
     framing: (v) =>
       `I'm facing this failure: ${v}\n\n` +
-      "Please work through the debug-failure workflow: call the recipe_runner tool with recipe 'debug-failure' and action 'start', then execute each stage briefing (sequentialthinking, debuggingapproach, optionally fishbone_diagram, metacognitivemonitoring) with my failure as the subject."
+      "Please work through the debug-failure workflow: call the recipe_runner tool with recipe 'debug-failure' and action 'start', then execute each stage briefing (sequential_thinking, debugging_approach, optionally fishbone_diagram, metacognitive_monitoring) with my failure as the subject."
   },
   {
     name: 'architecture-decision',
@@ -36,7 +36,7 @@ const PROMPTS: PromptDef[] = [
     recipeId: 'architecture-decision',
     framing: (v) =>
       `We need to make this decision: ${v}\n\n` +
-      "Please work through the architecture-decision workflow: call recipe_runner with recipe 'architecture-decision' and action 'start', then execute the stages (issue_tree, swot_analysis per serious option, value_of_information, decisionframework, metacognitivemonitoring)."
+      "Please work through the architecture-decision workflow: call recipe_runner with recipe 'architecture-decision' and action 'start', then execute the stages (issue_tree, swot_analysis per serious option, value_of_information, decision_framework, metacognitive_monitoring)."
   },
   {
     name: 'stress-test-conclusion',
@@ -46,7 +46,7 @@ const PROMPTS: PromptDef[] = [
     recipeId: 'stress-test-conclusion',
     framing: (v) =>
       `Before I rely on this conclusion, stress-test it: ${v}\n\n` +
-      "Please work through the stress-test workflow: call recipe_runner with recipe 'stress-test-conclusion' and action 'start', then execute the stages (structuredargumentation, socraticmethod, assumption_xray, revise)."
+      "Please work through the stress-test workflow: call recipe_runner with recipe 'stress-test-conclusion' and action 'start', then execute the stages (structured_argumentation, socratic_method, assumption_xray, revise)."
   },
   {
     name: 'open-ended-ideation',
@@ -56,7 +56,7 @@ const PROMPTS: PromptDef[] = [
     recipeId: 'open-ended-ideation',
     framing: (v) =>
       `Let's ideate broadly about: ${v}\n\n` +
-      "Please work through the ideation workflow: call recipe_runner with recipe 'open-ended-ideation' and action 'start', then execute the stages (creativethinking, analogical_mapper, systemsthinking, mind_map)."
+      "Please work through the ideation workflow: call recipe_runner with recipe 'open-ended-ideation' and action 'start', then execute the stages (creative_thinking, analogical_mapper, systems_thinking, mind_map)."
   },
   {
     name: 'multi-agent-delegation',
@@ -76,7 +76,7 @@ const PROMPTS: PromptDef[] = [
     recipeId: 'long-research-question',
     framing: (v) =>
       `Research this question thoroughly: ${v}\n\n` +
-      "Please work through the research workflow: call recipe_runner with recipe 'long-research-question' and action 'start', then execute the stages (assumption_xray, seven_seekers_orchestrator, sequentialthinking, session_export to persist the findings)."
+      "Please work through the research workflow: call recipe_runner with recipe 'long-research-question' and action 'start', then execute the stages (assumption_xray, seven_seekers_orchestrator, sequential_thinking, session_export to persist the findings)."
   }
 ];
 

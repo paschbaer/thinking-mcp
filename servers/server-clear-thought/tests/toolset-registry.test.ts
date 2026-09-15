@@ -42,7 +42,7 @@ it('advertises field schemas for reasoning operations', () => {
   const { server, state } = setupServer();
   registerReasoningToolset(server, state);
   const json: any = zodToJsonSchema(getTool(server, 'reasoning').inputSchema);
-  expect(json.properties.operation.enum).toContain('sequentialthinking');
+  expect(json.properties.operation.enum).toContain('sequential_thinking');
   expect(json.properties.thought).toBeDefined();
   expect(json.properties.thought.description).toBeDefined();
 });
@@ -74,13 +74,13 @@ it('rejects unknown operations listing the valid operations', async () => {
   );
 });
 
-it('dispatches sequentialthinking through the reasoning toolset', async () => {
+it('dispatches sequential_thinking through the reasoning toolset', async () => {
   const { server, state } = setupServer();
   registerReasoningToolset(server, state);
   const handler = getTool(server, 'reasoning').handler;
   const result = await handler(
     {
-      operation: 'sequentialthinking',
+      operation: 'sequential_thinking',
       thought: 'step one',
       thoughtNumber: 1,
       totalThoughts: 2,

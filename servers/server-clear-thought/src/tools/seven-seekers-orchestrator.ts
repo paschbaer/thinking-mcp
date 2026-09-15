@@ -23,14 +23,14 @@ export function registerSevenSeekersOrchestrator(server: McpServer, _sessionStat
       downstream_tools: z
         .array(z.string().trim().min(1))
         .optional()
-        .describe('Tools to chain after the lens examination (default: sequentialthinking, assumption_xray, structuredargumentation)')
+        .describe('Tools to chain after the lens examination (default: sequential_thinking, assumption_xray, structured_argumentation)')
     },
     async ({ query, downstream_tools }) => {
       const lenses = LENSES.map(({ lens, questions }) => ({ lens, guiding_questions: questions }));
       const suggested_downstream_tools = downstream_tools ?? [
-        'sequentialthinking',
+        'sequential_thinking',
         'assumption_xray',
-        'structuredargumentation'
+        'structured_argumentation'
       ];
 
       return {
@@ -46,7 +46,7 @@ export function registerSevenSeekersOrchestrator(server: McpServer, _sessionStat
                 nextSteps: [
                   'Answer the guiding questions for each lens — the examination content comes from you.',
                   'Note where two lenses disagree; those conflicts carry the most information.',
-                  'Synthesize the answers with sequentialthinking, then stress-test with structuredargumentation.'
+                  'Synthesize the answers with sequential_thinking, then stress-test with structured_argumentation.'
                 ],
                 status: 'success'
               },

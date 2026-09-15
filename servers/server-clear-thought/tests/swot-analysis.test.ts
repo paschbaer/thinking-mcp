@@ -117,7 +117,7 @@ it('passes through quadrant content and derives TOWS strategies in analysis mode
     weightedEntries: { strengths: 0, weaknesses: 0, opportunities: 0, threats: 0 },
     unpaired: { strengths: [], weaknesses: [], opportunities: [], threats: [] }
   });
-  expect(data.nextSteps.join(' ')).toMatch(/decisionframework|mentalmodel/);
+  expect(data.nextSteps.join(' ')).toMatch(/decision_framework|mental_model/);
 });
 
 it('handles partial analysis with only negative quadrants filled', async () => {

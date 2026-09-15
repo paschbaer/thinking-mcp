@@ -61,7 +61,7 @@ it('fishbone_diagram builds the diagram from provided causes', async () => {
     { category: 'environment', causes: ['shared db maintenance window'] }
   ]);
   expect(data.total_cause_count).toBe(3);
-  expect(data.nextSteps.join(' ')).toMatch(/debuggingapproach/);
+  expect(data.nextSteps.join(' ')).toMatch(/debugging_approach/);
 });
 
 it('fishbone_diagram scaffolds guiding questions without causes', async () => {
