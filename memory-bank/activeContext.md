@@ -191,3 +191,11 @@
 - NEU entdeckt: Scoring-Anzeige-Bug — Judge summiert raw 0-4 je Kriterium
   (max 16), report zeigt aber gewichtetes max (40). Deltas valide, Prozent-
   angaben deflationiert. Fix: total = Σ score×weight im Runner.
+
+## 2026-09-15: Run 4 (gehärtetes Rig) — Tool-Wert-These validiert
+
+- 40/40-Bandit (Δ+22), 40/40-Fault-Tree (Δ+4); Game −6 / Fermi −9. Tool-Call-Log
+  beweist: String-instead-of-Object-Schema-Flailing (4 calls) + skipped
+  fermi_estimate. Deltas/kumulierte Zahlen exakt (16.140 ✓ Pinning-Test-Werte).
+- EV-6 (gewichtetes Scoring) + EV-7 (Operator-Prompt/Log/Runden) RESOLVED,
+  committet `2db88c9`. Run-4-Report: evals/results/2026-09-15T15-10-16/.
