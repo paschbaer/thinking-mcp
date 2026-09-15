@@ -81,7 +81,13 @@ Each tool in the Clear Thought MCP Server has specific strengths. Here are some 
 
 ### Workflow Recipes
 
-- **Recipe Runner** (`recipe_runner`) — guided navigation through the six workflow recipes (debug, architecture decision, stress-test, ideation, delegation, research); per-session progress, `start` → work → `advance`
+- **Recipe Runner** (`recipe_runner`) — guided navigation through the six workflow recipes (debug, architecture decision, stress-test, ideation, delegation, research); per-session progress, `start` → work → `advance`. Stage briefings include the recommended tool with ready-to-adapt example arguments and result guidance
+
+### Session Resources, Prompts & Persistence
+
+- **Resources** (read-only, no tool calls needed): `clear-thought://session/stats`, `…/export`, `…/thoughts`, `…/workflows` — live views of the current session
+- **Prompts** (one per workflow recipe): `debug-failure`, `architecture-decision`, `stress-test-conclusion`, `open-ended-ideation`, `multi-agent-delegation`, `long-research-question` — render a ready-to-send user message that kicks off the matching recipe
+- **Persistence**: `session_save` / `session_load` store and restore the full session state as JSON under the configured `dataDir` (path-sanitized; clear error results when `dataDir` is unset)
 
 ### Mental Models
 
@@ -245,62 +251,62 @@ structured JSON plus a `sessionContext`/status block where noted.
 
 ### Reasoning tools
 
-#### `sequentialthinking`
+#### `sequential_thinking`
 Step-by-step reasoning with revision and branching.
 - **Parameters:** `thought`, `thoughtNumber`, `totalThoughts`, `nextThoughtNeeded`; optional `isRevision` + `revisesThought` (correct a thought), `branchFromThought` + `branchId` (explore alternatives), `needsMoreThoughts` (extend the estimate).
 - **Returns:** current thought, full `thoughtHistory`, `branches`, and `sessionContext` stats.
 
-#### `mentalmodel`
+#### `mental_model`
 Applies one of six thinking heuristics to a problem.
 - **Parameters:** `modelName` (`first_principles` | `opportunity_cost` | `error_propagation` | `rubber_duck` | `pareto_principle` | `occams_razor`), `problem`, `steps[]`, `reasoning`, `conclusion`.
 - **Returns:** model-specific `modelInsights`, `applicationResults`, `sessionContext`.
 
-#### `debuggingapproach`
+#### `debugging_approach`
 Structured bug-hunting with 12 named strategies.
 - **Parameters:** `approachName` (`binary_search`, `reverse_engineering`, `divide_conquer`, `backtracking`, `cause_elimination`, `program_slicing`, `log_analysis`, `static_analysis`, `root_cause_analysis`, `delta_debugging`, `fuzzing`, `incremental_testing`), `issue`, `steps[]`, plus `rootCause`/`resolution`/`findings` as they become known.
 - **Returns:** approach-specific analysis, `resolution`, `sessionContext`.
 
-#### `collaborativereasoning`
+#### `collaborative_reasoning`
 Multi-persona deliberation: define personas, trade observations/questions/insights.
 - **Parameters:** `topic`, `personas[]` (name, expertise, perspective, biases, communication style/tone), `contributions[]`, `stage` (`problem-definition` → `ideation` → `critique` → `integration` → `decision` → `reflection`), `activePersonaId`, `sessionId`, `iteration`, `nextContributionNeeded`.
 - **Returns:** the processed contribution, updated persona state, `sessionContext`.
 
-#### `decisionframework`
+#### `decision_framework`
 Weighted multi-option decision analysis over multiple stages.
 - **Parameters:** `decisionStatement`, `options[]` (name + description + pros/cons), `analysisType` (e.g. `architecture`, `technology`, `process`), `stage` (`options` → `evaluation` → `decision`), `iteration`, `nextStageNeeded`.
 - **Returns:** `recommendations` ranked per criterion, comparison matrix, accumulated `sessionContext`.
 
-#### `metacognitivemonitoring`
+#### `metacognitive_monitoring`
 Audits the quality of your own reasoning before you commit to a claim.
 - **Parameters:** `task`, `stage`, `overallConfidence` (0–1), `uncertaintyAreas[]`, `recommendedApproach`, `monitoringId`, `iteration`, `nextAssessmentNeeded`.
 - **Returns:** confidence `judgments`, identified biases/knowledge gaps, `sessionContext`.
 
-#### `socraticmethod`
+#### `socratic_method`
 Stress-tests a claim through staged questioning.
 - **Parameters:** `claim`, `premises[]`, `conclusion`, `question`, `stage` (`clarification` → `assumptions` → `evidence` → `perspectives` → `implications` → `questions`), `argumentType` (`deductive` | `inductive` | `abductive` | `analogical`), `confidence` (0–1), `sessionId`, `iteration`, `nextArgumentNeeded`.
 - **Returns:** challenge results, refined argument state, `sessionContext`.
 
-#### `creativethinking`
+#### `creative_thinking`
 Divergent idea generation with explicit technique tracking.
 - **Parameters:** `prompt`, `ideas[]`, `techniques[]` (e.g. `first_principles`, `scamper`, `lateral_thinking`), `connections[]`, `insights[]`, `sessionId`, `iteration`, `nextIdeaNeeded`.
 - **Returns:** processed idea set with `metrics`, `sessionContext`.
 
-#### `systemsthinking`
+#### `systems_thinking`
 Models a system's components, feedback loops, and leverage points.
 - **Parameters:** `system`, `components[]`, `relationships[]` (`from`, `to`, `type`: `positive` | `negative` feedback), `feedbackLoops[]`, `emergentProperties[]`, `leveragePoints[]`, `sessionId`, `iteration`, `nextAnalysisNeeded`.
 - **Returns:** dynamics analysis, identified loops, `sessionContext`.
 
-#### `scientificmethod`
+#### `scientific_method`
 Empirical hypothesis testing workflow.
 - **Parameters:** `stage` (`observation` → `question` → `hypothesis` → `experiment` → `analysis` → `conclusion` → `iteration`), `variables` (independent/dependent/controlled/confounding), `hypothesis`, `experiment`, `analysis`, `conclusion`, `status` (`proposed`/`testing`/`supported`/`refuted`/`refined`), `nextStageNeeded`.
 - **Returns:** stage-specific evaluation, `sessionContext`.
 
-#### `structuredargumentation`
+#### `structured_argumentation`
 Builds or attacks an argument with explicit premises.
 - **Parameters:** `claim`, `premises[]`, `conclusion`, `argumentType` (`deductive` | `inductive` | `abductive` | `analogical`), `confidence` (0–1), `nextArgumentNeeded`.
 - **Returns:** argument `validity`/`soundness` checks, counterarguments, `sessionContext`.
 
-#### `visualreasoning`
+#### `visual_reasoning`
 Creates and evolves visual diagrams as reasoning artifacts.
 - **Parameters:** `operation` (`create` | `update` | `delete` | `transform` | `observe`), `diagramId`, `diagramType` (e.g. `graph`, `flowchart`, `mindmap`), diagram elements, `iteration`, `nextOperationNeeded`.
 - **Returns:** updated diagram state with insights, `sessionContext`.
@@ -384,15 +390,16 @@ Reasoning state lives server-side per session. Three tools manage it:
 
 ## Usage
 
-Each individual tool (e.g., `sequentialthinking`, `mentalmodel`, `debuggingapproach`, ...) is
+Each individual tool (e.g., `sequential_thinking`, `mental_model`, `debugging_approach`, ...) is
 registered on its own. In addition, four grouped toolset tools are available — `reasoning`,
 `visualization`, `utility`, and `session` — which select the underlying tool via an
-`operation` parameter (e.g., operation `mentalmodel` within the `reasoning` toolset).
+`operation` parameter (e.g., operation `mental_model` within the `reasoning` toolset).
 The examples below use the toolset form.
 
-Note on naming: individual tool names follow their historical naming — the earlier tools use
-compact lowercase (`sequentialthinking`, `mentalmodel`), while later additions use snake_case
-(`analogical_mapper`, `session_info`). These names are part of the public API and are kept stable.
+Note on naming: as of v1.0.0 all individual tool names use **snake_case** (`sequential_thinking`,
+`mental_model`, `analogical_mapper`, `session_info`, …), matching the broader MCP ecosystem
+convention. v0.x used compact lowercase for the earliest tools — if you are upgrading, see the
+naming changes in the v1.0.0 release notes.
 
 ### SWOT analysis
 
@@ -430,7 +437,7 @@ balance/riskExposure ratios on weighted sums (impact × likelihood per entry).
 
 ```typescript
 const response = await mcp.callTool('reasoning', {
-  operation: 'mentalmodel',
+  operation: 'mental_model',
   modelName: 'first_principles',
   problem: 'How to implement a new feature?',
   steps: ['Break down the problem', 'Analyze components', 'Build solution']
@@ -441,7 +448,7 @@ const response = await mcp.callTool('reasoning', {
 
 ```typescript
 const response = await mcp.callTool('reasoning', {
-  operation: 'debuggingapproach',
+  operation: 'debugging_approach',
   approachName: 'binary_search',
   issue: 'Performance degradation in the system',
   steps: ['Identify performance metrics', 'Locate bottleneck', 'Implement solution'],
@@ -454,7 +461,7 @@ const response = await mcp.callTool('reasoning', {
 
 ```typescript
 const response = await mcp.callTool('reasoning', {
-  operation: 'sequentialthinking',
+  operation: 'sequential_thinking',
   thought: 'Initial analysis of the problem',
   thoughtNumber: 1,
   totalThoughts: 3,
@@ -496,5 +503,5 @@ MIT License - see LICENSE for details.
 ## Acknowledgments
 
 - This repository maintains a fork of the original Clear Thought MCP server by glassBead ([@waldzellai](https://github.com/waldzellai))
-- Based on the Model Context Protocol (MCP) by Anthropic, and uses the code for the sequentialthinking server
+- Based on the Model Context Protocol (MCP) by Anthropic, and uses the code for the sequential_thinking server
 - Mental Models framework inspired by [James Clear's comprehensive guide to mental models](https://jamesclear.com/mental-models), which provides an excellent overview of how these thinking tools can enhance decision-making and problem-solving capabilities

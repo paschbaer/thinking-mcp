@@ -44,54 +44,54 @@ const dualMode = {
 
 export const TOOL_METADATA: Record<string, ToolMetadata> = {
   // ── Reasoning family (iterative, stateful) ──────────────────────────────
-  sequentialthinking: {
+  sequential_thinking: {
     title: 'Sequential Thinking',
     outputSchema: schema({ ...sessionContext, nextThoughtNeeded: z.unknown().optional() }),
     stateful: true
   },
-  mentalmodel: { title: 'Mental Model', outputSchema: schema(sessionContext), stateful: true },
-  debuggingapproach: {
+  mental_model: { title: 'Mental Model', outputSchema: schema(sessionContext), stateful: true },
+  debugging_approach: {
     title: 'Debugging Approach',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  collaborativereasoning: {
+  collaborative_reasoning: {
     title: 'Collaborative Reasoning',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  decisionframework: {
+  decision_framework: {
     title: 'Decision Framework',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  metacognitivemonitoring: {
+  metacognitive_monitoring: {
     title: 'Metacognitive Monitoring',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  socraticmethod: { title: 'Socratic Method', outputSchema: schema(sessionContext), stateful: true },
-  creativethinking: {
+  socratic_method: { title: 'Socratic Method', outputSchema: schema(sessionContext), stateful: true },
+  creative_thinking: {
     title: 'Creative Thinking',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  systemsthinking: {
+  systems_thinking: {
     title: 'Systems Thinking',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  scientificmethod: {
+  scientific_method: {
     title: 'Scientific Method',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  structuredargumentation: {
+  structured_argumentation: {
     title: 'Structured Argumentation',
     outputSchema: schema(sessionContext),
     stateful: true
   },
-  visualreasoning: {
+  visual_reasoning: {
     title: 'Visual Reasoning',
     outputSchema: schema(sessionContext),
     stateful: true

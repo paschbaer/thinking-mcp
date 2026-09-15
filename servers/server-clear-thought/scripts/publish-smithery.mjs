@@ -28,11 +28,13 @@ const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const qualifiedName = process.argv[2] ?? 'paschbaer/clear-thought';
 const bundlePath = path.join(pkgRoot, 'clear-thought.mcpb');
 
-const settings = JSON.parse(
-  fs.readFileSync(path.join(os.homedir(), '.config/smithery/settings.json'), 'utf8')
-);
 // CI-friendly: SMITHERY_API_KEY (GitHub Secret) wins; local runs fall back
-// to the token stored by `npx @smithery/cli auth login`.
+// to the token stored by `npx @smithery/cli auth login`. The settings file is
+// OPTIONAL — on CI runners it does not exist.
+const settingsPath = path.join(os.homedir(), '.config/smithery/settings.json');
+const settings = fs.existsSync(settingsPath)
+  ? JSON.parse(fs.readFileSync(settingsPath, 'utf8'))
+  : {};
 let token = process.env.SMITHERY_API_KEY;
 const scan = (o) => {
   for (const [k, v] of Object.entries(o)) {

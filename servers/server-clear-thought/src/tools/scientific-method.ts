@@ -5,7 +5,7 @@ import type { ScientificInquiryData } from '../types/index.js';
 
 export function registerScientificMethod(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'scientificmethod',
+    'scientific_method',
     'Apply scientific method for systematic inquiry',
     {
       stage: z.enum(['observation', 'question', 'hypothesis', 'experiment', 'analysis', 'conclusion', 'iteration']).describe('Current stage'),

@@ -57,7 +57,7 @@ export function registerAnalogicalMapper(server: McpServer, _sessionState: Sessi
                 nextSteps: [
                   'Answer the guiding questions per domain — the analogy content comes from you.',
                   'Keep only analogies that survive the "imperfect mapping" question.',
-                  'Validate the best transfer candidate with systemsthinking or a small experiment.'
+                  'Validate the best transfer candidate with systems_thinking or a small experiment.'
                 ],
                 status: 'success'
               },

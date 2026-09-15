@@ -5,7 +5,7 @@ import type { MetacognitiveData } from '../types/index.js';
 
 export function registerMetacognitiveMonitoring(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'metacognitivemonitoring',
+    'metacognitive_monitoring',
     'Monitor and assess thinking processes and knowledge',
     {
       task: z.string().describe('The task or decision being assessed'),
