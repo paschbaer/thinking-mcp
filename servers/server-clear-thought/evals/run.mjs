@@ -142,12 +142,12 @@ function rubricMax(task) {
   return task.rubric.reduce((acc, r) => acc + 4 * r.weight, 0);
 }
 
-async function chatOnce(messages, tools, endpoint = ACTOR) {
+async function chatOnce(messages, tools, endpoint = ACTOR, timeoutMs = 180000) {
   const res = await fetch(`${endpoint.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${endpoint.apiKey}` },
     body: JSON.stringify({ model: endpoint.model, messages, ...(tools ? { tools } : {}) }),
-    signal: AbortSignal.timeout(180000)
+    signal: AbortSignal.timeout(timeoutMs)
   });
   if (!res.ok) {
     throw new Error(`LLM API ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -164,7 +164,9 @@ async function chat(messages, tools, attempts = 3, label = 'llm call', endpoint 
       console.log(`    ⏳ [${label}] waiting … ${Math.round((Date.now() - start) / 1000)}s`);
     }, 20000);
     try {
-      const json = await chatOnce(messages, tools, endpoint);
+      // Attempt-scaled timeout: reasoning actors can legitimately exceed
+      // 3 minutes on heavy prompts (observed on the hard task set).
+      const json = await chatOnce(messages, tools, endpoint, 180000 + (i - 1) * 60000);
       clearInterval(ticker);
       console.log(`    ✓ [${label}] done in ${((Date.now() - start) / 1000).toFixed(1)}s`);
       return json;
