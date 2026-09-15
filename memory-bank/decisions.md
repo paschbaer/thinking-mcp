@@ -34,3 +34,20 @@
   2. Nutzer-Feedback: Setup-Friction durch zwei Config-Einträge.
   3. Sichtbar steigende Duplikations-/Wartungskosten → dann Hybrid (Option C,
      Shared-Infra-Paket) statt Full-Merge prüfen.
+
+## merge-servers-2026-09-15 / Update 1 — Ausführungsentscheidung: Merge (Option A)
+
+- **Auslöser:** User-Entscheidung (2026-09-15): Zusammenlegung wird umgesetzt —
+  stochastic-Tools in clear-thought integrieren, `recipe_runner` erweitern
+  (Trigger 1 greift damit proaktiv; Update widerspricht der ursprünglichen
+  Empfehlung „Status quo" bewusst).
+- **Umsetzungsplan:** `memory-bank/plans/merge-stochastic-into-clear-thought.md`
+  (Kette: `sequential_thinking` ×4 → `issue_tree` → `creative_thinking` →
+  `metacognitive_monitoring`, Confidence 0,82).
+- **Design-Kern:** Dual-Registration — individuelles Tool `stochasticalgorithm` mit
+  unverändertem Namen/Signaturen (Call-Site-kompatible Migration) + neues Toolset
+  `stochastic` (`operation`: mdp/mcts/bandit/bayesian/hmm); `BanditRunStore` als
+  SessionState-Domain (Cleanup-integriert); Guide-Konsolidierung via merge mode;
+  Recipe-Erweiterung datengetrieben (architecture-decision + neues Rezept
+  `decision-under-uncertainty` + 7. Workflow-Prompt); Release 1.1.0 additiv,
+  danach Deprecation des stochastic-Pakets (Reihenfolge fix).
