@@ -53,6 +53,10 @@
   did not move the metadata score). Awaiting quality rescan. Reusable
   publisher: scripts/publish-smithery.mjs. Remaining gap: Naming ~6pt
   (agents_guide snake_case, breaking rename deferred).
+  UPDATE 2026-09-15: rename EXECUTED in 1.0.0 (all 12 compact-lowercase names
+  → snake_case, branch feature/snake-case-rename merged to develop); direction
+  risk remains (unclear whether Smithery prefers snake or camel) — verify via
+  rescan after the 1.0.0 Smithery publish; git revert is the fallback.
 - [RB-2] LOW | `AGENTS.md` root file mixes hand-written project rules and the
   generated guide; regeneration via `agents_guide` merge mode must be used to
   avoid losing hand-written sections | trigger: any template change in
