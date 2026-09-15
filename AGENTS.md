@@ -121,7 +121,7 @@ structured reasoning tools. This guide tells you **which tool to use when**,
 <!-- clear-thought:agents-guide:start -->
 ## Clear Thought — Reasoning Tool Guide
 
-Project: Thinking-MCP Domain: MCP servers providing structured reasoning and problem-solving tools (clear-thought toolset) for coding agents. Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP
+Project: Thinking-MCP Domain: MCP servers providing structured reasoning and decision tools (clear-thought toolset incl. stochastic algorithms) for coding agents. Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP
 
 ## Ground rules
 
@@ -157,6 +157,7 @@ Toolset routing:
 | `visualization` | `mind_map`, `concept_map`, `fishbone_diagram`, `swot_analysis`, `issue_tree` |
 | `utility` | `analogical_mapper`, `assumption_xray`, `comparative_advantage`, `drag_point_audit`, `safe_struggle_designer`, `seven_seekers_orchestrator`, `value_of_information`, `existing_tool_example`, `agents_guide` |
 | `session` | `session_info`, `session_export`, `session_import` |
+| `stochastic` | `mdp`, `mcts`, `bandit`, `bayesian`, `hmm` |
 
 ## Tool routing table
 
@@ -193,12 +194,13 @@ Toolset routing:
 | Design deliberate practice | `safe_struggle_designer` | `skill`, `current_level`, `target_level` (must be greater); optional `hours_per_week`, `session_minutes`, `deadline_weeks` — returns success criteria + prerequisite chain per step, derived review intervals and deadline-overrun warnings |
 | Orchestrate multi-lens research | `seven_seekers_orchestrator` | `query`, optional `downstream_tools[]` — returns a 7-lens scaffold (empirical, logical, ethical, pragmatic, systemic, creative, critical) with guiding questions |
 | Quantify if research is worth it | `value_of_information` | `decision_options[]`, `uncertainties[]`, `payoffs[]` (opportunity cost per uncertainty); optional `probabilities[]` (0-1, weighted instead of worst-case), `option_payoffs` (per-option matrix → per-option VoI ranking), `sampled_uncertainties[]` (partial VoI + share of total) |
+| Run a real stochastic decision algorithm | `stochasticalgorithm` | `algorithm`: `mdp` \| `mcts` \| `bandit` \| `bayesian` \| `hmm`; `problem`; `parameters` (per-algorithm model inputs — see "Stochastic algorithms" below) — measured results (value function, regret, EI); bandit runs persist per session via `runId` |
 | Smoke-test the tool wiring | `existing_tool_example` | `text` — echoes it back; useful to verify connectivity |
 | Get this guide as AGENTS.md content | `agents_guide` | optional `project_name`, `domain_context`, `codebase_root`; pass `existing_agents_md` to merge into existing content |
 | Inspect session state | `session_info` | — |
 | Persist / restore state | `session_export` / `session_import` | — |
 | Save / load sessions as files | `session_save` / `session_load` | `name`; optional `merge` (load) — requires the server to be configured with `dataDir` |
-| Follow a guided multi-tool workflow | `recipe_runner` | `recipe`: `debug-failure` \| `architecture-decision` \| `stress-test-conclusion` \| `open-ended-ideation` \| `multi-agent-delegation` \| `long-research-question`; `action`: `list` \| `start` \| `status` \| `advance` \| `reset` — per-session progress; briefings include the recommended tool with ready-to-adapt example arguments and result guidance; navigation only (YOU execute the stages) |
+| Follow a guided multi-tool workflow | `recipe_runner` | `recipe`: `debug-failure` \| `architecture-decision` \| `stress-test-conclusion` \| `open-ended-ideation` \| `multi-agent-delegation` \| `long-research-question` \| `decision-under-uncertainty`; `action`: `list` \| `start` \| `status` \| `advance` \| `reset` — per-session progress; briefings include the recommended tool with ready-to-adapt example arguments and result guidance; navigation only (YOU execute the stages) |
 
 ## Dual-mode tools: facilitation vs. analysis
 
@@ -231,6 +233,33 @@ Several tools (`swot_analysis`, `mind_map`, `concept_map`, `fishbone_diagram`,
   `meta.unpaired` lists what could not be paired.
 - Never present the facilitation scaffold as an analysis result.
 
+## Stochastic algorithms (real computation)
+
+`stochasticalgorithm` (or the `stochastic` toolset with `operation`) runs REAL
+algorithms — the numbers in `summary`/`details` are measured (converged value
+functions, UCT visit counts, realized regret, Viterbi log-probabilities,
+Expected Improvement). They carry **no warranty about your model**: if the
+matrices, arms or observations misdescribe reality, you get precisely
+computed nonsense. Validate the inputs, cite the outputs as what they are.
+
+| `operation` | Decision situation | `parameters` |
+|---|---|---|
+| `mdp` | Sequential decisions with an explicit transition/reward model | `transitions[s][a][s′]` (row-stochastic, tolerance 1e-6), `rewards[s][a]`, optional `states`/`actions` name arrays, `gamma`, `theta`, `maxIterations` → value iteration + greedy policy |
+| `mcts` | Search in a spatial environment with goal/traps/walls | `environment { rows, cols, start, goal, walls?, traps?, goalReward?, trapReward?, stepReward?, maxSteps? }`, `simulations`, `explorationConstant`, `seed` → UCT search on the built-in gridworld |
+| `bandit` | Explore-vs-exploit among fixed options with measurable regret | `arms [{type:"bernoulli",p} \| {type:"gaussian",mu,sigma}]` (≥2), `strategy`: `epsilon-greedy` \| `UCB` \| `thompson`, `epsilon`, `c`, `pulls`, `seed`, optional `runId` (continue run) |
+| `bayesian` | Next best evaluation of an expensive black-box function | `observations [[x,y],…]` (≥2), `bounds [lo,hi]`, `lengthscale`, `noise`, `gridPoints`, `maximize` → GP-RBF posterior + Expected Improvement |
+| `hmm` | Latent states behind an observed symbol sequence | `states`, `observationSymbols`, `observations`, `transitions A[si][sj]`, `emissions B[si][oi]`, `initial π`, `algorithm`: `forward-backward` \| `viterbi` \| `both` |
+
+- All matrices must be row-stochastic (tolerance 1e-6); violations and unknown
+  symbols fail with precise messages.
+- **Bandit runs persist per session**: the first `bandit` call without `runId`
+  creates a run (`bandit-1`, …) and returns its id in `details`. Pass `runId` on
+  later calls to continue the run — counts, sums, regret and RNG state
+  accumulate across calls, so regret shrinks as the run learns. Runs never
+  leak across sessions.
+- Invalid or missing model inputs fail with `status: 'failed'` and the exact
+  expected parameter shape.
+
 ## Workflow recipes
 
 Each recipe is available as guided navigation via `recipe_runner`: call it
@@ -253,6 +282,9 @@ issue_tree (decompose the decision)
 → swot_analysis per serious option (pass content you already know)
 → value_of_information (is more research worth it? if yes: research, then re-run swot)
 → decision_framework (options + weighted analysis)
+→ stochasticalgorithm (optional: quantify the leading options — mdp for phase
+  models, bayesian for expensive evaluations, mcts for search; feed the measured
+  numbers into the confidence check)
 → metacognitive_monitoring (before committing)
 ```
 
@@ -292,6 +324,18 @@ assumption_xray (on the question itself)
 → session_export (persist findings before the context closes)
 ```
 
+### 7. Decision under uncertainty
+
+```
+value_of_information (which uncertainty is worth resolving? research it first if cheap)
+→ decision_framework (frame the options + weighted analysis)
+→ stochasticalgorithm (quantify the leading option: mdp for sequential phase
+  decisions, bayesian for the next best evaluation, mcts for search-like bets;
+  bandit when you can measure adaptive feedback via runId)
+→ metacognitive_monitoring (commit, citing the measured numbers AND your
+  model assumptions — the math is only as good as its inputs)
+```
+
 ## Anti-patterns (do not do these)
 
 - **Do not** call `swot_analysis` with only `subject` when you already know
@@ -323,7 +367,8 @@ All tools share one server-side session. For long tasks:
 
 The server also exposes **workflow prompts** (one per recipe:
 `debug-failure`, `architecture-decision`, `stress-test-conclusion`,
-`open-ended-ideation`, `multi-agent-delegation`, `long-research-question`) —
+`open-ended-ideation`, `multi-agent-delegation`, `long-research-question`,
+`decision-under-uncertainty`) —
 clients render them as ready-to-send starting messages.
 
 ## Project-specific conventions
@@ -382,133 +427,5 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 
 <!-- gitnexus:end -->
 
-<!-- stochastic-thinking:agents-guide:start -->
-## Stochastic Thinking — Decision Tool Guide
 
-Project: Thinking-MCP Domain: MCP servers providing structured reasoning and decision tools for coding agents. Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP
 
-## Ground rules
-
-1. **Name the decision before you pick the algorithm.** Write down decision
-   situation, options, and uncertainty source — the `problem` field must be a
-   concrete, self-contained statement.
-2. **One algorithm per call.** Each call answers one decision question. For
-   multi-part problems, run several calls and compare the summaries.
-3. **Calls are pure — except bandit runs.** mdp, mcts, bayesian and hmm are
-   pure functions of their inputs. Bandit runs persist per session: pass the
-   returned `runId` back to continue a run (counts, sums, regret and RNG
-   state accumulate across calls).
-4. **The numbers are measured — your inputs are not validated against
-   reality.** `summary` and `details` contain real computed results
-   (converged value functions, visit counts, mean rewards, regret,
-   log-likelihood, Expected Improvement). The model inputs you supply
-   (matrices, arms, observations) are assumptions YOU own: spend your
-   skepticism on `parameters`, not on the arithmetic.
-5. **Iterate like a scientist.** Add the proposed point to your `bayesian`
-   observations and call again; continue a `bandit` run via `runId` and
-   watch regret shrink; feed `hmm` posteriors back into clear-thought
-   `decision_framework`.
-
-## Calling convention
-
-A single tool, `stochasticalgorithm`:
-
-| Parameter | Type | Required | Meaning |
-|---|---|---|---|
-| `algorithm` | `mdp` \| `mcts` \| `bandit` \| `bayesian` \| `hmm` | yes | decision algorithm to apply |
-| `problem` | string | yes | concrete decision problem statement (context for you, not used by the math) |
-| `parameters` | object | yes | algorithm-specific **model inputs** (see routing table + worked examples) |
-| `result` | string | no | reserved for future use; accepted but not used by the real algorithms |
-
-Response: `{ algorithm, status, summary, hasResult, details? }` — `summary`
-is one measured line, `details` carries the structured artifacts (value
-function, visit counts, per-arm stats, gamma table, EI, …). Invalid or
-missing model inputs → `status: 'failed'` + `isError: true` with the exact
-expected parameter shape in the message.
-
-## Algorithm routing table
-
-| Decision situation | `algorithm` | `parameters` (real model inputs) |
-|---|---|---|
-| Sequential decisions with an explicit transition/reward model | `mdp` | `transitions[s][a][s′]` (row-stochastic), `rewards[s][a]`, optional `states`/`actions` name arrays, `gamma`, `theta`, `maxIterations` → value iteration + greedy policy |
-| Search in a spatial environment with goal/traps/walls | `mcts` | `environment { rows, cols, start, goal, walls?, traps?, goalReward?, trapReward?, stepReward?, maxSteps? }`, `simulations`, `explorationConstant`, `seed` → UCT search on the built-in gridworld |
-| Explore-vs-exploit among fixed options with measurable regret | `bandit` | `arms [{type:"bernoulli",p} \| {type:"gaussian",mu,sigma}]` (≥2), `strategy`: `epsilon-greedy` \| `UCB` \| `thompson`, `epsilon`, `c`, `pulls`, `seed`, optional `runId` (continue run) |
-| Next best evaluation of an expensive black-box function | `bayesian` | `observations [[x,y],…]` (≥2), `bounds [lo,hi]`, `lengthscale`, `noise`, `gridPoints`, `maximize` → GP-RBF posterior + Expected Improvement |
-| Latent states behind an observed symbol sequence | `hmm` | `states`, `observationSymbols`, `observations`, `transitions A[si][sj]`, `emissions B[si][oi]`, `initial π`, `algorithm`: `forward-backward` \| `viterbi` \| `both` |
-
-All matrices must be row-stochastic (tolerance 1e-6); violations and
-unknown symbols fail with precise messages.
-
-## Worked examples
-
-```jsonc
-// mdp — two states, hand-checkable: V = [9, 10] at γ = 0.9
-{ "algorithm": "mdp", "problem": "save or spend",
-  "parameters": {
-    "states": ["poor", "rich"], "actions": ["work", "slack"],
-    "transitions": [[[0,1],[1,0]], [[0,1],[0,1]]],
-    "rewards": [[0,0.1],[1,1]], "gamma": 0.9 } }
-
-// mcts — 1×3 corridor: best action will be "right"
-{ "algorithm": "mcts", "problem": "reach the goal",
-  "parameters": { "environment": { "rows": 1, "cols": 3,
-    "start": [0,0], "goal": [0,2] }, "simulations": 400, "seed": 7 } }
-
-// bandit — first call creates run "bandit-1"; pass runId back to continue
-{ "algorithm": "bandit", "problem": "A/B test two buttons",
-  "parameters": { "arms": [{"type":"bernoulli","p":0.3},{"type":"bernoulli","p":0.5}],
-    "strategy": "UCB", "pulls": 100, "seed": 11 } }
-
-// bayesian — next evaluation near the unknown maximum
-{ "algorithm": "bayesian", "problem": "tune one hyperparameter",
-  "parameters": { "observations": [[0,-4],[1,-1],[3,-1],[4,-4]],
-    "bounds": [0,4], "maximize": true } }
-
-// hmm — classic weather example → Viterbi path Sunny→Rainy→Rainy
-{ "algorithm": "hmm", "problem": "infer weather from activities",
-  "parameters": { "states": ["Rainy","Sunny"],
-    "observationSymbols": ["walk","shop","clean"],
-    "observations": ["walk","shop","clean"],
-    "transitions": [[0.7,0.3],[0.4,0.6]],
-    "emissions": [[0.1,0.4,0.5],[0.6,0.3,0.1]],
-    "initial": [0.6,0.4], "algorithm": "both" } }
-```
-
-## Workflow recipes
-
-### 1. Decision under uncertainty
-
-```
-Model the problem explicitly (transitions, arms, observations)
-→ stochasticalgorithm (pick the routing-table algorithm)
-→ state the chosen approach, citing the measured numbers (value, regret, EI)
-```
-
-### 2. Combined with Clear Thought
-
-```
-clear-thought: sequential_thinking → decision_framework (options)
-→ stochasticalgorithm: quantify the leading options (mdp/mcts/bayesian)
-→ clear-thought: metacognitive_monitoring before committing
-```
-
-### 3. Iterate to a decision
-
-```
-bayesian: propose x → evaluate in reality → append observation → repeat
-bandit: pull in batches via runId → stop when regret flattens
-hmm: score candidate state models by log-likelihood
-```
-
-## Reading the results
-
-The numbers in `summary` and `details` are **measured outputs of real
-algorithms**: converged value functions (with iteration count and Δ), UCT
-visit counts and mean values, realized rewards and regret, exact Viterbi
-log-probabilities, GP posterior means/stds and Expected Improvement.
-
-They carry **no warranty about your model**: if the transition matrix, the
-arm distributions or the observations misdescribe reality, you get precisely
-computed nonsense. Validate the inputs, cite the outputs as what they are —
-results under your stated assumptions.
-<!-- stochastic-thinking:agents-guide:end -->

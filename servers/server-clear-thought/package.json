@@ -47,6 +47,7 @@
         "deploy": "smithery deploy",
         "build:mcpb": "node scripts/build-mcpb.mjs",
         "eval:llm": "node evals/run.mjs",
+        "sync:guide": "node scripts/sync-agents-template.mjs",
         "eval:llm:hard": "node evals/run.mjs --tasks evals/tasks-hard.json"
     },
     "repository": {
