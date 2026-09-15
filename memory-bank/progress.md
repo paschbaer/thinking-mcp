@@ -7,6 +7,15 @@
 
 ## What Works
 
+- **RELEASE 0.3.0 (2026-09-14)**: `develop → main` via PR (Branch-Protection aktiv),
+  GitHub-Actions-Release-Pipelines grün: **npmjs.com — `@paschbaer/clear-thought@0.3.0`
+  via OIDC Trusted Publishing** (tokenlos, Provenance-Badge, Sigstore-Transparenzlog) —
+  nach dem 3-Ringe-Debug (Account-2FA-Modus → Package-Access-Option → TP-Stage-Permission,
+  siehe lessonsLearned); **ghcr.io-Images** `clear-thought` + `stochasticthinking` mit
+  latest/0.3.0/sha-Tags. Registry-verifiziert (`npm view`, npx-Smoke folgt).
+  0.3.0-Inhalt: Risk-Familie (B1), Argument-Map/Kausal/Fermi/Game-Matrix (B2–B5),
+  Recipe Runner + workflow-Toolset (C), Session-Resources + Prompts + Persistence (D1–D3),
+  session_export-Bugfix, Factory-Config-Parse-Fix. 129/129 Tests.
 - **Roadmap-Track D (2026-09-14, branch `feature/track-d`, 0.3.0)**: D1 Session-Resources
   (`clear-thought://session/{stats,export,thoughts,workflows}` via `registerResource`),
   D2 Workflow-Prompts (6 Rezept-Prompts via `registerPrompt`, je eine User-Message mit

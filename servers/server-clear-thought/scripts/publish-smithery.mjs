@@ -31,14 +31,16 @@ const bundlePath = path.join(pkgRoot, 'clear-thought.mcpb');
 const settings = JSON.parse(
   fs.readFileSync(path.join(os.homedir(), '.config/smithery/settings.json'), 'utf8')
 );
-let token;
+// CI-friendly: SMITHERY_API_KEY (GitHub Secret) wins; local runs fall back
+// to the token stored by `npx @smithery/cli auth login`.
+let token = process.env.SMITHERY_API_KEY;
 const scan = (o) => {
   for (const [k, v] of Object.entries(o)) {
     if (typeof v === 'string' && v.startsWith('smry_')) token = v;
     if (v && typeof v === 'object') scan(v);
   }
 };
-scan(settings);
+if (!token) scan(settings);
 if (!token) {
   console.error('No Smithery token found in ~/.config/smithery/settings.json.');
   console.error('Run: npx -y @smithery/cli auth login');
