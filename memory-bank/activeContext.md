@@ -143,3 +143,28 @@
 - MCTS "Agent-as-Environment" contract vs. built-in environments only
   (roadmap open question #2).
 - Smithery rescan score for the stochastic server after the guide updates.
+
+## 2026-09-15: Architektur-Abwägung Server-Zusammenlegung
+
+- User-Frage: Merge clear-thought + stochasticthinking zu einem Server für gemeinsame
+  Recipe-Nutzung? Entscheidung `merge-servers-2026-09-15` (Full-Chain incl. MDP):
+  **Status quo (B)**, Merge an Trigger gekoppelt (stochastic-Rezepte im recipe_runner /
+  Cross-Familie-Session-State, Setup-Friction-Feedback, Wartungsdruck → dann Hybrid
+  statt Full-Merge). Details in `memory-bank/decisions.md`. Kein Code-Change.
+
+
+## 2026-09-15: Eval-Rig Upgrade (Actor/Judge-Split + harte Tasks)
+
+- Branch `feature/harder-evals-actor-judge-split`: `evals/run.mjs` behandelt
+  Actor und Judge als getrennte Endpoints (`EVAL_ACTOR_MODEL/BASE_URL/API_KEY`,
+  `EVAL_JUDGE_*`); Legacy-Vars bleiben Actor-Default, Judge erbt. Self-Bias-
+  Warnung bei gleichem Modell+Endpoint; `config.json` Snapshot im Report-Ordner.
+- `evals/tasks-hard.json` (4 Tasks, Ground-Truth via echte Tool-Läufe): fault_tree
+  exakt 0.04148 + Beitrags-Ranking; game_matrix iterierte Dominanz (exit→hold,
+  chaotic→stable) + 2×2-Mix (expand/hold 0.50/0.50, aggressive/stable 0.75/0.25,
+  Payoffs 3.75/3.0); fermi 993,600 € + Sensitivität + VoI 63,000 €; Bandit
+  (thompson, seed 7) runId-Fortsetzung 80+60 pulls → regret 16.14, pulls 31/13/96.
+- Runner attached `server-stochasticthinking/dist/dev.js` automatisch (statefulle
+  Tools, runId über Calls). SDK-Falle: Constructor-Option heißt
+  `defaultRequestTimeoutMsec`, `timeout` wirkt nur pro Request (drvfs-Kaltstart!).
+- Offen: Run 3 mit hartem Set + unabhängigem Judge (braucht API-Keys + User-Go).
