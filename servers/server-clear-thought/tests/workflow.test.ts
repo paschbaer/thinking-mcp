@@ -39,7 +39,9 @@ describe('recipe_runner', () => {
     expect(data.mode).toBe('started');
     expect(data.total_stages).toBe(4);
     expect(data.progress).toBe('1/4');
-    expect(data.current_stage.tool).toBe('sequentialthinking');
+    expect(data.current_stage.tool).toBe('sequential_thinking');
+    expect(data.current_stage.example_arguments).toBeTruthy();
+    expect(data.current_stage.result_guidance).toContain('debugging stage');
     expect(data.next_action).toContain('advance');
   });
 
@@ -55,11 +57,11 @@ describe('recipe_runner', () => {
     await run(client, { recipe: 'architecture-decision', action: 'advance' });
     const a3 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
     expect(a3.progress).toBe('4/5');
-    expect(a3.current_stage.tool).toBe('decisionframework');
+    expect(a3.current_stage.tool).toBe('decision_framework');
 
     const a4 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
     expect(a4.progress).toBe('5/5');
-    expect(a4.current_stage.tool).toBe('metacognitivemonitoring');
+    expect(a4.current_stage.tool).toBe('metacognitive_monitoring');
 
     const a5 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
     expect(a5.mode).toBe('completed');
@@ -67,8 +69,8 @@ describe('recipe_runner', () => {
       'issue_tree',
       'swot_analysis',
       'value_of_information',
-      'decisionframework',
-      'metacognitivemonitoring'
+      'decision_framework',
+      'metacognitive_monitoring'
     ]);
   });
 
@@ -76,7 +78,7 @@ describe('recipe_runner', () => {
     const client = await createConnectedClient();
     const data = await run(client, { recipe: 'open-ended-ideation', action: 'advance' });
     expect(data.mode).toBe('started');
-    expect(data.current_stage.tool).toBe('creativethinking');
+    expect(data.current_stage.tool).toBe('creative_thinking');
   });
 
   it('keeps progress isolated per session', async () => {

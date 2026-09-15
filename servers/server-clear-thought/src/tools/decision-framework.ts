@@ -5,7 +5,7 @@ import type { DecisionData } from '../types/index.js';
 
 export function registerDecisionFramework(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'decisionframework',
+    'decision_framework',
     'Apply structured decision-making frameworks',
     {
       decisionStatement: z.string().describe('The decision to be made'),

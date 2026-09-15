@@ -23,6 +23,12 @@
 
 ## Recent Changes
 
+## Recent Changes
+
+- 2026-09-15: Smithery-CI-Fix (erster Pipeline-Lauf crashte mit ENOENT: das Skript las die
+  lokale settings.json bedingungslos, bevor es den Env-Token prüfte) — settings.json ist
+  jetzt OPTIONAL; SMITHERY_API_KEY allein reicht. Nebeneffekt des lokalen Probe-Laufs:
+  **clear-thought 0.3.0 auf Smithery republished** (45 Tools erfasst, Release 202/SUCCESS).
 - 2026-09-14 (VIII): `publish-smithery.yml` (Release-Pipelines vervollständigt): beide
   Server werden bei Release-Merges automatisch republished (version-guarded via
   registry.smithery.ai-Record); beide publish-smithery.mjs akzeptieren jetzt

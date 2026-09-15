@@ -31,12 +31,12 @@ export const RECIPES: Record<string, Recipe> = {
     description: 'Systematic path from failure to a verified root cause.',
     stages: [
       {
-        tool: 'sequentialthinking',
+        tool: 'sequential_thinking',
         purpose: 'Plan the investigation, form hypotheses (totalThoughts 3–5).',
         argument_hints: 'thought, thoughtNumber, totalThoughts, nextThoughtNeeded — call repeatedly as needed'
       },
       {
-        tool: 'debuggingapproach',
+        tool: 'debugging_approach',
         purpose: 'Apply the systematic approach matching the symptom class.',
         argument_hints: 'approachName (binary_search | reverse_engineering | delta_debugging | …), issue, steps[]'
       },
@@ -47,7 +47,7 @@ export const RECIPES: Record<string, Recipe> = {
         optional: true
       },
       {
-        tool: 'metacognitivemonitoring',
+        tool: 'metacognitive_monitoring',
         purpose: 'Confidence check before claiming the root cause.',
         argument_hints: 'task, overallConfidence (0–1), uncertaintyAreas[]'
       }
@@ -75,12 +75,12 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'decision_options[], uncertainties[], payoffs[]'
       },
       {
-        tool: 'decisionframework',
+        tool: 'decision_framework',
         purpose: 'Weighted decision over the options.',
         argument_hints: 'decisionStatement, options[], analysisType, stage, nextStageNeeded'
       },
       {
-        tool: 'metacognitivemonitoring',
+        tool: 'metacognitive_monitoring',
         purpose: 'Confidence check before committing.',
         argument_hints: 'task, overallConfidence (0–1), uncertaintyAreas[]'
       }
@@ -92,12 +92,12 @@ export const RECIPES: Record<string, Recipe> = {
     description: 'State, attack and revise a conclusion before reporting it.',
     stages: [
       {
-        tool: 'structuredargumentation',
+        tool: 'structured_argumentation',
         purpose: 'State claim + premises + confidence.',
         argument_hints: 'claim, premises[], conclusion, argumentType, confidence (0–1)'
       },
       {
-        tool: 'socraticmethod',
+        tool: 'socratic_method',
         purpose: 'Walk clarification → assumptions → evidence → perspectives.',
         argument_hints: 'claim, stage, argumentType'
       },
@@ -107,7 +107,7 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'claim, context'
       },
       {
-        tool: 'structuredargumentation',
+        tool: 'structured_argumentation',
         purpose: 'Revise the argument; set confidence honestly.',
         argument_hints: 'updated claim/premises/confidence'
       }
@@ -119,7 +119,7 @@ export const RECIPES: Record<string, Recipe> = {
     description: 'Diverge, import patterns from other domains, check dynamics, structure what survives.',
     stages: [
       {
-        tool: 'creativethinking',
+        tool: 'creative_thinking',
         purpose: 'Diverge — generate options (several iterations).',
         argument_hints: 'prompt, ideas[], techniques[], connections[]'
       },
@@ -129,7 +129,7 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'problem, seed_domains[]'
       },
       {
-        tool: 'systemsthinking',
+        tool: 'systems_thinking',
         purpose: 'Check the dynamics of the top ideas.',
         argument_hints: 'system, components[], relationships[]'
       },
@@ -180,7 +180,7 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'query, optional downstream_tools[]'
       },
       {
-        tool: 'sequentialthinking',
+        tool: 'sequential_thinking',
         purpose: 'Synthesize the findings.',
         argument_hints: 'thought, thoughtNumber, totalThoughts, nextThoughtNeeded'
       },
@@ -190,6 +190,110 @@ export const RECIPES: Record<string, Recipe> = {
         argument_hints: 'format: json | summary'
       }
     ]
+  }
+};
+
+
+/**
+ * Guidance enrichment per stage (ready-to-adapt example arguments + what to
+ * take from the stage output). Keyed by "<recipeId>::<stageIndex>".
+ */
+export const STAGE_GUIDANCE: Record<string, { example_arguments: Record<string, unknown>; result_guidance: string }> = {
+  'debug-failure::0': {
+    example_arguments: { thought: 'Failure: <symptom>. Hypotheses: (1) <h1>, (2) <h2>. Plan: bisect by <method>.', thoughtNumber: 1, totalThoughts: 4, nextThoughtNeeded: true },
+    result_guidance: 'Carry the top hypotheses and the bisection plan into the debugging stage.'
+  },
+  'debug-failure::1': {
+    example_arguments: { approachName: 'binary_search', issue: '<symptom>', steps: ['reproduce', 'disable half the pipeline', 'compare outputs'] },
+    result_guidance: 'Note which step isolated the fault - that is your candidate cause.'
+  },
+  'debug-failure::2': {
+    example_arguments: { problem: '<symptom>', causes: [{ category: 'methods', causes: ['<candidate 1>'] }, { category: 'technology', causes: ['<candidate 2>'] }] },
+    result_guidance: 'Pick the branch with the strongest evidence link to your isolation step.'
+  },
+  'debug-failure::3': {
+    example_arguments: { task: 'Root cause claim for <symptom>', overallConfidence: 0.7, uncertaintyAreas: ['<what is still unverified>'] },
+    result_guidance: 'If confidence < 0.7: add a verification step before reporting the cause.'
+  },
+  'architecture-decision::0': {
+    example_arguments: { problem: 'Should we <decision>?', depth: 2, sub_questions: ['cost impact?', 'migration risk?'] },
+    result_guidance: 'Use the sub-issues as evaluation criteria for the SWOT and decision stages.'
+  },
+  'architecture-decision::1': {
+    example_arguments: { subject: 'Option: <option A>', strengths: [{ text: '<strength>', impact: 4, likelihood: 4 }], weaknesses: [{ text: '<weakness>', impact: 3, likelihood: 3 }], opportunities: ['<opportunity>'], threats: ['<threat>'] },
+    result_guidance: 'Take the ranked TOWS pairs as option profiles for the decision stage.'
+  },
+  'architecture-decision::2': {
+    example_arguments: { decision_options: ['<option A>', '<option B>'], uncertainties: ['<unknown that could flip the choice>'], payoffs: [10000, 8000] },
+    result_guidance: 'If VoI for an uncertainty is high: research it first, then re-run this stage.'
+  },
+  'architecture-decision::3': {
+    example_arguments: { decisionStatement: 'Choose <what>', options: [{ name: '<option A>', description: '<one line>' }, { name: '<option B>', description: '<one line>' }], analysisType: 'weighted', stage: 'decision', nextStageNeeded: false },
+    result_guidance: 'Record the chosen option and its top criteria in your decision log.'
+  },
+  'architecture-decision::4': {
+    example_arguments: { task: 'Commit to <chosen option>', overallConfidence: 0.8, uncertaintyAreas: ['<residual unknown>'] },
+    result_guidance: 'Low confidence -> revisit the VoI-high uncertainties before committing.'
+  },
+  'stress-test-conclusion::0': {
+    example_arguments: { claim: '<the conclusion to test>', premises: ['<premise 1>', '<premise 2>'], conclusion: '<restated>', argumentType: 'deductive', confidence: 0.7 },
+    result_guidance: 'Mark the weakest premise - the socratic stage attacks it.'
+  },
+  'stress-test-conclusion::1': {
+    example_arguments: { claim: '<the conclusion>', stage: 'assumptions', argumentType: 'deductive' },
+    result_guidance: 'Collect the challenges; map each to the premise it threatens.'
+  },
+  'stress-test-conclusion::2': {
+    example_arguments: { claim: '<weakest premise>', context: '<why you believe it>' },
+    result_guidance: 'Falsification tests with high severity become rebuttals in the revision.'
+  },
+  'stress-test-conclusion::3': {
+    example_arguments: { claim: '<revised conclusion>', premises: ['<revised premises>'], conclusion: '<revised>', argumentType: 'deductive', confidence: 0.6 },
+    result_guidance: 'Compare confidence before/after - a big drop means more evidence is needed.'
+  },
+  'open-ended-ideation::0': {
+    example_arguments: { prompt: 'Ways to <challenge>', ideas: ['<idea 1>', '<idea 2>'], techniques: ['SCAMPER', 'inversion'] },
+    result_guidance: 'Shortlist 3-5 ideas for the analogy and dynamics checks.'
+  },
+  'open-ended-ideation::1': {
+    example_arguments: { problem: '<abstract form of the challenge>', seed_domains: ['biology', 'logistics'] },
+    result_guidance: 'Keep only analogies that survive the imperfect-mapping question.'
+  },
+  'open-ended-ideation::2': {
+    example_arguments: { system: '<idea under test>', components: ['<c1>', '<c2>'], relationships: [{ from: '<c1>', to: '<c2>', type: 'positive' }] },
+    result_guidance: 'Drop ideas with vicious loops; note reinforcing loops as leverage.'
+  },
+  'open-ended-ideation::3': {
+    example_arguments: { topic: '<challenge>', branches: [{ title: '<theme>', subtopics: ['<idea>'] }] },
+    result_guidance: 'The map is the deliverable - one branch per actionable theme.'
+  },
+  'multi-agent-delegation::0': {
+    example_arguments: { skills: { 'agent-a': { typescript: 5, sql: 2 }, 'agent-b': { typescript: 2, sql: 5 } }, tasks: { 'api endpoint': ['typescript'] }, capacity: { 'agent-a': 2, 'agent-b': 1 } },
+    result_guidance: 'Use the assignment table as the delegation plan; note unassigned tasks.'
+  },
+  'multi-agent-delegation::1': {
+    example_arguments: { log: '<process log>', categories: ['error', 'timeout', 'retry', 'handover'] },
+    result_guidance: 'Top drag points become process fixes for the next round.'
+  },
+  'multi-agent-delegation::2': {
+    example_arguments: { skill: '<skill gap>', current_level: 2, target_level: 4, hours_per_week: 4 },
+    result_guidance: 'Attach the ladder to the agent profile for future delegation calls.'
+  },
+  'long-research-question::0': {
+    example_arguments: { claim: '<the question as an assumption>', context: '<why it matters>' },
+    result_guidance: 'Reframe the question if a load-bearing hidden assumption surfaces.'
+  },
+  'long-research-question::1': {
+    example_arguments: { query: '<the research question>', downstream_tools: ['assumption_xray', 'structured_argumentation'] },
+    result_guidance: 'Carry the strongest 2-3 lens findings into the synthesis.'
+  },
+  'long-research-question::2': {
+    example_arguments: { thought: 'Synthesis: <finding 1> + <finding 2> imply ...', thoughtNumber: 1, totalThoughts: 3, nextThoughtNeeded: true },
+    result_guidance: 'The final synthesis thought is the answer backbone.'
+  },
+  'long-research-question::3': {
+    example_arguments: { format: 'json' },
+    result_guidance: 'Store the export next to your project notes (or via session_save with dataDir).'
   }
 };
 

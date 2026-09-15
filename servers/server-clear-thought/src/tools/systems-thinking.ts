@@ -5,7 +5,7 @@ import type { SystemsData } from '../types/index.js';
 
 export function registerSystemsThinking(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'systemsthinking',
+    'systems_thinking',
     'Analyze complex systems and their interactions',
     {
       system: z.string().describe('System being analyzed'),

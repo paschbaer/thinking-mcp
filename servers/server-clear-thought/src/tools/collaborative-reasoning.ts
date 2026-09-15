@@ -26,7 +26,7 @@ const ContributionSchema = z.object({
 
 export function registerCollaborativeReasoning(server: McpServer, sessionState: SessionState) {
   server.tool(
-    'collaborativereasoning',
+    'collaborative_reasoning',
     'Facilitate collaborative reasoning with multiple perspectives and personas',
     {
       topic: z.string().describe('The topic under discussion'),
