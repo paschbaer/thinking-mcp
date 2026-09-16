@@ -30,9 +30,6 @@ jobs:
           - package: server-clear-thought
             workspace: clear-thought
             name: paschbaer/clear-thought
-          - package: server-stochasticthinking
-            workspace: stochasticthinking
-            name: paschbaer/stochasticthinking
     steps:
       - uses: actions/checkout@v5
 
