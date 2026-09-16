@@ -118,6 +118,26 @@ docker run -p 3000:3000 paschbaer/clear-thought
 
 The server is then reachable at `http://localhost:3000`.
 
+**MCP client configuration (HTTP transport)** — the Streamable HTTP endpoint is
+`http://localhost:3000/mcp`:
+
+```json
+{
+  "mcpServers": {
+    "clear-thought": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+> Some clients name the transport differently (`"streamable-http"` instead of
+> `"http"`) or wrap it in a `remoteServers`/`remote` block — the URL stays the
+> same. A prebuilt image is also available at
+> `ghcr.io/paschbaer/clear-thought` (`latest` + release tags), so a plain
+> `docker run ghcr.io/paschbaer/clear-thought` works without building.
+
 ## Publishing (maintainers)
 
 Releases are automated: on every release merge (`develop` → `main`) GitHub
