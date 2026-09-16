@@ -206,6 +206,9 @@
   | trigger: Release-Merge von `feature/merge-stochastic-into-clear-thought`
   (Version 1.1.0) | action required: nach dem 1.1.0-Release deprecaten + Jobs
   entfernen (Reihenfolge fix: erst Release live, dann Deprecation).
+  UPDATE 2026-09-16: Release-Version vom User auf 2.0.0 gesetzt (decisions.md
+  Update 2); Merge-Branch-Inhalte sind bereits auf develop — Release-Trigger ist
+  jetzt der PR `develop → main`. Version-Bump auf `feature/release-2-0-0`.
 - [MG-2] LOW | `servers/server-stochasticthinking/` bleibt bis auf Weiteres im Repo
   (CI `test.yml` baut beide Workspaces); Ordner später archivieren und aus der
   CI-Matrix nehmen | trigger: nach MG-1 + einer Deprecations-Periode | accepted

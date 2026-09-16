@@ -112,7 +112,7 @@ When investigating and fixing bugs, your reasoning steps MUST include:
 
 # Clear Thought — Reasoning Tool Guide for Thinking-MCP
 
-Domain context: MCP servers providing structured reasoning and problem-solving tools (clear-thought toolset) for coding agents. Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP.
+Domain context: MCP servers providing structured reasoning and problem-solving tools (clear-thought toolset) for coding agents. Codebase root: /mnt/d/repos/Thinking-MCP.
 
 You (the agent) have access to the **Clear Thought** MCP server. It provides
 structured reasoning tools. This guide tells you **which tool to use when**,
@@ -121,7 +121,7 @@ structured reasoning tools. This guide tells you **which tool to use when**,
 <!-- clear-thought:agents-guide:start -->
 ## Clear Thought — Reasoning Tool Guide
 
-Project: Thinking-MCP Domain: MCP servers providing structured reasoning and decision tools (clear-thought toolset incl. stochastic algorithms) for coding agents. Codebase root: /mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP
+Project: Thinking-MCP Domain: MCP servers providing structured reasoning and decision tools (clear-thought toolset incl. stochastic algorithms) for coding agents. Codebase root: /mnt/d/repos/Thinking-MCP
 
 ## Ground rules
 
@@ -428,6 +428,7 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
 
 
 

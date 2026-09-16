@@ -3,10 +3,16 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-15
+**Last updated:** 2026-09-16
 
 ## What Works
 
+- **Release 2.0.0 vorbereitet (2026-09-16)**: Server-Merge implementiert und auf
+  develop (`1bed87e` + `039c7e3` + Review-Fixes `df0a84a`); Version-Bump auf
+  **2.0.0** (package.json + Factory-ServerInfo, branch `feature/release-2-0-0`,
+  Typcheck grün). Offen: PR `develop → main` + Publish (User), danach MG-1
+  (Deprecation stochastic + Pipeline-Cleanup); GitNexus-Re-Index nach Repo-Umzug
+  ausstehend (Index unter altem Pfad registriert).
 - **Eval Run 5 (2026-09-15, Hard Set + EV-8-Gegenmittel)**: **98,8 % vs. 74,4 %** —
   3 von 4 Tasks perfekt (Fault-Tree 40/40 Δ+16, Bandit 40/40 Δ+22, Fermi 40/40 Δ0,
   Game 38/40 Δ+1). Die EV-8-Fixes haben beide Run-4-Fehlerklassen eliminiert: kein
