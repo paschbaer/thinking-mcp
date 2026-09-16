@@ -25,6 +25,11 @@
 
 ## Recent Changes
 
+- 2026-09-16: **MG-1 RESOLVED** — stochastic-Jobs aus allen drei Publish-
+  Pipelines entfernt (`42010d1`) und `@paschbaer/stochasticthinking` deprecatet
+  (npm-Registry verifiziert: Meldung live, Verweis auf clear-thought@>=2.0.0).
+  SSH-Setup im WSL repariert (Key kopiert + .bashrc-Guard gegen blockierende
+  ssh-add-Prompts in nicht-interaktiven Shells); Push develop = `42010d1`.
 - 2026-09-16: **Release 2.0.0 pushed + gemerged + published (User-Meldung)** —
   Branch `feature/release-2-0-0` (4 Commits: `0fd8410` Version-Bump +
   Pfad-Fixes, `6ddba51` README user-first, `dd2e00d` Docker/HTTP-Config,
