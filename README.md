@@ -12,12 +12,83 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 > Clear Thought (toolset `stochastic`). The standalone package is deprecated —
 > see [Migration from `@paschbaer/stochasticthinking`](#migration-from-paschbaerstochasticthinking).
 
-📖 **Detailed tool documentation** — every tool with parameters, responses,
-and workflow recipes — lives in each server's README:
+## Quick Start
 
-- [Clear Thought — Tool Reference & Usage](./servers/server-clear-thought/README.md)
+No checkout needed — MCP clients run the server directly via npx:
+
+```json
+{
+  "mcpServers": {
+    "clear-thought": {
+      "command": "npx",
+      "args": ["-y", "@paschbaer/clear-thought"]
+    }
+  }
+}
+```
+
+Prefer HTTP instead of stdio? Run the Docker image (see [Docker](#docker)) and
+point your client at `http://localhost:3000`.
+
+## What you get
+
+~45 tools, callable **individually** or via **grouped toolsets** — both call
+paths behave identically. Toolset calls use a conventional `operation`
+discriminator: `stochastic { operation: 'mdp', problem, parameters }` ≡
+`stochasticalgorithm { algorithm: 'mdp', … }`.
+
+| Toolset | Operations (selection) |
+|---|---|
+| `reasoning` (15) | `sequential_thinking`, `mental_model`, `debugging_approach`, `decision_framework`, `socratic_method`, `scientific_method`, `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix`, … |
+| `visualization` | `mind_map`, `concept_map`, `fishbone_diagram`, `swot_analysis`, `issue_tree`, `visual_reasoning` |
+| `risk` | `premortem`, `fmea`, `fault_tree` |
+| `utility` | `assumption_xray`, `value_of_information`, `comparative_advantage`, `agents_guide`, … |
+| `stochastic` | `mdp`, `mcts`, `bandit`, `bayesian`, `hmm` (real, measured computations; bandit runs persist per session via `runId`) |
+| `workflow` | `recipe_runner` — guided multi-tool recipes (7: debug-failure, architecture-decision, stress-test-conclusion, open-ended-ideation, multi-agent-delegation, long-research-question, decision-under-uncertainty) |
+| `session` | `session_info`, `session_export`, `session_import`, `session_save`, `session_load` — reasoning state survives context compaction |
+
+The server also exposes 7 workflow **prompts** and 4 session **resources**
+(`clear-thought://session/{stats,export,thoughts,workflows}`).
+
+📖 Full tool reference with parameters, responses and usage examples:
+[Clear Thought — Tool Reference](./servers/server-clear-thought/README.md#tool-reference)
+
+## Using it with your coding agent
+
+**Agent Guide.** Copy [`AGENTS.template.md`](./servers/server-clear-thought/AGENTS.template.md)
+to your project root as `AGENTS.md` — it is written for LLM consumption
+(tool routing table, recipes, usage rules). Alternatively, let your agent call
+the `agents_guide` tool: it renders the guide for your project and can merge
+it idempotently into an existing `AGENTS.md` (marker-based, repeat calls
+update in place). Prompt examples: [Agent Guide](./servers/server-clear-thought/README.md#agent-guide).
+
+**Claude Skill.** Prefer the skill mechanism over an `AGENTS.md`? Generate
+the user-level skill (~/.claude/skills/clear-thought/SKILL.md) from a source
+checkout — it always matches the shipped tools:
+
+```bash
+cd servers/server-clear-thought
+npm run sync:skill            # writes ~/.claude/skills/clear-thought/SKILL.md
+npm run sync:all              # guide + skill in one go
+```
+
+The generator derives the skill from `AGENTS.template.md` (single source of
+truth) and fails loudly if the toolset table drifts from the wired
+registries. Details: [Guide & skill codegen](./servers/server-clear-thought/README.md#guide--skill-codegen-maintainers).
 
 ## Development
+
+Minimal loop for contributors; the full developer & maintainer documentation
+(build, tests, tool registration conventions, codegen chain, publishing,
+benchmark harness) lives in the
+[server README](./servers/server-clear-thought/README.md#development):
+
+```bash
+corepack enable   # activates the pinned Yarn 4 version
+yarn install
+yarn build        # build all workspaces
+yarn test         # run all tests
+```
 
 Requires Node.js >= 20 (both server packages declare `engines.node` `>=20`).
 Yarn 4 is pinned via `packageManager` in `package.json`.
@@ -47,14 +118,13 @@ docker run -p 3000:3000 paschbaer/clear-thought
 
 The server is then reachable at `http://localhost:3000`.
 
-## Publishing
+## Publishing (maintainers)
 
-Clear Thought is published to the [Smithery registry](https://smithery.ai) as an MCPB bundle. Maintainers publish via the server's tooling — see the **Publishing (maintainers)** section in the [Clear Thought](./servers/server-clear-thought/README.md#publishing-maintainers) README. On release merges (`develop` → `main`), the `publish-smithery.yml` workflow also republishes automatically (version-guarded; requires the `SMITHERY_API_KEY` repository secret — the `smry_…` token from `npx @smithery/cli auth login`).
-
-On every release merge (`develop` → `main`) GitHub Actions publish automatically:
-
-- **npmjs.com** — `@paschbaer/clear-thought` (`.github/workflows/publish-npm.yml`; only when the package version changed, provenance attested). One-time setup: either configure a **Trusted Publisher** on the npm package (repo `paschbaer/thinking-mcp`, workflow `publish-npm.yml`) or add an `NPM_TOKEN` repository secret.
-- **GitHub Container Registry** — `ghcr.io/paschbaer/clear-thought`, tagged `latest` + package version + sha (`.github/workflows/publish-containers.yml`; the image runs the HTTP server on port 3000). One-time setup: flip the created package to **public** in its package settings.
+Releases are automated: on every release merge (`develop` → `main`) GitHub
+Actions publish npm (`publish-npm.yml`, version-guarded, OIDC provenance),
+containers to ghcr (`publish-containers.yml`), and the Smithery bundle
+(`publish-smithery.yml`). Full setup, one-time secrets and manual publishing:
+[Publishing (maintainers)](./servers/server-clear-thought/README.md#publishing-maintainers).
 
 > The `@paschbaer/stochasticthinking` jobs were removed from these workflows in
 > the course of the server merge; the deprecated npm package remains installable
