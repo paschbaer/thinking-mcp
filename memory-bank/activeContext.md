@@ -25,6 +25,14 @@
 
 ## Recent Changes
 
+- 2026-09-16: Root-README user-first umgebaut (Commits `6ddba51` + `dd2e00d`,
+  branch `feature/release-2-0-0`): neue Abschnitte Quick Start (npx-Config),
+  What you get (7-Toolset-Tabelle, individuelle ≡ Toolset-Aufrufe),
+  Using it with your coding agent (Agent-Guide + Skill-Generator-Doku:
+  `npm run sync:skill`/`sync:all`), Docker/MCP-HTTP-Client-Config
+  (`http://localhost:3000/mcp`, Endpunkt laut server.ts verifiziert) +
+  ghcr-Image-Hinweis. Development/Publishing auf Verweise an die
+  Server-README verdichtet.
 - 2026-09-16: Release 2.0.0 vorbereitet (branch `feature/release-2-0-0`): Version-Bump
   `@paschbaer/clear-thought` 1.0.0 → **2.0.0** (package.json + Factory-ServerInfo;
   User-Entscheidung statt geplanter 1.1.0 — siehe decisions.md Update 2).
