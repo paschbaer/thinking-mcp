@@ -3,7 +3,7 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-16
 
 ## Current Focus
 
@@ -25,6 +25,19 @@
 
 ## Recent Changes
 
+- 2026-09-16: Release 2.0.0 vorbereitet (branch `feature/release-2-0-0`): Version-Bump
+  `@paschbaer/clear-thought` 1.0.0 → **2.0.0** (package.json + Factory-ServerInfo;
+  User-Entscheidung statt geplanter 1.1.0 — siehe decisions.md Update 2).
+  Session-Export-Envelope-Version in SessionState.ts bleibt bewusst 1.0.0
+  (Datenformat-Version, Schema unverändert — Bandit-Runs sind nicht Teil des Exports).
+  Typcheck grün. Phase 6 freigegeben: User mergt nach main und stößt Publish an;
+  danach MG-1 (Deprecation + Pipeline-Cleanup).
+- 2026-09-16: Repo von `/mnt/c` nach `/mnt/d/repos/Thinking-MCP` umgezogen; Pfade
+  korrigiert (`scripts/regen-root-agents.ts` + AGENTS.md-Guide-Block via
+  Regenerierung + handgeschriebene Domain-context-Zeile; Backup `AGENTS.md.bak`).
+  Merge-Status verifiziert: Implementierung `1bed87e` + Nachtrag `039c7e3` bereits
+  auf develop (HEAD `df0a84a`). GitNexus-Index nach Umzug nicht erreichbar
+  (Re-Index `node .gitnexus/run.cjs analyze --no-stats` ausstehend).
 - 2026-09-15: Smithery-CI-Fix (erster Pipeline-Lauf crashte mit ENOENT: das Skript las die
   lokale settings.json bedingungslos, bevor es den Env-Token prüfte) — settings.json ist
   jetzt OPTIONAL; SMITHERY_API_KEY allein reicht. Nebeneffekt des lokalen Probe-Laufs:

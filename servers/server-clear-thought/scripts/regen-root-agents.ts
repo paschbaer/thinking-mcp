@@ -43,7 +43,7 @@ const result = await tool.handler(
     project_name: 'Thinking-MCP',
     domain_context:
       'MCP servers providing structured reasoning and decision tools (clear-thought toolset incl. stochastic algorithms) for coding agents.',
-    codebase_root: '/mnt/c/Users/AlexanderPaschold/source/repos/Thinking-MCP',
+    codebase_root: '/mnt/d/repos/Thinking-MCP',
     existing_agents_md: stripped
   },
   {}
