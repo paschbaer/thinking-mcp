@@ -1,6 +1,6 @@
 name: Publish npm
 
-# Release-Pfad: develop → main merge (oder Push auf main) publiziert beide
+# Release-Pfad: develop → main merge (oder Push auf main) publiziert den
 # Server auf npmjs.com — aber NUR wenn sich die Package-Version geändert hat
 # (Guard gegen doppelte Versionen). Bei unveränderter Version skippt der Job.
 #
@@ -40,8 +40,6 @@ jobs:
         include:
           - package: server-clear-thought
             scope: clear-thought
-          - package: server-stochasticthinking
-            scope: stochasticthinking
     steps:
       - uses: actions/checkout@v5
 
