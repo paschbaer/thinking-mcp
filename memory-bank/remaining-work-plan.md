@@ -215,3 +215,10 @@
   aktuellen Server schlagen dafür fehl; die neuen stochastic-Checks (2026-09-15)
   nutzen die aktuellen Namen | trigger: nächste Wartungsrunde | action required:
   Namen heben und gegen einen laufenden Server verifizieren.
+- [MG-4] LOW | `evals/run.mjs` (clear-thought) attached bei LLM-Evals weiterhin
+  den deprecated sibling `../server-stochasticthinking/dist/dev.js` (falls
+  vorhanden) | evidence: run.mjs Zeile ~291, `existsSync`-guarded, "first server
+  wins"-Routing macht den Attach redundant (merged Server ist erster Client) |
+  trigger: MG-2 (Ordner-Archivierung) oder nächste Eval-Harness-Wartung |
+  accepted with rationale: harmlos — Routing geht an den merged Server; nach
+  Archivierung greift der existsSync-Fallback still.
