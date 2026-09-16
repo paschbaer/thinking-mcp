@@ -200,12 +200,12 @@
 
 ## Tracked Follow-ups (appended 2026-09-15, Merge-Implementierung)
 
-- [MG-1] MED | Merge Phase 6 pending: `@paschbaer/stochasticthinking` noch nicht
-  deprecated (npm deprecate + finaler README-Patch-Release) und die stochastic-Jobs
-  stecken noch in `publish-npm.yml`, `publish-containers.yml`, `publish-smithery.yml`
-  | trigger: Release-Merge von `feature/merge-stochastic-into-clear-thought`
-  (Version 1.1.0) | action required: nach dem 1.1.0-Release deprecaten + Jobs
-  entfernen (Reihenfolge fix: erst Release live, dann Deprecation).
+- [MG-1] RESOLVED 2026-09-16 | Merge Phase 6: stochastic-Jobs aus `publish-npm.yml`,
+  `publish-containers.yml`, `publish-smithery.yml` entfernt (Commit `42010d1`,
+  gepusht) + `npm deprecate @paschbaer/stochasticthinking` ausgeführt und per
+  `npm view` verifiziert (deprecated-Meldung live, Verweis auf
+  `@paschbaer/clear-thought@>=2.0.0`, Version 0.1.1 bleibt installierbar).
+  Ursprung: Merge Phase 6 pending …
   UPDATE 2026-09-16: Release-Version vom User auf 2.0.0 gesetzt (decisions.md
   Update 2); Merge-Branch-Inhalte sind bereits auf develop — Release-Trigger ist
   jetzt der PR `develop → main`. Version-Bump auf `feature/release-2-0-0`.
