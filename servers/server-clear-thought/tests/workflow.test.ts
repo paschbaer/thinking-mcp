@@ -26,11 +26,11 @@ async function run(client: Client, args: Record<string, unknown>) {
 }
 
 describe('recipe_runner', () => {
-  it('lists all six recipes with their stage tools', async () => {
+  it('lists all seven recipes with their stage tools', async () => {
     const client = await createConnectedClient();
     const data = await run(client, { recipe: 'debug-failure', action: 'list' });
-    expect(data.recipes).toHaveLength(6);
-    expect(data.recipes.map((r: { id: string }) => r.id)).toContain('long-research-question');
+    expect(data.recipes).toHaveLength(7);
+    expect(data.recipes.map((r: { id: string }) => r.id)).toContain('decision-under-uncertainty');
   });
 
   it('starts a recipe at stage 1', async () => {
@@ -51,25 +51,58 @@ describe('recipe_runner', () => {
 
     const a1 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
     expect(a1.mode).toBe('advanced');
-    expect(a1.progress).toBe('2/5');
+    expect(a1.progress).toBe('2/6');
     expect(a1.current_stage.tool).toBe('swot_analysis');
 
     await run(client, { recipe: 'architecture-decision', action: 'advance' });
     const a3 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
-    expect(a3.progress).toBe('4/5');
+    expect(a3.progress).toBe('4/6');
     expect(a3.current_stage.tool).toBe('decision_framework');
 
     const a4 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
-    expect(a4.progress).toBe('5/5');
-    expect(a4.current_stage.tool).toBe('metacognitive_monitoring');
+    expect(a4.progress).toBe('5/6');
+    expect(a4.current_stage.tool).toBe('stochasticalgorithm');
+    expect(a4.current_stage.optional).toBe(true);
 
     const a5 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
-    expect(a5.mode).toBe('completed');
-    expect(a5.tools_in_order).toEqual([
+    expect(a5.progress).toBe('6/6');
+    expect(a5.current_stage.tool).toBe('metacognitive_monitoring');
+
+    const a6 = await run(client, { recipe: 'architecture-decision', action: 'advance' });
+    expect(a6.mode).toBe('completed');
+    expect(a6.tools_in_order).toEqual([
       'issue_tree',
       'swot_analysis',
       'value_of_information',
       'decision_framework',
+      'stochasticalgorithm',
+      'metacognitive_monitoring'
+    ]);
+  });
+
+  it('walks decision-under-uncertainty with the stochastic quantification stage', async () => {
+    const client = await createConnectedClient();
+    const start = await run(client, { recipe: 'decision-under-uncertainty', action: 'start' });
+    expect(start.mode).toBe('started');
+    expect(start.total_stages).toBe(4);
+    expect(start.current_stage.tool).toBe('value_of_information');
+
+    const s2 = await run(client, { recipe: 'decision-under-uncertainty', action: 'advance' });
+    expect(s2.current_stage.tool).toBe('decision_framework');
+
+    const s3 = await run(client, { recipe: 'decision-under-uncertainty', action: 'advance' });
+    expect(s3.current_stage.tool).toBe('stochasticalgorithm');
+    expect(s3.current_stage.example_arguments).toBeTruthy();
+
+    const done = await run(client, { recipe: 'decision-under-uncertainty', action: 'advance' });
+    expect(done.current_stage.tool).toBe('metacognitive_monitoring');
+
+    const fin = await run(client, { recipe: 'decision-under-uncertainty', action: 'advance' });
+    expect(fin.mode).toBe('completed');
+    expect(fin.tools_in_order).toEqual([
+      'value_of_information',
+      'decision_framework',
+      'stochasticalgorithm',
       'metacognitive_monitoring'
     ]);
   });

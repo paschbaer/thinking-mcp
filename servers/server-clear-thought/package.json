@@ -1,6 +1,6 @@
 {
     "name": "@paschbaer/clear-thought",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "MCP server for systematic thinking, mental models, debugging approaches, and memory management",
     "license": "MIT",
     "author": "Paschbaer",
@@ -47,6 +47,9 @@
         "deploy": "smithery deploy",
         "build:mcpb": "node scripts/build-mcpb.mjs",
         "eval:llm": "node evals/run.mjs",
+        "sync:guide": "node scripts/sync-agents-template.mjs",
+        "sync:skill": "node scripts/generate-skill.mjs",
+        "sync:all": "npm run sync:guide && npm run sync:skill",
         "eval:llm:hard": "node evals/run.mjs --tasks evals/tasks-hard.json"
     },
     "repository": {

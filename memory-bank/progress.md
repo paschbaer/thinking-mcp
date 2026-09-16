@@ -3,10 +3,20 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-15
+**Last updated:** 2026-09-16
 
 ## What Works
 
+- **Root-README user-first (2026-09-16, `6ddba51` + `dd2e00d`)**: Quick Start,
+  Toolset-Übersicht, Agent-Guide/Skill-Generator-Doku, Docker-MCP-HTTP-Config
+  (`/mcp`-Endpunkt im Code verifiziert); Dev-/Maintainer-Doku via Verweis auf
+  die Server-README. Einsteigspunkt enthält jetzt alle Nutzer-Infos.
+- **Release 2.0.0 vorbereitet (2026-09-16)**: Server-Merge implementiert und auf
+  develop (`1bed87e` + `039c7e3` + Review-Fixes `df0a84a`); Version-Bump auf
+  **2.0.0** (package.json + Factory-ServerInfo, branch `feature/release-2-0-0`,
+  Typcheck grün). Offen: PR `develop → main` + Publish (User), danach MG-1
+  (Deprecation stochastic + Pipeline-Cleanup); GitNexus-Re-Index nach Repo-Umzug
+  ausstehend (Index unter altem Pfad registriert).
 - **Eval Run 5 (2026-09-15, Hard Set + EV-8-Gegenmittel)**: **98,8 % vs. 74,4 %** —
   3 von 4 Tasks perfekt (Fault-Tree 40/40 Δ+16, Bandit 40/40 Δ+22, Fermi 40/40 Δ0,
   Game 38/40 Δ+1). Die EV-8-Fixes haben beide Run-4-Fehlerklassen eliminiert: kein
@@ -186,3 +196,13 @@ RB-9, RB-10, RB-11. Real Computing merged (`80be3d1`). **E-Plan Phase 2
 done: both servers live on npm at 0.1.1** (Phase-2 branch
 `feature/npm-publish` pending review/merge). Next: E-plan Phase 3 (eval
 harness) per `plans/quality-distribution.md`.
+
+- 2026-09-15 (Server-Merge, nachgetragen via Terminal-Append): Merge
+  stochastic → clear-thought auf `feature/merge-stochastic-into-clear-thought`
+  implementiert (Phasen 0-5 des Plans) — Algorithmen als Toolset `stochastic`
+  bei unverändertem Tool-Namen `stochasticalgorithm`, BanditRunStore in
+  SessionState, Rezept 7 `decision-under-uncertainty` + stochastic-Stage in
+  `architecture-decision`, 7. Prompt, konsolidierter Guide (Root-AGENTS.md via
+  echtem Handler regeneriert), READMEs migriert. Gezielte Tests 30/30 + 18/18
+  grün; Typecheck grün; Full-Suite lokal unter drvfs unter Worker-Timeouts
+  (CI autoritativ). Offen: Phase 6 (Release 1.1.0 + Deprecation, MG-1).

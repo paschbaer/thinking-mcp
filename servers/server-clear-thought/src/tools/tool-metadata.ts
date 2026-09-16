@@ -324,5 +324,22 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     outputSchema: schema({ operation: z.unknown().optional() })
   },
   utility: { title: 'Utility Toolset', outputSchema: schema({ operation: z.unknown().optional() }) },
-  session: { title: 'Session Toolset', outputSchema: schema({ operation: z.unknown().optional() }), stateful: true }
+  session: { title: 'Session Toolset', outputSchema: schema({ operation: z.unknown().optional() }), stateful: true },
+
+  // ── Stochastic algorithms (merged from server-stochasticthinking) ────────
+  stochasticalgorithm: {
+    title: 'Stochastic Algorithm (real computation)',
+    outputSchema: schema({
+      algorithm: z.unknown().optional(),
+      summary: z.unknown().optional(),
+      hasResult: z.unknown().optional(),
+      details: z.unknown().optional()
+    }),
+    stateful: true
+  },
+  stochastic: {
+    title: 'Stochastic Toolset',
+    outputSchema: schema({ operation: z.unknown().optional() }),
+    stateful: true
+  }
 };

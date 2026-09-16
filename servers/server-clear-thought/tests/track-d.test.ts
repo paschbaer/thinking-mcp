@@ -68,13 +68,14 @@ describe('D1 — session resources', () => {
 });
 
 describe('D2 — workflow prompts', () => {
-  it('lists one prompt per recipe (six)', async () => {
+  it('lists one prompt per recipe (seven)', async () => {
     const client = await createConnectedClient();
     const { prompts } = await client.listPrompts();
     const names = prompts.map((p) => p.name).sort();
     expect(names).toEqual([
       'architecture-decision',
       'debug-failure',
+      'decision-under-uncertainty',
       'long-research-question',
       'multi-agent-delegation',
       'open-ended-ideation',

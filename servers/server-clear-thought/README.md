@@ -81,12 +81,12 @@ Each tool in the Clear Thought MCP Server has specific strengths. Here are some 
 
 ### Workflow Recipes
 
-- **Recipe Runner** (`recipe_runner`) — guided navigation through the six workflow recipes (debug, architecture decision, stress-test, ideation, delegation, research); per-session progress, `start` → work → `advance`. Stage briefings include the recommended tool with ready-to-adapt example arguments and result guidance
+- **Recipe Runner** (`recipe_runner`) — guided navigation through the seven workflow recipes (debug, architecture decision, stress-test, ideation, delegation, research, decision under uncertainty); per-session progress, `start` → work → `advance`. Stage briefings include the recommended tool with ready-to-adapt example arguments and result guidance
 
 ### Session Resources, Prompts & Persistence
 
 - **Resources** (read-only, no tool calls needed): `clear-thought://session/stats`, `…/export`, `…/thoughts`, `…/workflows` — live views of the current session
-- **Prompts** (one per workflow recipe): `debug-failure`, `architecture-decision`, `stress-test-conclusion`, `open-ended-ideation`, `multi-agent-delegation`, `long-research-question` — render a ready-to-send user message that kicks off the matching recipe
+- **Prompts** (one per workflow recipe): `debug-failure`, `architecture-decision`, `stress-test-conclusion`, `open-ended-ideation`, `multi-agent-delegation`, `long-research-question`, `decision-under-uncertainty` — render a ready-to-send user message that kicks off the matching recipe
 - **Persistence**: `session_save` / `session_load` store and restore the full session state as JSON under the configured `dataDir` (path-sanitized; clear error results when `dataDir` is unset)
 
 ### Mental Models
@@ -214,6 +214,22 @@ The server also exposes this guide as the `agents_guide` tool (also in the
 (`project_name`, `domain_context`, `codebase_root`), or pass your existing
 `AGENTS.md` content as `existing_agents_md` to merge the guide in — repeat
 calls update the inserted block in place instead of duplicating it.
+
+### Guide & skill codegen (maintainers)
+
+All derived artifacts are generated from `AGENTS.template.md` — never edit
+them by hand. After changing the template, run the chain:
+
+| Command | What it regenerates |
+|---|---|
+| `npm run sync:guide` | `src/tools/agents-guide-template.ts` (embedded constant; guarded by `tests/agents-guide.test.ts`) |
+| `npx tsx scripts/regen-root-agents.ts` | the repo-root `AGENTS.md` guide block, via the real `agents_guide` merge handler |
+| `npm run sync:skill` | the user-level Claude skill `~/.claude/skills/clear-thought/SKILL.md` covering all tools (custom target: `--out <path>`) |
+| `npm run sync:all` | `sync:guide` + `sync:skill` in one go |
+
+`generate-skill.mjs` fails when the toolset routing table in the template no
+longer matches the registries wired in `src/toolsets/*.ts` — fix the table,
+then rerun.
 
 ### Using `agents_guide` from chat
 
@@ -388,13 +404,38 @@ Reasoning state lives server-side per session. Three tools manage it:
 - **`session_export`** — serialize the full session state (persist it in your project, e.g. `memory-bank/`, before a context ends).
 - **`session_import`** — restore a previously exported state and continue where the stats left off.
 
+### Stochastic algorithms
+
+Real, measured computations for decisions under uncertainty (merged from the
+deprecated `@paschbaer/stochasticthinking` server). Available as the individual
+tool **`stochasticalgorithm`** (`algorithm`: `mdp` | `mcts` | `bandit` | `bayesian` | `hmm`)
+and as the grouped **`stochastic`** toolset (`operation` discriminator).
+
+| Algorithm | Decision situation | Key `parameters` |
+|---|---|---|
+| `mdp` | Sequential decisions with an explicit transition/reward model | `transitions[s][a][s′]` (row-stochastic, 1e-6), `rewards[s][a]`, optional `states`/`actions`, `gamma`, `theta`, `maxIterations` → value function + greedy policy |
+| `mcts` | Search in a spatial environment | `environment { rows, cols, start, goal, walls?, traps?, … }`, `simulations`, `explorationConstant`, `seed` → UCT visit counts + values |
+| `bandit` | Explore-vs-exploit with measurable regret | `arms` (Bernoulli/Gaussian, ≥2), `strategy` (`epsilon-greedy` \| `UCB` \| `thompson`), `pulls`, `seed`, optional `runId` |
+| `bayesian` | Next best evaluation of an expensive black box | `observations [[x,y],…]`, `bounds`, `lengthscale?`, `noise?`, `maximize?` → GP posterior + Expected Improvement |
+| `hmm` | Latent states behind an observed sequence | `states`, `observationSymbols`, `observations`, `transitions`, `emissions`, `initial`, `algorithm` (`viterbi` \| `forward-backward` \| `both`) |
+
+- **Bandit runs persist per session**: the first call without `runId` creates a
+  run (`bandit-1`, …); pass `runId` to continue it — counts, regret and RNG
+  state accumulate across calls (also across individual/toolset call paths and
+  within recipe stages).
+- The numbers are **measured outputs of real algorithms** — they carry no
+  warranty about your model; validate the inputs.
+- Full parameter tables: [Agent Guide](#agent-guide) ("Stochastic algorithms")
+  or the deprecated package's
+  [README](https://github.com/paschbaer/thinking-mcp/blob/main/servers/server-stochasticthinking/README.md).
+
 ## Usage
 
 Each individual tool (e.g., `sequential_thinking`, `mental_model`, `debugging_approach`, ...) is
-registered on its own. In addition, four grouped toolset tools are available — `reasoning`,
-`visualization`, `utility`, and `session` — which select the underlying tool via an
-`operation` parameter (e.g., operation `mental_model` within the `reasoning` toolset).
-The examples below use the toolset form.
+registered on its own. In addition, seven grouped toolset tools are available — `reasoning`,
+`visualization`, `utility`, `session`, `risk`, `workflow`, and `stochastic` — which select the
+underlying operation via an `operation` parameter (e.g., operation `mental_model` within the
+`reasoning` toolset). The examples below use the toolset form.
 
 Note on naming: as of v1.0.0 all individual tool names use **snake_case** (`sequential_thinking`,
 `mental_model`, `analogical_mapper`, `session_info`, …), matching the broader MCP ecosystem
@@ -503,7 +544,7 @@ with an independent judge model against weighted rubrics.
 
 | Command | What it does |
 |---|---|
-| `npm run build` | Required first — the runner spawns `dist/dev.js` over stdio and auto-attaches `../server-stochasticthinking/dist/dev.js` when present (stateful algorithm tools, `runId` continuation) |
+| `npm run build` | Required first — the runner spawns `dist/dev.js` over stdio (all tools incl. stateful stochastic algorithms, `runId` continuation) |
 | `npm run eval:llm` | Easy set — `evals/tasks.json`: 3 reasoning-quality tasks (risk analysis, argument stress-test, guided decision) |
 | `npm run eval:llm:hard` | Hard set — `evals/tasks-hard.json`: 4 computation-forcing tasks with ground-truth numbers baked into the rubric (exact fault-tree probability, iterated dominance + mixed equilibrium, Fermi + value of information, bandit `runId` continuation across two calls) |
 | `node evals/run.mjs --max-tasks 1` | Cost-limited smoke (first task only) |

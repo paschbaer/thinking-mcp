@@ -51,3 +51,15 @@
   Recipe-Erweiterung datengetrieben (architecture-decision + neues Rezept
   `decision-under-uncertainty` + 7. Workflow-Prompt); Release 1.1.0 additiv,
   danach Deprecation des stochastic-Pakets (Reihenfolge fix).
+
+## merge-servers-2026-09-15 / Update 2 — Release-Version 2.0.0 (statt 1.1.0)
+
+- **Auslöser:** User-Entscheidung (2026-09-16): Versionsnummer für den Merge-Release
+  direkt auf **2.0.0** setzen (Plan sah 1.1.0 additiv vor). Begründung: Merge plus
+  anstehende Deprecation eines live publizierten Pakets ist für Nutzer das größere
+  Ereignis — der Major-Bump signalisiert das.
+- **Umsetzung:** package.json + Factory-ServerInfo auf 2.0.0 (branch
+  `feature/release-2-0-0`, Typcheck grün). Session-Export-Envelope-Version bleibt
+  bewusst 1.0.0 (Datenformat-Version, Schema unverändert). Root-`package.json`
+  (0.0.1, privat/unpubliziert) und stochastic-`package.json` (0.1.1, wird nach
+  Release deprecatet; Version-Guard überspringt es) unverändert.

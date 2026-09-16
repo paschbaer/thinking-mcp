@@ -137,3 +137,14 @@
 
 
 
+
+- 2026-09-15 (Avoid These Mistakes — nachgetragen via Terminal-Append, stale
+  Tool-Layer): **Edit tools can serve a stale layer for files changed by
+  external tooling** — read_file/grep_search/replace_string zeigten den alten
+  Inhalt (z. B. prä-1.0.0-Rename), während Terminal cat/grep den echten
+  Disk-Stand zeigte; Probe-Edits landeten in der Phantom-Schicht (nie auf
+  Disk). → Für extern veränderte Dateien zuerst per Terminal verifizieren;
+  wenn replace_string an disk-verifizierten Ankern scheitert: Probe gegen
+  einen nur-im-Altinhalt-existing String, dann (mit User-Konsens)
+  closeAllEditors bzw. Terminal-Append/Patch; create_file überschreibt keine
+  existierenden Dateien. Gefunden bei der Merge-Implementierung.
