@@ -52,7 +52,8 @@ export function registerRecipeRunner(server: McpServer, sessionState: SessionSta
     'recipe_runner',
     'Guided navigation through the workflow recipes (debug a failure, ' +
       'architecture decision, stress-test a conclusion, open-ended ideation, ' +
-      'multi-agent delegation, long research question). `start` returns the ' +
+      'multi-agent delegation, long research question, decision under ' +
+      'uncertainty). `start` returns the ' +
       'first stage briefing — the recommended next tool with ready-to-adapt ' +
       'example arguments and result guidance — `advance` moves to the next ' +
       'stage after you did the work, `status` shows where you are, `list` ' +

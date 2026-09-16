@@ -49,10 +49,12 @@ Toolset routing:
 
 | Toolset | Operations |
 |---|---|
-| `reasoning` | `sequential_thinking`, `mental_model`, `debugging_approach`, `collaborative_reasoning`, `decision_framework`, `metacognitive_monitoring`, `socratic_method`, `creative_thinking`, `systems_thinking`, `scientific_method`, `structured_argumentation` |
+| `reasoning` | `sequential_thinking`, `mental_model`, `debugging_approach`, `collaborative_reasoning`, `decision_framework`, `metacognitive_monitoring`, `socratic_method`, `creative_thinking`, `systems_thinking`, `scientific_method`, `structured_argumentation`, `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix` |
 | `visualization` | `mind_map`, `concept_map`, `fishbone_diagram`, `swot_analysis`, `issue_tree` |
 | `utility` | `analogical_mapper`, `assumption_xray`, `comparative_advantage`, `drag_point_audit`, `safe_struggle_designer`, `seven_seekers_orchestrator`, `value_of_information`, `existing_tool_example`, `agents_guide` |
-| `session` | `session_info`, `session_export`, `session_import` |
+| `session` | `session_info`, `session_export`, `session_import`, `session_save`, `session_load` |
+| `risk` | `premortem`, `fmea`, `fault_tree` |
+| `workflow` | `recipe_runner` |
 | `stochastic` | `mdp`, `mcts`, `bandit`, `bayesian`, `hmm` |
 
 ## Tool routing table

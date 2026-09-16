@@ -222,3 +222,5 @@
   trigger: MG-2 (Ordner-Archivierung) oder nächste Eval-Harness-Wartung |
   accepted with rationale: harmlos — Routing geht an den merged Server; nach
   Archivierung greift der existsSync-Fallback still.
+  UPDATE 2026-09-16: RESOLVED — attach block + Doku-Stellen entfernt
+  (Review-Fix F3, branch feature/skill-generator-docs); Eintrag obsolet.

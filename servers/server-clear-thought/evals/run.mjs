@@ -279,24 +279,14 @@ async function connectStdio(scriptPath, name) {
   return client;
 }
 
-/** Mode B — with the MCP server(s): tool-use loop over tools/list. The
- * sibling stochastic-thinking server is attached automatically when its
- * build exists, so tasks can also exercise stateful algorithm tools
- * (e.g. bandit runs continued via runId across calls). */
+/** Mode B — with the MCP server: tool-use loop over tools/list. The server
+ * ships all tools incl. the stochastic algorithms (stateful bandit runs
+ * continue via runId within the session). */
 async function runWithServer(task) {
   const clients = [];
   const toolClients = new Map(); // tool name → owning client (first server wins)
   try {
     clients.push(await connectStdio(path.join(pkgRoot, 'dist/dev.js'), 'llm-eval'));
-    const extraPath = path.resolve(pkgRoot, '../server-stochasticthinking/dist/dev.js');
-    if (fs.existsSync(extraPath)) {
-      try {
-        clients.push(await connectStdio(extraPath, 'llm-eval-stochastic'));
-        console.log('  (stochastic-thinking server attached)');
-      } catch (error) {
-        console.log(`  (stochastic-thinking attach failed, continuing: ${error.message.slice(0, 80)})`);
-      }
-    }
     const openaiTools = [];
     for (const client of clients) {
       const { tools } = await client.listTools(undefined, { timeout: 300000 });
