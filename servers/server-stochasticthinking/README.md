@@ -1,5 +1,11 @@
 # Stochastic Thinking MCP Server
 
+> ⚠️ **DEPRECATED — merged into Clear Thought.** The stochastic algorithms now
+> live in [`@paschbaer/clear-thought`](https://www.npmjs.com/package/@paschbaer/clear-thought)
+> (tool `stochasticalgorithm` — unchanged name and arguments — plus the new
+> `stochastic` toolset). This package is no longer maintained; this README
+> remains as the algorithm parameter reference.
+
 ## Why Stochastic Thinking Matters
 
 When AI assistants make decisions - whether writing code, solving problems, or suggesting improvements - they often fall into patterns of "local thinking", similar to how we might get stuck trying the same approach repeatedly despite poor results. This is like being trapped in a valley when there's a better solution on the next mountain over, but you can't see it from where you are.

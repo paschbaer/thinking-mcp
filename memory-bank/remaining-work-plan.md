@@ -197,3 +197,33 @@
   tool / real JSON objects". Run 5: beide Run-4-Fehlerklassen verschwunden
   (Game 38/40 mit sauberen Calls, Fermi 40/40 mit fermi_estimate-Nutzung).
   Kein weiterer Handlungsbedarf; Rig-Freeze auf Run-5-Stand empfohlen.
+
+## Tracked Follow-ups (appended 2026-09-15, Merge-Implementierung)
+
+- [MG-1] MED | Merge Phase 6 pending: `@paschbaer/stochasticthinking` noch nicht
+  deprecated (npm deprecate + finaler README-Patch-Release) und die stochastic-Jobs
+  stecken noch in `publish-npm.yml`, `publish-containers.yml`, `publish-smithery.yml`
+  | trigger: Release-Merge von `feature/merge-stochastic-into-clear-thought`
+  (Version 1.1.0) | action required: nach dem 1.1.0-Release deprecaten + Jobs
+  entfernen (Reihenfolge fix: erst Release live, dann Deprecation).
+  UPDATE 2026-09-16: Release-Version vom User auf 2.0.0 gesetzt (decisions.md
+  Update 2); Merge-Branch-Inhalte sind bereits auf develop — Release-Trigger ist
+  jetzt der PR `develop → main`. Version-Bump auf `feature/release-2-0-0`.
+- [MG-2] LOW | `servers/server-stochasticthinking/` bleibt bis auf Weiteres im Repo
+  (CI `test.yml` baut beide Workspaces); Ordner später archivieren und aus der
+  CI-Matrix nehmen | trigger: nach MG-1 + einer Deprecations-Periode | accepted
+  with rationale: README dient als Parameter-Referenz.
+- [MG-3] LOW | `scripts/funktionstest.mjs` (clear-thought) nutzt für die
+  Legacy-Tools noch die prä-1.0.0 kompakten Namen — Live-Checks gegen einen
+  aktuellen Server schlagen dafür fehl; die neuen stochastic-Checks (2026-09-15)
+  nutzen die aktuellen Namen | trigger: nächste Wartungsrunde | action required:
+  Namen heben und gegen einen laufenden Server verifizieren.
+- [MG-4] LOW | `evals/run.mjs` (clear-thought) attached bei LLM-Evals weiterhin
+  den deprecated sibling `../server-stochasticthinking/dist/dev.js` (falls
+  vorhanden) | evidence: run.mjs Zeile ~291, `existsSync`-guarded, "first server
+  wins"-Routing macht den Attach redundant (merged Server ist erster Client) |
+  trigger: MG-2 (Ordner-Archivierung) oder nächste Eval-Harness-Wartung |
+  accepted with rationale: harmlos — Routing geht an den merged Server; nach
+  Archivierung greift der existsSync-Fallback still.
+  UPDATE 2026-09-16: RESOLVED — attach block + Doku-Stellen entfernt
+  (Review-Fix F3, branch feature/skill-generator-docs); Eintrag obsolet.

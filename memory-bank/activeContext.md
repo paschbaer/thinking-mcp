@@ -3,7 +3,7 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-16
 
 ## Current Focus
 
@@ -25,6 +25,27 @@
 
 ## Recent Changes
 
+- 2026-09-16: Root-README user-first umgebaut (Commits `6ddba51` + `dd2e00d`,
+  branch `feature/release-2-0-0`): neue Abschnitte Quick Start (npx-Config),
+  What you get (7-Toolset-Tabelle, individuelle ≡ Toolset-Aufrufe),
+  Using it with your coding agent (Agent-Guide + Skill-Generator-Doku:
+  `npm run sync:skill`/`sync:all`), Docker/MCP-HTTP-Client-Config
+  (`http://localhost:3000/mcp`, Endpunkt laut server.ts verifiziert) +
+  ghcr-Image-Hinweis. Development/Publishing auf Verweise an die
+  Server-README verdichtet.
+- 2026-09-16: Release 2.0.0 vorbereitet (branch `feature/release-2-0-0`): Version-Bump
+  `@paschbaer/clear-thought` 1.0.0 → **2.0.0** (package.json + Factory-ServerInfo;
+  User-Entscheidung statt geplanter 1.1.0 — siehe decisions.md Update 2).
+  Session-Export-Envelope-Version in SessionState.ts bleibt bewusst 1.0.0
+  (Datenformat-Version, Schema unverändert — Bandit-Runs sind nicht Teil des Exports).
+  Typcheck grün. Phase 6 freigegeben: User mergt nach main und stößt Publish an;
+  danach MG-1 (Deprecation + Pipeline-Cleanup).
+- 2026-09-16: Repo von `/mnt/c` nach `/mnt/d/repos/Thinking-MCP` umgezogen; Pfade
+  korrigiert (`scripts/regen-root-agents.ts` + AGENTS.md-Guide-Block via
+  Regenerierung + handgeschriebene Domain-context-Zeile; Backup `AGENTS.md.bak`).
+  Merge-Status verifiziert: Implementierung `1bed87e` + Nachtrag `039c7e3` bereits
+  auf develop (HEAD `df0a84a`). GitNexus-Index nach Umzug nicht erreichbar
+  (Re-Index `node .gitnexus/run.cjs analyze --no-stats` ausstehend).
 - 2026-09-15: Smithery-CI-Fix (erster Pipeline-Lauf crashte mit ENOENT: das Skript las die
   lokale settings.json bedingungslos, bevor es den Env-Token prüfte) — settings.json ist
   jetzt OPTIONAL; SMITHERY_API_KEY allein reicht. Nebeneffekt des lokalen Probe-Laufs:
@@ -209,3 +230,21 @@
   RESOLVED — beide Run-4-Fehlerklassen (Schema-Flailing, skipped fermi_estimate)
   treten nicht mehr auf. Verbleibender 2-Punkt-Verlust Game-Matrix: Detail,∉
   blocking. Eval-Track damit abgeschlossen; Rest: git push develop (User).
+- **MERGE IMPLEMENTIERT (2026-09-15, Branch `feature/merge-stochastic-into-clear-thought`)**:
+  Phasen 0-5 des Umsetzungsplans (`plans/merge-stochastic-into-clear-thought.md`)
+  ausgefuehrt. Port: `src/algorithms/*` (7 Module), `BanditRunStore` in SessionState
+  (cleanup-integriert), Dual-Registration (`stochasticalgorithm` Name/Signatur
+  unveraendert + Toolset `stochastic`, operation mdp/mcts/bandit/bayesian/hmm),
+  2 TOOL_METADATA-Eintraege (stateful:true), Tests portiert (`algorithms.test.ts`)
+  + neue Merge-Contracts (`stochastic-merge.test.ts`: Paritaet, Bandit-runId ueber
+  beide Call-Pfade, Fehlerkontrakte). Orchestrator: Rezept 7
+  `decision-under-uncertainty` + stochastic-Stage in `architecture-decision`
+  (STAGE_GUIDANCE reindiziert), 7. Workflow-Prompt. Guide: Template erweitert,
+  Konstante via neuem `sync:guide`-Skript regeneriert; Root-AGENTS.md ueber echten
+  Handler (`scripts/regen-root-agents.ts`) regeneriert — verwaister
+  stochastic-thinking-Markerblock entfernt (verifiziert: 0 Marker, Rezept 7 sichtbar).
+  Docs: Root-README Single-Server + Migrations-Abschnitt; stochastic-README
+  Deprecation-Banner; MG-1/2/3 in remaining-work-plan getrackt. Gezielte Tests
+  30/30 gruen; Typecheck gruen. Offen: Full-Suite-Auswertung + Phase 6 (Release
+  1.1.0 + Deprecation, wartet auf Freigabe). Stale-Buffer-Trap dokumentiert
+  (lessonsLearned).

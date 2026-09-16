@@ -6,16 +6,89 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 
 | Server | Package | Description |
 |--------|---------|-------------|
-| [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, risk analysis (pre-mortem, FMEA, fault trees), causal & game-theoretic analysis, Fermi estimation, and guided workflow recipes |
-| [Stochastic Thinking](./servers/server-stochasticthinking) | `@paschbaer/stochasticthinking` | Stochastic algorithms and probabilistic decision making |
+| [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, risk analysis (pre-mortem, FMEA, fault trees), causal & game-theoretic analysis, Fermi estimation, guided workflow recipes, and stochastic decision algorithms (MDP, MCTS, bandit, Bayesian optimization, HMM) |
 
-📖 **Detailed tool documentation** — every tool with parameters, responses,
-and workflow recipes — lives in each server's README:
+> **Merged:** the former `@paschbaer/stochasticthinking` server is now part of
+> Clear Thought (toolset `stochastic`). The standalone package is deprecated —
+> see [Migration from `@paschbaer/stochasticthinking`](#migration-from-paschbaerstochasticthinking).
 
-- [Clear Thought — Tool Reference & Usage](./servers/server-clear-thought/README.md)
-- [Stochastic Thinking — Tool Reference & Usage](./servers/server-stochasticthinking/README.md)
+## Quick Start
+
+No checkout needed — MCP clients run the server directly via npx:
+
+```json
+{
+  "mcpServers": {
+    "clear-thought": {
+      "command": "npx",
+      "args": ["-y", "@paschbaer/clear-thought"]
+    }
+  }
+}
+```
+
+Prefer HTTP instead of stdio? Run the Docker image (see [Docker](#docker)) and
+point your client at `http://localhost:3000`.
+
+## What you get
+
+~45 tools, callable **individually** or via **grouped toolsets** — both call
+paths behave identically. Toolset calls use a conventional `operation`
+discriminator: `stochastic { operation: 'mdp', problem, parameters }` ≡
+`stochasticalgorithm { algorithm: 'mdp', … }`.
+
+| Toolset | Operations (selection) |
+|---|---|
+| `reasoning` (15) | `sequential_thinking`, `mental_model`, `debugging_approach`, `decision_framework`, `socratic_method`, `scientific_method`, `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix`, … |
+| `visualization` | `mind_map`, `concept_map`, `fishbone_diagram`, `swot_analysis`, `issue_tree`, `visual_reasoning` |
+| `risk` | `premortem`, `fmea`, `fault_tree` |
+| `utility` | `assumption_xray`, `value_of_information`, `comparative_advantage`, `agents_guide`, … |
+| `stochastic` | `mdp`, `mcts`, `bandit`, `bayesian`, `hmm` (real, measured computations; bandit runs persist per session via `runId`) |
+| `workflow` | `recipe_runner` — guided multi-tool recipes (7: debug-failure, architecture-decision, stress-test-conclusion, open-ended-ideation, multi-agent-delegation, long-research-question, decision-under-uncertainty) |
+| `session` | `session_info`, `session_export`, `session_import`, `session_save`, `session_load` — reasoning state survives context compaction |
+
+The server also exposes 7 workflow **prompts** and 4 session **resources**
+(`clear-thought://session/{stats,export,thoughts,workflows}`).
+
+📖 Full tool reference with parameters, responses and usage examples:
+[Clear Thought — Tool Reference](./servers/server-clear-thought/README.md#tool-reference)
+
+## Using it with your coding agent
+
+**Agent Guide.** Copy [`AGENTS.template.md`](./servers/server-clear-thought/AGENTS.template.md)
+to your project root as `AGENTS.md` — it is written for LLM consumption
+(tool routing table, recipes, usage rules). Alternatively, let your agent call
+the `agents_guide` tool: it renders the guide for your project and can merge
+it idempotently into an existing `AGENTS.md` (marker-based, repeat calls
+update in place). Prompt examples: [Agent Guide](./servers/server-clear-thought/README.md#agent-guide).
+
+**Claude Skill.** Prefer the skill mechanism over an `AGENTS.md`? Generate
+the user-level skill (~/.claude/skills/clear-thought/SKILL.md) from a source
+checkout — it always matches the shipped tools:
+
+```bash
+cd servers/server-clear-thought
+npm run sync:skill            # writes ~/.claude/skills/clear-thought/SKILL.md
+npm run sync:all              # guide + skill in one go
+```
+
+The generator derives the skill from `AGENTS.template.md` (single source of
+truth) and fails loudly if the toolset table drifts from the wired
+registries. Details: [Guide & skill codegen](./servers/server-clear-thought/README.md#guide--skill-codegen-maintainers).
 
 ## Development
+
+Minimal loop for contributors; the full developer & maintainer documentation
+(build, tests, tool registration conventions, codegen chain, publishing,
+benchmark harness) lives in the
+[server README](./servers/server-clear-thought/README.md#development):
+
+```bash
+corepack enable   # activates the pinned Yarn 4 version
+yarn install
+yarn build        # build all workspaces
+yarn test         # run all tests
+```
 
 Requires Node.js >= 20 (both server packages declare `engines.node` `>=20`).
 Yarn 4 is pinned via `packageManager` in `package.json`.
@@ -32,8 +105,6 @@ Build or test a single server:
 ```bash
 yarn workspace @paschbaer/clear-thought build
 yarn workspace @paschbaer/clear-thought test
-yarn workspace @paschbaer/stochasticthinking build
-yarn workspace @paschbaer/stochasticthinking test
 ```
 
 ## Docker
@@ -47,25 +118,54 @@ docker run -p 3000:3000 paschbaer/clear-thought
 
 The server is then reachable at `http://localhost:3000`.
 
-**Stochastic Thinking** — HTTP MCP server, listens on port `3000` inside the container (health endpoint: `/health`), published on host port `3001`:
+**MCP client configuration (HTTP transport)** — the Streamable HTTP endpoint is
+`http://localhost:3000/mcp`:
 
-```bash
-docker build -t paschbaer/stochasticthinking servers/server-stochasticthinking
-docker run -p 3001:3000 paschbaer/stochasticthinking
+```json
+{
+  "mcpServers": {
+    "clear-thought": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
 ```
 
-The server is then reachable at `http://localhost:3001`.
+> Some clients name the transport differently (`"streamable-http"` instead of
+> `"http"`) or wrap it in a `remoteServers`/`remote` block — the URL stays the
+> same. A prebuilt image is also available at
+> `ghcr.io/paschbaer/clear-thought` (`latest` + release tags), so a plain
+> `docker run ghcr.io/paschbaer/clear-thought` works without building.
 
-The server also supports **stdio** for MCP clients that spawn it directly: use the npm bin `mcp-server-stochasticthinking` (stdio entry `dist/dev.js`, optional `debug` config).
+## Publishing (maintainers)
 
-## Publishing
+Releases are automated: on every release merge (`develop` → `main`) GitHub
+Actions publish npm (`publish-npm.yml`, version-guarded, OIDC provenance),
+containers to ghcr (`publish-containers.yml`), and the Smithery bundle
+(`publish-smithery.yml`). Full setup, one-time secrets and manual publishing:
+[Publishing (maintainers)](./servers/server-clear-thought/README.md#publishing-maintainers).
 
-Both servers are published to the [Smithery registry](https://smithery.ai) as MCPB bundles. Maintainers publish via each server's tooling — see the **Publishing (maintainers)** sections in the [Clear Thought](./servers/server-clear-thought/README.md#publishing-maintainers) and [Stochastic Thinking](./servers/server-stochasticthinking/README.md#publishing-maintainers) READMEs. On release merges (`develop` → `main`), the `publish-smithery.yml` workflow also republishes both automatically (version-guarded; requires the `SMITHERY_API_KEY` repository secret — the `smry_…` token from `npx @smithery/cli auth login`).
+> The `@paschbaer/stochasticthinking` jobs were removed from these workflows in
+> the course of the server merge; the deprecated npm package remains installable
+> but unmaintained.
 
-On every release merge (`develop` → `main`) GitHub Actions publish automatically:
+## Migration from `@paschbaer/stochasticthinking`
 
-- **npmjs.com** — `@paschbaer/clear-thought` + `@paschbaer/stochasticthinking` (`.github/workflows/publish-npm.yml`; only when the package version changed, provenance attested). One-time setup: either configure a **Trusted Publisher** on each npm package (repo `paschbaer/thinking-mcp`, workflow `publish-npm.yml`) or add an `NPM_TOKEN` repository secret.
-- **GitHub Container Registry** — `ghcr.io/paschbaer/clear-thought` + `ghcr.io/paschbaer/stochasticthinking`, tagged `latest` + package version + sha (`.github/workflows/publish-containers.yml`; images run the HTTP server on port 3000). One-time setup: flip the created packages to **public** in their package settings.
+The stochastic algorithms (MDP, MCTS, bandit, Bayesian optimization, HMM) are
+now part of the Clear Thought server — including **per-session bandit `runId`
+continuation** and the new `decision-under-uncertainty` recipe.
+
+1. Replace the server entry in your MCP client config:
+   `@paschbaer/stochasticthinking` → `@paschbaer/clear-thought`.
+2. Tool calls keep working unchanged: the tool name `stochasticalgorithm` and
+   its arguments (`algorithm`, `problem`, `parameters`) are identical.
+3. Optionally use the grouped toolset `stochastic` with the conventional
+   `operation` discriminator:
+   `stochastic { operation: 'mdp', problem, parameters }`.
+
+Parameter reference: [Stochastic Thinking README — Tool Reference](./servers/server-stochasticthinking/README.md#tool-reference)
+(the deprecated package's README remains as the algorithm parameter reference).
 
 ## Benchmark
 

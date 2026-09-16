@@ -33,9 +33,8 @@ runner prints a self-bias warning at startup.
 ## Setup
 
 1. Build first: `npm run build` (the runner spawns `dist/dev.js` via stdio).
-   The sibling `../server-stochasticthinking/dist/dev.js` is attached
-   automatically when it exists, so tasks can also use its stateful
-   algorithm tools (bandit runs continued via `runId`).
+   The server ships all tools — including the stateful stochastic algorithm
+   tools (bandit runs continued via `runId`).
 2. Credentials: either export the env vars, or copy `.env.example` to
    `.env` (server dir or repo root) and fill in your key — the runner
    loads both locations; real environment variables take precedence.
