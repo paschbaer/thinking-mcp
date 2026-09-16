@@ -7,6 +7,10 @@
 
 ## What Works
 
+- **Root-README user-first (2026-09-16, `6ddba51` + `dd2e00d`)**: Quick Start,
+  Toolset-Übersicht, Agent-Guide/Skill-Generator-Doku, Docker-MCP-HTTP-Config
+  (`/mcp`-Endpunkt im Code verifiziert); Dev-/Maintainer-Doku via Verweis auf
+  die Server-README. Einsteigspunkt enthält jetzt alle Nutzer-Infos.
 - **Release 2.0.0 vorbereitet (2026-09-16)**: Server-Merge implementiert und auf
   develop (`1bed87e` + `039c7e3` + Review-Fixes `df0a84a`); Version-Bump auf
   **2.0.0** (package.json + Factory-ServerInfo, branch `feature/release-2-0-0`,
