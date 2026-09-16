@@ -209,6 +209,11 @@
   UPDATE 2026-09-16: Release-Version vom User auf 2.0.0 gesetzt (decisions.md
   Update 2); Merge-Branch-Inhalte sind bereits auf develop — Release-Trigger ist
   jetzt der PR `develop → main`. Version-Bump auf `feature/release-2-0-0`.
+  UPDATE 2026-09-16 (II): Trigger ERREICHT — User hat develop → main gemergt und
+  Publish angestoßen (2.0.0). Action jetzt fällig: 2.0.0 auf npm/ghcr/Smithery
+  verifizieren, dann `npm deprecate @paschbaer/stochasticthinking` (Verweis auf
+  `@paschbaer/clear-thought@>=2.0.0`) + stochastic-Jobs aus `publish-npm.yml`,
+  `publish-containers.yml`, `publish-smithery.yml` entfernen.
 - [MG-2] LOW | `servers/server-stochasticthinking/` bleibt bis auf Weiteres im Repo
   (CI `test.yml` baut beide Workspaces); Ordner später archivieren und aus der
   CI-Matrix nehmen | trigger: nach MG-1 + einer Deprecations-Periode | accepted

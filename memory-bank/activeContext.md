@@ -25,6 +25,17 @@
 
 ## Recent Changes
 
+- 2026-09-16: **Release 2.0.0 pushed + gemerged + published (User-Meldung)** —
+  Branch `feature/release-2-0-0` (4 Commits: `0fd8410` Version-Bump +
+  Pfad-Fixes, `6ddba51` README user-first, `dd2e00d` Docker/HTTP-Config,
+  `92bde28` Memory-Bank) ist auf `develop` (`92bde28`, = origin/develop)
+  und wurde vom User nach `main` gemergt + Publish angestoßen.
+  Lokal nicht verifizierbar: `git fetch` schlägt fehl (Permission denied
+  publickey — Credentials nur im User-Terminal); origin/main-Ref lokal stale
+  (8897280, Stand 0.3.0). **Registry-Check: npm `latest` = 2.0.0 ✓ live.**
+  **MG-1-Trigger ist damit erreicht**: Deprecation
+  `@paschbaer/stochasticthinking` + stochastic-Jobs aus den drei
+  Publish-Pipelines entfernen (Reihenfolge: erst 2.0.0 live bestätigen).
 - 2026-09-16: Root-README user-first umgebaut (Commits `6ddba51` + `dd2e00d`,
   branch `feature/release-2-0-0`): neue Abschnitte Quick Start (npx-Config),
   What you get (7-Toolset-Tabelle, individuelle ≡ Toolset-Aufrufe),
