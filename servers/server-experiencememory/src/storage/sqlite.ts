@@ -414,6 +414,66 @@ export class SqliteAdapter implements StorageAdapter {
       .all(episode_id) as { key: string; value: string }[];
   }
 
+  async getLessonByHash(normalized_hash: string): Promise<import('../domain/lesson-service.js').LessonRecord | undefined> {
+    const row = this.db
+      .prepare('SELECT data FROM lessons WHERE normalized_hash = ?')
+      .get(normalized_hash) as { data: string } | undefined;
+    return row ? JSON.parse(row.data) : undefined;
+  }
+
+  async insertLesson(l: import('../domain/lesson-service.js').LessonRecord): Promise<void> {
+    this.db
+      .prepare(`INSERT INTO lessons (lesson_id, normalized_hash, data) VALUES (?, ?, ?)`)
+      .run(l.lesson_id, l.normalized_hash, JSON.stringify(l));
+  }
+
+  async updateLesson(l: import('../domain/lesson-service.js').LessonRecord): Promise<void> {
+    this.db
+      .prepare(`UPDATE lessons SET data = ? WHERE lesson_id = ?`)
+      .run(JSON.stringify(l), l.lesson_id);
+  }
+
+  async getLesson(lesson_id: string): Promise<import('../domain/lesson-service.js').LessonRecord | undefined> {
+    const row = this.db
+      .prepare('SELECT data FROM lessons WHERE lesson_id = ?')
+      .get(lesson_id) as { data: string } | undefined;
+    return row ? JSON.parse(row.data) : undefined;
+  }
+
+  async searchLessons(query: string): Promise<import('../domain/lesson-service.js').LessonRecord[]> {
+    const rows = this.db
+      .prepare('SELECT data FROM lessons')
+      .all() as { data: string }[];
+    const q = query.toLowerCase();
+    return rows
+      .map((r) => JSON.parse(r.data) as import('../domain/lesson-service.js').LessonRecord)
+      .filter((l) => l.pattern.toLowerCase().includes(q) || l.rule.toLowerCase().includes(q));
+  }
+
+  async listVerifiedEpisodesForSignature(normalized_hash: string): Promise<{ experience_id: string; scope_id: string }[]> {
+    return this.db
+      .prepare(
+        `SELECT e.experience_id, e.scope_id FROM episodes e
+         JOIN signatures s ON s.episode_id = e.experience_id
+         WHERE s.normalized_hash = ? AND e.state IN ('LOCALLY_VERIFIED','REPRODUCED','CROSS_PROJECT_VERIFIED')`
+      )
+      .all(normalized_hash) as { experience_id: string; scope_id: string }[];
+  }
+
+  async listContradictingEpisodesForSignature(normalized_hash: string): Promise<{ experience_id: string; scope_id: string }[]> {
+    return this.db
+      .prepare(
+        `SELECT DISTINCT e.experience_id, e.scope_id FROM episodes e
+         JOIN signatures s ON s.episode_id = e.experience_id
+         JOIN attempts a ON a.episode_id = e.experience_id
+         WHERE s.normalized_hash = ? AND a.classification IN ('harmful','ineffective')
+           AND NOT EXISTS (
+             SELECT 1 FROM attempts a2 WHERE a2.episode_id = e.experience_id AND a2.classification = 'successful'
+           )`
+      )
+      .all(normalized_hash) as { experience_id: string; scope_id: string }[];
+  }
+
   async getEmbedding(episode_id: string): Promise<number[] | undefined> {
     const row = this.db
       .prepare('SELECT vec FROM embeddings WHERE episode_id = ?')
