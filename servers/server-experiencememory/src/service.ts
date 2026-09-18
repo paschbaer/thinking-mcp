@@ -207,7 +207,7 @@ export class EmmsService {
     const guidance = await this.guidanceFor(c);
     const out: ToolResult = { result: { workflow_id, experience_id, revision: 1 }, guidance };
     if (args.idempotency_key) {
-      await this.adapter.putIdempotency({ key: args.idempotency_key, actor_id: workflow.actor_id, tool: 'workflow.start', request_id: randomUUID(), result_json: JSON.stringify(out) });
+      await this.adapter.putIdempotency({ key: args.idempotency_key, actor_id: workflow.actor_id, tool: 'workflow_start', request_id: randomUUID(), result_json: JSON.stringify(out) });
     }
     return out;
   }
@@ -228,7 +228,7 @@ export class EmmsService {
 
   async abandon(workflow_id: string, ctx: ClientContext, expected_revision: number | undefined, reason: string): Promise<ToolResult> {
     return this.mutate(
-      workflow_id, ctx, expected_revision, undefined, 'workflow.abandon',
+      workflow_id, ctx, expected_revision, undefined, 'workflow_abandon',
       { type: 'workflow.abandoned', payload: { reason } },
       async (c) => {
         assertTransition(c.episode!.state, 'UNRESOLVED');
@@ -708,7 +708,7 @@ export class EmmsService {
         missing_information: [],
         warnings: [{ code: 'SEMANTIC_UNAVAILABLE', severity: 'low', message: 'Semantic retrieval arm not active in MVP; signature + full-text only' }],
         allowed_next_tools: ['experience.search', 'experience.record_reuse_feedback'],
-        recommended_next_request: { tool: 'experience.search', reason: 'Narrow or broaden the query', arguments_template: { query: '<collect value>', scope_id: args.scope_id } },
+        recommended_next_request: { tool: 'experience_search', reason: 'Narrow or broaden the query', arguments_template: { query: '<collect value>', scope_id: args.scope_id } },
         alternative_next_requests: [],
         stop_conditions: [],
         human_approval: { required: false },

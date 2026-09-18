@@ -59,21 +59,26 @@ episodes in the MVP (negative knowledge is retained).
 
 | Situation | Use |
 |-----------|-----|
-| Starting work on any non-trivial failure | `workflow.start` → follow the guidance |
-| Same error seen before (known error message/code) | `experience.search` with `failure_signature_hash` if available |
-| Vaguely similar problem, different wording | `experience.search` (semantic arm finds paraphrases) |
-| Capturing what the environment returned | `experience.record_observation` (kinds: `failure_output`, `command_output`, `test_result`, `environment_fact`, `agent_reflection`, …) |
-| Trying a remediation strategy | `experience.record_attempt` → execute via host tools → `experience.complete_attempt` |
-| Forming a diagnosis | `experience.propose_hypothesis` (hypothesis ≠ evidence) |
-| Having a fix candidate | `experience.propose_solution` with validation `checks` (≥ 1 targeting the original failure + regression checks) |
-| Proving the fix works | `artifact.attach` + `validation.record_run` per check |
-| Closing the episode | `experience.finalize` (server assesses; requested outcome may be downgraded) |
-| A "fixed" problem broke again later | `experience.mark_regression` |
-| Memory pointed the wrong way | `experience.record_reuse_feedback` (`misleading`/`harmful` demotes content) |
-| Episode is dead ends only | `workflow.abandon` (evidence retained, state → `UNRESOLVED`) |
-| False/rotten memory found | `experience.invalidate` (audited, privileged) |
+| Starting work on any non-trivial failure | `workflow_start` → follow the guidance |
+| Same error seen before (known error message/code) | `experience_search` with `failure_signature_hash` if available |
+| Vaguely similar problem, different wording | `experience_search` (semantic arm finds paraphrases) |
+| Capturing what the environment returned | `experience_record_observation` (kinds: `failure_output`, `command_output`, `test_result`, `environment_fact`, `agent_reflection`, …) |
+| Trying a remediation strategy | `experience_record_attempt` → execute via host tools → `experience_complete_attempt` |
+| Forming a diagnosis | `experience_propose_hypothesis` (hypothesis ≠ evidence) |
+| Having a fix candidate | `experience_propose_solution` with validation `checks` (≥ 1 targeting the original failure + regression checks) |
+| Proving the fix works | `artifact_attach` + `validation_record_run` per check |
+| Closing the episode | `experience_finalize` (server assesses; requested outcome may be downgraded) |
+| A "fixed" problem broke again later | `experience_mark_regression` |
+| Memory pointed the wrong way | `experience_record_reuse_feedback` (`misleading`/`harmful` demotes content) |
+| Episode is dead ends only | `workflow_abandon` (evidence retained, state → `UNRESOLVED`) |
+| False/rotten memory found | `experience_invalidate` (audited, privileged) |
 
 ## Tool Reference
+
+**Naming:** tool names use `snake_case` with underscore family prefixes
+(`workflow_*`, `experience_*`, `validation_*`, `artifact_*`) — VS Code and other
+MCP clients only accept `[a-z0-9_-]` in tool names, so the dotted spec names
+(`workflow.start`, …) are mapped 1:1 at registration.
 
 All mutating tools accept the common fields `workflow_id`,
 `expected_revision` (optimistic concurrency), `idempotency_key` (replay
@@ -83,41 +88,41 @@ a `guidance` envelope.
 
 ### Workflow tools
 
-- **`workflow.start`** — creates workflow + episode (state `DRAFT`). Inputs:
+- **`workflow_start`** — creates workflow + episode (state `DRAFT`). Inputs:
   `goal`, `scope_id`, optional `scope_fingerprint` (recognizes the same repo
   under a different name), `problem_summary`, `idempotency_key`.
-- **`workflow.status`** — current state, revision, missing information, recent
+- **`workflow_status`** — current state, revision, missing information, recent
   transitions, guidance.
-- **`workflow.abandon`** — finalizes `UNRESOLVED`; all captured evidence is
+- **`workflow_abandon`** — finalizes `UNRESOLVED`; all captured evidence is
   retained; audited.
 
 ### Capture tools
 
-- **`experience.record_observation`** — `kind` + `content` (+ `exit_code`,
+- **`experience_record_observation`** — `kind` + `content` (+ `exit_code`,
   optional `evidence_artifact_id`). `failure_output` content is normalized
   (timestamps/UUIDs/home paths masked, exit code extracted) into a signature
   hash used by retrieval; `environment_fact` content should be a JSON object
   (e.g. `{"os":"linux","node":"20"}`) — it populates the applicability
   dimensions used by ranking.
-- **`experience.record_attempt`** — the intended strategy (`intent`,
+- **`experience_record_attempt`** — the intended strategy (`intent`,
   `risk_classification`, `rationale`) recorded before execution.
-- **`experience.complete_attempt`** — the actual `outcome` +
+- **`experience_complete_attempt`** — the actual `outcome` +
   `classification` (`successful`, `harmful`, `ineffective`, …) recorded after.
   Intent and fact are kept distinct by design.
-- **`experience.propose_hypothesis`** — a root-cause guess with evidence
+- **`experience_propose_hypothesis`** — a root-cause guess with evidence
   references; status can later be supported/rejected/superseded.
 
 ### Solution & validation tools
 
-- **`experience.propose_solution`** — `strategy`, `mechanism`,
+- **`experience_propose_solution`** — `strategy`, `mechanism`,
   `prerequisites`, `rollback`, optional `checks` (equivalent to
-  `validation.plan`).
-- **`validation.plan`** — ≥ 1 check with `targets_original_failure: true` plus
+  `validation_plan`).
+- **`validation_plan`** — ≥ 1 check with `targets_original_failure: true` plus
   regression checks; moves the episode to `VALIDATING`.
-- **`validation.record_run`** — one executed check; `evidence_artifact_id` is
+- **`validation_record_run`** — one executed check; `evidence_artifact_id` is
   required when the check declares `evidence_requirement`. When all checks
   have passed runs with evidence, the episode advances to `LOCALLY_VERIFIED`.
-- **`experience.finalize`** — `requested_outcome: verified |
+- **`experience_finalize`** — `requested_outcome: verified |
   partially_verified | unresolved`. The server assesses the evidence: a
   `verified` request without complete evidence yields
   `MISSING_REQUIRED_EVIDENCE` (listing exactly what is missing) and leaves the
@@ -126,7 +131,7 @@ a `guidance` envelope.
 
 ### Evidence tools
 
-- **`artifact.attach`** — base64 content, `kind`, `media_type` (`text/plain`,
+- **`artifact_attach`** — base64 content, `kind`, `media_type` (`text/plain`,
   `application/json`, `text/x-diff`, `application/x-ndjson`), max 1 MiB.
   Content is redacted (findings reported), stored content-addressed
   (SHA-256 as filename), hash-verified on read (`ARTIFACT_HASH_MISMATCH` on
@@ -134,7 +139,7 @@ a `guidance` envelope.
 
 ### Retrieval & feedback tools
 
-- **`experience.search`** — `query`, `scope_id`, optional
+- **`experience_search`** — `query`, `scope_id`, optional
   `failure_signature_hash`, `environment` (dimensions to compare), `limit`
   (1–20, default 5), `include_unverified`/`include_negative`. Results are
   concise cards: relevance, applicability (matches/mismatches/unknowns),
@@ -142,13 +147,13 @@ a `guidance` envelope.
   `recommended_use` (`applicable` vs `reference_only`).
   `retrieval_notes.semantic_available` reports whether the embedding arm is
   active.
-- **`experience.record_reuse_feedback`** — verdict `applicable | useful |
+- **`experience_record_reuse_feedback`** — verdict `applicable | useful |
   misleading | harmful`; `harmful` visibly demotes the episode in future
   rankings.
-- **`experience.mark_regression`** — a previously verified solution failed;
+- **`experience_mark_regression`** — a previously verified solution failed;
   immediately demotes it, flags a contradiction warning, links the failing
   episode.
-- **`experience.invalidate`** — privileged; removes from default search,
+- **`experience_invalidate`** — privileged; removes from default search,
   keeps everything auditable.
 
 ## Usage
@@ -158,7 +163,7 @@ a `guidance` envelope.
 1. **Start** — always begin with a search, not a capture:
 
 ```json
-{ "tool": "experience.search", "arguments": {
+{ "tool": "experience_search", "arguments": {
   "query": "ERESOLVE peer dependency conflict",
   "scope_id": "my-repo",
   "environment": { "os": "linux", "node": "20" }
@@ -171,7 +176,7 @@ If a verified, applicable episode comes back: use its solution, skip the
 2. **Capture** — if nothing (or only `reference_only`) comes back:
 
 ```json
-{ "tool": "workflow.start", "arguments": {
+{ "tool": "workflow_start", "arguments": {
   "goal": "clean install exits 0",
   "scope_id": "my-repo",
   "problem_summary": "npm ERR code ERESOLVE",

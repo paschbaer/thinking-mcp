@@ -142,7 +142,7 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
   moduleDeps = deps;
   const { service } = deps;
 
-  registerTool(server, 'workflow.start', 'Start a durable workflow and create an experience episode', {
+  registerTool(server, 'workflow_start', 'Start a durable workflow and create an experience episode', {
     goal: z.string().min(1),
     scope_id: z.string().min(1),
     scope_fingerprint: z.string().optional(),
@@ -151,18 +151,18 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     client_context: ClientContextSchema,
   }, async (a) => service.startWorkflow(a as never));
 
-  registerTool(server, 'workflow.status', 'Current workflow state, missing information and guidance', {
+  registerTool(server, 'workflow_status', 'Current workflow state, missing information and guidance', {
     workflow_id: z.string().min(1),
     client_context: ClientContextSchema,
   }, async (a) => service.status(a.workflow_id as string, toClientContext(a)));
 
-  registerTool(server, 'workflow.abandon', 'Abandon an incomplete workflow; evidence is retained', {
+  registerTool(server, 'workflow_abandon', 'Abandon an incomplete workflow; evidence is retained', {
     ...CommonMutationSchema,
     reason: z.string().min(1),
   }, async (a) =>
     service.abandon(a.workflow_id as string, toClientContext(a), a.expected_revision as number | undefined, a.reason as string));
 
-  registerTool(server, 'experience.search', 'Hybrid retrieval: exact signature, normalized hash, full-text, version filter', {
+  registerTool(server, 'experience_search', 'Hybrid retrieval: exact signature, normalized hash, full-text, version filter', {
     query: z.string().min(1),
     scope_id: z.string().min(1),
     failure_signature_hash: z.string().optional(),
@@ -170,7 +170,7 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     environment: z.record(z.string()).optional(),
   }, async (a) => service.search(a as never));
 
-  registerTool(server, 'experience.record_observation', 'Record a structured observation with provenance', {
+  registerTool(server, 'experience_record_observation', 'Record a structured observation with provenance', {
     ...CommonMutationSchema,
     kind: ObservationKindEnum,
     content: z.string().min(1),
@@ -178,14 +178,14 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     evidence_artifact_id: z.string().optional(),
   }, async (a) => service.recordObservation(a as never));
 
-  registerTool(server, 'experience.record_attempt', 'Record an intended strategy before execution', {
+  registerTool(server, 'experience_record_attempt', 'Record an intended strategy before execution', {
     ...CommonMutationSchema,
     intent: z.string().min(1),
     risk_classification: z.string().optional(),
     rationale: z.string().optional(),
   }, async (a) => service.recordAttempt(a as never));
 
-  registerTool(server, 'experience.complete_attempt', 'Record the actual outcome of an attempt', {
+  registerTool(server, 'experience_complete_attempt', 'Record the actual outcome of an attempt', {
     ...CommonMutationSchema,
     attempt_id: z.string().min(1),
     outcome: z.string().min(1),
@@ -193,13 +193,13 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     side_effects: z.array(z.string()).optional(),
   }, async (a) => service.completeAttempt(a as never));
 
-  registerTool(server, 'experience.propose_hypothesis', 'Propose a root-cause hypothesis with evidence references', {
+  registerTool(server, 'experience_propose_hypothesis', 'Propose a root-cause hypothesis with evidence references', {
     ...CommonMutationSchema,
     statement: z.string().min(1),
     evidence_refs: z.array(z.string()).optional(),
   }, async (a) => service.proposeHypothesis(a as never));
 
-  registerTool(server, 'experience.propose_solution', 'Propose a candidate solution with coupled validation checks', {
+  registerTool(server, 'experience_propose_solution', 'Propose a candidate solution with coupled validation checks', {
     ...CommonMutationSchema,
     strategy: z.string().min(1),
     mechanism: z.string().min(1),
@@ -208,12 +208,12 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     checks: z.array(CheckSchema).optional(),
   }, async (a) => service.proposeSolution(a as never));
 
-  registerTool(server, 'validation.plan', 'Define acceptance-criteria-linked validation checks', {
+  registerTool(server, 'validation_plan', 'Define acceptance-criteria-linked validation checks', {
     ...CommonMutationSchema,
     checks: z.array(CheckSchema).min(1),
   }, async (a) => service.planValidation(a as never));
 
-  registerTool(server, 'validation.record_run', 'Record one validation execution with evidence', {
+  registerTool(server, 'validation_record_run', 'Record one validation execution with evidence', {
     ...CommonMutationSchema,
     check_index: z.number().int().min(0),
     status: z.enum(['passed', 'failed']),
@@ -221,19 +221,19 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     evidence_artifact_id: z.string().optional(),
   }, async (a) => service.recordValidationRun(a as never));
 
-  registerTool(server, 'artifact.attach', 'Attach a redacted, content-addressed evidence artifact', {
+  registerTool(server, 'artifact_attach', 'Attach a redacted, content-addressed evidence artifact', {
     ...CommonMutationSchema,
     content_base64: z.string().min(1),
     kind: z.string().min(1),
     media_type: z.enum(['text/plain', 'application/json', 'text/x-diff', 'application/x-ndjson']),
   }, async (a) => service.attachArtifact(a as never));
 
-  registerTool(server, 'experience.finalize', 'Attempt a terminal transition; evidence is assessed server-side', {
+  registerTool(server, 'experience_finalize', 'Attempt a terminal transition; evidence is assessed server-side', {
     ...CommonMutationSchema,
     requested_outcome: z.enum(['verified', 'partially_verified', 'unresolved']),
   }, async (a) => service.finalize(a as never));
 
-  registerTool(server, 'experience.record_reuse_feedback', 'Report whether retrieved experience was applicable/useful/misleading/harmful', {
+  registerTool(server, 'experience_record_reuse_feedback', 'Report whether retrieved experience was applicable/useful/misleading/harmful', {
     workflow_id: z.string().min(1),
     experience_id: z.string().min(1),
     verdict: z.enum(['applicable', 'useful', 'misleading', 'harmful']),
@@ -242,13 +242,13 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     client_context: ClientContextSchema,
   }, async (a) => service.recordReuseFeedback(a as never));
 
-  registerTool(server, 'experience.mark_regression', 'Record that a previously verified solution regressed', {
+  registerTool(server, 'experience_mark_regression', 'Record that a previously verified solution regressed', {
     ...CommonMutationSchema,
     failed_episode_id: z.string().min(1),
     reason: z.string().min(1),
   }, async (a) => service.recordRegression(a as never));
 
-  registerTool(server, 'experience.invalidate', 'Privileged: invalidate an episode while preserving history (audited)', {
+  registerTool(server, 'experience_invalidate', 'Privileged: invalidate an episode while preserving history (audited)', {
     ...CommonMutationSchema,
     target_episode_id: z.string().min(1),
     reason: z.string().min(1),

@@ -47,7 +47,7 @@ describe('GuidanceEnvelope contract (FR-010..013, D4)', () => {
 
   it('prefers evidence collection over speculative diagnosis (invariant 7)', () => {
     const env = buildGuidance({ ...baseInput, hasFailureObservation: false, workflow: { ...wf, state: 'OBSERVED' } });
-    expect(env.recommended_next_request.tool).toBe('experience.record_observation');
+    expect(env.recommended_next_request.tool).toBe('experience_record_observation');
     expect(env.missing_information.some((m) => m.field === 'failure.exact_output')).toBe(true);
   });
 
