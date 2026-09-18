@@ -12,21 +12,21 @@ import {
 import { stateRequirements } from '../domain/state-machine.js';
 
 const ALLOWED_BY_STATE: Record<EpisodeState, string[]> = {
-  DRAFT: ['experience.record_observation', 'workflow.abandon'],
-  OBSERVED: ['experience.record_observation', 'experience.record_attempt', 'experience.propose_hypothesis', 'workflow.abandon'],
-  DIAGNOSING: ['experience.record_observation', 'experience.record_attempt', 'experience.propose_hypothesis', 'experience.propose_solution'],
-  SOLUTION_PROPOSED: ['validation.plan', 'experience.record_observation', 'experience.record_attempt'],
-  VALIDATING: ['validation.record_run', 'validation.plan', 'experience.record_observation'],
-  LOCALLY_VERIFIED: ['experience.finalize', 'experience.search', 'experience.record_reuse_feedback'],
-  REPRODUCED: ['experience.finalize', 'experience.search', 'experience.record_reuse_feedback'],
-  CROSS_PROJECT_VERIFIED: ['experience.finalize', 'experience.search', 'experience.record_reuse_feedback'],
-  UNRESOLVED: ['experience.search', 'experience.record_reuse_feedback'],
-  PARTIALLY_VERIFIED: ['experience.search', 'experience.record_reuse_feedback'],
-  NEEDS_REVIEW: ['experience.search'],
-  CONTRADICTED: ['experience.search', 'experience.record_reuse_feedback'],
-  INVALIDATED: ['experience.search'],
-  DEPRECATED: ['experience.search'],
-  SUPERSEDED: ['experience.search'],
+  DRAFT: ['experience_record_observation', 'workflow_abandon'],
+  OBSERVED: ['experience_record_observation', 'experience_record_attempt', 'experience_propose_hypothesis', 'workflow_abandon'],
+  DIAGNOSING: ['experience_record_observation', 'experience_record_attempt', 'experience_propose_hypothesis', 'experience_propose_solution'],
+  SOLUTION_PROPOSED: ['validation_plan', 'experience_record_observation', 'experience_record_attempt'],
+  VALIDATING: ['validation_record_run', 'validation_plan', 'experience_record_observation'],
+  LOCALLY_VERIFIED: ['experience_finalize', 'experience_search', 'experience_record_reuse_feedback'],
+  REPRODUCED: ['experience_finalize', 'experience_search', 'experience_record_reuse_feedback'],
+  CROSS_PROJECT_VERIFIED: ['experience_finalize', 'experience_search', 'experience_record_reuse_feedback'],
+  UNRESOLVED: ['experience_search', 'experience_record_reuse_feedback'],
+  PARTIALLY_VERIFIED: ['experience_search', 'experience_record_reuse_feedback'],
+  NEEDS_REVIEW: ['experience_search'],
+  CONTRADICTED: ['experience_search', 'experience_record_reuse_feedback'],
+  INVALIDATED: ['experience_search'],
+  DEPRECATED: ['experience_search'],
+  SUPERSEDED: ['experience_search'],
 };
 
 export interface GuidanceInput {
@@ -80,16 +80,16 @@ export function buildGuidance(input: GuidanceInput): GuidanceEnvelope {
   };
   if (missing.some((m) => m.field === 'failure.exact_output')) {
     rec = {
-      tool: 'experience.record_observation',
+      tool: 'experience_record_observation',
       reason: 'Preserve the exact failure before attempting remediation',
       arguments_template: {
         ...template,
         observation: { kind: 'failure_output', content: '<collect value>', exit_code: '<collect value>' },
       },
     };
-  } else if (missing.some((m) => m.field === 'environment.facts') && allowed.includes('experience.record_observation')) {
+  } else if (missing.some((m) => m.field === 'environment.facts') && allowed.includes('experience_record_observation')) {
     rec = {
-      tool: 'experience.record_observation',
+      tool: 'experience_record_observation',
       reason: 'Environment facts are required for applicability ranking',
       arguments_template: {
         ...template,
@@ -100,32 +100,32 @@ export function buildGuidance(input: GuidanceInput): GuidanceEnvelope {
     switch (state) {
       case 'DRAFT':
         rec = {
-          tool: 'experience.record_observation',
+          tool: 'experience_record_observation',
           reason: 'Start by preserving the failure and environment facts',
           arguments_template: { ...template, observation: { kind: 'failure_output', content: '<collect value>' } },
         };
         break;
       case 'OBSERVED':
-        rec = { tool: 'experience.record_attempt', reason: 'Record the intended strategy before executing it', arguments_template: { ...template, intent: '<collect value>' } };
+        rec = { tool: 'experience_record_attempt', reason: 'Record the intended strategy before executing it', arguments_template: { ...template, intent: '<collect value>' } };
         break;
       case 'DIAGNOSING':
-        rec = { tool: 'experience.propose_solution', reason: 'A solution with mechanism and validation plan is needed before validating', arguments_template: { ...template, strategy: '<collect value>', mechanism: '<collect value>' } };
+        rec = { tool: 'experience_propose_solution', reason: 'A solution with mechanism and validation plan is needed before validating', arguments_template: { ...template, strategy: '<collect value>', mechanism: '<collect value>' } };
         break;
       case 'SOLUTION_PROPOSED':
-        rec = { tool: 'validation.plan', reason: 'Define checks tied to the original acceptance criteria', arguments_template: { ...template, checks: [{ criterion: '<collect value>', test_type: '<collect value>', expected_result: '<collect value>', regression_coverage: false, timeout_s: 300, evidence_requirement: true, targets_original_failure: true }] } };
+        rec = { tool: 'validation_plan', reason: 'Define checks tied to the original acceptance criteria', arguments_template: { ...template, checks: [{ criterion: '<collect value>', test_type: '<collect value>', expected_result: '<collect value>', regression_coverage: false, timeout_s: 300, evidence_requirement: true, targets_original_failure: true }] } };
         break;
       case 'VALIDATING':
         rec = {
-          tool: 'validation.record_run',
+          tool: 'validation_record_run',
           reason: input.hasVerifiedOriginal ? 'Complete the required regression checks with objective result data' : 'Complete the original-failure check with objective result data',
           arguments_template: { ...template, check_index: '<collect value>', status: '<collect value>', evidence_artifact_id: '<attach artifact>' },
         };
         break;
       case 'LOCALLY_VERIFIED':
-        rec = { tool: 'experience.finalize', reason: 'Evidence satisfies the validation plan; finalize the episode', arguments_template: { ...template, requested_outcome: 'verified' } };
+        rec = { tool: 'experience_finalize', reason: 'Evidence satisfies the validation plan; finalize the episode', arguments_template: { ...template, requested_outcome: 'verified' } };
         break;
       default:
-        rec = { tool: 'experience.search', reason: 'No further capture actions are available in this state', arguments_template: { query: '<collect value>', scope_id: workflow.scope_id } };
+        rec = { tool: 'experience_search', reason: 'No further capture actions are available in this state', arguments_template: { query: '<collect value>', scope_id: workflow.scope_id } };
     }
   }
 

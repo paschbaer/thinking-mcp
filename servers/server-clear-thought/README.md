@@ -524,6 +524,33 @@ Run the container:
 docker run -it -p 3000:3000 paschbaer/clear-thought
 ```
 
+### MCP client configuration (Docker, HTTP transport)
+
+When the container runs, point your MCP client at the exposed HTTP endpoint
+instead of a stdio command — VS Code (`User mcp.json` or workspace
+`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "clearthought": {
+      "url": "http://localhost:3000/mcp",
+      "type": "http",
+      "autoStart": true
+    }
+  }
+}
+```
+
+The repository root also ships a `docker-compose.yml` that runs both MCP
+servers (clear-thought on :3000, experience-memory on :3002) together:
+
+```bash
+docker compose up -d --build   # from the repository root
+```
+
+Verify: `curl http://localhost:3000/health`
+
 ## Development
 
 1. Clone the repository

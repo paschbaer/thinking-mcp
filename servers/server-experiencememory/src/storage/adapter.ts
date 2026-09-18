@@ -80,4 +80,6 @@ export interface StorageAdapter {
   putSignature(episode_id: string, normalized_hash: string, exact_tokens: string, kind: string, exit_code?: number): Promise<void>;
   putEnvironment(episode_id: string, dims: { key: string; value: string }[]): Promise<void>;
   getEnvironment(episode_id: string): Promise<{ key: string; value: string }[]>;
+  getEmbedding(episode_id: string): Promise<number[] | undefined>;
+  putEmbedding(episode_id: string, vec: number[]): Promise<void>;
 }
