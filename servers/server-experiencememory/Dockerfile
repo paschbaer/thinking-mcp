@@ -11,7 +11,7 @@ COPY package*.json ./
 
 # Install dependencies (skip prepare script; ignore-scripts because
 # better-sqlite3 is rebuilt explicitly below with platform-correct binaries)
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts --no-audit --no-fund
 
 # Build native module for the container platform, then the project
 RUN npm rebuild better-sqlite3
@@ -38,6 +38,10 @@ RUN chmod +x dist/server.js
 # Persistent volume for SQLite store + evidence artifacts
 RUN mkdir -p /usr/src/app/data && chown node:node /usr/src/app/data
 VOLUME ["/usr/src/app/data"]
+
+# Default store inside the volume so plain `docker run` persists too
+# (compose sets the same path explicitly)
+ENV EMMS_STORAGE_PATH=/usr/src/app/data/emms-store.db
 
 # Expose port
 EXPOSE 3002
