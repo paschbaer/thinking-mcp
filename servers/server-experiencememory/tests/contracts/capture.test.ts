@@ -127,6 +127,28 @@ describe('Capture contract (FR-001..009, FR-019/028/029/032)', () => {
     expect(stored).not.toContain('AKIAIOSFODNN7EXAMPLE');
   });
 
+  it('tampered artifact between record_run and finalize blocks verification (FR-008a)', async () => {
+    const { wf, rev } = await startEpisode();
+    let r = rev;
+    await service.recordObservation({ workflow_id: wf, kind: 'failure_output', content: 'npm ERR ERESOLVE exited with code 1', exit_code: 1, expected_revision: r, client_context: CTX }); r++;
+    await service.recordObservation({ workflow_id: wf, kind: 'environment_fact', content: '{"os":"linux"}', expected_revision: r, client_context: CTX }); r++;
+    const att = await service.recordAttempt({ workflow_id: wf, intent: 'align peers', expected_revision: r, client_context: CTX }); r++;
+    await service.completeAttempt({ workflow_id: wf, attempt_id: att.result.attempt_id as string, outcome: 'ok', classification: 'successful', expected_revision: r, client_context: CTX }); r++;
+    await service.proposeSolution({ workflow_id: wf, strategy: 'align', mechanism: 'semver', checks: [CHECK, REGRESSION_CHECK], expected_revision: r, client_context: CTX }); r++;
+    const ev = await service.attachArtifact({ workflow_id: wf, content_base64: Buffer.from('original evidence').toString('base64'), kind: 'log', media_type: 'text/plain', expected_revision: r, client_context: CTX }); r++;
+    const evidenceId = ev.result.artifact_id as string;
+    const contentHash = (ev.result.content_hash as string).replace('sha256:', '');
+    await service.recordValidationRun({ workflow_id: wf, check_index: 0, status: 'passed', exit_code: 0, evidence_artifact_id: evidenceId, expected_revision: r, client_context: CTX }); r++;
+    await service.recordValidationRun({ workflow_id: wf, check_index: 1, status: 'passed', exit_code: 0, evidence_artifact_id: evidenceId, expected_revision: r, client_context: CTX }); r++;
+
+    // Tamper: overwrite the content-addressed file after the runs
+    writeFileSync(join(dir, 'artifacts', contentHash + '.bin'), 'tampered content');
+
+    await expect(
+      service.finalize({ workflow_id: wf, requested_outcome: 'verified', expected_revision: r, client_context: CTX })
+    ).rejects.toMatchObject({ code: 'ARTIFACT_HASH_MISMATCH' });
+  });
+
   it('oversized and disallowed artifacts are rejected (FR-031)', async () => {
     const { wf, rev } = await startEpisode();
     await expect(
