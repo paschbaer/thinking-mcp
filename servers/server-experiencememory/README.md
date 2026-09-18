@@ -297,6 +297,66 @@ Notes:
   signature + full-text arms serve retrieval. Mount a cache volume if you
   want the model to survive container recreation.
 
+## Automating lesson capture
+
+The server's own dogfooding showed the core value: recurring bugs (native
+builds, driver quirks, race conditions) persist as searchable episodes and
+surface automatically when a related problem reappears. Three levels of
+automation — from a one-shot script to fully integrated agent behavior:
+
+### Level 1 — Batch seeding (script)
+
+`scripts/seed-lessons.mjs` reads a JSON file of lessons and captures each as a
+complete episode (observation → environment → attempt → outcome → hypothesis
+→ finalize). Idempotent via `idempotency_key = lesson-<slug>`:
+
+```bash
+node scripts/seed-lessons.mjs tests/fixtures/lessons.json
+# re-running never duplicates (verified: second run leaves count at 7)
+```
+
+The seed file (`tests/fixtures/lessons.json`) doubles as the portable,
+reviewable source of truth for your team's traps. Wire it into your workflow:
+after a debugging session, append the new lesson to the JSON and re-run.
+
+### Level 2 — Proactive retrieval via agent instructions
+
+Seeding only helps if the lesson is found again. Add a rule to your agent
+instructions (`copilot-instructions.md` / `AGENTS.md`) that triggers a search
+at task start when the domain matches:
+
+```markdown
+## Experience Memory lookup
+Before touching better-sqlite3, SQLite FTS5, yarn workspaces, or native
+module builds, search prior experience:
+
+experience_search { query: "<the area + problem keywords>",
+                    scope_id: "thinking-mcp-lessons" }
+
+If a PARTIALLY_VERIFIED / LOCALLY_VERIFIED episode matches, follow its
+recorded fix and record reuse feedback afterwards.
+```
+
+This turns passive documentation into an **active lookup**: the trap surfaces
+before the mistake repeats, and `record_reuse_feedback` measures whether the
+memory actually helped (misleading/harmful content is demoted automatically).
+
+### Level 3 — Auto-capture hooks (consolidation phase, planned)
+
+The end state (spec §30.2, automatic capture hooks): the agent runtime feeds
+failed attempts, error signatures, and successful fixes to the server during
+the session — no explicit seeding step at all. Prerequisites: lesson
+consolidation (`lesson.*` tools), promotion thresholds, and capture hooks in
+the agent harness. The current data model already supports this; only the
+tooling is missing.
+
+### Recommendation
+
+Start with Level 1 (batch-seed your team's known traps once), add Level 2 to
+the agent instructions, and treat Level 3 as the consolidation-phase
+deliverable. The `lessons.json` file from Level 1 is the seed corpus for
+Level 3's automatic clustering.
+
 ## Configuration
 
 | Env / config | Default | Meaning |

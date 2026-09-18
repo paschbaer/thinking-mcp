@@ -551,6 +551,22 @@ docker compose up -d --build   # from the repository root
 
 Verify: `curl http://localhost:3000/health`
 
+### Automating experience capture (cross-server)
+
+Recurring traps from building/maintaining this server (native module builds,
+ESM resolution, SDK quirks) are persisted as searchable experience episodes in
+the companion **experience-memory** server (port 3002) — see its README
+section *„Automating lesson capture"* for the three automation levels:
+
+1. **Batch seeding** — `servers/server-experiencememory/scripts/seed-lessons.mjs`
+   with a JSON lesson file (idempotent, reviewable source of truth)
+2. **Proactive retrieval** — agent-instruction rules trigger
+   `experience_search` at task start for known trap domains
+3. **Auto-capture hooks** — planned consolidation phase (spec §30.2)
+
+Until level 3 ships, add level-2 lookup rules to your agent instructions so
+known traps surface *before* the mistake repeats.
+
 ## Development
 
 1. Clone the repository

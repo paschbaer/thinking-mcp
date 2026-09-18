@@ -1,0 +1,44 @@
+[
+  {
+    "slug": "better-sqlite3-native-binding",
+    "observation": "better-sqlite3 fails with 'Could not locate the bindings file' after npm install --ignore-scripts; the native binding is missing. With workspace-root installs the binding lands at the repo root, not the server folder.",
+    "cause": "npm --ignore-scripts skips the node-gyp build; the binding path differs between root and workspace installs.",
+    "fix": "Run `npm rebuild better-sqlite3` after scripted installs; locate the binding at the install root (node_modules at workspace root for this monorepo)."
+  },
+  {
+    "slug": "better-sqlite3-named-params",
+    "observation": "better-sqlite3 throws 'Missing named parameter X' when an INSERT uses named parameters but the spread object contains undefined optional fields.",
+    "cause": "undefined fields are not accepted as NULL by better-sqlite3 named-parameter binding.",
+    "fix": "Map every optional field explicitly with `?? null` before binding; never rely on object spread."
+  },
+  {
+    "slug": "finalize-read-after-write",
+    "observation": "finalize(verified) rejected the validation run that was recorded immediately before it — the assessment read a stale in-memory snapshot taken at mutate() start.",
+    "cause": "The ctx was loaded once before the mutator ran; records written during the same request were invisible to the assessment.",
+    "fix": "Assessments must re-read plan/runs/attempts fresh from the adapter (read-after-write), never trust the request-scoped snapshot."
+  },
+  {
+    "slug": "finalize-assessment-read-only",
+    "observation": "A rejected finalize(verified) had moved the episode to PARTIALLY_VERIFIED; after supplying the missing evidence, finalize could never reach LOCALLY_VERIFIED (invalid transition from the terminal-ish state).",
+    "cause": "The assessment mutated episode state before throwing the evidence error — an irreversible demotion as a side effect of a failed assessment.",
+    "fix": "Assessment is read-only: on MISSING_REQUIRED_EVIDENCE throw without state mutation; the episode stays VALIDATING so evidence completion + re-finalize works."
+  },
+  {
+    "slug": "vitest-esm-ts-extensions",
+    "observation": "vitest failed with 'Failed to load url ../src/x.js' even though the file exists — resolution fails under the vitest/node16 mix for .js specifiers pointing at .ts sources.",
+    "cause": "vitest resolves .js specifiers as JS files; TS sources are not reachable via .js extension in this configuration.",
+    "fix": "Use .ts extensions in test imports (tests are excluded from tsconfig.build, so no emitted-output mismatch)."
+  },
+  {
+    "slug": "fts5-match-injection",
+    "observation": "Full-text search failed with 'fts5: syntax error near \",\"' when user queries contained punctuation.",
+    "cause": "FTS5 MATCH syntax treats punctuation/commas as operators; raw user text must not be passed unfiltered.",
+    "fix": "Sanitize query tokens to [\\w\\s] before MATCH; skip the arm when nothing remains."
+  },
+  {
+    "slug": "sc009-ranking-comparison-premise",
+    "observation": "The SC-009 demotion test compared a flagged episode against a peer with a different signature hash and an incompatible environment — the assertion was meaningless (applicability-first dominates anyway).",
+    "cause": "Ranking comparisons need a controlled setup: same signature hash (so both are true candidates) and a fully compatible peer (so the penalty is the only differentiator).",
+    "fix": "Demotion tests seed >= 2 candidates with identical normalized hashes and compatible env; then assert the flagged one ranks below the clean peer."
+  }
+]
