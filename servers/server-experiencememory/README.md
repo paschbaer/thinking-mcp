@@ -86,6 +86,18 @@ protection), and `client_context` (`scope_id` required; `agent_id`,
 `trace_id` optional). Every response — success or recoverable error — includes
 a `guidance` envelope.
 
+### Setup tool
+
+- **`setup_experience_memory`** — bootstraps the EMMS integration in a target
+  repo (analog to clear-thought's `agents_guide`). Returns ready-to-write
+  content for `AGENTS.md` / `CLAUDE.md` (marker-based idempotent merge —
+  repeat calls replace the previous `emms:lookup-rules` block in place),
+  the capture prompt file, and `.gitignore` lines. Accepts
+  `repo_name` / `repo_lessons_scope`, `custom_triggers` (repo-specific trap
+  domains), and existing file contents to switch into merge mode. The calling
+  agent writes the returned `content` fields to the target files. See
+  *Automating lesson capture → Level 0* for the full bootstrap flow.
+
 ### Workflow tools
 
 - **`workflow_start`** — creates workflow + episode (state `DRAFT`). Inputs:
