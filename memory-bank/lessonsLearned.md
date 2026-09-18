@@ -148,3 +148,12 @@
   einen nur-im-Altinhalt-existing String, dann (mit User-Konsens)
   closeAllEditors bzw. Terminal-Append/Patch; create_file überschreibt keine
   existierenden Dateien. Gefunden bei der Merge-Implementierung.
+
+## 2026-09-18: EMMS-Implementierung
+- **better-sqlite3 native build**: `--ignore-scripts`-Installation laesst die native Bindung fehlen ("Could not locate the bindings file"). Fix: `npm rebuild better-sqlite3`. Bei Workspace-Root-Installs: Bindung liegt am Root, nicht im Server-Ordner.
+- **better-sqlite3 named params**: alle benannten Parameter muessen uebergeben werden (auch `null` fuer optionale Spalten) — `...spread` mit `undefined`-Feldern wirft "Missing named parameter". Immer explizit mappen.
+- **FR-008-Assessment-Reihenfolge**: finalize muss plan/runs/attempts FRISCH aus dem Adapter lesen (read-after-write), nicht den beim mutate geladenen Ctx-Snapshot — sonst fehlt der gerade aufgeschriebene Run.
+- **Assessment read-only**: ein abgelehntes finalize (MISSING_REQUIRED_EVIDENCE) darf den Episode-State NICHT mutieren (kein PARTIALLY_VERIFIED-Zwangsuebergang), sonst kann der Agent nach Nachlegen der Evidenz nie mehr 'verified' erreichen.
+- **vitest + ESM-Imports in Tests**: `.js`-Endungen in Test-Imports resolveen unter vitest/node16-Mix nicht zuverlaessig — in Tests `.ts`-Endungen verwenden (Tests sind von tsconfig.build excluded).
+- **FTS5 MATCH-Injection**: Nutzertext mit Satzzeichen bricht MATCH-Syntax (`syntax error near ","`) — Query-Tokens vor MATCH auf `[\w\s]` sanitizen.
+- **SC-009-Demotion-Test**: Ranking-Demotion braucht >=2 Kandidaten mit GLEICHER Signatur-Hash (sonst kein echter Ranking-Vergleich) und der Peer muss voll kompatibel sein (sonst dominiert Applicability-first ohnehin).

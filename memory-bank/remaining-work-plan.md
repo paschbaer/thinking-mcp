@@ -200,15 +200,20 @@
 
 ## Tracked Follow-ups (appended 2026-09-15, Merge-Implementierung)
 
-- [MG-1] MED | Merge Phase 6 pending: `@paschbaer/stochasticthinking` noch nicht
-  deprecated (npm deprecate + finaler README-Patch-Release) und die stochastic-Jobs
-  stecken noch in `publish-npm.yml`, `publish-containers.yml`, `publish-smithery.yml`
-  | trigger: Release-Merge von `feature/merge-stochastic-into-clear-thought`
-  (Version 1.1.0) | action required: nach dem 1.1.0-Release deprecaten + Jobs
-  entfernen (Reihenfolge fix: erst Release live, dann Deprecation).
+- [MG-1] RESOLVED 2026-09-16 | Merge Phase 6: stochastic-Jobs aus `publish-npm.yml`,
+  `publish-containers.yml`, `publish-smithery.yml` entfernt (Commit `42010d1`,
+  gepusht) + `npm deprecate @paschbaer/stochasticthinking` ausgeführt und per
+  `npm view` verifiziert (deprecated-Meldung live, Verweis auf
+  `@paschbaer/clear-thought@>=2.0.0`, Version 0.1.1 bleibt installierbar).
+  Ursprung: Merge Phase 6 pending …
   UPDATE 2026-09-16: Release-Version vom User auf 2.0.0 gesetzt (decisions.md
   Update 2); Merge-Branch-Inhalte sind bereits auf develop — Release-Trigger ist
   jetzt der PR `develop → main`. Version-Bump auf `feature/release-2-0-0`.
+  UPDATE 2026-09-16 (II): Trigger ERREICHT — User hat develop → main gemergt und
+  Publish angestoßen (2.0.0). Action jetzt fällig: 2.0.0 auf npm/ghcr/Smithery
+  verifizieren, dann `npm deprecate @paschbaer/stochasticthinking` (Verweis auf
+  `@paschbaer/clear-thought@>=2.0.0`) + stochastic-Jobs aus `publish-npm.yml`,
+  `publish-containers.yml`, `publish-smithery.yml` entfernen.
 - [MG-2] LOW | `servers/server-stochasticthinking/` bleibt bis auf Weiteres im Repo
   (CI `test.yml` baut beide Workspaces); Ordner später archivieren und aus der
   CI-Matrix nehmen | trigger: nach MG-1 + einer Deprecations-Periode | accepted
@@ -227,3 +232,13 @@
   Archivierung greift der existsSync-Fallback still.
   UPDATE 2026-09-16: RESOLVED — attach block + Doku-Stellen entfernt
   (Review-Fix F3, branch feature/skill-generator-docs); Eintrag obsolet.
+
+## EMMS Spec Follow-ups (Review 2026-09-17, spec 001-experience-memory-server)
+Trigger: /speckit-plan fuer 001-experience-memory-server
+1. Actor/Identity-Modell definieren (was ist ein Actor im Local-MVP?) | required
+2. Revision-Semantik + Conflict-Response festlegen (FR-029 konkretisieren) | required
+3. Eval-Korpus fuer SC-001/SC-006/SC-009 definieren (Mindestumfang, golden paths) | required
+4. Guidance-Objekt-Schema skizzieren (FR-010/011 vor Umsetzung) | required
+5. Messbare Schwellen fuer FR-021 (Duplikat-/Kontradiktionserkennung) festlegen | required
+6. Fabricated-Evidence-Mitigation als Akzeptanzkriterium verengen (Attestierung MVP: nur Artefakt-Hash) | accepted observation, rationale: vollstaendige Attestierung ist Team-Phase
+7. Export-Format fuer Episoden (portable, zukunftsfaehig) | accepted observation, rationale: Nice-to-have, nicht MVP-blockierend

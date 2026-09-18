@@ -17,3 +17,4 @@ dist/
 .yarn/install-state.gz
 servers/*/evals/results/
 .chats/*
+package-lock.json
