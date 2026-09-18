@@ -244,9 +244,9 @@ export class PostgresAdapter implements StorageAdapter {
   }
   async saveEpisode(ep: Episode): Promise<void> {
     await this.client!.query(
-      `UPDATE episodes SET state=$1, last_verified_at=$2, goal_summary=$3, acceptance_criteria=$4, problem_summary=$5
+      `UPDATE episodes SET state=$1, last_verified_at=$2, goal_summary=$3, acceptance_criteria=$4, problem_summary=$5, visibility=$8
        WHERE experience_id=$6 AND scope_id=$7`,
-      [ep.state, ep.last_verified_at ?? null, ep.goal_summary, JSON.stringify(ep.acceptance_criteria), ep.problem_summary, ep.experience_id, ep.scope_id]
+      [ep.state, ep.last_verified_at ?? null, ep.goal_summary, JSON.stringify(ep.acceptance_criteria), ep.problem_summary, ep.experience_id, ep.scope_id, ep.visibility]
     );
   }
 
