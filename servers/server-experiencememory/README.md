@@ -72,6 +72,7 @@ episodes in the MVP (negative knowledge is retained).
 | Memory pointed the wrong way | `experience_record_reuse_feedback` (`misleading`/`harmful` demotes content) |
 | Episode is dead ends only | `workflow_abandon` (evidence retained, state → `UNRESOLVED`) |
 | False/rotten memory found | `experience_invalidate` (audited, privileged) |
+| Sharing lessons with other projects | `lesson_publish` (widen to public) / `lesson_unpublish` (narrow back) |
 
 ## Tool Reference
 
@@ -167,6 +168,14 @@ a `guidance` envelope.
   episode.
 - **`experience_invalidate`** — privileged; removes from default search,
   keeps everything auditable.
+
+### Lesson visibility tools
+
+- **`lesson_publish`** — widens a lesson episode's visibility from
+  `repository` to `public` (audited). Public episodes are included in search
+  results regardless of the caller's scope — cross-project sharing for
+  reusable lessons.
+- **`lesson_unpublish`** — narrows visibility back to `repository`-only.
 
 ## Usage
 
