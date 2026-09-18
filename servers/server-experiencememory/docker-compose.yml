@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  experience-memory:
+    build: .
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      # Store + artifacts live on the volume so episodes survive rebuilds
+      - EMMS_STORAGE_PATH=/usr/src/app/data/emms-store.db
+    volumes:
+      - emms-data:/usr/src/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  emms-data:
