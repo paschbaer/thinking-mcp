@@ -433,3 +433,33 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 
 
 
+
+## Experience Memory Lookup (EMMS) — Level 2 proactive retrieval
+
+Before working in a known trap domain, search prior experience via the
+local **experience-memory** server (stdio, `servers/server-experiencememory`):
+
+Trigger domains → search query keywords:
+
+| Trigger (touching…) | Query keywords |
+|---|---|
+| better-sqlite3 (install, rebuild, queries) | `better-sqlite3 bindings named params` |
+| SQLite FTS5 / full-text search | `fts5 match injection sanitize` |
+| vitest / ESM test imports | `vitest esm ts extensions` |
+| finalize / assessment / evidence logic | `finalize assessment read-only read-after-write` |
+| ranking / demotion / dedupe tests | `sc009 ranking comparison jaccard` |
+| semantic embeddings / transformers | `minilm embeddings offline` |
+| Docker / native module builds | `docker native rebuild bindings` |
+
+Call (stdio via VS Code MCP server `experience-memory`, or a small node script
+with `StdioClientTransport`):
+
+```
+experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
+```
+
+- A hit with tier `PARTIALLY_VERIFIED` / `LOCALLY_VERIFIED`: follow the
+  recorded fix (`known_bad_attempts` = paths that already failed) and record
+  `experience_record_reuse_feedback` afterwards (verdict `useful`/`harmful`).
+- No hit: proceed normally — and if the session uncovers a new recurring trap,
+  seed it via `servers/server-experiencememory/scripts/seed-lessons.mjs`.

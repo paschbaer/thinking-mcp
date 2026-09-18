@@ -42,3 +42,21 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## Experience Memory Lookup (EMMS) — Level 2 proactive retrieval
+
+Before working in a known trap domain, search prior experience via the
+local **experience-memory** server (stdio, `servers/server-experiencememory`):
+
+| Trigger (touching…) | Query keywords |
+|---|---|
+| better-sqlite3 (install, rebuild, queries) | `better-sqlite3 bindings named params` |
+| SQLite FTS5 / full-text search | `fts5 match injection sanitize` |
+| vitest / ESM test imports | `vitest esm ts extensions` |
+| finalize / assessment / evidence logic | `finalize assessment read-only read-after-write` |
+| ranking / demotion / dedupe tests | `sc009 ranking comparison jaccard` |
+
+Call: `experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }`
+— on a `PARTIALLY_VERIFIED`/`LOCALLY_VERIFIED` hit, follow the recorded fix
+and record `experience_record_reuse_feedback` afterwards. New recurring trap?
+Seed via `servers/server-experiencememory/scripts/seed-lessons.mjs`.
