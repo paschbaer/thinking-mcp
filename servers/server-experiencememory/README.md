@@ -301,8 +301,27 @@ Notes:
 
 The server's own dogfooding showed the core value: recurring bugs (native
 builds, driver quirks, race conditions) persist as searchable episodes and
-surface automatically when a related problem reappears. Three levels of
-automation — from a one-shot script to fully integrated agent behavior:
+surface automatically when a related problem reappears. Four levels of
+automation — from one-command setup to fully integrated agent behavior:
+
+### Level 0 — One-command setup (`/setup-experience-memory`)
+
+Bootstraps the full integration in any repo. Invoke the prompt file
+`.github/prompts/setup-experience-memory.prompt.md` (VS Code:
+`/setup-experience-memory`) and the agent performs:
+
+1. Verify the EMMS server build (`dist/dev.js`)
+2. Create the capture prompt file (`.github/prompts/capture-lessons.prompt.md`)
+3. Append the Level-2 lookup rules to `AGENTS.md` / `CLAUDE.md`
+   (idempotent — skips if the section exists; trigger table adaptable to
+   the repo's trap domains)
+4. Gitignore runtime data (`emms-data/`, store, artifacts)
+5. Optionally seed initial lessons (from a JSON file or convertible
+   `lessonsLearned.md` entries)
+6. Report everything created/appended/seeded
+
+After the setup runs, `/capture-lessons` is available for session-end
+capture and the Level-2 lookup rules are live for task-start retrieval.
 
 ### Level 1 — Batch seeding (script)
 
@@ -319,7 +338,7 @@ The seed file (`tests/fixtures/lessons.json`) doubles as the portable,
 reviewable source of truth for your team's traps. Wire it into your workflow:
 after a debugging session, append the new lesson to the JSON and re-run.
 
-### Level 1b — Session-end capture hook (prompt file)
+### Level 1b — Session-end capture hook (prompt file, via `/capture-lessons`)
 
 A reusable VS Code prompt file triggers capture at session end:
 `.github/prompts/capture-lessons.prompt.md`. Invoke it with
