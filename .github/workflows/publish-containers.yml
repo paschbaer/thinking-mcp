@@ -1,9 +1,10 @@
 name: Publish Containers
 
-# Release-Pfad: develop → main merge (oder Push auf main) baut beide
-# Server-Images und pushed sie nach ghcr.io:
+# Release-Pfad: develop → main merge (oder Push auf main) baut das
+# Server-Image und pusht es nach ghcr.io:
 #   ghcr.io/paschbaer/clear-thought:{latest,VERSION,sha-*}
-#   ghcr.io/paschbaer/stochasticthinking:{latest,VERSION,sha-*}
+# (Der frühere stochasticthinking-Job wurde im Zuge des Server-Merges
+# entfernt; das letzte Image bleibt auf ghcr, wird aber nicht mehr gepusht.)
 #
 # Auth läuft automatisch über GITHUB_TOKEN (permissions.packages: write).
 # Einmalig manuell: Packages unter ghcr.io auf public stellen
@@ -29,8 +30,6 @@ jobs:
         include:
           - server: server-clear-thought
             image: clear-thought
-          - server: server-stochasticthinking
-            image: stochasticthinking
     steps:
       - uses: actions/checkout@v5
 
