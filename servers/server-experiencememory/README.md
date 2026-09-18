@@ -319,6 +319,23 @@ The seed file (`tests/fixtures/lessons.json`) doubles as the portable,
 reviewable source of truth for your team's traps. Wire it into your workflow:
 after a debugging session, append the new lesson to the JSON and re-run.
 
+### Level 1b — Session-end capture hook (prompt file)
+
+A reusable VS Code prompt file triggers capture at session end:
+`.github/prompts/capture-lessons.prompt.md`. Invoke it with
+`/capture-lessons` — the agent analyzes the session, writes the lessons JSON,
+runs the seeder, verifies the round-trip via `experience_search`, and appends
+the constitution-required `memory-bank/lessonsLearned.md` entry. Semi-automatic
+(one deliberate invocation), but reliable because the prompt encodes the
+whole procedure.
+
+Two further hook variants (not implemented — trade-offs below):
+
+| Variant | Mechanism | Trade-off |
+|---------|-----------|-----------|
+| Git post-commit hook | Captures on every commit from the commit message + diff | Automatic, but wrong trigger point (commit ≠ session end) and no chat context |
+| VS Code extension with session-end event | Full hook: fires when the agent session closes | True automation, but requires building/maintaining an extension |
+
 ### Level 2 — Proactive retrieval via agent instructions
 
 Seeding only helps if the lesson is found again. Add a rule to your agent
