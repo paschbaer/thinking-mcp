@@ -253,4 +253,14 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     target_episode_id: z.string().min(1),
     reason: z.string().min(1),
   }, async (a) => service.invalidate(a as never));
+
+  registerTool(server, 'lesson_publish', 'Widen a lesson episode visibility to public — discoverable by all scopes (cross-project sharing)', {
+    ...CommonMutationSchema,
+    experience_id: z.string().min(1),
+  }, async (a) => service.lesson_publish(a as never));
+
+  registerTool(server, 'lesson_unpublish', 'Narrow a lesson episode visibility back to repository-only', {
+    ...CommonMutationSchema,
+    experience_id: z.string().min(1),
+  }, async (a) => service.lesson_unpublish(a as never));
 }
