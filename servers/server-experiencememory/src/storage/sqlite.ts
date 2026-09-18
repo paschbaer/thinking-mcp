@@ -377,11 +377,14 @@ export class SqliteAdapter implements StorageAdapter {
   }
 
   async listInScope(scope_id: string): Promise<SearchRow[]> {
+    // LEFT JOIN: episodes without failure signatures (e.g. lesson/consolidation
+    // episodes) must also be discoverable via search — signature-less rows get
+    // NULL hash and cannot exact-match, but full-text/semantic arms find them.
     return this.db
       .prepare(
         `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
                 e.last_verified_at, s.normalized_hash, s.exact_tokens
-         FROM episodes e JOIN signatures s ON s.episode_id = e.experience_id
+         FROM episodes e LEFT JOIN signatures s ON s.episode_id = e.experience_id
          WHERE e.scope_id = ?`
       )
       .all(scope_id) as SearchRow[];
