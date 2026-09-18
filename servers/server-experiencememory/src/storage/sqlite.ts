@@ -413,4 +413,17 @@ export class SqliteAdapter implements StorageAdapter {
       .prepare('SELECT key, value FROM environment WHERE episode_id = ?')
       .all(episode_id) as { key: string; value: string }[];
   }
+
+  async getEmbedding(episode_id: string): Promise<number[] | undefined> {
+    const row = this.db
+      .prepare('SELECT vec FROM embeddings WHERE episode_id = ?')
+      .get(episode_id) as { vec: string } | undefined;
+    return row ? JSON.parse(row.vec) as number[] : undefined;
+  }
+
+  async putEmbedding(episode_id: string, vec: number[]): Promise<void> {
+    this.db
+      .prepare(`INSERT OR REPLACE INTO embeddings (episode_id, vec) VALUES (?, ?)`)
+      .run(episode_id, JSON.stringify(vec));
+  }
 }

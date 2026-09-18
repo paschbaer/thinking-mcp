@@ -22,6 +22,7 @@ import { EvidenceStore } from './evidence/store.js';
 import { redact } from './evidence/redact.js';
 import { normalizeFailure } from './domain/normalize.js';
 import { buildGuidance, allowedToolsForState } from './guidance/engine.js';
+import { TransformersEmbedding, cosineSimilarity, type EmbeddingProvider } from './retrieval/semantic.js';
 import { assessLimits } from './guidance/limits.js';
 import type { GuidanceEnvelope } from './guidance/envelope.js';
 
@@ -51,12 +52,16 @@ interface Ctx {
 export class EmmsService {
   readonly evidence: EvidenceStore;
 
+  private readonly embedding: EmbeddingProvider | null;
+
   constructor(
     private readonly adapter: StorageAdapter,
     artifactsDir: string,
-    private readonly limits = { maxAttempts: 12, maxRepeatedIdenticalAttempts: 2 }
+    private readonly limits = { maxAttempts: 12, maxRepeatedIdenticalAttempts: 2 },
+    embedding?: EmbeddingProvider
   ) {
     this.evidence = new EvidenceStore(artifactsDir);
+    this.embedding = embedding ?? null;
   }
 
   // ---------- helpers ----------
@@ -619,10 +624,28 @@ export class EmmsService {
     limit?: number; environment?: Record<string, string>;
   }): Promise<ToolResult> {
     const limit = Math.min(Math.max(args.limit ?? 5, 1), 20);
+    const queryVec = this.embedding ? await this.embedding.embed(args.query) : null;
+    const semanticAvailable = !!(this.embedding && queryVec);
     const candidates = new Map<string, SearchRow>();
     const add = (rows: SearchRow[]) => rows.forEach((r) => candidates.set(r.episode_id, r));
     if (args.failure_signature_hash) add(await this.adapter.searchExact(args.failure_signature_hash, args.scope_id));
     add(await this.adapter.searchFullText(args.query.split(/\s+/).slice(0, 6).join(' '), args.scope_id));
+    if (this.embedding) {
+      const qVec = await this.embedding.embed(args.query);
+      if (qVec) {
+        // semantic arm: embed stored summaries lazily and rank by cosine similarity
+        const inScope = await this.adapter.listInScope(args.scope_id);
+        const scored: Array<{ row: SearchRow; sim: number }> = [];
+        for (const row of inScope) {
+          const cached = await this.adapter.getEmbedding(row.episode_id);
+          const vec = cached ? Float32Array.from(cached) : await this.embedding.embed(row.summary);
+          if (!cached && vec) await this.adapter.putEmbedding(row.episode_id, Array.from(vec));
+          if (vec) scored.push({ row, sim: cosineSimilarity(qVec, vec) });
+        }
+        scored.sort((a, b) => b.sim - a.sim);
+        for (const s of scored) if (s.sim >= 0.3) add([s.row]);
+      }
+    }
     add(await this.adapter.listInScope(args.scope_id));
 
     const results = [];
@@ -643,6 +666,13 @@ export class EmmsService {
         applicability * 0.35 +
         (row.state === 'LOCALLY_VERIFIED' || row.state === 'REPRODUCED' ? 0.15 : 0.05) +
         Math.min(useful, 3) * 0.01;
+      if (semanticAvailable && queryVec) {
+        const eVec = await this.adapter.getEmbedding(row.episode_id);
+        if (eVec) {
+          const sim = cosineSimilarity(queryVec, Float32Array.from(eVec));
+          score += sim * 0.24; // D6 weight redistributed: signature 0.40->0.28 effective, semantic 0.24
+        }
+      }
       if (envMismatch.length > 0) score -= 0.50; // incompatibility penalty (D6)
       if (stale) score -= 0.15;
       if (contradiction) score -= 0.30;
@@ -669,7 +699,7 @@ export class EmmsService {
     return {
       result: {
         results: results.slice(0, limit),
-        retrieval_notes: { semantic_available: false },
+        retrieval_notes: { semantic_available: semanticAvailable },
       },
       guidance: {
         workflow_id: 'n/a',
