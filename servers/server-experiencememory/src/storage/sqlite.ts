@@ -478,6 +478,18 @@ export class SqliteAdapter implements StorageAdapter {
       )
       .all(normalized_hash) as { experience_id: string; scope_id: string }[];
   }
+  async listScopes(): Promise<string[]> {
+
+    return (this.db.prepare('SELECT DISTINCT scope_id FROM episodes').all() as Array<{ scope_id: string }>).map((r) => r.scope_id);
+  }
+
+  async findAllEpisodes(): Promise<Episode[]> {
+    const rows = this.db.prepare('SELECT * FROM episodes').all() as Record<string, unknown>[];
+    return rows.map((row) => ({
+      ...(row as unknown as Episode),
+      acceptance_criteria: JSON.parse(String(row.acceptance_criteria)),
+    }));
+  }
 
   async getEmbedding(episode_id: string): Promise<number[] | undefined> {
     const row = this.db
