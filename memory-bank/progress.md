@@ -215,3 +215,5 @@ harness) per `plans/quality-distribution.md`.
 UPDATE 2026-09-18 (2): T045 gitnexus analyze --no-stats ausgefuehrt (2425 Nodes/5562 Edges). T046: Suite 58/58 + Typecheck OK; offen nur noch reviewer-manuelle Teile (quickstart G1-G3 live, spec-quality Checker-Marken, Freigabe).
 
 UPDATE 2026-09-18 (3): T046 ABGESCHLOSSEN. Golden-Paths G1-G3 + Zusatzszenarien automatisiert (tests/fixtures/golden-g1-g3.test.ts), 21/21 PASS, Gesamt-Suite 59/59. Service-Verbesserung: environment_fact-JSON befuellt jetzt Env-Dimensionen fuer Applicability-Ranking. Commits: 78c1170 (MVP), c6f9048 (golden paths). 48/48 Tasks erledigt. Branch 001-experience-memory-server fertig; Merge nach Strategy (squash zu main / rebase zu develop) Rebase auf develop abgeschlossen (fast-forward).
+
+UPDATE 2026-09-18 (4): SEMANTIC RETRIEVAL ARM AKTIV. @xenova/transformers (all-MiniLM-L6-v2, quantized, 384 dims, lokal/offline) per lazy load; Embeddings pro Episode gecacht; D6-Gewicht 0.24; graceful degradation ohne Provider. 63/63 Tests (4 neue Contract-Tests: Vektor-Eigenschaften, Paraphrase-Retrieval, Degradierung). Commit 6c290ad auf develop (via ff-merge feature/emms-semantic-retrieval).
