@@ -34,7 +34,9 @@
     "prebuild": "npm run clean",
     "prepublishOnly": "npm run build",
     "build:mcpb": "node scripts/build-mcpb.mjs",
-    "deploy": "smithery deploy"
+    "deploy": "smithery deploy",
+    "capture": "node scripts/seed-lessons.mjs",
+    "auto-capture": "node scripts/auto-capture-hook.mjs"
   },
   "repository": {
     "type": "git",
