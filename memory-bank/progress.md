@@ -206,3 +206,10 @@ harness) per `plans/quality-distribution.md`.
   echtem Handler regeneriert), READMEs migriert. Gezielte Tests 30/30 + 18/18
   grün; Typecheck grün; Full-Suite lokal unter drvfs unter Worker-Timeouts
   (CI autoritativ). Offen: Phase 6 (Release 1.1.0 + Deprecation, MG-1).
+
+## 2026-09-18: EMMS MVP (server-experiencememory)
+**What works:** Vollstaendiger Capture->Validate->Finalize-Zyklus; Hybrid-Retrieval (exact/normalized hash, FTS5, env-Applicability mit D6-Penalties); Guidance-Envelope auf jeder Antwort; Redaction + content-addressed Artefakte; Visibility-Isolation; Optimistic Concurrency; Idempotenz; Audit; SC-001 Baseline-Harness mit 30-Task-Korpus. 58/58 Tests gruen.
+**What's left:** T045 detect_changes + Commit (wartet auf Freigabe); golden-results.md manuelle Durchlaeufe; lessonsLearned-Eintraege.
+**Current State:** MVP funktional komplett auf Branch 001-experience-memory-server.
+
+UPDATE 2026-09-18 (2): T045 gitnexus analyze --no-stats ausgefuehrt (2425 Nodes/5562 Edges). T046: Suite 58/58 + Typecheck OK; offen nur noch reviewer-manuelle Teile (quickstart G1-G3 live, spec-quality Checker-Marken, Freigabe).
