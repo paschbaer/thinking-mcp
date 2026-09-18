@@ -7,6 +7,7 @@ import { resolveConfig, resolveStorageBackend, resolvePostgresConnectionString, 
 import { SqliteAdapter } from '../storage/sqlite.js';
 import { EmmsService } from '../service.js';
 import { registerEmmsTools } from './register.js';
+import { registerSetupExperienceMemory } from './setup-experience-memory.js';
 import { TransformersEmbedding } from '../retrieval/semantic.js';
 import { join } from 'node:path';
 
@@ -22,4 +23,5 @@ export function registerTools(server: McpServer, config: ServerConfig): void {
   });
 
   registerEmmsTools(server, { service, adapter });
+  registerSetupExperienceMemory(server);
 }
