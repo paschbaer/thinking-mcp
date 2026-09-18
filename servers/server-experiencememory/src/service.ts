@@ -517,6 +517,15 @@ export class EmmsService {
         // Re-read plan/runs so the just-recorded mutation counts (read-after-write)
         const plan = await this.adapter.getValidationPlan(ep.experience_id);
         const runs = await this.adapter.listValidationRuns(ep.experience_id);
+        // FR-008a: verify evidence artifact hashes at finalize time —
+        // a tampered or deleted artifact blocks verification.
+        for (const run of runs) {
+          if (run.evidence_artifact_id) {
+            const meta = await this.adapter.getArtifactMeta(run.evidence_artifact_id, ep.scope_id);
+            if (meta) await this.evidence.read(meta.content_hash);
+            else throw missingEvidence([`artifact ${run.evidence_artifact_id} not found`]);
+          }
+        }
         // duplicate candidate detection (D5)
         const dups = await this.detectDuplicates(ep.experience_id, ep.scope_id);
         if (args.requested_outcome === 'verified') {
