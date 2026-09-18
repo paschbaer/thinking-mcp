@@ -231,3 +231,5 @@ UPDATE 2026-09-18 (10): SETUP_EXPERIENCE_MEMORY MCP-TOOL (analog agents_guide). 
 UPDATE 2026-09-18 (11): LESSON-CONSOLIDATION (B, FR-022). LessonService wired; 3 MCP-Tools: lesson_propose (mit NO_SUPPORTING_EVIDENCE-Guidance bei 0 verifizierten Episoden), lesson_search, lesson_get. Promotion-Thresholds D5: 1=candidate, 2=provisional, >=3=verified; harmful Attempt mit gleicher Signatur = contested (FR-021: contradicting outcome). 8 Contract-Tests. 81/81 gruen. Commit 42b65c0.
 
 UPDATE 2026-09-18 (12): CROSS-PROJECT LESSON VISIBILITY. Visibility-Level 'public' (Spec §18.3): public Episoden in Suchergebnissen unabhaengig vom Aufrufer-Scope. lesson_publish/lesson_unpublish MCP-Tools (auditiert). Bug-Fix: saveEpisode hatte visibility nicht im UPDATE — vom Cross-Scope-Contract-Test gefunden. 3 Tests; 85/85 gruen. Commit aa60983.
+
+UPDATE 2026-09-18 (13): PUBLISHING SETUP. smithery.yaml, scripts/build-mcpb.mjs (analog clear-thought), pg als optionaler peerDep (lazy import). build:mcpb + deploy Scripts. Bereit fuer npm publish + Smithery deploy (Maintainer). 85/85 gruen. Commit 5b2ae9b.
