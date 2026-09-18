@@ -110,6 +110,11 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX IF NOT EXISTS idx_signatures_hash ON signatures(normalized_hash);
 
+  CREATE TABLE IF NOT EXISTS embeddings (
+    episode_id TEXT PRIMARY KEY,
+    vec TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS environment (
     episode_id TEXT NOT NULL,
     key TEXT NOT NULL,

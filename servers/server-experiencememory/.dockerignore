@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+.env
+.env.*
+*.log
+coverage
+tests
+*.md
+emms-store.db*
+emms-artifacts

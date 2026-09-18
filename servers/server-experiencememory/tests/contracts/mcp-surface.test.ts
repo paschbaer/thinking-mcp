@@ -37,7 +37,7 @@ describe('MCP surface contract (FR-010, SC-005)', () => {
   });
 
   it('workflow.start returns guidance envelope on the MCP response', async () => {
-    const out = await call('workflow.start', {
+    const out = await call('workflow_start', {
       goal: 'fix build', scope_id: CTX.scope_id,
       idempotency_key: 'mcp-1', client_context: CTX,
     });
@@ -46,12 +46,12 @@ describe('MCP surface contract (FR-010, SC-005)', () => {
   });
 
   it('every capture response carries guidance (FR-010)', async () => {
-    const start = await call('workflow.start', {
+    const start = await call('workflow_start', {
       goal: 'fix build', scope_id: CTX.scope_id,
       idempotency_key: 'mcp-2', client_context: CTX,
     });
     const wf = (start.result as Record<string, unknown>).workflow_id as string;
-    const obs = await call('experience.record_observation', {
+    const obs = await call('experience_record_observation', {
       workflow_id: wf, kind: 'failure_output',
       content: 'ERESOLVE exited with code 1', exit_code: 1,
       expected_revision: 1, client_context: CTX,
@@ -61,12 +61,12 @@ describe('MCP surface contract (FR-010, SC-005)', () => {
   });
 
   it('invalid state request returns recoverable error with corrected guidance', async () => {
-    const start = await call('workflow.start', {
+    const start = await call('workflow_start', {
       goal: 'fix build', scope_id: CTX.scope_id,
       idempotency_key: 'mcp-3', client_context: CTX,
     });
     const wf = (start.result as Record<string, unknown>).workflow_id as string;
-    const out = await call('validation.record_run', {
+    const out = await call('validation_record_run', {
       workflow_id: wf, check_index: 0, status: 'passed', client_context: CTX,
     });
     expect((out.error as Record<string, unknown>).code).toBeDefined();
@@ -74,21 +74,21 @@ describe('MCP surface contract (FR-010, SC-005)', () => {
   });
 
   it('schema-invalid request surfaces as protocol-level error (isError), not a crash', async () => {
-    const res = await client.callTool({ name: 'experience.search', arguments: { query: '' } as never });
+    const res = await client.callTool({ name: 'experience_search', arguments: { query: '' } as never });
     expect(res.isError).toBe(true);
   });
 
   it('result cards are bounded (SC-005: no raw log flooding)', async () => {
-    const start = await call('workflow.start', {
+    const start = await call('workflow_start', {
       goal: 'g', scope_id: CTX.scope_id, idempotency_key: 'mcp-5', client_context: CTX,
     });
     const wf = (start.result as Record<string, unknown>).workflow_id as string;
     const big = 'x'.repeat(100000);
-    await call('experience.record_observation', {
+    await call('experience_record_observation', {
       workflow_id: wf, kind: 'failure_output', content: big,
       expected_revision: 1, client_context: CTX,
     });
-    const search = await call('experience.search', { query: 'x', scope_id: CTX.scope_id });
+    const search = await call('experience_search', { query: 'x', scope_id: CTX.scope_id });
     const raw = JSON.stringify(search);
     // Card excerpts are bounded; raw content is not echoed wholesale
     expect(raw.length).toBeLessThan(big.length);

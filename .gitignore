@@ -18,3 +18,8 @@ dist/
 servers/*/evals/results/
 .chats/*
 package-lock.json
+
+# EMMS runtime data
+servers/server-experiencememory/emms-store.db*
+servers/server-experiencememory/emms-artifacts/
+servers/server-experiencememory/emms-data/

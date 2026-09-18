@@ -44,7 +44,7 @@ describe('Guidance flow (US3)', () => {
       service.recordValidationRun({ workflow_id: wf, check_index: 0, status: 'passed', expected_revision: 1, client_context: CTX })
     ).rejects.toMatchObject({ code: 'INVALID_REQUEST' });
     const st = await service.status(wf, CTX);
-    expect(st.guidance.recommended_next_request.tool).toBe('experience.record_observation');
+    expect(st.guidance.recommended_next_request.tool).toBe('experience_record_observation');
   });
 
   it('repeated identical attempts produce warnings, budget exhaustion stop conditions (FR-013)', () => {
