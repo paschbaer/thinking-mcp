@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { defaultConfig } from '../src/config.js';
 import { SessionState } from '../src/state/SessionState.js';
 import { registerAgentsGuide } from '../src/tools/agents-guide.js';
-import { AGENTS_TEMPLATE } from '../src/tools/agents-guide-template.js';
+import { AGENTS_TEMPLATE } from '../src/tools/setup-clearthought-template.js';
 import { registerUtilityToolset } from '../src/toolsets/utility.js';
 
 const START = '<!-- clear-thought:agents-guide:start -->';
@@ -23,7 +23,7 @@ function getTool(server: McpServer, name: string): any {
 }
 
 async function call(server: McpServer, args: Record<string, unknown>) {
-  const result = await getTool(server, 'agents_guide').handler(args, {});
+  const result = await getTool(server, 'setup_clearthought').handler(args, {});
   return JSON.parse(result.content[0].text);
 }
 
@@ -96,13 +96,13 @@ it('is exposed through the utility toolset with advertised parameters', async ()
   const { server, state } = setupServer();
   registerUtilityToolset(server, state);
   const json: any = zodToJsonSchema(getTool(server, 'utility').inputSchema);
-  expect(json.properties.operation.enum).toContain('agents_guide');
+  expect(json.properties.operation.enum).toContain('setup_clearthought');
   for (const field of ['project_name', 'domain_context', 'codebase_root', 'existing_agents_md']) {
     expect(json.properties[field]).toBeDefined();
   }
 
   const handler = getTool(server, 'utility').handler;
-  const result = await handler({ operation: 'agents_guide', project_name: 'ViaToolset' }, {});
+  const result = await handler({ operation: 'setup_clearthought', project_name: 'ViaToolset' }, {});
   const data = JSON.parse(result.content[0].text);
   expect(data.mode).toBe('full');
   expect(data.content).toContain('Guide for ViaToolset');
@@ -111,7 +111,7 @@ it('is exposed through the utility toolset with advertised parameters', async ()
 it('rejects whitespace-only parameter values', () => {
   const { server, state } = setupServer();
   registerAgentsGuide(server, state);
-  const schema = getTool(server, 'agents_guide').inputSchema;
+  const schema = getTool(server, 'setup_clearthought').inputSchema;
   expect(schema.safeParse({ project_name: '   ' }).success).toBe(false);
   expect(schema.safeParse({ existing_agents_md: '' }).success).toBe(false);
 });
