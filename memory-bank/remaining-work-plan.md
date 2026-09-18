@@ -240,5 +240,5 @@ Trigger: /speckit-plan fuer 001-experience-memory-server
 3. Eval-Korpus fuer SC-001/SC-006/SC-009 definieren (Mindestumfang, golden paths) | required
 4. Guidance-Objekt-Schema skizzieren (FR-010/011 vor Umsetzung) | required
 5. Messbare Schwellen fuer FR-021 (Duplikat-/Kontradiktionserkennung) festlegen | required
-6. Fabricated-Evidence-Mitigation als Akzeptanzkriterium verengen (Attestierung MVP: nur Artefakt-Hash) | accepted observation, rationale: vollstaendige Attestierung ist Team-Phase
+6. Fabricated-Evidence-Mitigation — RESOLVED 2026-09-18: als FR-008a in der Spec verankert (MVP-Grenze: Artefakt-Hash-Verifikation bei finalize; kryptografische Attestierung explizit Team-Phase). Akzeptanzkriterium: geloeschtes/modifiziertes Artefakt zwischen record_run und finalize MUSS finalize fehlschlagen lassen (ARTIFACT_HASH_MISMATCH / MISSING_REQUIRED_EVIDENCE). Implementierung im Dedup-Feature-Branch abgedeckt (EvidenceStore.read wirft bei Mismatch); Contract-Test T046-Nachzieher: tamper-artifact-Szenario in capture.test.ts.
 7. Export-Format fuer Episoden (portable, zukunftsfaehig) | accepted observation, rationale: Nice-to-have, nicht MVP-blockierend
