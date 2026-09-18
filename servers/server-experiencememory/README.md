@@ -434,3 +434,19 @@ flow (`/speckit-specify` → … → `/speckit-implement`).
 ## License
 
 MIT — see [LICENSE](../../LICENSE).
+
+### Prompt files: workspace vs. user level
+
+The two prompt files live in `.github/prompts/` (workspace). VS Code only
+auto-discovers workspace prompt files in **agent** chat mode — if `/setup-
+experience-memory` or `/capture-lessons` do not appear in the `/` menu:
+
+1. switch the chat mode dropdown (next to the input) to **Agent**, or
+2. copy the files to the user prompts folder, where they are always listed:
+
+```bash
+mkdir -p ~/.vscode-server/data/User/prompts   # WSL remote
+cp .github/prompts/*.prompt.md ~/.vscode-server/data/User/prompts/
+```
+
+(user-level path on Windows: `%APPDATA%\Code\User\prompts\`)
