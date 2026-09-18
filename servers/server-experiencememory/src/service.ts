@@ -277,6 +277,19 @@ export class EmmsService {
           const norm = normalizeFailure(args.content, [], args.exit_code);
           await this.adapter.putSignature(c.episode!.experience_id, norm.normalized_hash, JSON.stringify(norm.exact_tokens), 'failure_output', args.exit_code);
         }
+        if (args.kind === 'environment_fact') {
+          try {
+            const dims = JSON.parse(args.content) as Record<string, string>;
+            if (dims && typeof dims === 'object' && !Array.isArray(dims)) {
+              await this.adapter.putEnvironment(
+                c.episode!.experience_id,
+                Object.entries(dims).map(([key, value]) => ({ key, value: String(value) }))
+              );
+            }
+          } catch {
+            // non-JSON environment fact: stored as observation only
+          }
+        }
         if (c.episode!.state === 'DRAFT') {
           assertTransition(c.episode!.state, 'OBSERVED');
           c.episode!.state = 'OBSERVED';

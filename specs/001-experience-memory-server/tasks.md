@@ -106,7 +106,7 @@ All implementation under `servers/server-experiencememory/` (existing scaffold: 
 - [X] T043 [P] Update `servers/server-experiencememory/README.md`: tool families implemented, quickstart pointer, config options (ranking weights, storage path)
 - [X] T044 [P] Update root `README.md` with the new server entry (Constitution: docs in sync)
 - [X] T045 Run `gitnexus analyze --no-stats` and `detect_changes()` to verify affected scope (Constitution pre-commit gate)
-- [ ] T046 Run full suite `npm test` + `npm run typecheck` in `servers/server-experiencememory`; run `quickstart.md` G1–G3 end-to-end; update memory-bank `progress.md`, `lessonsLearned.md`, `activeContext.md`, and mark reviewed items in `checklists/spec-quality.md` (reviewer)
+- [X] T046 Run full suite `npm test` + `npm run typecheck` in `servers/server-experiencememory`; run `quickstart.md` G1–G3 end-to-end; update memory-bank `progress.md`, `lessonsLearned.md`, `activeContext.md`, and mark reviewed items in `checklists/spec-quality.md` (reviewer)
 - [X] T048 [P] Implement SC-001 baseline harness: corpus runner mode with retrieval disabled (baseline) vs enabled, emitting per-task ineffective/harmful attempt counts and the reduction percentage, in `servers/server-experiencememory/tests/fixtures/baseline-run.ts`; write the SC-001 measurement procedure from spec.md as its contract test in `tests/contracts/evaluation.test.ts` first
 
 ---
