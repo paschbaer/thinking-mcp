@@ -3,7 +3,7 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { resolveConfig, type ServerConfig } from '../config.js';
+import { resolveConfig, resolveStorageBackend, resolvePostgresConnectionString, type ServerConfig } from '../config.js';
 import { SqliteAdapter } from '../storage/sqlite.js';
 import { EmmsService } from '../service.js';
 import { registerEmmsTools } from './register.js';

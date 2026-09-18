@@ -18,6 +18,16 @@ export function resolveConfig(raw: Partial<{ storagePath: string }> = {}): Serve
   };
 }
 
+/** Storage backend selection: 'sqlite' (default) | 'postgres'. */
+export function resolveStorageBackend(): 'sqlite' | 'postgres' {
+  return process.env.EMMS_STORAGE_BACKEND === 'postgres' ? 'postgres' : 'sqlite';
+}
+
+/** Postgres connection string (required when backend = postgres). */
+export function resolvePostgresConnectionString(): string | undefined {
+  return process.env.EMMS_PG_CONNECTION_STRING;
+}
+
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 
 export const DEFAULT_CONFIG: ServerConfig = {};
