@@ -89,4 +89,8 @@ export interface StorageAdapter {
   searchLessons(query: string): Promise<import('../domain/lesson-service.js').LessonRecord[]>;
   listVerifiedEpisodesForSignature(normalized_hash: string): Promise<{ experience_id: string; scope_id: string }[]>;
   listContradictingEpisodesForSignature(normalized_hash: string): Promise<{ experience_id: string; scope_id: string }[]>;
+  /** All distinct scope_ids (admin — bypasses visibility filter). */
+  listScopes(): Promise<string[]>;
+  /** All episodes across scopes (admin — bypasses visibility filter). */
+  findAllEpisodes(): Promise<Episode[]>;
 }
