@@ -256,6 +256,34 @@ volume directory):
 docker run -d -p 3002:3002 paschbaer/experiencememory:latest
 ```
 
+### MCP client configuration (Docker, HTTP transport)
+
+When the container runs, point your MCP client at the exposed HTTP endpoint
+instead of a stdio command — VS Code (`User mcp.json` or workspace
+`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "experiencememory": {
+      "url": "http://localhost:3002/mcp",
+      "type": "http",
+      "autoStart": true
+    }
+  }
+}
+```
+
+The repository root also ships a `docker-compose.yml` that runs both MCP
+servers (experience-memory on :3002, clear-thought on :3000) together — the
+store persists on the host in `emms-data/`:
+
+```bash
+docker compose up -d --build   # from the repository root
+```
+
+Verify: `curl http://localhost:3002/health`
+
 Notes:
 - `better-sqlite3` is rebuilt natively inside the image (container platform
   ≠ host platform).
