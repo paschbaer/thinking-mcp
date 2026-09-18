@@ -300,7 +300,9 @@ export class SqliteAdapter implements StorageAdapter {
       )
       .run({
         feedback_id: f.feedback_id, episode_id: f.episode_id, verdict: f.verdict,
-        changed_plan: f.changed_plan ?? null, outcome: f.outcome ?? null, seq: this.nextSeq(),
+        // better-sqlite3 rejects booleans — encode as 0/1 (column is INTEGER)
+        changed_plan: f.changed_plan == null ? null : (f.changed_plan ? 1 : 0),
+        outcome: f.outcome ?? null, seq: this.nextSeq(),
       });
   }
 
