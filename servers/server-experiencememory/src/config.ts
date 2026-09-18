@@ -11,6 +11,13 @@ export const ServerConfigSchema = z.object({
   storagePath: z.string().optional(),
 });
 
+/** Env fallback (Docker/compose sets EMMS_STORAGE_PATH). */
+export function resolveConfig(raw: Partial<{ storagePath: string }> = {}): ServerConfig {
+  return {
+    storagePath: raw.storagePath ?? process.env.EMMS_STORAGE_PATH,
+  };
+}
+
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 
 export const DEFAULT_CONFIG: ServerConfig = {};
