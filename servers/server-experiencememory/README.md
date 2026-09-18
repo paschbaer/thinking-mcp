@@ -72,6 +72,7 @@ episodes in the MVP (negative knowledge is retained).
 | Memory pointed the wrong way | `experience_record_reuse_feedback` (`misleading`/`harmful` demotes content) |
 | Episode is dead ends only | `workflow_abandon` (evidence retained, state → `UNRESOLVED`) |
 | False/rotten memory found | `experience_invalidate` (audited, privileged) |
+| Sharing lessons with other projects | `lesson_publish` (widen to public) / `lesson_unpublish` (narrow back) |
 
 ## Tool Reference
 
@@ -85,6 +86,18 @@ All mutating tools accept the common fields `workflow_id`,
 protection), and `client_context` (`scope_id` required; `agent_id`,
 `trace_id` optional). Every response — success or recoverable error — includes
 a `guidance` envelope.
+
+### Setup tool
+
+- **`setup_experience_memory`** — bootstraps the EMMS integration in a target
+  repo (analog to clear-thought's `agents_guide`). Returns ready-to-write
+  content for `AGENTS.md` / `CLAUDE.md` (marker-based idempotent merge —
+  repeat calls replace the previous `emms:lookup-rules` block in place),
+  the capture prompt file, and `.gitignore` lines. Accepts
+  `repo_name` / `repo_lessons_scope`, `custom_triggers` (repo-specific trap
+  domains), and existing file contents to switch into merge mode. The calling
+  agent writes the returned `content` fields to the target files. See
+  *Automating lesson capture → Level 0* for the full bootstrap flow.
 
 ### Workflow tools
 
@@ -155,6 +168,14 @@ a `guidance` envelope.
   episode.
 - **`experience_invalidate`** — privileged; removes from default search,
   keeps everything auditable.
+
+### Lesson visibility tools
+
+- **`lesson_publish`** — widens a lesson episode's visibility from
+  `repository` to `public` (audited). Public episodes are included in search
+  results regardless of the caller's scope — cross-project sharing for
+  reusable lessons.
+- **`lesson_unpublish`** — narrows visibility back to `repository`-only.
 
 ## Usage
 
@@ -297,6 +318,102 @@ Notes:
   signature + full-text arms serve retrieval. Mount a cache volume if you
   want the model to survive container recreation.
 
+## Automating lesson capture
+
+The server's own dogfooding showed the core value: recurring bugs (native
+builds, driver quirks, race conditions) persist as searchable episodes and
+surface automatically when a related problem reappears. Four levels of
+automation — from one-command setup to fully integrated agent behavior:
+
+### Level 0 — One-command setup (`/setup-experience-memory`)
+
+Bootstraps the full integration in any repo. Invoke the prompt file
+`.github/prompts/setup-experience-memory.prompt.md` (VS Code:
+`/setup-experience-memory`) and the agent performs:
+
+1. Verify the EMMS server build (`dist/dev.js`)
+2. Create the capture prompt file (`.github/prompts/capture-lessons.prompt.md`)
+3. Append the Level-2 lookup rules to `AGENTS.md` / `CLAUDE.md`
+   (idempotent — skips if the section exists; trigger table adaptable to
+   the repo's trap domains)
+4. Gitignore runtime data (`emms-data/`, store, artifacts)
+5. Optionally seed initial lessons (from a JSON file or convertible
+   `lessonsLearned.md` entries)
+6. Report everything created/appended/seeded
+
+After the setup runs, `/capture-lessons` is available for session-end
+capture and the Level-2 lookup rules are live for task-start retrieval.
+
+### Level 1 — Batch seeding (script)
+
+`scripts/seed-lessons.mjs` reads a JSON file of lessons and captures each as a
+complete episode (observation → environment → attempt → outcome → hypothesis
+→ finalize). Idempotent via `idempotency_key = lesson-<slug>`:
+
+```bash
+node scripts/seed-lessons.mjs tests/fixtures/lessons.json
+# re-running never duplicates (verified: second run leaves count at 7)
+```
+
+The seed file (`tests/fixtures/lessons.json`) doubles as the portable,
+reviewable source of truth for your team's traps. Wire it into your workflow:
+after a debugging session, append the new lesson to the JSON and re-run.
+
+### Level 1b — Session-end capture hook (prompt file, via `/capture-lessons`)
+
+A reusable VS Code prompt file triggers capture at session end:
+`.github/prompts/capture-lessons.prompt.md`. Invoke it with
+`/capture-lessons` — the agent analyzes the session, writes the lessons JSON,
+runs the seeder, verifies the round-trip via `experience_search`, and appends
+the constitution-required `memory-bank/lessonsLearned.md` entry. Semi-automatic
+(one deliberate invocation), but reliable because the prompt encodes the
+whole procedure.
+
+Two further hook variants (not implemented — trade-offs below):
+
+| Variant | Mechanism | Trade-off |
+|---------|-----------|-----------|
+| Git post-commit hook | Captures on every commit from the commit message + diff | Automatic, but wrong trigger point (commit ≠ session end) and no chat context |
+| VS Code extension with session-end event | Full hook: fires when the agent session closes | True automation, but requires building/maintaining an extension |
+
+### Level 2 — Proactive retrieval via agent instructions
+
+Seeding only helps if the lesson is found again. Add a rule to your agent
+instructions (`copilot-instructions.md` / `AGENTS.md`) that triggers a search
+at task start when the domain matches:
+
+```markdown
+## Experience Memory lookup
+Before touching better-sqlite3, SQLite FTS5, yarn workspaces, or native
+module builds, search prior experience:
+
+experience_search { query: "<the area + problem keywords>",
+                    scope_id: "thinking-mcp-lessons" }
+
+If a PARTIALLY_VERIFIED / LOCALLY_VERIFIED episode matches, follow its
+recorded fix and record reuse feedback afterwards.
+```
+
+This turns passive documentation into an **active lookup**: the trap surfaces
+before the mistake repeats, and `record_reuse_feedback` measures whether the
+memory actually helped (misleading/harmful content is demoted automatically).
+
+### Level 3 — Auto-capture hooks (consolidation phase, planned)
+
+The end state (spec §30.2, automatic capture hooks): the agent runtime feeds
+failed attempts, error signatures, and successful fixes to the server during
+the session — no explicit seeding step at all. Prerequisites: lesson
+consolidation (`lesson.*` tools), promotion thresholds, and capture hooks in
+the agent harness. The current data model already supports this; only the
+tooling is missing.
+
+### Recommendation
+
+Start with Level 1 (batch-seed your team's known traps once), add Level 2 to
+the agent instructions, and treat Level 3 as the consolidation-phase
+deliverable. The `lessons.json` file from Level 1 is the seed corpus for
+Level 3's automatic clustering.
+
 ## Configuration
 
 | Env / config | Default | Meaning |
@@ -338,3 +455,19 @@ flow (`/speckit-specify` → … → `/speckit-implement`).
 ## License
 
 MIT — see [LICENSE](../../LICENSE).
+
+### Prompt files: workspace vs. user level
+
+The two prompt files live in `.github/prompts/` (workspace). VS Code only
+auto-discovers workspace prompt files in **agent** chat mode — if `/setup-
+experience-memory` or `/capture-lessons` do not appear in the `/` menu:
+
+1. switch the chat mode dropdown (next to the input) to **Agent**, or
+2. copy the files to the user prompts folder, where they are always listed:
+
+```bash
+mkdir -p ~/.vscode-server/data/User/prompts   # WSL remote
+cp .github/prompts/*.prompt.md ~/.vscode-server/data/User/prompts/
+```
+
+(user-level path on Windows: `%APPDATA%\Code\User\prompts\`)

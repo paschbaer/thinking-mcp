@@ -1,5 +1,5 @@
 /**
- * Regenerates the root AGENTS.md guide block via the REAL agents_guide tool
+ * Regenerates the root AGENTS.md guide block via the REAL setup_clearthought tool
  * handler (merge mode) — never hand-edit the generated block (RB-2).
  *
  * Additionally removes the deprecated `stochastic-thinking:agents-guide`
@@ -37,7 +37,7 @@ const server = new McpServer({ name: 'regen', version: '0.0.0' });
 const state = new SessionState('regen', defaultConfig);
 registerAgentsGuide(server, state);
 const tool = (server as unknown as { _registeredTools: Record<string, any> })
-  ._registeredTools['agents_guide'];
+  ._registeredTools['setup_clearthought'];
 const result = await tool.handler(
   {
     project_name: 'Thinking-MCP',
@@ -51,7 +51,7 @@ const result = await tool.handler(
 const data = JSON.parse(result.content[0].text);
 if (data.mode !== 'merge' || data.block_replaced !== true) {
   console.error(
-    'unexpected agents_guide result:',
+    'unexpected setup_clearthought result:',
     data.mode,
     data.block_replaced,
     data.warning ?? ''

@@ -7,7 +7,7 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 | Server | Package | Description |
 |--------|---------|-------------|
 | [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, risk analysis (pre-mortem, FMEA, fault trees), causal & game-theoretic analysis, Fermi estimation, guided workflow recipes, and stochastic decision algorithms (MDP, MCTS, bandit, Bayesian optimization, HMM) |
-| [Experience Memory](./servers/server-experiencememory) | `@paschbaer/experiencememory` | Evidence-backed long-term experience memory for coding agents: capture structured debugging episodes, validate fixes with objective evidence, hybrid retrieval (exact/normalized signatures + full-text), per-response guidance on the next recommended request, visibility isolation and audit. MVP; spec-driven |
+| [Experience Memory](./servers/server-experiencememory) | `@paschbaer/experiencememory` | Evidence-backed long-term experience memory for coding agents: capture structured debugging episodes, validate fixes with objective evidence, hybrid retrieval (exact/normalized signatures + full-text + local semantic embeddings), per-response guidance on the next recommended request, visibility isolation and audit. Setup via `/setup-experience-memory` prompt file (see server README). MVP; spec-driven |
 
 > **Merged:** the former `@paschbaer/stochasticthinking` server is now part of
 > Clear Thought (toolset `stochastic`). The standalone package is deprecated —
@@ -43,7 +43,7 @@ discriminator: `stochastic { operation: 'mdp', problem, parameters }` ≡
 | `reasoning` (15) | `sequential_thinking`, `mental_model`, `debugging_approach`, `decision_framework`, `socratic_method`, `scientific_method`, `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix`, … |
 | `visualization` | `mind_map`, `concept_map`, `fishbone_diagram`, `swot_analysis`, `issue_tree`, `visual_reasoning` |
 | `risk` | `premortem`, `fmea`, `fault_tree` |
-| `utility` | `assumption_xray`, `value_of_information`, `comparative_advantage`, `agents_guide`, … |
+| `utility` | `assumption_xray`, `value_of_information`, `comparative_advantage`, `setup_clearthought`, … |
 | `stochastic` | `mdp`, `mcts`, `bandit`, `bayesian`, `hmm` (real, measured computations; bandit runs persist per session via `runId`) |
 | `workflow` | `recipe_runner` — guided multi-tool recipes (7: debug-failure, architecture-decision, stress-test-conclusion, open-ended-ideation, multi-agent-delegation, long-research-question, decision-under-uncertainty) |
 | `session` | `session_info`, `session_export`, `session_import`, `session_save`, `session_load` — reasoning state survives context compaction |
@@ -59,7 +59,7 @@ The server also exposes 7 workflow **prompts** and 4 session **resources**
 **Agent Guide.** Copy [`AGENTS.template.md`](./servers/server-clear-thought/AGENTS.template.md)
 to your project root as `AGENTS.md` — it is written for LLM consumption
 (tool routing table, recipes, usage rules). Alternatively, let your agent call
-the `agents_guide` tool: it renders the guide for your project and can merge
+the `setup_clearthought` tool: it renders the guide for your project and can merge
 it idempotently into an existing `AGENTS.md` (marker-based, repeat calls
 update in place). Prompt examples: [Agent Guide](./servers/server-clear-thought/README.md#agent-guide).
 

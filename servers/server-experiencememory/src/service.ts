@@ -23,6 +23,7 @@ import { redact } from './evidence/redact.js';
 import { normalizeFailure } from './domain/normalize.js';
 import { buildGuidance, allowedToolsForState } from './guidance/engine.js';
 import { TransformersEmbedding, cosineSimilarity, type EmbeddingProvider } from './retrieval/semantic.js';
+import { LessonService } from './domain/lesson-service.js';
 import { assessLimits } from './guidance/limits.js';
 import type { GuidanceEnvelope } from './guidance/envelope.js';
 
@@ -53,6 +54,7 @@ export class EmmsService {
   readonly evidence: EvidenceStore;
 
   private readonly embedding: EmbeddingProvider | null;
+  readonly lessons: LessonService;
 
   constructor(
     private readonly adapter: StorageAdapter,
@@ -62,6 +64,7 @@ export class EmmsService {
   ) {
     this.evidence = new EvidenceStore(artifactsDir);
     this.embedding = embedding ?? null;
+    this.lessons = new LessonService(adapter);
   }
 
   // ---------- helpers ----------
@@ -514,6 +517,15 @@ export class EmmsService {
         // Re-read plan/runs so the just-recorded mutation counts (read-after-write)
         const plan = await this.adapter.getValidationPlan(ep.experience_id);
         const runs = await this.adapter.listValidationRuns(ep.experience_id);
+        // FR-008a: verify evidence artifact hashes at finalize time —
+        // a tampered or deleted artifact blocks verification.
+        for (const run of runs) {
+          if (run.evidence_artifact_id) {
+            const meta = await this.adapter.getArtifactMeta(run.evidence_artifact_id, ep.scope_id);
+            if (meta) await this.evidence.read(meta.content_hash);
+            else throw missingEvidence([`artifact ${run.evidence_artifact_id} not found`]);
+          }
+        }
         // duplicate candidate detection (D5)
         const dups = await this.detectDuplicates(ep.experience_id, ep.scope_id);
         if (args.requested_outcome === 'verified') {
@@ -615,6 +627,217 @@ export class EmmsService {
     await this.adapter.putEnvironment(
       wf.experience_id,
       Object.entries(env).map(([key, value]) => ({ key, value }))
+    );
+  }
+
+  // ---------- dedup (FR-021 / D5) ----------
+  /** Finds all duplicate groups: same normalized hash + goal Jaccard >= 0.8. */
+  async findDuplicates(scope_id: string): Promise<Array<string[]>> {
+    const rows = await this.adapter.listInScope(scope_id);
+    const byHash = new Map<string, SearchRow[]>();
+    for (const r of rows) {
+      const list = byHash.get(r.normalized_hash) ?? [];
+      list.push(r);
+      byHash.set(r.normalized_hash, list);
+    }
+    const groups: string[][] = [];
+    for (const [, list] of byHash) {
+      if (list.length < 2) continue;
+      // greedy grouping within hash bucket
+      const used = new Set<string>();
+      for (let i = 0; i < list.length; i++) {
+        if (used.has(list[i].episode_id)) continue;
+        const group = [list[i].episode_id];
+        used.add(list[i].episode_id);
+        for (let j = i + 1; j < list.length; j++) {
+          if (used.has(list[j].episode_id)) continue;
+          if (jaccard(list[i].summary, list[j].summary) >= 0.8) {
+            group.push(list[j].episode_id);
+            used.add(list[j].episode_id);
+          }
+        }
+        if (group.length > 1) groups.push(group);
+      }
+    }
+    return groups;
+  }
+
+  /**
+   * Non-destructive dedupe: within each duplicate group keeps the
+   * best-ranked episode (verified > fresher) and marks the others SUPERSEDED
+   * with a pointer to the kept one. Append-only events + audit entries
+   * preserve full history (FR-020/034: no physical deletion).
+   */
+  async dedupeScope(scope_id: string, actor_id = 'local-agent'): Promise<ToolResult> {
+    const groups = await this.findDuplicates(scope_id);
+    const merged: Array<{ kept: string; superseded: string[] }> = [];
+    let auditSeq = 0;
+    for (const group of groups) {
+      const eps: Episode[] = [];
+      for (const id of group) {
+        const ep = await this.adapter.getEpisode(id, scope_id);
+        if (ep) eps.push(ep);
+      }
+      if (eps.length < 2) continue;
+      // keep: verified states first, then freshest last_verified_at
+      const rank = (e: Episode) =>
+        (e.state === 'LOCALLY_VERIFIED' || e.state === 'REPRODUCED' || e.state === 'CROSS_PROJECT_VERIFIED' ? 2 : 0) +
+        (e.last_verified_at ? 1 : 0);
+      eps.sort((a, b) => rank(b) - rank(a) || (a.created_at < b.created_at ? 1 : -1));
+      const kept = eps[0];
+      const superseded: string[] = [];
+      for (const e of eps.slice(1)) {
+        if (isTerminal(e.state)) continue;
+        assertTransition(e.state, 'SUPERSEDED');
+        e.state = 'SUPERSEDED';
+        await this.adapter.saveEpisode(e);
+        superseded.push(e.experience_id);
+      }
+      if (superseded.length) {
+        await this.adapter.insertAudit({
+          event_id: randomUUID(),
+          actor: { actor_type: 'system', actor_id },
+          action: 'experience.dedupe_merged',
+          target: kept.experience_id,
+          timestamp: this.now(),
+          policy_version: POLICY_VERSION,
+          reason: `superseded: ${superseded.join(', ')}`,
+        });
+        merged.push({ kept: kept.experience_id, superseded });
+      }
+      auditSeq++;
+    }
+    void auditSeq;
+    const guidance = {
+      workflow_id: 'n/a',
+      workflow_state: 'LOCALLY_VERIFIED' as const,
+      revision: 1,
+      missing_information: [],
+      warnings: [],
+      allowed_next_tools: ['experience_search'],
+      recommended_next_request: { tool: 'experience_search', reason: 'Verify dedup results', arguments_template: { query: '<collect value>', scope_id } },
+      alternative_next_requests: [],
+      stop_conditions: [],
+      human_approval: { required: false },
+    };
+    return { result: { groups_found: groups.length, merged }, guidance: guidance as never };
+  }
+
+  // ---------- lessons (FR-022: candidate-level consolidation) ----------
+  async lesson_propose(args: {
+    normalized_hash: string; pattern: string; rule: string;
+    recommended_strategy: string; scope_id: string;
+  }): Promise<ToolResult> {
+    const record = await this.lessons.proposeFromEpisodes(
+      args.normalized_hash, args.pattern, args.rule, args.recommended_strategy
+    );
+    if (!record) {
+      return {
+        result: { lesson: null, reason: 'no verified episodes for this signature' },
+        guidance: {
+          workflow_id: 'n/a', workflow_state: 'OBSERVED', revision: 1,
+          missing_information: [], warnings: [
+            { code: 'NO_SUPPORTING_EVIDENCE', severity: 'medium',
+              message: 'At least one verified episode is required before a lesson candidate can be proposed' }],
+          allowed_next_tools: ['experience_search'],
+          recommended_next_request: { tool: 'experience_search', reason: 'Find verified episodes first', arguments_template: { query: '<collect value>', scope_id: args.scope_id } },
+          alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+        },
+      };
+    }
+    return {
+      result: { lesson: record } as unknown as Record<string, unknown>,
+      guidance: {
+        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
+        missing_information: [], warnings:
+          record.status === 'contested'
+            ? [{ code: 'CONTRADICTION', severity: 'high', message: 'Lesson marked contested — counterexamples exist' }]
+            : [],
+        allowed_next_tools: ['lesson_propose', 'lesson_search', 'lesson_get'],
+        recommended_next_request: { tool: 'lesson_search', reason: 'Browse consolidated lessons', arguments_template: { query: '<collect value>' } },
+        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+      },
+    };
+  }
+
+  async lesson_search(query: string): Promise<ToolResult> {
+    const lessons = await this.lessons.search(query);
+    return {
+      result: { lessons, count: lessons.length },
+      guidance: {
+        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
+        missing_information: [], warnings: [],
+        allowed_next_tools: ['lesson_get', 'lesson_propose'],
+        recommended_next_request: { tool: 'lesson_get', reason: 'Inspect a lesson', arguments_template: { lesson_id: '<collect value>' } },
+        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+      },
+    };
+  }
+
+  async lesson_get(lesson_id: string): Promise<ToolResult> {
+    const lesson = await this.lessons.get(lesson_id);
+    return {
+      result: (lesson ?? { lesson: null, reason: 'not found' }) as Record<string, unknown>,
+      guidance: {
+        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
+        missing_information: [], warnings: [],
+        allowed_next_tools: ['lesson_search', 'lesson_propose'],
+        recommended_next_request: { tool: 'lesson_search', reason: 'Browse lessons', arguments_template: { query: '<collect value>' } },
+        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+      },
+    };
+  }
+
+  // ---------- lesson visibility (cross-project sharing) ----------
+  async lesson_publish(args: {
+    workflow_id: string; experience_id: string;
+    expected_revision?: number; client_context: ClientContext;
+  }): Promise<ToolResult> {
+    return this.mutate(
+      args.workflow_id, args.client_context, args.expected_revision, undefined,
+      'experience.lesson_publish',
+      { type: 'lesson.published', payload: { experience_id: args.experience_id } },
+      async (c) => {
+        const ep = await this.adapter.getEpisode(args.experience_id, c.episode!.scope_id);
+        if (!ep) throw new EmmsError('INVALID_REQUEST', 'Episode not found', false, { experience_id: args.experience_id });
+        if (ep.visibility !== 'repository') {
+          return { experience_id: ep.experience_id, visibility: ep.visibility, note: 'already public' };
+        }
+        ep.visibility = 'public' as import('./domain/types.js').Visibility;
+        await this.adapter.saveEpisode(ep);
+        await this.adapter.insertAudit({
+          event_id: randomUUID(),
+          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
+          action: 'experience.lesson_publish', target: ep.experience_id,
+          timestamp: this.now(), policy_version: POLICY_VERSION,
+          reason: 'visibility widened to public — cross-project sharing',
+        });
+        return { experience_id: ep.experience_id, visibility: 'public' };
+      }
+    );
+  }
+
+  async lesson_unpublish(args: {
+    workflow_id: string; experience_id: string;
+    expected_revision?: number; client_context: ClientContext;
+  }): Promise<ToolResult> {
+    return this.mutate(
+      args.workflow_id, args.client_context, args.expected_revision, undefined,
+      'experience.lesson_unpublish',
+      { type: 'lesson.unpublished', payload: { experience_id: args.experience_id } },
+      async (c) => {
+        const ep = await this.adapter.getEpisode(args.experience_id, c.episode!.scope_id);
+        if (!ep) throw new EmmsError('INVALID_REQUEST', 'Episode not found', false, { experience_id: args.experience_id });
+        ep.visibility = 'repository';
+        await this.adapter.saveEpisode(ep);
+        await this.adapter.insertAudit({
+          event_id: randomUUID(),
+          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
+          action: 'experience.lesson_unpublish', target: ep.experience_id,
+          timestamp: this.now(), policy_version: POLICY_VERSION,
+        });
+        return { experience_id: ep.experience_id, visibility: 'repository' };
+      }
     );
   }
 

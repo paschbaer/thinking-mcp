@@ -10,7 +10,7 @@ import { registerSafeStruggleDesigner } from '../tools/safe-struggle-designer.js
 import { registerSevenSeekersOrchestrator } from '../tools/seven-seekers-orchestrator.js';
 import { registerValueOfInformation } from '../tools/value-of-information.js';
 import { registerExistingToolExample } from '../tools/existing-tool-example.js';
-import { registerAgentsGuide } from '../tools/agents-guide.js';
+import { registerAgentsGuide } from '../tools/setup-clearthought.js';
 
 export function registerUtilityToolset(server: McpServer, state: SessionState): void {
   const registry = new ToolsetRegistry('utility', 'Utility operations');

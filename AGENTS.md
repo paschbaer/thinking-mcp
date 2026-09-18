@@ -155,7 +155,7 @@ Toolset routing:
 |---|---|
 | `reasoning` | `sequential_thinking`, `mental_model`, `debugging_approach`, `collaborative_reasoning`, `decision_framework`, `metacognitive_monitoring`, `socratic_method`, `creative_thinking`, `systems_thinking`, `scientific_method`, `structured_argumentation`, `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix` |
 | `visualization` | `mind_map`, `concept_map`, `fishbone_diagram`, `swot_analysis`, `issue_tree` |
-| `utility` | `analogical_mapper`, `assumption_xray`, `comparative_advantage`, `drag_point_audit`, `safe_struggle_designer`, `seven_seekers_orchestrator`, `value_of_information`, `existing_tool_example`, `agents_guide` |
+| `utility` | `analogical_mapper`, `assumption_xray`, `comparative_advantage`, `drag_point_audit`, `safe_struggle_designer`, `seven_seekers_orchestrator`, `value_of_information`, `existing_tool_example`, `setup_clearthought` |
 | `session` | `session_info`, `session_export`, `session_import`, `session_save`, `session_load` |
 | `risk` | `premortem`, `fmea`, `fault_tree` |
 | `workflow` | `recipe_runner` |
@@ -198,7 +198,7 @@ Toolset routing:
 | Quantify if research is worth it | `value_of_information` | `decision_options[]`, `uncertainties[]`, `payoffs[]` (opportunity cost per uncertainty); optional `probabilities[]` (0-1, weighted instead of worst-case), `option_payoffs` (per-option matrix → per-option VoI ranking), `sampled_uncertainties[]` (partial VoI + share of total) |
 | Run a real stochastic decision algorithm | `stochasticalgorithm` | `algorithm`: `mdp` \| `mcts` \| `bandit` \| `bayesian` \| `hmm`; `problem`; `parameters` (per-algorithm model inputs — see "Stochastic algorithms" below) — measured results (value function, regret, EI); bandit runs persist per session via `runId` |
 | Smoke-test the tool wiring | `existing_tool_example` | `text` — echoes it back; useful to verify connectivity |
-| Get this guide as AGENTS.md content | `agents_guide` | optional `project_name`, `domain_context`, `codebase_root`; pass `existing_agents_md` to merge into existing content |
+| Get this guide as AGENTS.md content | `setup_clearthought` | optional `project_name`, `domain_context`, `codebase_root`; pass `existing_agents_md` to merge into existing content |
 | Inspect session state | `session_info` | — |
 | Persist / restore state | `session_export` / `session_import` | — |
 | Save / load sessions as files | `session_save` / `session_load` | `name`; optional `merge` (load) — requires the server to be configured with `dataDir` |
@@ -433,3 +433,33 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 
 
 
+
+## Experience Memory Lookup (EMMS) — Level 2 proactive retrieval
+
+Before working in a known trap domain, search prior experience via the
+local **experience-memory** server (stdio, `servers/server-experiencememory`):
+
+Trigger domains → search query keywords:
+
+| Trigger (touching…) | Query keywords |
+|---|---|
+| better-sqlite3 (install, rebuild, queries) | `better-sqlite3 bindings named params` |
+| SQLite FTS5 / full-text search | `fts5 match injection sanitize` |
+| vitest / ESM test imports | `vitest esm ts extensions` |
+| finalize / assessment / evidence logic | `finalize assessment read-only read-after-write` |
+| ranking / demotion / dedupe tests | `sc009 ranking comparison jaccard` |
+| semantic embeddings / transformers | `minilm embeddings offline` |
+| Docker / native module builds | `docker native rebuild bindings` |
+
+Call (stdio via VS Code MCP server `experience-memory`, or a small node script
+with `StdioClientTransport`):
+
+```
+experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
+```
+
+- A hit with tier `PARTIALLY_VERIFIED` / `LOCALLY_VERIFIED`: follow the
+  recorded fix (`known_bad_attempts` = paths that already failed) and record
+  `experience_record_reuse_feedback` afterwards (verdict `useful`/`harmful`).
+- No hit: proceed normally — and if the session uncovers a new recurring trap,
+  seed it via `servers/server-experiencememory/scripts/seed-lessons.mjs`.

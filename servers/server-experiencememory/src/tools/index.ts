@@ -3,10 +3,11 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { resolveConfig, type ServerConfig } from '../config.js';
+import { resolveConfig, resolveStorageBackend, resolvePostgresConnectionString, type ServerConfig } from '../config.js';
 import { SqliteAdapter } from '../storage/sqlite.js';
 import { EmmsService } from '../service.js';
 import { registerEmmsTools } from './register.js';
+import { registerSetupExperienceMemory } from './setup-experience-memory.js';
 import { TransformersEmbedding } from '../retrieval/semantic.js';
 import { join } from 'node:path';
 
@@ -22,4 +23,5 @@ export function registerTools(server: McpServer, config: ServerConfig): void {
   });
 
   registerEmmsTools(server, { service, adapter });
+  registerSetupExperienceMemory(server);
 }

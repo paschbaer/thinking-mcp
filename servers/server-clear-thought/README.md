@@ -202,14 +202,14 @@ npm run build && npm run build:mcpb && node scripts/publish-smithery.mjs
 record (display name, homepage, icon, license). Credentials are read from
 the local Smithery CLI login (`npx -y @smithery/cli auth login`).
 
-## Agent Guide
+## Setup Clear Thought
 
 Building an agent that consumes this server? Copy
 [`AGENTS.template.md`](./AGENTS.template.md) to your project root as
 `AGENTS.md` — it contains a tool routing table, workflow recipes, and usage
 rules optimized for LLM consumption.
 
-The server also exposes this guide as the `agents_guide` tool (also in the
+The server also exposes this guide as the `setup_clearthought` tool (also in the
 `utility` toolset): call it to get the guide rendered for your project
 (`project_name`, `domain_context`, `codebase_root`), or pass your existing
 `AGENTS.md` content as `existing_agents_md` to merge the guide in — repeat
@@ -222,8 +222,8 @@ them by hand. After changing the template, run the chain:
 
 | Command | What it regenerates |
 |---|---|
-| `npm run sync:guide` | `src/tools/agents-guide-template.ts` (embedded constant; guarded by `tests/agents-guide.test.ts`) |
-| `npx tsx scripts/regen-root-agents.ts` | the repo-root `AGENTS.md` guide block, via the real `agents_guide` merge handler |
+| `npm run sync:guide` | `src/tools/setup-clearthought-template.ts` (embedded constant; guarded by `tests/setup-clearthought.test.ts`) |
+| `npx tsx scripts/regen-root-agents.ts` | the repo-root `AGENTS.md` guide block, via the real `setup_clearthought` merge handler |
 | `npm run sync:skill` | the user-level Claude skill `~/.claude/skills/clear-thought/SKILL.md` covering all tools (custom target: `--out <path>`) |
 | `npm run sync:all` | `sync:guide` + `sync:skill` in one go |
 
@@ -231,7 +231,7 @@ them by hand. After changing the template, run the chain:
 longer matches the registries wired in `src/toolsets/*.ts` — fix the table,
 then rerun.
 
-### Using `agents_guide` from chat
+### Using `setup_clearthought` from chat
 
 You do not need this repository checked out — the tool ships with the server.
 Ask your coding agent in natural language; it calls the tool and writes the
@@ -239,7 +239,7 @@ result back. Two typical prompts:
 
 Merge into an existing AGENTS.md (recommended — idempotent, in-place updates):
 
-> Read my AGENTS.md in this project. Call the `agents_guide` tool with its
+> Read my AGENTS.md in this project. Call the `setup_clearthought` tool with its
 > content as `existing_agents_md`, `project_name: "Thinking-MCP"`,
 > `domain_context: "Algorithmic trading."` and
 > `codebase_root: "C:/repos/Tradix"`. Then write the returned `content` field
@@ -247,14 +247,14 @@ Merge into an existing AGENTS.md (recommended — idempotent, in-place updates):
 
 Create a fresh document (no `existing_agents_md`):
 
-> Call `agents_guide` with `project_name: "Thinking-MCP"` and write the returned
+> Call `setup_clearthought` with `project_name: "Thinking-MCP"` and write the returned
 > `content` field to AGENTS.md at the project root.
 
 Tips:
 
 - In VS Code Copilot Chat you can also reference the tool directly: type `#`
-  and pick `agents_guide` — or the `utility` toolset, which exposes it as
-  `operation: "agents_guide"`.
+  and pick `setup_clearthought` — or the `utility` toolset, which exposes it as
+  `operation: "setup_clearthought"`.
 - The tool only returns text; your agent performs the file write. If the
   response lists `unresolved_placeholders`, fill them in the written file.
 - Repeat merge calls stay idempotent: the inserted block is delimited by
@@ -393,7 +393,7 @@ Quantifies whether resolving an uncertainty is worth the research cost (EVPI-sty
 #### `existing_tool_example`
 Echoes the provided `text` back — smoke test for the tool wiring.
 
-#### `agents_guide`
+#### `setup_clearthought`
 Returns a ready-to-use AGENTS.md reasoning-tool guide for consuming projects. See [Agent Guide](#agent-guide) for modes, markers, and chat prompts.
 
 ### Session tools
@@ -550,6 +550,22 @@ docker compose up -d --build   # from the repository root
 ```
 
 Verify: `curl http://localhost:3000/health`
+
+### Automating experience capture (cross-server)
+
+Recurring traps from building/maintaining this server (native module builds,
+ESM resolution, SDK quirks) are persisted as searchable experience episodes in
+the companion **experience-memory** server (port 3002) — see its README
+section *„Automating lesson capture"* for the three automation levels:
+
+1. **Batch seeding** — `servers/server-experiencememory/scripts/seed-lessons.mjs`
+   with a JSON lesson file (idempotent, reviewable source of truth)
+2. **Proactive retrieval** — agent-instruction rules trigger
+   `experience_search` at task start for known trap domains
+3. **Auto-capture hooks** — planned consolidation phase (spec §30.2)
+
+Until level 3 ships, add level-2 lookup rules to your agent instructions so
+known traps surface *before* the mistake repeats.
 
 ## Development
 

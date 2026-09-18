@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SessionState } from '../state/SessionState.js';
-import { AGENTS_TEMPLATE } from './agents-guide-template.js';
+import { AGENTS_TEMPLATE } from './setup-clearthought-template.js';
 
 const START_MARKER = '<!-- clear-thought:agents-guide:start -->';
 const END_MARKER = '<!-- clear-thought:agents-guide:end -->';
@@ -27,7 +27,7 @@ interface Placeholder {
  */
 export function registerAgentsGuide(server: McpServer, _sessionState: SessionState) {
   server.tool(
-    'agents_guide',
+    'setup_clearthought',
     'Return a ready-to-use AGENTS.md reasoning-tool guide (with usage rules, ' +
       'tool routing and workflow recipes) for projects consuming this server, ' +
       'optionally merged into existing AGENTS.md content',
@@ -124,7 +124,7 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
   );
 }
 
-/** The AGENTS.md template is embedded (see agents-guide-template.ts) so it
+/** The AGENTS.md template is embedded (see setup-clearthought-template.ts) so it
  *  survives Docker builds with *.md ignores and single-file bundling. */
 function loadTemplate(): string {
   return AGENTS_TEMPLATE;
