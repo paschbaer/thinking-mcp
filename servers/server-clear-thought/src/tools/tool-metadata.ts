@@ -270,7 +270,7 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
     title: 'Existing Tool Example',
     outputSchema: schema({ text: z.unknown().optional() })
   },
-  agents_guide: {
+  setup_clearthought: {
     title: 'Agents Guide',
     outputSchema: schema({
       mode: z.unknown().optional(),

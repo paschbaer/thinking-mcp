@@ -34,7 +34,7 @@ import { registerCausalGraph } from './causal-graph.js';
 import { registerFermiEstimate } from './fermi-estimate.js';
 import { registerGameMatrix } from './game-matrix.js';
 import { registerExistingToolExample } from './existing-tool-example.js';
-import { registerAgentsGuide } from './agents-guide.js';
+import { registerAgentsGuide } from './setup-clearthought.js';
 import { registerSessionManagement } from './session-management.js';
 import { registerStochasticAlgorithm } from './stochastic-algorithm.js';
 
