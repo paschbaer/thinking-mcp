@@ -23,6 +23,7 @@ import { redact } from './evidence/redact.js';
 import { normalizeFailure } from './domain/normalize.js';
 import { buildGuidance, allowedToolsForState } from './guidance/engine.js';
 import { TransformersEmbedding, cosineSimilarity, type EmbeddingProvider } from './retrieval/semantic.js';
+import { LessonService } from './domain/lesson-service.js';
 import { assessLimits } from './guidance/limits.js';
 import type { GuidanceEnvelope } from './guidance/envelope.js';
 
@@ -53,6 +54,7 @@ export class EmmsService {
   readonly evidence: EvidenceStore;
 
   private readonly embedding: EmbeddingProvider | null;
+  readonly lessons: LessonService;
 
   constructor(
     private readonly adapter: StorageAdapter,
@@ -62,6 +64,7 @@ export class EmmsService {
   ) {
     this.evidence = new EvidenceStore(artifactsDir);
     this.embedding = embedding ?? null;
+    this.lessons = new LessonService(adapter);
   }
 
   // ---------- helpers ----------
@@ -709,6 +712,71 @@ export class EmmsService {
       human_approval: { required: false },
     };
     return { result: { groups_found: groups.length, merged }, guidance: guidance as never };
+  }
+
+  // ---------- lessons (FR-022: candidate-level consolidation) ----------
+  async lesson_propose(args: {
+    normalized_hash: string; pattern: string; rule: string;
+    recommended_strategy: string; scope_id: string;
+  }): Promise<ToolResult> {
+    const record = await this.lessons.proposeFromEpisodes(
+      args.normalized_hash, args.pattern, args.rule, args.recommended_strategy
+    );
+    if (!record) {
+      return {
+        result: { lesson: null, reason: 'no verified episodes for this signature' },
+        guidance: {
+          workflow_id: 'n/a', workflow_state: 'OBSERVED', revision: 1,
+          missing_information: [], warnings: [
+            { code: 'NO_SUPPORTING_EVIDENCE', severity: 'medium',
+              message: 'At least one verified episode is required before a lesson candidate can be proposed' }],
+          allowed_next_tools: ['experience_search'],
+          recommended_next_request: { tool: 'experience_search', reason: 'Find verified episodes first', arguments_template: { query: '<collect value>', scope_id: args.scope_id } },
+          alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+        },
+      };
+    }
+    return {
+      result: { lesson: record } as unknown as Record<string, unknown>,
+      guidance: {
+        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
+        missing_information: [], warnings:
+          record.status === 'contested'
+            ? [{ code: 'CONTRADICTION', severity: 'high', message: 'Lesson marked contested — counterexamples exist' }]
+            : [],
+        allowed_next_tools: ['lesson_propose', 'lesson_search', 'lesson_get'],
+        recommended_next_request: { tool: 'lesson_search', reason: 'Browse consolidated lessons', arguments_template: { query: '<collect value>' } },
+        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+      },
+    };
+  }
+
+  async lesson_search(query: string): Promise<ToolResult> {
+    const lessons = await this.lessons.search(query);
+    return {
+      result: { lessons, count: lessons.length },
+      guidance: {
+        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
+        missing_information: [], warnings: [],
+        allowed_next_tools: ['lesson_get', 'lesson_propose'],
+        recommended_next_request: { tool: 'lesson_get', reason: 'Inspect a lesson', arguments_template: { lesson_id: '<collect value>' } },
+        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+      },
+    };
+  }
+
+  async lesson_get(lesson_id: string): Promise<ToolResult> {
+    const lesson = await this.lessons.get(lesson_id);
+    return {
+      result: (lesson ?? { lesson: null, reason: 'not found' }) as Record<string, unknown>,
+      guidance: {
+        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
+        missing_information: [], warnings: [],
+        allowed_next_tools: ['lesson_search', 'lesson_propose'],
+        recommended_next_request: { tool: 'lesson_search', reason: 'Browse lessons', arguments_template: { query: '<collect value>' } },
+        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+      },
+    };
   }
 
   // ---------- retrieval (US1) ----------
