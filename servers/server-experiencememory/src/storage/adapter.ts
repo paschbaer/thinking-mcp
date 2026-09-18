@@ -82,4 +82,11 @@ export interface StorageAdapter {
   getEnvironment(episode_id: string): Promise<{ key: string; value: string }[]>;
   getEmbedding(episode_id: string): Promise<number[] | undefined>;
   putEmbedding(episode_id: string, vec: number[]): Promise<void>;
+  getLessonByHash(normalized_hash: string): Promise<import('../domain/lesson-service.js').LessonRecord | undefined>;
+  insertLesson(l: import('../domain/lesson-service.js').LessonRecord): Promise<void>;
+  updateLesson(l: import('../domain/lesson-service.js').LessonRecord): Promise<void>;
+  getLesson(lesson_id: string): Promise<import('../domain/lesson-service.js').LessonRecord | undefined>;
+  searchLessons(query: string): Promise<import('../domain/lesson-service.js').LessonRecord[]>;
+  listVerifiedEpisodesForSignature(normalized_hash: string): Promise<{ experience_id: string; scope_id: string }[]>;
+  listContradictingEpisodesForSignature(normalized_hash: string): Promise<{ experience_id: string; scope_id: string }[]>;
 }

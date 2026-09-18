@@ -618,6 +618,99 @@ export class EmmsService {
     );
   }
 
+  // ---------- dedup (FR-021 / D5) ----------
+  /** Finds all duplicate groups: same normalized hash + goal Jaccard >= 0.8. */
+  async findDuplicates(scope_id: string): Promise<Array<string[]>> {
+    const rows = await this.adapter.listInScope(scope_id);
+    const byHash = new Map<string, SearchRow[]>();
+    for (const r of rows) {
+      const list = byHash.get(r.normalized_hash) ?? [];
+      list.push(r);
+      byHash.set(r.normalized_hash, list);
+    }
+    const groups: string[][] = [];
+    for (const [, list] of byHash) {
+      if (list.length < 2) continue;
+      // greedy grouping within hash bucket
+      const used = new Set<string>();
+      for (let i = 0; i < list.length; i++) {
+        if (used.has(list[i].episode_id)) continue;
+        const group = [list[i].episode_id];
+        used.add(list[i].episode_id);
+        for (let j = i + 1; j < list.length; j++) {
+          if (used.has(list[j].episode_id)) continue;
+          if (jaccard(list[i].summary, list[j].summary) >= 0.8) {
+            group.push(list[j].episode_id);
+            used.add(list[j].episode_id);
+          }
+        }
+        if (group.length > 1) groups.push(group);
+      }
+    }
+    return groups;
+  }
+
+  /**
+   * Non-destructive dedupe: within each duplicate group keeps the
+   * best-ranked episode (verified > fresher) and marks the others SUPERSEDED
+   * with a pointer to the kept one. Append-only events + audit entries
+   * preserve full history (FR-020/034: no physical deletion).
+   */
+  async dedupeScope(scope_id: string, actor_id = 'local-agent'): Promise<ToolResult> {
+    const groups = await this.findDuplicates(scope_id);
+    const merged: Array<{ kept: string; superseded: string[] }> = [];
+    let auditSeq = 0;
+    for (const group of groups) {
+      const eps: Episode[] = [];
+      for (const id of group) {
+        const ep = await this.adapter.getEpisode(id, scope_id);
+        if (ep) eps.push(ep);
+      }
+      if (eps.length < 2) continue;
+      // keep: verified states first, then freshest last_verified_at
+      const rank = (e: Episode) =>
+        (e.state === 'LOCALLY_VERIFIED' || e.state === 'REPRODUCED' || e.state === 'CROSS_PROJECT_VERIFIED' ? 2 : 0) +
+        (e.last_verified_at ? 1 : 0);
+      eps.sort((a, b) => rank(b) - rank(a) || (a.created_at < b.created_at ? 1 : -1));
+      const kept = eps[0];
+      const superseded: string[] = [];
+      for (const e of eps.slice(1)) {
+        if (isTerminal(e.state)) continue;
+        assertTransition(e.state, 'SUPERSEDED');
+        e.state = 'SUPERSEDED';
+        await this.adapter.saveEpisode(e);
+        superseded.push(e.experience_id);
+      }
+      if (superseded.length) {
+        await this.adapter.insertAudit({
+          event_id: randomUUID(),
+          actor: { actor_type: 'system', actor_id },
+          action: 'experience.dedupe_merged',
+          target: kept.experience_id,
+          timestamp: this.now(),
+          policy_version: POLICY_VERSION,
+          reason: `superseded: ${superseded.join(', ')}`,
+        });
+        merged.push({ kept: kept.experience_id, superseded });
+      }
+      auditSeq++;
+    }
+    void auditSeq;
+    const guidance = {
+      workflow_id: 'n/a',
+      workflow_state: 'LOCALLY_VERIFIED' as const,
+      revision: 1,
+      missing_information: [],
+      warnings: [],
+      allowed_next_tools: ['experience_search'],
+      recommended_next_request: { tool: 'experience_search', reason: 'Verify dedup results', arguments_template: { query: '<collect value>', scope_id } },
+      alternative_next_requests: [],
+      stop_conditions: [],
+      human_approval: { required: false },
+    };
+    return { result: { groups_found: groups.length, merged }, guidance: guidance as never };
+  }
+
   // ---------- retrieval (US1) ----------
   async search(args: {
     query: string; scope_id: string; failure_signature_hash?: string;
