@@ -574,6 +574,36 @@ export class EmmsService {
         c.workflow.state = final_state;
         await this.adapter.saveEpisode(ep);
         const result: Record<string, unknown> = { final_state };
+
+        // Auto-lesson hook (Level 3): propose a lesson from verified episodes.
+        // Non-blocking — errors don't prevent the finalize result.
+        if (final_state === 'LOCALLY_VERIFIED' || final_state === 'REPRODUCED') {
+          try {
+            const sigRow = (await this.adapter.listInScope(ep.scope_id))
+              .find((r) => r.episode_id === ep.experience_id);
+            if (sigRow) {
+              const lesson = await this.lessons.proposeFromEpisodes(
+                sigRow.normalized_hash,
+                ep.problem_summary.slice(0, 80),
+                `Fix: ${ep.goal_summary.slice(0, 80)}`,
+                ep.problem_summary.slice(0, 80)
+              );
+              if (lesson) {
+                result.auto_lesson = {
+                  lesson_id: lesson.lesson_id,
+                  status: lesson.status,
+                  supporting_episodes: lesson.supporting_episodes.length,
+                };
+                if (lesson.status === 'contested') {
+                  warnings.push({ code: 'CONTRADICTION', severity: 'high', message: 'Auto-proposed lesson is contested — counterexamples exist' });
+                }
+              }
+            }
+          } catch (lessonErr) {
+            // Non-blocking: lesson proposal failure doesn't affect finalize
+            warnings.push({ code: 'AUTO_LESSON_FAILED', severity: 'low', message: `Auto-lesson failed: ${(lessonErr as Error).message.slice(0, 100)}` });
+          }
+        }
         if (dups.length) {
           warnings.push({ code: 'DUPLICATE', severity: 'medium', message: `Duplicate candidate(s): ${dups.join(', ')}` });
           result.duplicate_candidates = dups;
