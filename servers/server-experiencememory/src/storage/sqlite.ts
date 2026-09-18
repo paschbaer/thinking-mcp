@@ -96,7 +96,8 @@ export class SqliteAdapter implements StorageAdapter {
     this.db
       .prepare(
         `UPDATE episodes SET state=@state, last_verified_at=@last_verified_at,
-         goal_summary=@goal_summary, acceptance_criteria=@acceptance_criteria, problem_summary=@problem_summary
+         goal_summary=@goal_summary, acceptance_criteria=@acceptance_criteria, problem_summary=@problem_summary,
+         visibility=@visibility
          WHERE experience_id=@experience_id AND scope_id=@scope_id`
       )
       .run({
@@ -333,7 +334,7 @@ export class SqliteAdapter implements StorageAdapter {
 
   // ---------- Retrieval (visibility-filtered) ----------
   private searchBase(where: string, params: unknown[], scope_id: string): SearchRow[] {
-    const scopeFilter = scope_id === '' ? '' : 'AND e.scope_id = @scope_id';
+    const scopeFilter = scope_id === '' ? '' : 'AND (e.scope_id = @scope_id OR e.visibility = \'public\')';
     return this.db
       .prepare(
         `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
@@ -346,7 +347,7 @@ export class SqliteAdapter implements StorageAdapter {
   }
 
   async searchExact(hash: string, scope_id: string): Promise<SearchRow[]> {
-    const scopeFilter = scope_id === '' ? '' : 'AND e.scope_id = ?';
+    const scopeFilter = scope_id === '' ? '' : 'AND (e.scope_id = ? OR e.visibility = \'public\')';
     return this.db
       .prepare(
         `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
@@ -380,12 +381,13 @@ export class SqliteAdapter implements StorageAdapter {
     // LEFT JOIN: episodes without failure signatures (e.g. lesson/consolidation
     // episodes) must also be discoverable via search — signature-less rows get
     // NULL hash and cannot exact-match, but full-text/semantic arms find them.
+    // Public episodes (visibility='public') are included regardless of scope.
     return this.db
       .prepare(
         `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
                 e.last_verified_at, s.normalized_hash, s.exact_tokens
          FROM episodes e LEFT JOIN signatures s ON s.episode_id = e.experience_id
-         WHERE e.scope_id = ?`
+         WHERE e.scope_id = ? OR e.visibility = 'public'`
       )
       .all(scope_id) as SearchRow[];
   }

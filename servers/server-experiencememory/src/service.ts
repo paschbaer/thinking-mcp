@@ -788,6 +788,59 @@ export class EmmsService {
     };
   }
 
+  // ---------- lesson visibility (cross-project sharing) ----------
+  async lesson_publish(args: {
+    workflow_id: string; experience_id: string;
+    expected_revision?: number; client_context: ClientContext;
+  }): Promise<ToolResult> {
+    return this.mutate(
+      args.workflow_id, args.client_context, args.expected_revision, undefined,
+      'experience.lesson_publish',
+      { type: 'lesson.published', payload: { experience_id: args.experience_id } },
+      async (c) => {
+        const ep = await this.adapter.getEpisode(args.experience_id, c.episode!.scope_id);
+        if (!ep) throw new EmmsError('INVALID_REQUEST', 'Episode not found', false, { experience_id: args.experience_id });
+        if (ep.visibility !== 'repository') {
+          return { experience_id: ep.experience_id, visibility: ep.visibility, note: 'already public' };
+        }
+        ep.visibility = 'public' as import('./domain/types.js').Visibility;
+        await this.adapter.saveEpisode(ep);
+        await this.adapter.insertAudit({
+          event_id: randomUUID(),
+          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
+          action: 'experience.lesson_publish', target: ep.experience_id,
+          timestamp: this.now(), policy_version: POLICY_VERSION,
+          reason: 'visibility widened to public — cross-project sharing',
+        });
+        return { experience_id: ep.experience_id, visibility: 'public' };
+      }
+    );
+  }
+
+  async lesson_unpublish(args: {
+    workflow_id: string; experience_id: string;
+    expected_revision?: number; client_context: ClientContext;
+  }): Promise<ToolResult> {
+    return this.mutate(
+      args.workflow_id, args.client_context, args.expected_revision, undefined,
+      'experience.lesson_unpublish',
+      { type: 'lesson.unpublished', payload: { experience_id: args.experience_id } },
+      async (c) => {
+        const ep = await this.adapter.getEpisode(args.experience_id, c.episode!.scope_id);
+        if (!ep) throw new EmmsError('INVALID_REQUEST', 'Episode not found', false, { experience_id: args.experience_id });
+        ep.visibility = 'repository';
+        await this.adapter.saveEpisode(ep);
+        await this.adapter.insertAudit({
+          event_id: randomUUID(),
+          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
+          action: 'experience.lesson_unpublish', target: ep.experience_id,
+          timestamp: this.now(), policy_version: POLICY_VERSION,
+        });
+        return { experience_id: ep.experience_id, visibility: 'repository' };
+      }
+    );
+  }
+
   // ---------- retrieval (US1) ----------
   async search(args: {
     query: string; scope_id: string; failure_signature_hash?: string;
