@@ -209,3 +209,9 @@
 - **docker-restore-must-include-wal-sidecar-files**: SQLite WAL hält frische Commits in der -wal-Datei — .db-only-Kopien verlieren genau diese (Root-Mechanismus des Data Loss beim Rename). Backups UND Restores müssen -wal/-shm mitsichern; nach Restore Zeilenzahl verifizieren.
 - **reseed-lessons-from-fixtures-after-store-loss**: Lessons existieren doppelt außerhalb des Stores (JSON-Fixtures + lessonsLearned.md) — Store-Verlust wird so zum idempotenten Re-Seed statt Datenverlust (10/10 wiederhergestellt). Dual-Write-Disziplin beibehalten.
 - Seeder 3/3, Round-Trip bestätigt.
+
+## 2026-09-19 — Stale Import nach Rename überlebte lokalen Testlauf (CI rot)
+- **Issue**: CI failed mit "Failed to load url ../src/tools/agents-guide.js" in setup-clearthought.test.ts — lokal lief die Suite grün.
+- **Root Cause**: Der Rename-Commit (be4a4d2) benannte Dateien um, übersah aber den Test-Import. Der lokale "142/142 green" war wertlos: vitest-Cache/inkrementelles Verhalten maskierte den Load-Fehler, bzw. die Suite wurde nicht im Clean-State ausgeführt.
+- **Fix**: Import auf setup-clearthought.js korrigiert (feb4665), Suite 152/152.
+- **Prävention**: Vor "suite green"-Claims bei Rename/Move-Commits: `vitest run` in einem sauberen Zustand (mind. `npx vitest run --no-cache` oder frischer Checkout). `Failed to load url`-Fehler = tote Import-Pfade, die nur ohne Cache sichtbar sind.
