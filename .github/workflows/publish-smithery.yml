@@ -30,9 +30,9 @@ jobs:
           - package: server-clear-thought
             workspace: clear-thought
             name: paschbaer/clear-thought
-          - package: server-experiencememory
-            workspace: experiencememory
-            name: paschbaer/experiencememory
+          - package: insight
+            workspace: insight
+            name: paschbaer/insight
     steps:
       - uses: actions/checkout@v5
 

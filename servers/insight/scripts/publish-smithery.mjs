@@ -2,7 +2,7 @@
 // Publishes the built experiencememory MCPB bundle to the Smithery registry.
 //
 // Prerequisites:
-//   - `npm run build && npm run build:mcpb` (bundle at ./experiencememory.mcpb)
+//   - `npm run build && npm run build:mcpb` (bundle at ./insight.mcpb)
 //   - Logged in once via `npx -y @smithery/cli auth login`
 //     (credentials are read locally from ~/.config/smithery/settings.json)
 //
@@ -17,7 +17,7 @@
 // record, not from the release).
 //
 // Usage: node scripts/publish-smithery.mjs [qualifiedName]
-//   default qualifiedName: paschbaer/experiencememory
+//   default qualifiedName: paschbaer/insight
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -25,8 +25,8 @@ import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const qualifiedName = process.argv[2] ?? 'paschbaer/experiencememory';
-const bundlePath = path.join(pkgRoot, 'experiencememory.mcpb');
+const qualifiedName = process.argv[2] ?? 'paschbaer/insight';
+const bundlePath = path.join(pkgRoot, 'insight.mcpb');
 
 // CI-friendly: SMITHERY_API_KEY (GitHub Secret) wins; local runs fall back
 // to the token stored by `npx @smithery/cli auth login`. The settings file is

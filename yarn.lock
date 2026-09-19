@@ -555,9 +555,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@paschbaer/experiencememory@workspace:servers/server-experiencememory":
+"@paschbaer/insight@workspace:servers/insight":
   version: 0.0.0-use.local
-  resolution: "@paschbaer/experiencememory@workspace:servers/server-experiencememory"
+  resolution: "@paschbaer/insight@workspace:servers/insight"
   dependencies:
     "@modelcontextprotocol/sdk": "npm:^1.30.0"
     "@smithery/sdk": "npm:^1.4.3"
@@ -580,7 +580,7 @@ __metadata:
     pg:
       optional: true
   bin:
-    mcp-server-experiencememory: dist/dev.js
+    mcp-server-insight: dist/dev.js
   languageName: unknown
   linkType: soft
 

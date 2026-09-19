@@ -46,7 +46,7 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 ## Experience Memory Lookup (EMMS) — Level 2 proactive retrieval
 
 Before working in a known trap domain, search prior experience via the
-local **experience-memory** server (stdio, `servers/server-experiencememory`):
+local **experience-memory** server (stdio, `servers/insight`):
 
 | Trigger (touching…) | Query keywords |
 |---|---|
@@ -59,4 +59,4 @@ local **experience-memory** server (stdio, `servers/server-experiencememory`):
 Call: `experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }`
 — on a `PARTIALLY_VERIFIED`/`LOCALLY_VERIFIED` hit, follow the recorded fix
 and record `experience_record_reuse_feedback` afterwards. New recurring trap?
-Seed via `servers/server-experiencememory/scripts/seed-lessons.mjs`.
+Seed via `servers/insight/scripts/seed-lessons.mjs`.

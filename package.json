@@ -20,7 +20,9 @@
         "publish:stochastic": "cd servers/server-stochasticthinking && node scripts/publish-smithery.mjs",
         "publish:clear-thought": "cd servers/server-clear-thought && node scripts/publish-smithery.mjs",
         "npm:publish:stochastic": "cd servers/server-stochasticthinking && npm publish",
-        "npm:publish:clear-thought": "cd servers/server-clear-thought && npm publish"
+        "npm:publish:clear-thought": "cd servers/server-clear-thought && npm publish",
+        "publish:insight": "cd servers/insight && node scripts/publish-smithery.mjs",
+        "npm:publish:insight": "cd servers/insight && npm publish"
     },
     "author": "paschbaer",
     "license": "MIT",

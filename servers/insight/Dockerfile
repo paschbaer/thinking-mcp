@@ -57,6 +57,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["node", "dist/server.js"]
 
 # Label the image
-LABEL org.opencontainers.image.source="https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-experiencememory"
+LABEL org.opencontainers.image.source="https://github.com/paschbaer/thinking-mcp/tree/main/servers/insight"
 LABEL org.opencontainers.image.description="Experience Memory MCP server (EMMS) — evidence-backed long-term memory for coding agents"
 LABEL org.opencontainers.image.licenses="MIT"

@@ -92,9 +92,9 @@ ${END_MARKER}`;
 }
 
 const GITIGNORE_LINES = [
-  'servers/server-experiencememory/emms-data/',
-  'servers/server-experiencememory/emms-store.db*',
-  'servers/server-experiencememory/emms-artifacts/',
+  'servers/insight/emms-data/',
+  'servers/insight/emms-store.db*',
+  'servers/insight/emms-artifacts/',
 ];
 
 const DEFAULT_TRIGGERS = [

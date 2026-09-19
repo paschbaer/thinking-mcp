@@ -257,11 +257,11 @@ feature working as designed; collect the evidence and retry.
 git clone https://github.com/paschbaer/thinking-mcp.git
 cd thinking-mcp
 yarn install
-yarn workspace @paschbaer/experiencememory build
+yarn workspace @paschbaer/insight build
 ```
 
 The stdio entry is then available at
-`servers/server-experiencememory/dist/dev.js`.
+`servers/insight/dist/dev.js`.
 
 **VS Code (`.vscode/mcp.json`):**
 
@@ -271,7 +271,7 @@ The stdio entry is then available at
     "experience-memory": {
       "type": "stdio",
       "command": "node",
-      "args": ["/absolute/path/to/thinking-mcp/servers/server-experiencememory/dist/dev.js"],
+      "args": ["/absolute/path/to/thinking-mcp/servers/insight/dist/dev.js"],
       "env": {}
     }
   }
@@ -283,7 +283,7 @@ The stdio entry is then available at
 Build and run (HTTP transport on port 3002):
 
 ```bash
-cd servers/server-experiencememory
+cd servers/insight
 docker compose up -d --build
 curl http://localhost:3002/health
 # → {"status":"ok","service":"experience-memory-mcp",...}
@@ -299,7 +299,7 @@ Plain `docker run` also works — the image defaults
 volume directory):
 
 ```bash
-docker run -d -p 3002:3002 paschbaer/experiencememory:latest
+docker run -d -p 3002:3002 paschbaer/insight:latest
 ```
 
 ### MCP client configuration (Docker, HTTP transport)
@@ -311,7 +311,7 @@ instead of a stdio command — VS Code (`User mcp.json` or workspace
 ```json
 {
   "servers": {
-    "experiencememory": {
+    "insight": {
       "url": "http://localhost:3002/mcp",
       "type": "http",
       "autoStart": true
@@ -469,9 +469,9 @@ Run on-demand: `new ConsolidationWorker(adapter, lessonService).runOnce()`.
 ## Development
 
 ```bash
-cd servers/server-experiencememory
+cd servers/insight
 yarn install
-yarn workspace @paschbaer/experiencememory build
+yarn workspace @paschbaer/insight build
 npm test             # 63 tests: contract, unit, golden paths
 npm run typecheck
 npm run dev          # stdio
