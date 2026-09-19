@@ -46,7 +46,7 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 ## Experience Memory Lookup (EMMS) — Level 2 proactive retrieval
 
 Before working in a known trap domain, search prior experience via the
-local **experience-memory** server (stdio, `servers/insight`):
+local **experience-memory** server (stdio, `servers/server-insight`):
 
 | Trigger (touching…) | Query keywords |
 |---|---|

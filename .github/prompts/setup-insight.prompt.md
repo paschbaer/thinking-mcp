@@ -16,7 +16,7 @@ servers/server-insight/dist/dev.js
 ```
 
 If missing, run `yarn workspace @paschbaer/insight build` (or
-`cd servers/insight && npm run build`). If the build fails,
+`cd servers/server-insight && npm run build`). If the build fails,
 STOP and report the error.
 
 Smoke-test via stdio: connect an MCP client to `dist/dev.js` and call
@@ -42,7 +42,7 @@ Append the following section to BOTH `AGENTS.md` and `CLAUDE.md`
 ## Experience Memory Lookup (EMMS) — Level 2 proactive retrieval
 
 Before working in a known trap domain, search prior experience via the
-local **experience-memory** server (stdio, `servers/insight`):
+local **experience-memory** server (stdio, `servers/server-insight`):
 
 Trigger domains → search query keywords:
 
@@ -90,7 +90,7 @@ If the user provides a lessons JSON file (or existing
 `memory-bank/lessonsLearned.md` contains convertible entries), seed them:
 
 ```bash
-cd servers/insight
+cd servers/server-insight
 node scripts/seed-lessons.mjs <lessons.json>
 ```
 
