@@ -178,3 +178,12 @@
 - **idempotent-replay-stale-revision**: FR-028-Literal-Replay von `workflow_start` lieferte die Original-Revision (meist 1) zurück → Addendum-Läufe rechneten ab da und crashten mit STALE_REVISION (Niyama-Befund „Rev 3 auf dem älteren Workflow"). Fix: Replay patcht `result.revision` auf die aktuelle Workflow-Revision + `replayed: true`; Regressionstest `replay-revision.test.ts`, Suite 95/95. Meta-Lesson: Literal-Replay ist unsicher für jedes Ergebnisfeld, das sich mit der Zeit ändert.
 - **emms-search-response-field-results**: `experience_search` liefert Treffer unter `result.results` — ein Verify-Probe, das `result.items` liest, maskiert echte Treffer als „0 hits". Fix: `results` lesen; bei 0 Treffern erst den Roh-Envelope dumpen, bevor Fehlschlag konstatiert wird.
 - Seeder 2/2, Round-Trip bestätigt.
+
+## 2026-09-19 — drvfs-Verzeichnis-Rename-Falle (experiencememory → insight)
+- **Issue**: `git mv servers/server-experiencememory servers/server-insight` auf /mnt/d (WSL drvfs) vergiftete den Dentry-Cache: das Zielverzeichnis war danach für WSL dauerhaft unlesbar (`d?????????` / "No such file or directory"), obwohl Windows (`cmd.exe dir`) den vollständigen Inhalt zeigte. Negative Cache-Einträge verfielen auch nach >2 min nicht.
+- **Ursache**: WSL-seitige Umbenennungen auf drvfs hinterlassen stale positive/negative Dentry-Einträge für den Zielnamen; selbst Windows-seitige Neu-Erstellung desselben Namens bleibt für WSL unsichtbar.
+- **Validierte Workarounds** (in dieser Reihenfolge):
+  1. **Case-Variante als Seitentür**: `ls servers/Server-Insight/` (abweichende Groß-/Kleinschreibung) umgeht den negativen Dentry und zeigt den Inhalt.
+  2. **Heilung über Rename-Kette auf einen unbelasteten Namen**: `mv <fallVariant> servers/insight-heal && mv servers/insight-heal servers/insight` — der zweite Sprung auf einen nie gecachten Namen funktioniert; das Original-Ziel ('server-insight') blieb dauerhaft defekt.
+  3. Verzeichnis-Ops auf drvfs bevorzugt **Windows-seitig** ausführen (`cmd.exe /c move ...`), nie WSL-seitig bei#getrackten Ordnern.
+- Konsequenz: Server-Ordner heißt jetzt `servers/insight` (statt `server-insight`) — der saubere Name war frei.
