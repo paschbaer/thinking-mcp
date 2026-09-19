@@ -23,3 +23,6 @@ package-lock.json
 servers/server-insight/emms-store.db*
 servers/server-insight/emms-artifacts/
 servers/server-insight/emms-data/
+
+# insight store backups
+servers/server-insight/emms-backups/
