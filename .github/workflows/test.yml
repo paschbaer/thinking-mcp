@@ -12,6 +12,9 @@ jobs:
 
     env:
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+      # insight: skip ONNX native embedding load in CI (binding dlopen can
+      # fail on runners and surfaces as unhandled rejection -> exit 1)
+      EMMS_DISABLE_EMBEDDINGS: '1'
 
     steps:
     - uses: actions/checkout@v5
