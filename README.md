@@ -139,6 +139,27 @@ The server is then reachable at `http://localhost:3000`.
 > `ghcr.io/paschbaer/clear-thought` (`latest` + release tags), so a plain
 > `docker run ghcr.io/paschbaer/clear-thought` works without building.
 
+### Running the combined stack
+
+The **root `docker-compose.yml`** is the canonical entry point — it starts both
+servers as one project (`thinking-mcp-insight-1`, `thinking-mcp-clear-thought-1`):
+
+```bash
+docker compose up -d          # from the repo root
+```
+
+- **insight**: `http://localhost:3002/mcp` (store persisted on the host in
+  `servers/server-insight/emms-data/`)
+- **clear-thought**: `http://localhost:3000/mcp`
+
+> Each server folder also has its own `docker-compose.yml` for standalone
+> development. Note that Docker Compose derives the project name from the
+> directory of the compose file, so starting from a server folder creates a
+> **separate project** (`server-insight-insight-1`, …) with different container
+> names than the root stack. Pick one entry point and stick with it; when
+> container names look unfamiliar, `docker compose ls` lists all active
+> projects.
+
 ## Publishing (maintainers)
 
 Releases are automated: on every release merge (`develop` → `main`) GitHub
