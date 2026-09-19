@@ -191,3 +191,9 @@
 ## 2026-09-19 — Compose-Service-Drift-Lesson (in `thinking-mcp-lessons` gespielt)
 - **server-local-compose-service-drift**: Nach Root-Compose-Rename (experience-memory → insight) erzeugte `docker compose up` einen dritten Container `experience-memory` — die server-lokale `docker-compose.yml` in `servers/server-insight` definierte den Service noch unter dem alten Namen. Fix: Service auch dort umbenennen, toten Container `docker rm`, Verifikation via `docker compose config --services` je Verzeichnis. Regel: Bei Service-Renames ALLE compose-Dateien im Repo greppen, nicht nur die Root.
 - Seeder 1/1, Round-Trip bestätigt (exp_353dfc99).
+
+## 2026-09-19 — Release-Pipeline-Review (insight)
+- **publish-skript-Kopien validieren**: Das von clear-thought kopierte `publish-smithery.mjs` war nur halb angepasst (falsche Factory-Importe, `defaultConfig`-Export existierte nicht, clear-thought-configSchema/-Card) und wäre zur Laufzeit gecrasht. Regel: kopierte Skripte end-to-end ausführen (mindestens bis zur Netzwerk-Grenze trocken), nicht nur Syntax-checken.
+- **build-mcpb.mjs war nie lauffähig** (fehlender `dirname`-Import, invalides Manifest-Schema: tools als String-Array statt Objekte). Fix nach clear-thought-Muster: Laufzeit-Tool-Capture + schema-valide Manifeste.
+- **mcpb pack hängt bei ~300 MB node_modules** (onnxruntime) in dieser Umgebung — direkter tar.gz-Pack (`.mcpb` IST ein tar.gz mit manifest.json im Root) als Ersatz; Staging auf ext4 (/tmp) wegen drvfs-Dentry-Flackern.
+- **npm-OIDC kann Packages nicht erstellen**: Trusted Publisher muss pro Package auf npmjs.com existieren — Erst-Release immer manuell, dann Workflow. Guards: npm `REMOTE=none` → fail-fast mit Anleitung; Smithery `none` → skip mit Note.
