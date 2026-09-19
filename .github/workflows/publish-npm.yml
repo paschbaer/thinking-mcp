@@ -68,10 +68,18 @@ jobs:
           REMOTE=$(npm view "@paschbaer/${{ matrix.scope }}" version 2>/dev/null || echo "none")
           if [ "$LOCAL" = "$REMOTE" ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "$REMOTE" = "none" ]; then
+            # Package does not exist on npm yet: OIDC trusted publishing
+            # must be configured per-package on npmjs.com FIRST, which is
+            # impossible for a package that does not exist. First release
+            # is manual (npm publish locally), afterwards this workflow
+            # handles updates.
+            echo "::error::@paschbaer/${{ matrix.scope }} is not on npm yet. Publish v$LOCAL manually once (npm publish inside servers/${{ matrix.package }}), then configure Trusted Publisher (repo thinking-mcp, workflow publish-npm.yml) on the npm package page."
+            exit 1
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "local=$LOCAL remote=$REMOTE publish=$(grep -o 'true\|false' "$GITHUB_OUTPUT" | tail -1)"
+          echo "local=$LOCAL remote=$REMOTE"
 
       - name: Publish to npmjs.com (OIDC — tokenlos)
         if: steps.guard.outputs.publish == 'true'

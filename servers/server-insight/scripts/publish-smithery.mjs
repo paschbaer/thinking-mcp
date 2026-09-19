@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Publishes the built experiencememory MCPB bundle to the Smithery registry.
+// Publishes the built insight MCPB bundle to the Smithery registry.
 //
 // Prerequisites:
 //   - `npm run build && npm run build:mcpb` (bundle at ./insight.mcpb)
@@ -54,12 +54,12 @@ const pkg = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8
 // Capture tool metadata at runtime (in-memory client against the factory)
 const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
 const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
-const { default: createClearThoughtServer } = await import(
+const { default: createInsightServer } = await import(
   pathToFileURL(path.join(pkgRoot, 'dist/index.js'))
 );
-const { defaultConfig } = await import(pathToFileURL(path.join(pkgRoot, 'dist/config.js')));
+const { DEFAULT_CONFIG } = await import(pathToFileURL(path.join(pkgRoot, 'dist/config.js')));
 
-const server = createClearThoughtServer({ sessionId: 'publish', config: defaultConfig });
+const server = createInsightServer({ config: DEFAULT_CONFIG });
 const client = new Client({ name: 'publish', version: pkg.version });
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -72,28 +72,20 @@ const payload = {
   configSchema: {
     type: 'object',
     properties: {
-      debug: { type: 'boolean', default: false, description: 'Enable debug logging.' },
-      maxThoughtsPerSession: {
-        type: 'number',
-        default: 100,
-        description: 'Maximum number of thoughts allowed per session.'
-      },
-      sessionTimeout: {
-        type: 'number',
-        default: 3600000,
-        description: 'Session timeout in milliseconds.'
-      },
-      enableMetrics: { type: 'boolean', default: false, description: 'Enable metrics collection.' }
+      storagePath: {
+        type: 'string',
+        description: 'SQLite storage path for the experience memory (env fallback: EMMS_STORAGE_PATH).'
+      }
     },
-    description: 'Configuration for the Clear Thought MCP server.'
+    description: 'Configuration for the Insight MCP server.'
   },
   serverCard: {
     serverInfo: {
-      name: 'clear-thought-server',
-      title: 'Clear Thought',
+      name: 'insight-server',
+      title: 'Insight',
       version: pkg.version,
       description:
-        'MCP server for systematic thinking: mental models, debugging approaches, decision frameworks, and structured reasoning tools.'
+        'Evidence-backed long-term experience memory for coding agents: capture debugging episodes, validate fixes, hybrid retrieval.'
     },
     tools: tools.map((t) => ({
       name: t.name,
@@ -126,9 +118,9 @@ const recordRes = await fetch(
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      displayName: 'Clear Thought',
+      displayName: 'Insight',
       description: pkg.description,
-      homepage: 'https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-clear-thought',
+      homepage: 'https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-insight',
       repositoryUrl: 'https://github.com/paschbaer/thinking-mcp',
       iconUrl: 'https://github.com/paschbaer.png',
       license: 'MIT'
