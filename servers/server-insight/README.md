@@ -47,6 +47,12 @@ unverified-root-cause), and one schema-valid **recommended next request** with
 placeholders (`<collect value>`, `<attach artifact>`) instead of fabricated
 values. Agents can decline guidance with a reason; the server recalculates.
 
+### Consolidation worker
+Background maintenance (5-min timer): stale scan (flags + ranking penalty),
+auto-dedup (signature + Jaccard thresholds), lesson promotion from verified
+episodes, and contradiction detection. Non-destructive: supersedes, never
+deletes (FR-034). Runs alongside the server without configuration.
+
 ### Security & governance
 Deterministic pattern-based redaction (API keys, tokens, private keys,
 connection strings, passwords, home paths) before anything is persisted;
@@ -177,6 +183,20 @@ a `guidance` envelope.
   reusable lessons.
 - **`lesson_unpublish`** — narrows visibility back to `repository`-only.
 
+### Consolidation tools
+
+- **`lesson_propose`** — proposes (or updates) a consolidated lesson from
+  verified episodes sharing a failure signature. Promotion thresholds (D5):
+  1 verified = candidate, 2 = provisional, ≥ 3 scopes = verified. Any
+  contradicting outcome (harmful/ineffective classification on the same
+  signature) marks the lesson `contested`. Returns `lesson: null` +
+  `NO_SUPPORTING_EVIDENCE` guidance when no verified episodes exist.
+- **`lesson_search`** — searches consolidated lessons by keyword.
+- **`lesson_get`** — retrieves one lesson by `lesson_id`.
+- **`experience_dedupe_scope`** — admin: finds duplicate episodes in a scope
+  (same signature + goal Jaccard ≥ 0.8) and supersedes them non-destructively
+  (state → `SUPERSEDED`, audit-recorded, no physical deletion per FR-034).
+
 ## Usage
 
 ### Typical debugging cycle
@@ -237,11 +257,11 @@ feature working as designed; collect the evidence and retry.
 git clone https://github.com/paschbaer/thinking-mcp.git
 cd thinking-mcp
 yarn install
-yarn workspace @paschbaer/experiencememory build
+yarn workspace @paschbaer/insight build
 ```
 
 The stdio entry is then available at
-`servers/server-experiencememory/dist/dev.js`.
+`servers/server-insight/dist/dev.js`.
 
 **VS Code (`.vscode/mcp.json`):**
 
@@ -251,7 +271,7 @@ The stdio entry is then available at
     "experience-memory": {
       "type": "stdio",
       "command": "node",
-      "args": ["/absolute/path/to/thinking-mcp/servers/server-experiencememory/dist/dev.js"],
+      "args": ["/absolute/path/to/thinking-mcp/servers/server-insight/dist/dev.js"],
       "env": {}
     }
   }
@@ -263,7 +283,7 @@ The stdio entry is then available at
 Build and run (HTTP transport on port 3002):
 
 ```bash
-cd servers/server-experiencememory
+cd servers/insight
 docker compose up -d --build
 curl http://localhost:3002/health
 # → {"status":"ok","service":"experience-memory-mcp",...}
@@ -279,7 +299,7 @@ Plain `docker run` also works — the image defaults
 volume directory):
 
 ```bash
-docker run -d -p 3002:3002 paschbaer/experiencememory:latest
+docker run -d -p 3002:3002 paschbaer/insight:latest
 ```
 
 ### MCP client configuration (Docker, HTTP transport)
@@ -291,7 +311,7 @@ instead of a stdio command — VS Code (`User mcp.json` or workspace
 ```json
 {
   "servers": {
-    "experiencememory": {
+    "insight": {
       "url": "http://localhost:3002/mcp",
       "type": "http",
       "autoStart": true
@@ -325,11 +345,11 @@ builds, driver quirks, race conditions) persist as searchable episodes and
 surface automatically when a related problem reappears. Four levels of
 automation — from one-command setup to fully integrated agent behavior:
 
-### Level 0 — One-command setup (`/setup-experience-memory`)
+### Level 0 — One-command setup (`/setup-insight`)
 
 Bootstraps the full integration in any repo. Invoke the prompt file
-`.github/prompts/setup-experience-memory.prompt.md` (VS Code:
-`/setup-experience-memory`) and the agent performs:
+`.github/prompts/setup-insight.prompt.md` (VS Code:
+`/setup-insight`) and the agent performs:
 
 1. Verify the EMMS server build (`dist/dev.js`)
 2. Create the capture prompt file (`.github/prompts/capture-lessons.prompt.md`)
@@ -398,14 +418,23 @@ This turns passive documentation into an **active lookup**: the trap surfaces
 before the mistake repeats, and `record_reuse_feedback` measures whether the
 memory actually helped (misleading/harmful content is demoted automatically).
 
-### Level 3 — Auto-capture hooks (consolidation phase, planned)
+### Level 3 — Auto-capture hooks (implemented)
 
-The end state (spec §30.2, automatic capture hooks): the agent runtime feeds
-failed attempts, error signatures, and successful fixes to the server during
-the session — no explicit seeding step at all. Prerequisites: lesson
-consolidation (`lesson.*` tools), promotion thresholds, and capture hooks in
-the agent harness. The current data model already supports this; only the
-tooling is missing.
+Two hooks make lesson capture fully automatic:
+
+- **Finalize auto-lesson**: `finalize(verified)` reaching `LOCALLY_VERIFIED`
+  auto-proposes a lesson from the episode's failure signature (non-blocking;
+  the response includes `auto_lesson` with `lesson_id`, `status`, and
+  supporting episode count).
+- **Git post-commit hook**: `scripts/auto-capture-hook.mjs` scans the commit
+  diff for error-like patterns and prompts for capture. Install via
+  `.git/hooks/post-commit` (chmod +x); disable with `EMMS_AUTO_CAPTURE=0`.
+
+npm scripts: `npm run capture` (seed lessons JSON), `npm run auto-capture`
+(hook dry-run).
+
+Implemented: the finalize auto-lesson hook and git post-commit hook remove
+the need for explicit `lesson_propose` calls during normal debugging.
 
 ### Recommendation
 
@@ -414,20 +443,56 @@ the agent instructions, and treat Level 3 as the consolidation-phase
 deliverable. The `lessons.json` file from Level 1 is the seed corpus for
 Level 3's automatic clustering.
 
+## Consolidation Worker
+
+Background maintenance worker (starts alongside the server):
+
+| Task | What it does |
+|------|-------------|
+| Stale scan | Flags episodes whose `last_verified_at` exceeds the staleness threshold (default: 90 days); penalizes them in search ranking |
+| Auto-dedup | Finds duplicate groups (same normalized signature + goal Jaccard ≥ 0.8) per scope |
+| Lesson promotion | Auto-proposes lessons from verified episodes sharing a failure signature (D5 thresholds) |
+
+Configuration via `WorkerOptions` in `src/consolidation/worker.ts`:
+`staleDays` (default 90), `intervalMs` (default 300 000 = 5 min, 0 = manual only).
+
+Run on-demand: `new ConsolidationWorker(adapter, lessonService).runOnce()`.
+
 ## Configuration
 
 | Env / config | Default | Meaning |
 |--------------|---------|---------|
-| `EMMS_STORAGE_PATH` | `./emms-store.db` | SQLite database file (WAL mode, FTS5 required) |
+| `EMMS_STORAGE_PATH` | `~/.insight/emms-store.db` (stdio) / volume (Docker) | SQLite database file (WAL mode, FTS5 required) |
 | `PORT` | `3002` | HTTP transport port (stdio via `npm run dev`) |
 | ranking weights | D6 defaults (see research.md) | configurable in `src/config.ts` |
+
+## Backup & Restore
+
+The store lives in `emms-data/` (Docker bind mount) or `~/.insight/` (stdio default).
+
+```bash
+# create a consistent snapshot (safe while the server is running)
+node scripts/backup-store.sh
+
+# restore a snapshot (stops the insight container, keeps a pre-restore copy)
+node scripts/backup-store.sh restore emms-backups/emms-store-YYYYMMDD-HHMMSS.db
+```
+
+Backups land in `emms-backups/` (git-ignored); the 14 newest are kept,
+older ones pruned automatically. Every snapshot is integrity-checked
+(`PRAGMA integrity_check`) and reports the episode count. Schedule via
+cron for automatic protection, e.g. hourly:
+
+```cron
+0 * * * * /path/to/servers/server-insight/scripts/backup-store.sh
+```
 
 ## Development
 
 ```bash
-cd servers/server-experiencememory
+cd servers/insight
 yarn install
-yarn workspace @paschbaer/experiencememory build
+yarn workspace @paschbaer/insight build
 npm test             # 63 tests: contract, unit, golden paths
 npm run typecheck
 npm run dev          # stdio

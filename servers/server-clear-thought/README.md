@@ -558,7 +558,7 @@ ESM resolution, SDK quirks) are persisted as searchable experience episodes in
 the companion **experience-memory** server (port 3002) — see its README
 section *„Automating lesson capture"* for the three automation levels:
 
-1. **Batch seeding** — `servers/server-experiencememory/scripts/seed-lessons.mjs`
+1. **Batch seeding** — `servers/server-insight/scripts/seed-lessons.mjs`
    with a JSON lesson file (idempotent, reviewable source of truth)
 2. **Proactive retrieval** — agent-instruction rules trigger
    `experience_search` at task start for known trap domains

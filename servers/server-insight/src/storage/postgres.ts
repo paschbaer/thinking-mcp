@@ -479,6 +479,16 @@ export class PostgresAdapter implements StorageAdapter {
   }
 
   // ---- Embeddings ----
+  async listScopes(): Promise<string[]> {
+    const r = await this.client!.query('SELECT DISTINCT scope_id FROM episodes');
+    return r.rows.map((row: { scope_id: string }) => row.scope_id);
+  }
+
+  async findAllEpisodes(): Promise<Episode[]> {
+    const r = await this.client!.query('SELECT * FROM episodes');
+    return r.rows as Episode[];
+  }
+
   async getEmbedding(episode_id: string): Promise<number[] | undefined> {
     const r = await this.client!.query('SELECT vec::text AS vec FROM embeddings WHERE episode_id=$1', [episode_id]);
     if (!r.rows[0]) return undefined;

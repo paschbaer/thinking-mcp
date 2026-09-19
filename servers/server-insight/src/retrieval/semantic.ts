@@ -28,6 +28,15 @@ export class TransformersEmbedding implements EmbeddingProvider {
     if (this.loadFailed) return null;
     if (!this.loadAttempted) {
       this.loadAttempted = true;
+      // Opt-out switch: EMMS_DISABLE_EMBEDDINGS=1 skips the ONNX native
+      // module entirely. Needed in CI/test environments where the native
+      // binding may fail to dlopen — the failure is caught below, but the
+      // thrown error can still surface as an unhandled rejection in vitest
+      // (exit code 1 despite green tests). Also honored by tests via env.
+      if (process.env.EMMS_DISABLE_EMBEDDINGS === '1') {
+        this.loadFailed = true;
+        return null;
+      }
       try {
         const mod = await import('@xenova/transformers');
         this.pipeline = await mod.pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });

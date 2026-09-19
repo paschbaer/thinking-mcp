@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "better-sqlite3-boolean-bind",
+    "observation": "experience_record_reuse_feedback threw INTERNAL_ERROR 'SQLite3 can only bind numbers, strings, bigints, buffers, and null' — but only when the caller SUPPLIED the optional changed_plan field; calls with the field omitted succeeded. Regression test with only the minimal call shape stayed green while the full call crashed.",
+    "cause": "better-sqlite3 rejects booleans outright. The earlier '?? null' fix only converted undefined to null — a supplied changed_plan: true was still passed to the bind unchanged.",
+    "fix": "Encode optional boolean columns explicitly for INTEGER storage: changed_plan: f.changed_plan == null ? null : (f.changed_plan ? 1 : 0). Rule: never use '?? null' on boolean-typed bind values; always test BOTH call shapes (fields omitted and supplied)."
+  },
+  {
+    "slug": "mcp-service-method-unregistered",
+    "observation": "lesson_publish and lesson_unpublish existed as EmmsService methods with passing service-level tests, yet agents could never call them over MCP — the tools were simply absent from the tool list.",
+    "cause": "The service methods were implemented but never wired via registerTool in src/tools/register.ts; service-level test coverage does not prove MCP surface availability.",
+    "fix": "Register every public service capability with registerTool and add an MCP-surface contract test asserting client.listTools() contains each expected tool name."
+  },
+  {
+    "slug": "drvfs-edit-tool-silent-nowrite",
+    "observation": "On the /mnt/d WSL drvfs mount, an editor replace operation reported SUCCESS but a terminal grep immediately afterwards showed the file still contained the old text — the change never reached disk. Downstream build/test verification would have silently validated stale code.",
+    "cause": "Stale write/cache behavior of editor-buffer-based file edits on WSL drvfs (/mnt/d) mounts; the tool's success report does not guarantee a durable disk write.",
+    "fix": "For this repo, apply source edits via terminal (python3 inline replace with an assert on the anchor string), then immediately grep-verify the change on disk BEFORE running build/tests. Treat editor-tool success messages as unverified until a terminal read confirms them."
+  }
+]

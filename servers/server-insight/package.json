@@ -1,14 +1,14 @@
 {
-  "name": "@paschbaer/experiencememory",
+  "name": "@paschbaer/insight",
   "version": "0.1.0",
-  "description": "Experience Memory MCP Server (EMMS) - evidence-backed long-term memory layer for coding agents. Functionality defined by specs/001-experience-memory-server/spec.md",
+  "description": "Insight MCP Server — evidence-backed long-term memory layer for coding agents. Functionality defined by specs/001-experience-memory-server/spec.md",
   "license": "MIT",
   "author": "Paschbaer",
-  "homepage": "https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-experiencememory",
+  "homepage": "https://github.com/paschbaer/thinking-mcp/tree/main/servers/insight",
   "bugs": "https://github.com/paschbaer/thinking-mcp/issues",
   "type": "module",
   "bin": {
-    "mcp-server-experiencememory": "dist/dev.js"
+    "mcp-server-insight": "dist/dev.js"
   },
   "files": [
     "dist",
@@ -34,7 +34,9 @@
     "prebuild": "npm run clean",
     "prepublishOnly": "npm run build",
     "build:mcpb": "node scripts/build-mcpb.mjs",
-    "deploy": "smithery deploy"
+    "deploy": "smithery deploy",
+    "capture": "node scripts/seed-lessons.mjs",
+    "auto-capture": "node scripts/auto-capture-hook.mjs"
   },
   "repository": {
     "type": "git",

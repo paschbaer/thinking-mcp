@@ -1,5 +1,5 @@
 /**
- * setup_experience_memory tool — bootstraps the EMMS integration in a target
+ * setup_insight tool — bootstraps the EMMS integration in a target
  * repo, analogous to clear-thought's `agents_guide`: returns ready-to-write
  * content (lookup rules, capture prompt, gitignore lines) with marker-based
  * idempotent merging. The agent executing the tool writes the returned
@@ -92,9 +92,9 @@ ${END_MARKER}`;
 }
 
 const GITIGNORE_LINES = [
-  'servers/server-experiencememory/emms-data/',
-  'servers/server-experiencememory/emms-store.db*',
-  'servers/server-experiencememory/emms-artifacts/',
+  'servers/server-insight/emms-data/',
+  'servers/server-insight/emms-store.db*',
+  'servers/server-insight/emms-artifacts/',
 ];
 
 const DEFAULT_TRIGGERS = [
@@ -141,9 +141,9 @@ function integrateWithMarkers(
   return { content: `${base}\n\n${block}\n`, blockReplaced: false };
 }
 
-export function registerSetupExperienceMemory(server: McpServer): void {
+export function registerSetupInsight(server: McpServer): void {
   server.tool(
-    'setup_experience_memory',
+    'setup_insight',
     'Bootstrap the EMMS integration in a target repo: returns ready-to-write ' +
       'lookup rules for AGENTS.md/CLAUDE.md (marker-based idempotent merge into ' +
       'existing content), the capture prompt file, gitignore lines, and next ' +

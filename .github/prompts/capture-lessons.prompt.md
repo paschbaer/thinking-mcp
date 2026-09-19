@@ -23,7 +23,7 @@ persist each one as an experience episode in the experience-memory server.
    - `fix` — the validated workaround or fix
 
 3. **Write them to a JSON file** matching
-   `servers/server-experiencememory/tests/fixtures/lessons.json` format:
+   `servers/server-insight/tests/fixtures/lessons.json` format:
 
 ```json
 [
@@ -34,7 +34,7 @@ persist each one as an experience episode in the experience-memory server.
 4. **Seed via the seeder script** (idempotent — re-runs never duplicate):
 
 ```bash
-cd servers/server-experiencememory
+cd servers/server-insight
 node scripts/seed-lessons.mjs <path-to-lessons.json>
 ```
 

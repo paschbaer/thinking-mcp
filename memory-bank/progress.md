@@ -233,3 +233,7 @@ UPDATE 2026-09-18 (11): LESSON-CONSOLIDATION (B, FR-022). LessonService wired; 3
 UPDATE 2026-09-18 (12): CROSS-PROJECT LESSON VISIBILITY. Visibility-Level 'public' (Spec §18.3): public Episoden in Suchergebnissen unabhaengig vom Aufrufer-Scope. lesson_publish/lesson_unpublish MCP-Tools (auditiert). Bug-Fix: saveEpisode hatte visibility nicht im UPDATE — vom Cross-Scope-Contract-Test gefunden. 3 Tests; 85/85 gruen. Commit aa60983.
 
 UPDATE 2026-09-18 (13): PUBLISHING SETUP. smithery.yaml, scripts/build-mcpb.mjs (analog clear-thought), pg als optionaler peerDep (lazy import). build:mcpb + deploy Scripts. Bereit fuer npm publish + Smithery deploy (Maintainer). 85/85 gruen. Commit 5b2ae9b.
+
+UPDATE 2026-09-18 (14): LEVEL 3 AUTO-CAPTURE HOOKS. finalize(verified) auto-propose Lesson aus Episode-Signatur (non-blocking, auto_lesson im Response). Git post-commit Hook (auto-capture-hook.mjs): Error-Pattern-Detection in Diff, EMMS_AUTO_CAPTURE=0 zum Deaktivieren. npm Scripts: capture + auto-capture. 85/85 gruen. Commit d31b921.
+
+UPDATE 2026-09-18 (15): CONSOLIDATION WORKER (Phase 3). ConsolidationWorker: Timer-basierte Hintergrund-Tasks (Stale-Scan, Auto-Dedup, Lesson-Promotion), 5-Min-Intervall (unref). StorageAdapter erweitert um listScopes() + findAllEpisodes() (beide Adapter). Wired in tools/index.ts. 5 Contract-Tests; 91/91 gruen. Commit 5cc6512.

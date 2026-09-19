@@ -1,7 +1,7 @@
 # Root-level orchestration: runs both MCP servers as Docker containers.
 # The VS Code MCP config (User mcp.json) points at
 #   - http://localhost:3000/mcp  (clear-thought)
-#   - http://localhost:3002/mcp  (experience-memory)
+#   - http://localhost:3002/mcp  (insight)
 # Start everything with:  docker compose up -d --build
 #
 # Per-server composes live in servers/server-*/docker-compose.yml.
@@ -22,8 +22,8 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  experience-memory:
-    build: ./servers/server-experiencememory
+  insight:
+    build: ./servers/server-insight
     ports:
       - "3002:3002"
     environment:
@@ -31,10 +31,10 @@ services:
       - PORT=3002
       # Store + artifacts live OUTSIDE the container (host bind mount) so they
       # survive re-deploys, `docker compose down -v`, and are directly
-      # backupable from ./servers/server-experiencememory/emms-data on the host
+      # backupable from ./servers/server-insight/emms-data on the host
       - EMMS_STORAGE_PATH=/usr/src/app/data/emms-store.db
     volumes:
-      - ./servers/server-experiencememory/emms-data:/usr/src/app/data
+      - ./servers/server-insight/emms-data:/usr/src/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
       interval: 30s

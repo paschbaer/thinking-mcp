@@ -37,6 +37,7 @@ export interface ClientContext {
 }
 
 export interface ToolResult {
+  replayed?: boolean;
   result: Record<string, unknown>;
   guidance: GuidanceEnvelope;
 }
@@ -172,7 +173,24 @@ export class EmmsService {
   }): Promise<ToolResult> {
     if (args.idempotency_key) {
       const existing = await this.adapter.getIdempotency(args.idempotency_key);
-      if (existing) return JSON.parse(existing.result_json) as ToolResult;
+      if (existing) {
+        const replayed = JSON.parse(existing.result_json) as ToolResult;
+        // The replayed result carries the revision from the ORIGINAL call.
+        // Patch it to the workflow's CURRENT revision and mark the replay,
+        // so addendum runs proceed against the right revision instead of
+        // crashing with STALE_REVISION (reported by Niyama capture session).
+        const wf = replayed.result?.workflow_id
+          ? await this.adapter.getWorkflow(replayed.result.workflow_id as string, args.client_context.scope_id)
+          : undefined;
+        if (wf) {
+          return {
+            ...replayed,
+            replayed: true,
+            result: { ...replayed.result, revision: wf.revision },
+          };
+        }
+        return replayed;
+      }
     }
     const workflow_id = 'wf_' + randomUUID().slice(0, 12);
     const experience_id = 'exp_' + randomUUID().slice(0, 12);
@@ -574,6 +592,36 @@ export class EmmsService {
         c.workflow.state = final_state;
         await this.adapter.saveEpisode(ep);
         const result: Record<string, unknown> = { final_state };
+
+        // Auto-lesson hook (Level 3): propose a lesson from verified episodes.
+        // Non-blocking — errors don't prevent the finalize result.
+        if (final_state === 'LOCALLY_VERIFIED' || final_state === 'REPRODUCED') {
+          try {
+            const sigRow = (await this.adapter.listInScope(ep.scope_id))
+              .find((r) => r.episode_id === ep.experience_id);
+            if (sigRow) {
+              const lesson = await this.lessons.proposeFromEpisodes(
+                sigRow.normalized_hash,
+                ep.problem_summary.slice(0, 80),
+                `Fix: ${ep.goal_summary.slice(0, 80)}`,
+                ep.problem_summary.slice(0, 80)
+              );
+              if (lesson) {
+                result.auto_lesson = {
+                  lesson_id: lesson.lesson_id,
+                  status: lesson.status,
+                  supporting_episodes: lesson.supporting_episodes.length,
+                };
+                if (lesson.status === 'contested') {
+                  warnings.push({ code: 'CONTRADICTION', severity: 'high', message: 'Auto-proposed lesson is contested — counterexamples exist' });
+                }
+              }
+            }
+          } catch (lessonErr) {
+            // Non-blocking: lesson proposal failure doesn't affect finalize
+            warnings.push({ code: 'AUTO_LESSON_FAILED', severity: 'low', message: `Auto-lesson failed: ${(lessonErr as Error).message.slice(0, 100)}` });
+          }
+        }
         if (dups.length) {
           warnings.push({ code: 'DUPLICATE', severity: 'medium', message: `Duplicate candidate(s): ${dups.join(', ')}` });
           result.duplicate_candidates = dups;

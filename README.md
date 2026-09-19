@@ -7,7 +7,7 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 | Server | Package | Description |
 |--------|---------|-------------|
 | [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, risk analysis (pre-mortem, FMEA, fault trees), causal & game-theoretic analysis, Fermi estimation, guided workflow recipes, and stochastic decision algorithms (MDP, MCTS, bandit, Bayesian optimization, HMM) |
-| [Experience Memory](./servers/server-experiencememory) | `@paschbaer/experiencememory` | Evidence-backed long-term experience memory for coding agents: capture structured debugging episodes, validate fixes with objective evidence, hybrid retrieval (exact/normalized signatures + full-text + local semantic embeddings), per-response guidance on the next recommended request, visibility isolation and audit. Setup via `/setup-experience-memory` prompt file (see server README). MVP; spec-driven |
+| [Insight](./servers/server-insight) | `@paschbaer/insight` | Evidence-backed long-term experience memory for coding agents: capture structured debugging episodes, validate fixes with objective evidence, hybrid retrieval (exact/normalized signatures + full-text + local semantic embeddings), per-response guidance on the next recommended request, visibility isolation and audit. Setup via `/setup-insight` prompt file (see server README). MVP; spec-driven |
 
 > **Merged:** the former `@paschbaer/stochasticthinking` server is now part of
 > Clear Thought (toolset `stochastic`). The standalone package is deprecated —
@@ -138,6 +138,27 @@ The server is then reachable at `http://localhost:3000`.
 > same. A prebuilt image is also available at
 > `ghcr.io/paschbaer/clear-thought` (`latest` + release tags), so a plain
 > `docker run ghcr.io/paschbaer/clear-thought` works without building.
+
+### Running the combined stack
+
+The **root `docker-compose.yml`** is the canonical entry point — it starts both
+servers as one project (`thinking-mcp-insight-1`, `thinking-mcp-clear-thought-1`):
+
+```bash
+docker compose up -d          # from the repo root
+```
+
+- **insight**: `http://localhost:3002/mcp` (store persisted on the host in
+  `servers/server-insight/emms-data/`)
+- **clear-thought**: `http://localhost:3000/mcp`
+
+> Each server folder also has its own `docker-compose.yml` for standalone
+> development. Note that Docker Compose derives the project name from the
+> directory of the compose file, so starting from a server folder creates a
+> **separate project** (`server-insight-insight-1`, …) with different container
+> names than the root stack. Pick one entry point and stick with it; when
+> container names look unfamiliar, `docker compose ls` lists all active
+> projects.
 
 ## Publishing (maintainers)
 

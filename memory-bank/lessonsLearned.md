@@ -157,3 +157,61 @@
 - **vitest + ESM-Imports in Tests**: `.js`-Endungen in Test-Imports resolveen unter vitest/node16-Mix nicht zuverlaessig — in Tests `.ts`-Endungen verwenden (Tests sind von tsconfig.build excluded).
 - **FTS5 MATCH-Injection**: Nutzertext mit Satzzeichen bricht MATCH-Syntax (`syntax error near ","`) — Query-Tokens vor MATCH auf `[\w\s]` sanitizen.
 - **SC-009-Demotion-Test**: Ranking-Demotion braucht >=2 Kandidaten mit GLEICHER Signatur-Hash (sonst kein echter Ranking-Vergleich) und der Peer muss voll kompatibel sein (sonst dominiert Applicability-first ohnehin).
+
+## 2026-09-17 — better-sqlite3 boolean bind (recurred, second root cause)
+- **Issue**: `experience_record_reuse_feedback` threw "SQLite3 can only bind numbers, strings, bigints, buffers, and null" even after the earlier `?? null` fix.
+- **Root cause**: `?? null` only converts `undefined`, NOT `false`/`true`. better-sqlite3 rejects booleans outright — optional boolean fields need explicit 0/1 encoding for INTEGER columns.
+- **Preventive measure**: For every optional boolean column bind, write `val == null ? null : (val ? 1 : 0)`, never `val ?? null`. Grep for `?? null` on boolean-typed fields after schema changes.
+- **Test note**: add regression tests for BOTH call shapes (optional fields omitted AND supplied) — the minimal-shape test alone passed while the full call crashed.
+
+## 2026-09-18 — Session capture (2 weitere validierte Lessons, gespielt in experience-memory scope `thinking-mcp-lessons`)
+- **mcp-service-method-unregistered**: `lesson_publish`/`lesson_unpublish` existierten als Service-Methoden mit grünen Service-Tests, waren aber nie via `registerTool` auf der MCP-Oberfläche registriert. Prevention: jede öffentliche Service-Fähigkeit registrieren + MCP-Surface-Test mit `listTools()`-Assertion.
+- **drvfs-edit-tool-silent-nowrite**: Editor-basierter Replace meldete SUCCESS, landete aber NICHT auf disk (Terminal-grep zeigte Alttext auf /mnt/d drvfs). Prevention: Source-Edits in diesem Repo per Terminal (python3 replace mit assert) + grep-Verifikation VOR build/test; Tool-Erfolgsmeldung ohne Terminal-Read als unverifiziert behandeln.
+- Fixture: `tests/fixtures/lessons-session-2026-09-18.json` — Seeder 3/3, Round-Trip via `experience_search` bestätigt (jede Query liefert Treffer).
+
+## 2026-09-19 — CI-Setup-Lessons (in experience-memory scope `thinking-mcp-lessons` gespielt)
+- **yarn4-v1-lockfile-immutable**: `yarn install --immutable` scheiterte mit YN0028, weil yarn.lock noch im Yarn-v1-Format war — Berry migriert die Datei beim ersten Install, was `--immutable` verbietet. Fix: einmal plain `yarn install`, migrierten Lockfile committen, danach `--immutable` grün.
+- **yarn4-blocks-native-build-scripts**: Yarn ≥4.9 blockiert Build-Scripts von Dependencies standardmäßig → better-sqlite3-Postinstall lief nie, natives Binding fehlte (CI wäre gescheitert trotz funktionierendem lokalen npm-Setup). Fix: Root-`package.json` → `dependenciesMeta: { "better-sqlite3": { "built": true } }`; Verifikation via Binding-Datei + Testsuite.
+- Fixture: seeder 2/2, `experience_search` Round-Trip bestätigt (beide Queries liefern beide neuen Episodes).
+
+## 2026-09-19 — Replay-Revision-Fix-Lessons (in `thinking-mcp-lessons` gespielt)
+- **idempotent-replay-stale-revision**: FR-028-Literal-Replay von `workflow_start` lieferte die Original-Revision (meist 1) zurück → Addendum-Läufe rechneten ab da und crashten mit STALE_REVISION (Niyama-Befund „Rev 3 auf dem älteren Workflow"). Fix: Replay patcht `result.revision` auf die aktuelle Workflow-Revision + `replayed: true`; Regressionstest `replay-revision.test.ts`, Suite 95/95. Meta-Lesson: Literal-Replay ist unsicher für jedes Ergebnisfeld, das sich mit der Zeit ändert.
+- **emms-search-response-field-results**: `experience_search` liefert Treffer unter `result.results` — ein Verify-Probe, das `result.items` liest, maskiert echte Treffer als „0 hits". Fix: `results` lesen; bei 0 Treffern erst den Roh-Envelope dumpen, bevor Fehlschlag konstatiert wird.
+- Seeder 2/2, Round-Trip bestätigt.
+
+## 2026-09-19 — drvfs-Verzeichnis-Rename-Falle (experiencememory → insight)
+- **Issue**: `git mv servers/server-experiencememory servers/server-insight` auf /mnt/d (WSL drvfs) vergiftete den Dentry-Cache: das Zielverzeichnis war danach für WSL dauerhaft unlesbar (`d?????????` / "No such file or directory"), obwohl Windows (`cmd.exe dir`) den vollständigen Inhalt zeigte. Negative Cache-Einträge verfielen auch nach >2 min nicht.
+- **Ursache**: WSL-seitige Umbenennungen auf drvfs hinterlassen stale positive/negative Dentry-Einträge für den Zielnamen; selbst Windows-seitige Neu-Erstellung desselben Namens bleibt für WSL unsichtbar.
+- **Validierte Workarounds** (in dieser Reihenfolge):
+  1. **Case-Variante als Seitentür**: `ls servers/Server-Insight/` (abweichende Groß-/Kleinschreibung) umgeht den negativen Dentry und zeigt den Inhalt.
+  2. **Heilung über Rename-Kette auf einen unbelasteten Namen**: `mv <fallVariant> servers/insight-heal && mv servers/insight-heal servers/insight` — der zweite Sprung auf einen nie gecachten Namen funktioniert; das Original-Ziel ('server-insight') blieb dauerhaft defekt.
+  3. Verzeichnis-Ops auf drvfs bevorzugt **Windows-seitig** ausführen (`cmd.exe /c move ...`), nie WSL-seitig bei#getrackten Ordnern.
+- Konsequenz: Server-Ordner heißt jetzt `servers/insight` (statt `server-insight`) — der saubere Name war frei.
+
+## 2026-09-19 — Compose-Service-Drift-Lesson (in `thinking-mcp-lessons` gespielt)
+- **server-local-compose-service-drift**: Nach Root-Compose-Rename (experience-memory → insight) erzeugte `docker compose up` einen dritten Container `experience-memory` — die server-lokale `docker-compose.yml` in `servers/server-insight` definierte den Service noch unter dem alten Namen. Fix: Service auch dort umbenennen, toten Container `docker rm`, Verifikation via `docker compose config --services` je Verzeichnis. Regel: Bei Service-Renames ALLE compose-Dateien im Repo greppen, nicht nur die Root.
+- Seeder 1/1, Round-Trip bestätigt (exp_353dfc99).
+
+## 2026-09-19 — Release-Pipeline-Review (insight)
+- **publish-skript-Kopien validieren**: Das von clear-thought kopierte `publish-smithery.mjs` war nur halb angepasst (falsche Factory-Importe, `defaultConfig`-Export existierte nicht, clear-thought-configSchema/-Card) und wäre zur Laufzeit gecrasht. Regel: kopierte Skripte end-to-end ausführen (mindestens bis zur Netzwerk-Grenze trocken), nicht nur Syntax-checken.
+- **build-mcpb.mjs war nie lauffähig** (fehlender `dirname`-Import, invalides Manifest-Schema: tools als String-Array statt Objekte). Fix nach clear-thought-Muster: Laufzeit-Tool-Capture + schema-valide Manifeste.
+- **mcpb pack hängt bei ~300 MB node_modules** (onnxruntime) in dieser Umgebung — direkter tar.gz-Pack (`.mcpb` IST ein tar.gz mit manifest.json im Root) als Ersatz; Staging auf ext4 (/tmp) wegen drvfs-Dentry-Flackern.
+- **npm-OIDC kann Packages nicht erstellen**: Trusted Publisher muss pro Package auf npmjs.com existieren — Erst-Release immer manuell, dann Workflow. Guards: npm `REMOTE=none` → fail-fast mit Anleitung; Smithery `none` → skip mit Note.
+
+## 2026-09-19 — Workflow-Persistenz-Lücke (Niyama-Fund, wf_225bf751-af3)
+- **Root Cause**: STDIO-Default `storagePath = cwd/emms-store.db` — jeder Agent startete den Server aus seinem eigenen cwd und bekam eine frische, cwd-lokale DB. Workflows früherer Sessions waren "not found", obwohl der Server korrekt funktionierte.
+- **Fix**: Persistenter Default `~/.insight/emms-store.db` (mkdirSync recursive). Kette: config.storagePath > EMMS_STORAGE_PATH (resolveConfig) > ~/.insight. Docker/compose setzt weiter EMMS_STORAGE_PATH auf das Volume.
+- **Verifiziert**: Workflow in Server-Prozess A erstellt, in unabhängigem Prozess B gefunden. Suite 95/95.
+- **Meta-Lesson**: cwd-abhängige Defaults sind Persistence-Fallen für stdio-MCP-Server — Default-State gehört auf user-level Pfade.
+
+## 2026-09-19 — Finale Session-Lessons (in `thinking-mcp-lessons` gespielt)
+- **compose-project-context-determines-container-names**: Compose leitet den Projektnamen aus dem Verzeichnis der compose-Datei ab — server-lokale Compose-Dateien erzeugen eigene Projekte (server-insight-insight-1) statt des Root-Stacks (thinking-mcp-insight-1). Nicht kaputt, aber verwirrend; kanonischen Einstiegspunkt festlegen und `docker compose ls` bei Namensverwirrung nutzen.
+- **docker-restore-must-include-wal-sidecar-files**: SQLite WAL hält frische Commits in der -wal-Datei — .db-only-Kopien verlieren genau diese (Root-Mechanismus des Data Loss beim Rename). Backups UND Restores müssen -wal/-shm mitsichern; nach Restore Zeilenzahl verifizieren.
+- **reseed-lessons-from-fixtures-after-store-loss**: Lessons existieren doppelt außerhalb des Stores (JSON-Fixtures + lessonsLearned.md) — Store-Verlust wird so zum idempotenten Re-Seed statt Datenverlust (10/10 wiederhergestellt). Dual-Write-Disziplin beibehalten.
+- Seeder 3/3, Round-Trip bestätigt.
+
+## 2026-09-19 — Stale Import nach Rename überlebte lokalen Testlauf (CI rot)
+- **Issue**: CI failed mit "Failed to load url ../src/tools/agents-guide.js" in setup-clearthought.test.ts — lokal lief die Suite grün.
+- **Root Cause**: Der Rename-Commit (be4a4d2) benannte Dateien um, übersah aber den Test-Import. Der lokale "142/142 green" war wertlos: vitest-Cache/inkrementelles Verhalten maskierte den Load-Fehler, bzw. die Suite wurde nicht im Clean-State ausgeführt.
+- **Fix**: Import auf setup-clearthought.js korrigiert (feb4665), Suite 152/152.
+- **Prävention**: Vor "suite green"-Claims bei Rename/Move-Commits: `vitest run` in einem sauberen Zustand (mind. `npx vitest run --no-cache` oder frischer Checkout). `Failed to load url`-Fehler = tote Import-Pfade, die nur ohne Cache sichtbar sind.
