@@ -197,3 +197,9 @@
 - **build-mcpb.mjs war nie lauffähig** (fehlender `dirname`-Import, invalides Manifest-Schema: tools als String-Array statt Objekte). Fix nach clear-thought-Muster: Laufzeit-Tool-Capture + schema-valide Manifeste.
 - **mcpb pack hängt bei ~300 MB node_modules** (onnxruntime) in dieser Umgebung — direkter tar.gz-Pack (`.mcpb` IST ein tar.gz mit manifest.json im Root) als Ersatz; Staging auf ext4 (/tmp) wegen drvfs-Dentry-Flackern.
 - **npm-OIDC kann Packages nicht erstellen**: Trusted Publisher muss pro Package auf npmjs.com existieren — Erst-Release immer manuell, dann Workflow. Guards: npm `REMOTE=none` → fail-fast mit Anleitung; Smithery `none` → skip mit Note.
+
+## 2026-09-19 — Workflow-Persistenz-Lücke (Niyama-Fund, wf_225bf751-af3)
+- **Root Cause**: STDIO-Default `storagePath = cwd/emms-store.db` — jeder Agent startete den Server aus seinem eigenen cwd und bekam eine frische, cwd-lokale DB. Workflows früherer Sessions waren "not found", obwohl der Server korrekt funktionierte.
+- **Fix**: Persistenter Default `~/.insight/emms-store.db` (mkdirSync recursive). Kette: config.storagePath > EMMS_STORAGE_PATH (resolveConfig) > ~/.insight. Docker/compose setzt weiter EMMS_STORAGE_PATH auf das Volume.
+- **Verifiziert**: Workflow in Server-Prozess A erstellt, in unabhängigem Prozess B gefunden. Suite 95/95.
+- **Meta-Lesson**: cwd-abhängige Defaults sind Persistence-Fallen für stdio-MCP-Server — Default-State gehört auf user-level Pfade.
