@@ -62,6 +62,11 @@ jobs:
             || echo "none")
           if [ "$LOCAL" = "$REMOTE" ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [ "$REMOTE" = "none" ]; then
+            # Server not yet on Smithery — first release must be manual
+            # (local publish-smithery.mjs run), then the workflow takes over.
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "note=server missing on smithery (manual first publish required)"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi

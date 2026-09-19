@@ -9,7 +9,10 @@ name: Publish Containers
 # Auth läuft automatisch über GITHUB_TOKEN (permissions.packages: write).
 # Einmalig manuell: Packages unter ghcr.io auf public stellen
 # (Package-Seite → Package settings → Visibility), damit `docker run`
-# ohne Login funktioniert. Images starten den HTTP-Server (Port 3000).
+# ohne Login funktioniert. Images starten den HTTP-Server (Port 3000,
+# insight: 3002). NEU angelegte Packages (z.B. insight nach dem ersten
+# Lauf) sind initial PRIVATE und müssen ebenfalls auf public gestellt
+# werden.
 
 on:
   push:
