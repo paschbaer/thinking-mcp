@@ -47,13 +47,15 @@ async function seedVerifiedEpisode(service: EmmsService, summary: string): Promi
   return result.experience_id as string;
 }
 
-describe('semantic retrieval arm', () => {
+const EMBEDDINGS_ENABLED = process.env.EMMS_DISABLE_EMBEDDINGS !== '1';
+
+describe.skipIf(!EMBEDDINGS_ENABLED)('semantic retrieval arm', () => {
   it('cosineSimilarity: identical vectors = 1, orthogonal = 0', () => {
     expect(cosineSimilarity(Float32Array.from([1, 0]), Float32Array.from([1, 0]))).toBeCloseTo(1);
     expect(cosineSimilarity(Float32Array.from([1, 0]), Float32Array.from([0, 1]))).toBeCloseTo(0);
   });
 
-  it('TransformersEmbedding produces normalized 384-dim vectors', async () => {
+  it.skipIf(!EMBEDDINGS_ENABLED)('TransformersEmbedding produces normalized 384-dim vectors', async () => {
     const emb = new TransformersEmbedding();
     const vec = await emb.embed('npm peer dependency conflict');
     expect(vec).not.toBeNull();
@@ -62,7 +64,7 @@ describe('semantic retrieval arm', () => {
     expect(norm).toBeCloseTo(1, 1);
   }, 120_000);
 
-  it('semantic arm retrieves paraphrased problem that exact/FTS would rank lower', async () => {
+  it.skipIf(!EMBEDDINGS_ENABLED)('semantic arm retrieves paraphrased problem that exact/FTS would rank lower', async () => {
     const embedding = new TransformersEmbedding();
     const service = new EmmsService(adapter, join(dir, 'art'), undefined, embedding);
     // Episode summary uses DIFFERENT wording than the query
