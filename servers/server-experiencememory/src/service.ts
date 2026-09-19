@@ -37,6 +37,7 @@ export interface ClientContext {
 }
 
 export interface ToolResult {
+  replayed?: boolean;
   result: Record<string, unknown>;
   guidance: GuidanceEnvelope;
 }
@@ -172,7 +173,24 @@ export class EmmsService {
   }): Promise<ToolResult> {
     if (args.idempotency_key) {
       const existing = await this.adapter.getIdempotency(args.idempotency_key);
-      if (existing) return JSON.parse(existing.result_json) as ToolResult;
+      if (existing) {
+        const replayed = JSON.parse(existing.result_json) as ToolResult;
+        // The replayed result carries the revision from the ORIGINAL call.
+        // Patch it to the workflow's CURRENT revision and mark the replay,
+        // so addendum runs proceed against the right revision instead of
+        // crashing with STALE_REVISION (reported by Niyama capture session).
+        const wf = replayed.result?.workflow_id
+          ? await this.adapter.getWorkflow(replayed.result.workflow_id as string, args.client_context.scope_id)
+          : undefined;
+        if (wf) {
+          return {
+            ...replayed,
+            replayed: true,
+            result: { ...replayed.result, revision: wf.revision },
+          };
+        }
+        return replayed;
+      }
     }
     const workflow_id = 'wf_' + randomUUID().slice(0, 12);
     const experience_id = 'exp_' + randomUUID().slice(0, 12);
