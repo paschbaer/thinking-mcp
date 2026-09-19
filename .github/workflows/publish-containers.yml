@@ -30,6 +30,8 @@ jobs:
         include:
           - server: server-clear-thought
             image: clear-thought
+          - server: server-experiencememory
+            image: experiencememory
     steps:
       - uses: actions/checkout@v5
 

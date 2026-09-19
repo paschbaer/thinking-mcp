@@ -6,6 +6,11 @@
     "workspaces": [
         "servers/*"
     ],
+    "dependenciesMeta": {
+        "better-sqlite3": {
+            "built": true
+        }
+    },
     "scripts": {
         "build": "npm run build --workspaces",
         "watch": "npm run watch --workspaces",
