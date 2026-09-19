@@ -462,9 +462,30 @@ Run on-demand: `new ConsolidationWorker(adapter, lessonService).runOnce()`.
 
 | Env / config | Default | Meaning |
 |--------------|---------|---------|
-| `EMMS_STORAGE_PATH` | `./emms-store.db` | SQLite database file (WAL mode, FTS5 required) |
+| `EMMS_STORAGE_PATH` | `~/.insight/emms-store.db` (stdio) / volume (Docker) | SQLite database file (WAL mode, FTS5 required) |
 | `PORT` | `3002` | HTTP transport port (stdio via `npm run dev`) |
 | ranking weights | D6 defaults (see research.md) | configurable in `src/config.ts` |
+
+## Backup & Restore
+
+The store lives in `emms-data/` (Docker bind mount) or `~/.insight/` (stdio default).
+
+```bash
+# create a consistent snapshot (safe while the server is running)
+node scripts/backup-store.sh
+
+# restore a snapshot (stops the insight container, keeps a pre-restore copy)
+node scripts/backup-store.sh restore emms-backups/emms-store-YYYYMMDD-HHMMSS.db
+```
+
+Backups land in `emms-backups/` (git-ignored); the 14 newest are kept,
+older ones pruned automatically. Every snapshot is integrity-checked
+(`PRAGMA integrity_check`) and reports the episode count. Schedule via
+cron for automatic protection, e.g. hourly:
+
+```cron
+0 * * * * /path/to/servers/server-insight/scripts/backup-store.sh
+```
 
 ## Development
 
