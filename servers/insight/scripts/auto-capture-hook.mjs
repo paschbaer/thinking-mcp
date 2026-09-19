@@ -16,7 +16,7 @@ if (process.env.EMMS_AUTO_CAPTURE === '0') process.exit(0);
 
 // Find EMMS server dir
 const repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
-const serverDir = process.env.EMMS_SERVER_DIR ?? join(repoRoot, 'servers', 'server-experiencememory');
+const serverDir = process.env.EMMS_SERVER_DIR ?? join(repoRoot, 'servers', 'insight');
 const distEntry = join(serverDir, 'dist', 'dev.js');
 
 if (!existsSync(distEntry)) {

@@ -40,7 +40,7 @@ const CLAUDE_EXISTING = `# CLAUDE.md
 ## Rules
 - Be concise.`;
 
-const GITIGNORE_EXISTING = 'node_modules/\ndist/\nservers/server-experiencememory/emms-data/\n';
+const GITIGNORE_EXISTING = 'node_modules/\ndist/\nservers/insight/emms-data/\n';
 
 describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () => {
   beforeEach(() => {
@@ -149,7 +149,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
 });
 
 const GITIGNORE_LINES_ALL = [
-  'servers/server-experiencememory/emms-data/',
-  'servers/server-experiencememory/emms-store.db*',
-  'servers/server-experiencememory/emms-artifacts/',
+  'servers/insight/emms-data/',
+  'servers/insight/emms-store.db*',
+  'servers/insight/emms-artifacts/',
 ].join('\n');

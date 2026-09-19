@@ -30,8 +30,8 @@ jobs:
         include:
           - server: server-clear-thought
             image: clear-thought
-          - server: server-experiencememory
-            image: experiencememory
+          - server: insight
+            image: insight
     steps:
       - uses: actions/checkout@v5
 
