@@ -40,6 +40,8 @@ jobs:
         include:
           - package: server-clear-thought
             scope: clear-thought
+          - package: server-experiencememory
+            scope: experiencememory
     steps:
       - uses: actions/checkout@v5
 
