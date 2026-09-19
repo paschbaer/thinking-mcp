@@ -1,5 +1,5 @@
 /**
- * setup_experience_memory contract tests: full mode, merge mode (marker-based
+ * setup_insight contract tests: full mode, merge mode (marker-based
  * idempotent update), skip-if-existing, gitignore append.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SqliteAdapter } from '../../src/storage/sqlite.ts';
 import { EmmsService } from '../../src/service.ts';
-import { registerSetupExperienceMemory } from '../../src/tools/setup-experience-memory.ts';
+import { registerSetupInsight } from '../../src/tools/setup-insight.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 let dir: string;
@@ -40,25 +40,25 @@ const CLAUDE_EXISTING = `# CLAUDE.md
 ## Rules
 - Be concise.`;
 
-const GITIGNORE_EXISTING = 'node_modules/\ndist/\nservers/insight/emms-data/\n';
+const GITIGNORE_EXISTING = 'node_modules/\ndist/\nservers/server-insight/emms-data/\n';
 
-describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () => {
+describe('setup_insight (FR-021 groundwork, analog agents_guide)', () => {
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'emms-setup-'));
     const adapter = new SqliteAdapter(join(dir, 's.db'));
     void adapter.init();
     new EmmsService(adapter, join(dir, 'art'));
     Object.keys(handlers).forEach((k) => delete handlers[k]);
-    registerSetupExperienceMemory(fakeServer);
+    registerSetupInsight(fakeServer);
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-  it('registers as setup_experience_memory', () => {
-    expect(handlers['setup_experience_memory']).toBeDefined();
+  it('registers as setup_insight', () => {
+    expect(handlers['setup_insight']).toBeDefined();
   });
 
   it('full mode: returns complete AGENTS.md when no existing content given', async () => {
-    const out = (await handlers['setup_experience_memory']({ repo_name: 'Niyama' })) as {
+    const out = (await handlers['setup_insight']({ repo_name: 'Niyama' })) as {
       content: Array<{ text: string }>;
     };
     const payload = JSON.parse(out.content[0].text);
@@ -71,7 +71,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
   });
 
   it('merge mode: replaces existing marker block in place (idempotent)', async () => {
-    const out = (await handlers['setup_experience_memory']({
+    const out = (await handlers['setup_insight']({
       existing_agents_md: AGENTS_EXISTING,
     })) as { content: Array<{ text: string }> };
     const payload = JSON.parse(out.content[0].text);
@@ -88,7 +88,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
   });
 
   it('CLAUDE.md full mode when no existing content', async () => {
-    const out = (await handlers['setup_experience_memory']({})) as { content: Array<{ text: string }> };
+    const out = (await handlers['setup_insight']({})) as { content: Array<{ text: string }> };
     const payload = JSON.parse(out.content[0].text);
     const claude = payload.files.find((f: { file: string }) => f.file === 'CLAUDE.md');
     expect(claude.mode).toBe('full');
@@ -96,7 +96,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
   });
 
   it('CLAUDE.md merge mode with existing content', async () => {
-    const out = (await handlers['setup_experience_memory']({
+    const out = (await handlers['setup_insight']({
       existing_claude_md: CLAUDE_EXISTING,
     })) as { content: Array<{ text: string }> };
     const payload = JSON.parse(out.content[0].text);
@@ -107,7 +107,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
   });
 
   it('capture prompt: skip when non-empty existing, full when missing', async () => {
-    const withExisting = (await handlers['setup_experience_memory']({
+    const withExisting = (await handlers['setup_insight']({
       existing_capture_prompt: '---\ndescription: my prompt\n---\ncontent',
     })) as { content: Array<{ text: string }> };
     const promptExisting = JSON.parse(withExisting.content[0].text).files.find(
@@ -115,7 +115,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
     );
     expect(promptExisting.mode).toBe('skip');
 
-    const withoutExisting = (await handlers['setup_experience_memory']({})) as { content: Array<{ text: string }> };
+    const withoutExisting = (await handlers['setup_insight']({})) as { content: Array<{ text: string }> };
     const promptFull = JSON.parse(withoutExisting.content[0].text).files.find(
       (f: { file: string }) => f.file === '.github/prompts/capture-lessons.prompt.md'
     );
@@ -124,14 +124,14 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
   });
 
   it('gitignore: appends only missing lines, skips when all present', async () => {
-    const partial = (await handlers['setup_experience_memory']({
+    const partial = (await handlers['setup_insight']({
       existing_gitignore: GITIGNORE_EXISTING,
     })) as { content: Array<{ text: string }> };
     const gitPartial = JSON.parse(partial.content[0].text).files.find((f: { file: string }) => f.file === '.gitignore');
     expect(gitPartial.mode).toBe('append');
     expect(gitPartial.content).toContain('emms-store.db*');
 
-    const complete = (await handlers['setup_experience_memory']({
+    const complete = (await handlers['setup_insight']({
       existing_gitignore: 'node_modules/\n' + GITIGNORE_LINES_ALL,
     })) as { content: Array<{ text: string }> };
     const gitComplete = JSON.parse(complete.content[0].text).files.find((f: { file: string }) => f.file === '.gitignore');
@@ -139,7 +139,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
   });
 
   it('custom triggers replace the defaults', async () => {
-    const out = (await handlers['setup_experience_memory']({
+    const out = (await handlers['setup_insight']({
       custom_triggers: [{ domain: 'pnpm workspaces', keywords: 'pnpm workspace protocol' }],
     })) as { content: Array<{ text: string }> };
     const payload = JSON.parse(out.content[0].text);
@@ -149,7 +149,7 @@ describe('setup_experience_memory (FR-021 groundwork, analog agents_guide)', () 
 });
 
 const GITIGNORE_LINES_ALL = [
-  'servers/insight/emms-data/',
-  'servers/insight/emms-store.db*',
-  'servers/insight/emms-artifacts/',
+  'servers/server-insight/emms-data/',
+  'servers/server-insight/emms-store.db*',
+  'servers/server-insight/emms-artifacts/',
 ].join('\n');

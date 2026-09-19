@@ -7,7 +7,7 @@ import { resolveConfig, resolveStorageBackend, resolvePostgresConnectionString, 
 import { SqliteAdapter } from '../storage/sqlite.js';
 import { EmmsService } from '../service.js';
 import { registerEmmsTools } from './register.js';
-import { registerSetupExperienceMemory } from './setup-experience-memory.js';
+import { registerSetupInsight } from './setup-insight.js';
 import { ConsolidationWorker } from '../consolidation/worker.js';
 import { TransformersEmbedding } from '../retrieval/semantic.js';
 import { join } from 'node:path';
@@ -24,7 +24,7 @@ export function registerTools(server: McpServer, config: ServerConfig): void {
   });
 
   registerEmmsTools(server, { service, adapter });
-  registerSetupExperienceMemory(server);
+  registerSetupInsight(server);
 
   // Start consolidation worker (stale scan, auto-dedup, lesson promotion)
   const worker = new ConsolidationWorker(adapter, service.lessons);

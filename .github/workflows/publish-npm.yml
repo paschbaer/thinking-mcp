@@ -40,7 +40,7 @@ jobs:
         include:
           - package: server-clear-thought
             scope: clear-thought
-          - package: insight
+          - package: server-insight
             scope: insight
     steps:
       - uses: actions/checkout@v5

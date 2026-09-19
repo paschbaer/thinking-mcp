@@ -261,7 +261,7 @@ yarn workspace @paschbaer/insight build
 ```
 
 The stdio entry is then available at
-`servers/insight/dist/dev.js`.
+`servers/server-insight/dist/dev.js`.
 
 **VS Code (`.vscode/mcp.json`):**
 
@@ -271,7 +271,7 @@ The stdio entry is then available at
     "experience-memory": {
       "type": "stdio",
       "command": "node",
-      "args": ["/absolute/path/to/thinking-mcp/servers/insight/dist/dev.js"],
+      "args": ["/absolute/path/to/thinking-mcp/servers/server-insight/dist/dev.js"],
       "env": {}
     }
   }
@@ -345,11 +345,11 @@ builds, driver quirks, race conditions) persist as searchable episodes and
 surface automatically when a related problem reappears. Four levels of
 automation — from one-command setup to fully integrated agent behavior:
 
-### Level 0 — One-command setup (`/setup-experience-memory`)
+### Level 0 — One-command setup (`/setup-insight`)
 
 Bootstraps the full integration in any repo. Invoke the prompt file
-`.github/prompts/setup-experience-memory.prompt.md` (VS Code:
-`/setup-experience-memory`) and the agent performs:
+`.github/prompts/setup-insight.prompt.md` (VS Code:
+`/setup-insight`) and the agent performs:
 
 1. Verify the EMMS server build (`dist/dev.js`)
 2. Create the capture prompt file (`.github/prompts/capture-lessons.prompt.md`)

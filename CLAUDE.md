@@ -59,4 +59,4 @@ local **experience-memory** server (stdio, `servers/insight`):
 Call: `experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }`
 — on a `PARTIALLY_VERIFIED`/`LOCALLY_VERIFIED` hit, follow the recorded fix
 and record `experience_record_reuse_feedback` afterwards. New recurring trap?
-Seed via `servers/insight/scripts/seed-lessons.mjs`.
+Seed via `servers/server-insight/scripts/seed-lessons.mjs`.
