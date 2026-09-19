@@ -1,6 +1,6 @@
 
 services:
-  experience-memory:
+  insight:
     build: .
     ports:
       - "3002:3002"

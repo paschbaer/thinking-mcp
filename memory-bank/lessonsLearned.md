@@ -187,3 +187,7 @@
   2. **Heilung über Rename-Kette auf einen unbelasteten Namen**: `mv <fallVariant> servers/insight-heal && mv servers/insight-heal servers/insight` — der zweite Sprung auf einen nie gecachten Namen funktioniert; das Original-Ziel ('server-insight') blieb dauerhaft defekt.
   3. Verzeichnis-Ops auf drvfs bevorzugt **Windows-seitig** ausführen (`cmd.exe /c move ...`), nie WSL-seitig bei#getrackten Ordnern.
 - Konsequenz: Server-Ordner heißt jetzt `servers/insight` (statt `server-insight`) — der saubere Name war frei.
+
+## 2026-09-19 — Compose-Service-Drift-Lesson (in `thinking-mcp-lessons` gespielt)
+- **server-local-compose-service-drift**: Nach Root-Compose-Rename (experience-memory → insight) erzeugte `docker compose up` einen dritten Container `experience-memory` — die server-lokale `docker-compose.yml` in `servers/server-insight` definierte den Service noch unter dem alten Namen. Fix: Service auch dort umbenennen, toten Container `docker rm`, Verifikation via `docker compose config --services` je Verzeichnis. Regel: Bei Service-Renames ALLE compose-Dateien im Repo greppen, nicht nur die Root.
+- Seeder 1/1, Round-Trip bestätigt (exp_353dfc99).
