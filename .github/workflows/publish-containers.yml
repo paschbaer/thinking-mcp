@@ -30,7 +30,7 @@ jobs:
         include:
           - server: server-clear-thought
             image: clear-thought
-          - server: insight
+          - server: server-insight
             image: insight
     steps:
       - uses: actions/checkout@v5

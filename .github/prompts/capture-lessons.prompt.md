@@ -23,7 +23,7 @@ persist each one as an experience episode in the experience-memory server.
    - `fix` — the validated workaround or fix
 
 3. **Write them to a JSON file** matching
-   `servers/insight/tests/fixtures/lessons.json` format:
+   `servers/server-insight/tests/fixtures/lessons.json` format:
 
 ```json
 [

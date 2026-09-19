@@ -7,7 +7,7 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 | Server | Package | Description |
 |--------|---------|-------------|
 | [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, risk analysis (pre-mortem, FMEA, fault trees), causal & game-theoretic analysis, Fermi estimation, guided workflow recipes, and stochastic decision algorithms (MDP, MCTS, bandit, Bayesian optimization, HMM) |
-| [Experience Memory](./servers/insight) | `@paschbaer/insight` | Evidence-backed long-term experience memory for coding agents: capture structured debugging episodes, validate fixes with objective evidence, hybrid retrieval (exact/normalized signatures + full-text + local semantic embeddings), per-response guidance on the next recommended request, visibility isolation and audit. Setup via `/setup-experience-memory` prompt file (see server README). MVP; spec-driven |
+| [Insight](./servers/server-insight) | `@paschbaer/insight` | Evidence-backed long-term experience memory for coding agents: capture structured debugging episodes, validate fixes with objective evidence, hybrid retrieval (exact/normalized signatures + full-text + local semantic embeddings), per-response guidance on the next recommended request, visibility isolation and audit. Setup via `/setup-insight` prompt file (see server README). MVP; spec-driven |
 
 > **Merged:** the former `@paschbaer/stochasticthinking` server is now part of
 > Clear Thought (toolset `stochastic`). The standalone package is deprecated —

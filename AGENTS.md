@@ -462,4 +462,4 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   recorded fix (`known_bad_attempts` = paths that already failed) and record
   `experience_record_reuse_feedback` afterwards (verdict `useful`/`harmful`).
 - No hit: proceed normally — and if the session uncovers a new recurring trap,
-  seed it via `servers/insight/scripts/seed-lessons.mjs`.
+  seed it via `servers/server-insight/scripts/seed-lessons.mjs`.

@@ -31,10 +31,10 @@ services:
       - PORT=3002
       # Store + artifacts live OUTSIDE the container (host bind mount) so they
       # survive re-deploys, `docker compose down -v`, and are directly
-      # backupable from ./servers/insight/emms-data on the host
+      # backupable from ./servers/server-insight/emms-data on the host
       - EMMS_STORAGE_PATH=/usr/src/app/data/emms-store.db
     volumes:
-      - ./servers/insight/emms-data:/usr/src/app/data
+      - ./servers/server-insight/emms-data:/usr/src/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
       interval: 30s

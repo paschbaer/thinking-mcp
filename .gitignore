@@ -20,6 +20,6 @@ servers/*/evals/results/
 package-lock.json
 
 # EMMS runtime data
-servers/insight/emms-store.db*
-servers/insight/emms-artifacts/
-servers/insight/emms-data/
+servers/server-insight/emms-store.db*
+servers/server-insight/emms-artifacts/
+servers/server-insight/emms-data/

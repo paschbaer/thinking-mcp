@@ -12,7 +12,7 @@ then report what was created/verified. Do not skip steps silently.
 Check the server entry point exists:
 
 ```
-servers/insight/dist/dev.js
+servers/server-insight/dist/dev.js
 ```
 
 If missing, run `yarn workspace @paschbaer/insight build` (or
@@ -28,7 +28,7 @@ Create `.github/prompts/capture-lessons.prompt.md` (skip if it already
 exists and is non-empty). Content: the session-end capture procedure —
 analyze the session for recurring bugs/traps/validated fixes, write a
 lessons JSON array (`slug`, `observation`, `cause`, `fix`), seed via
-`servers/insight/scripts/seed-lessons.mjs` (idempotent,
+`servers/server-insight/scripts/seed-lessons.mjs` (idempotent,
 `idempotency_key = lesson-<slug>`), verify via `experience_search`, and
 append a short entry to `memory-bank/lessonsLearned.md`.
 
@@ -67,7 +67,7 @@ experience_search { query: "<keywords>", scope_id: "<repo-name>-lessons" }
   recorded fix (`known_bad_attempts` = paths that already failed) and record
   `experience_record_reuse_feedback` afterwards (verdict `useful`/`harmful`).
 - No hit: proceed normally — and if the session uncovers a new recurring trap,
-  seed it via `servers/insight/scripts/seed-lessons.mjs`.
+  seed it via `servers/server-insight/scripts/seed-lessons.mjs`.
 ````
 
 Adapt the trigger table to THIS repo's trap domains (remove rows that do not
@@ -79,9 +79,9 @@ actual lessons scope id.
 Append to `.gitignore` if not present:
 
 ```
-servers/insight/emms-data/
-servers/insight/emms-store.db*
-servers/insight/emms-artifacts/
+servers/server-insight/emms-data/
+servers/server-insight/emms-store.db*
+servers/server-insight/emms-artifacts/
 ```
 
 ## Step 5 — Seed initial lessons (optional)

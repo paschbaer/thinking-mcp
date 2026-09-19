@@ -30,7 +30,7 @@ jobs:
           - package: server-clear-thought
             workspace: clear-thought
             name: paschbaer/clear-thought
-          - package: insight
+          - package: server-insight
             workspace: insight
             name: paschbaer/insight
     steps:

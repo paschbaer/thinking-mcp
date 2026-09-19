@@ -555,9 +555,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@paschbaer/insight@workspace:servers/insight":
+"@paschbaer/insight@workspace:servers/server-insight":
   version: 0.0.0-use.local
-  resolution: "@paschbaer/insight@workspace:servers/insight"
+  resolution: "@paschbaer/insight@workspace:servers/server-insight"
   dependencies:
     "@modelcontextprotocol/sdk": "npm:^1.30.0"
     "@smithery/sdk": "npm:^1.4.3"
