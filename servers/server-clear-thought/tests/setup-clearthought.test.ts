@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultConfig } from '../src/config.js';
 import { SessionState } from '../src/state/SessionState.js';
-import { registerAgentsGuide } from '../src/tools/agents-guide.js';
+import { registerAgentsGuide } from '../src/tools/setup-clearthought.js';
 import { AGENTS_TEMPLATE } from '../src/tools/setup-clearthought-template.js';
 import { registerUtilityToolset } from '../src/toolsets/utility.js';
 
