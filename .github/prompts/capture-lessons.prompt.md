@@ -34,7 +34,7 @@ persist each one as an experience episode in the experience-memory server.
 4. **Seed via the seeder script** (idempotent — re-runs never duplicate):
 
 ```bash
-cd servers/insight
+cd servers/server-insight
 node scripts/seed-lessons.mjs <path-to-lessons.json>
 ```
 

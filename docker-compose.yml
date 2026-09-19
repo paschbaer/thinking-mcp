@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   insight:
-    build: ./servers/insight
+    build: ./servers/server-insight
     ports:
       - "3002:3002"
     environment:
