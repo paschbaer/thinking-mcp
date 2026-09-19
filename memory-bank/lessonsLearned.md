@@ -203,3 +203,9 @@
 - **Fix**: Persistenter Default `~/.insight/emms-store.db` (mkdirSync recursive). Kette: config.storagePath > EMMS_STORAGE_PATH (resolveConfig) > ~/.insight. Docker/compose setzt weiter EMMS_STORAGE_PATH auf das Volume.
 - **Verifiziert**: Workflow in Server-Prozess A erstellt, in unabhängigem Prozess B gefunden. Suite 95/95.
 - **Meta-Lesson**: cwd-abhängige Defaults sind Persistence-Fallen für stdio-MCP-Server — Default-State gehört auf user-level Pfade.
+
+## 2026-09-19 — Finale Session-Lessons (in `thinking-mcp-lessons` gespielt)
+- **compose-project-context-determines-container-names**: Compose leitet den Projektnamen aus dem Verzeichnis der compose-Datei ab — server-lokale Compose-Dateien erzeugen eigene Projekte (server-insight-insight-1) statt des Root-Stacks (thinking-mcp-insight-1). Nicht kaputt, aber verwirrend; kanonischen Einstiegspunkt festlegen und `docker compose ls` bei Namensverwirrung nutzen.
+- **docker-restore-must-include-wal-sidecar-files**: SQLite WAL hält frische Commits in der -wal-Datei — .db-only-Kopien verlieren genau diese (Root-Mechanismus des Data Loss beim Rename). Backups UND Restores müssen -wal/-shm mitsichern; nach Restore Zeilenzahl verifizieren.
+- **reseed-lessons-from-fixtures-after-store-loss**: Lessons existieren doppelt außerhalb des Stores (JSON-Fixtures + lessonsLearned.md) — Store-Verlust wird so zum idempotenten Re-Seed statt Datenverlust (10/10 wiederhergestellt). Dual-Write-Disziplin beibehalten.
+- Seeder 3/3, Round-Trip bestätigt.
