@@ -29,6 +29,10 @@ if [[ "${1:-}" == "restore" ]]; then
   cp "$DB" "$DB.pre-restore-$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
   rm -f "$DB-wal" "$DB-shm"
   cp "$SRC" "$DB"
+  # WAL/SHM sidecar files belong to the snapshot — without them recent
+  # commits in the WAL are lost (see 2026-09-19 data loss incident).
+  [[ -f "$SRC-wal" ]] && cp "$SRC-wal" "$DB-wal"
+  [[ -f "$SRC-shm" ]] && cp "$SRC-shm" "$DB-shm"
   docker compose -f "$SERVER_DIR/docker-compose.yml" start insight
   echo "restored $SRC -> $DB (previous store kept as $DB.pre-restore-*)"
   exit 0
@@ -48,9 +52,11 @@ if command -v sqlite3 >/dev/null 2>&1; then
   MODE="sqlite3 .backup (consistent snapshot)"
 else
   cp "$DB" "$TARGET"
-  # include WAL if present and non-empty so the snapshot stays replayable
+  # WAL/SHM MUST be included — with WAL mode the .db alone can be missing
+  # recent commits entirely (this bit us during the 2026-09-19 data loss).
   [[ -s "$DB-wal" ]] && cp "$DB-wal" "$TARGET-wal"
-  MODE="plain copy (sqlite3 CLI unavailable)"
+  [[ -f "$DB-shm" ]] && cp "$DB-shm" "$TARGET-shm"
+  MODE="plain copy incl. WAL/SHM (sqlite3 CLI unavailable)"
 fi
 
 # prune old backups (keep newest $KEEP)
