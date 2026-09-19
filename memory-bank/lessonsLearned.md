@@ -168,3 +168,8 @@
 - **mcp-service-method-unregistered**: `lesson_publish`/`lesson_unpublish` existierten als Service-Methoden mit grünen Service-Tests, waren aber nie via `registerTool` auf der MCP-Oberfläche registriert. Prevention: jede öffentliche Service-Fähigkeit registrieren + MCP-Surface-Test mit `listTools()`-Assertion.
 - **drvfs-edit-tool-silent-nowrite**: Editor-basierter Replace meldete SUCCESS, landete aber NICHT auf disk (Terminal-grep zeigte Alttext auf /mnt/d drvfs). Prevention: Source-Edits in diesem Repo per Terminal (python3 replace mit assert) + grep-Verifikation VOR build/test; Tool-Erfolgsmeldung ohne Terminal-Read als unverifiziert behandeln.
 - Fixture: `tests/fixtures/lessons-session-2026-09-18.json` — Seeder 3/3, Round-Trip via `experience_search` bestätigt (jede Query liefert Treffer).
+
+## 2026-09-19 — CI-Setup-Lessons (in experience-memory scope `thinking-mcp-lessons` gespielt)
+- **yarn4-v1-lockfile-immutable**: `yarn install --immutable` scheiterte mit YN0028, weil yarn.lock noch im Yarn-v1-Format war — Berry migriert die Datei beim ersten Install, was `--immutable` verbietet. Fix: einmal plain `yarn install`, migrierten Lockfile committen, danach `--immutable` grün.
+- **yarn4-blocks-native-build-scripts**: Yarn ≥4.9 blockiert Build-Scripts von Dependencies standardmäßig → better-sqlite3-Postinstall lief nie, natives Binding fehlte (CI wäre gescheitert trotz funktionierendem lokalen npm-Setup). Fix: Root-`package.json` → `dependenciesMeta: { "better-sqlite3": { "built": true } }`; Verifikation via Binding-Datei + Testsuite.
+- Fixture: seeder 2/2, `experience_search` Round-Trip bestätigt (beide Queries liefern beide neuen Episodes).
