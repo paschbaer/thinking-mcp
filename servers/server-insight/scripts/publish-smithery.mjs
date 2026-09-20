@@ -26,7 +26,13 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const pkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const qualifiedName = process.argv[2] ?? 'paschbaer/insight';
-const bundlePath = path.join(pkgRoot, 'insight.mcpb');
+const pkg = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8'));
+// The bundle carries the version in its filename (insight-<version>.mcpb,
+// as produced by build-mcpb.mjs); fall back to the bare name for manual runs.
+const versionedBundle = path.join(pkgRoot, `insight-${pkg.version}.mcpb`);
+const bundlePath = fs.existsSync(versionedBundle)
+  ? versionedBundle
+  : path.join(pkgRoot, 'insight.mcpb');
 
 // CI-friendly: SMITHERY_API_KEY (GitHub Secret) wins; local runs fall back
 // to the token stored by `npx @smithery/cli auth login`. The settings file is
@@ -49,7 +55,6 @@ if (!token) {
   process.exit(2);
 }
 
-const pkg = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8'));
 
 // Capture tool metadata at runtime (in-memory client against the factory)
 const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
@@ -107,8 +112,36 @@ const res = await fetch(
   `https://api.smithery.ai/servers/${encodeURIComponent(qualifiedName)}/releases`,
   { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: form }
 );
-console.log('release:', res.status, (await res.text()).slice(0, 300));
-if (res.status !== 202 && res.status !== 200) process.exit(1);
+let releaseText = await res.text();
+console.log('release:', res.status, releaseText.slice(0, 300));
+
+// First-time publish: the server record does not exist yet -> create it,
+// then retry the release. (PUT /servers/{q}/releases 404s for unknown servers.)
+if (res.status === 404) {
+  console.log('server not found — creating record via POST /servers ...');
+  const createForm = new FormData();
+  createForm.append('payload', JSON.stringify({ type: 'stdio', runtime: 'node', configSchema: payload.configSchema, serverCard: payload.serverCard }));
+  createForm.append('bundle', new Blob([bundle]), path.basename(bundlePath));
+  const createRes = await fetch('https://api.smithery.ai/servers', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: createForm,
+  });
+  const createText = await createRes.text();
+  console.log('create:', createRes.status, createText.slice(0, 300));
+  if (createRes.status !== 200 && createRes.status !== 201 && createRes.status !== 202) {
+    console.error('server creation failed — see output above');
+    process.exit(1);
+  }
+  const retryRes = await fetch(
+    `https://api.smithery.ai/servers/${encodeURIComponent(qualifiedName)}/releases`,
+    { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: form }
+  );
+  console.log('release retry:', retryRes.status, (await retryRes.text()).slice(0, 300));
+  if (retryRes.status !== 202 && retryRes.status !== 200) process.exit(1);
+} else if (res.status !== 202 && res.status !== 200) {
+  process.exit(1);
+}
 
 // Keep the server record metadata in sync (the score reads displayName,
 // homepage, iconUrl etc. from the record, not from the release).

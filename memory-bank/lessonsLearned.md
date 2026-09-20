@@ -215,3 +215,23 @@
 - **Root Cause**: Der Rename-Commit (be4a4d2) benannte Dateien um, übersah aber den Test-Import. Der lokale "142/142 green" war wertlos: vitest-Cache/inkrementelles Verhalten maskierte den Load-Fehler, bzw. die Suite wurde nicht im Clean-State ausgeführt.
 - **Fix**: Import auf setup-clearthought.js korrigiert (feb4665), Suite 152/152.
 - **Prävention**: Vor "suite green"-Claims bei Rename/Move-Commits: `vitest run` in einem sauberen Zustand (mind. `npx vitest run --no-cache` oder frischer Checkout). `Failed to load url`-Fehler = tote Import-Pfade, die nur ohne Cache sichtbar sind.
+
+## 2026-09-20 — Merge-Runde-Lessons (in `thinking-mcp-lessons` gespielt)
+- **native-module-unhandled-rejection-in-vitest**: CI rot trotz 95/95 grün — der abgefangene onnxruntime-Load-Fehler surfte als vitest-Unhandled-Rejection. Fix: `EMMS_DISABLE_EMBEDDINGS=1` (kurzschließt VOR dem dynamischen Import) + `it.skipIf` für die 2 echten Modell-Tests + env in test.yml. Meta: vor "green" die Unhandled-Errors-Sektion prüfen.
+- **npm-publish-from-wrong-directory-publishes-wrong-package**: Publish lief zweimal vom Monorepo-Root und versuchte `@paschbaer/thinking-mcp@0.0.1` (292 Dateien) zu pushen — nur `private: true` verhinderte Schlimmes. Fix: cd in den Workspace-Ordner, Intent via `node -p "require('./package.json').name"` verifizieren, Tarball-Contents-Listing LESEN.
+- **gitignore-pattern-lost-during-string-replace-edits**: Verkettete String-Replace-Edits an .gitignore verloren still das Pattern `/emms-store.db*` — Datei blieb untracked trotz dreimal "done". Fix: nach Ignore-Edit für JEDE Datei `git check-ignore` verifizieren und das komplette Pattern-Set greppen, Commit amenden bis alles exit 0.
+- Seeder 3/3, Round-Trip bestätigt (exp_3ebae212, exp_4d4ecd2b, exp_56e5bded).
+
+## 2026-09-20 — Smithery-Erst-Publish (insight live!)
+- **smithery-first-publish-needs-server-upsert**: PUT /servers/{q}/releases liefert 404 "Server not found" für neue Server — der Record muss zuerst via PUT /servers/{q} (Upsert mit displayName/description, HTTP 201) angelegt werden; danach funktioniert das Release-PUT. Skript macht jetzt create-fallback + retry.
+- **smithery-bundle-cap-25mb-trim**: Smithery-Cap 25 MB komprimiert. Roh-Install ~300 MB. Trim: onnxruntime darwin/win32/arm64-Binaries, onnxruntime-web, alle ort-wasm-Varianten außer simd-threaded, sourcemaps, protobufjs/cli, better-sqlite3 build-Toolchain (deps/, obj.target, *.mk) → 96 MB → 23.7 MB gz (gzip -9 statt default — allein das brachte 28→23.7).
+- **spawnSync-maxbuffer-kills-big-stdout**: tar -cf - mit stdout-Pipe (100 MB+) crashte spawnSync still (status≠0, ENOENT-ähnlich, keine Meldung) — Default-maxBuffer ist 1 MB. Fix: stdio-stderr auf 'pipe' + maxBuffer 512 MB, stderr loggen. Regel: spawnSync mit erwartetem Groß-Output NIE ohne maxBuffer.
+- **build-skript-claims-verify-end-to-end**: Das kopierte publish-skript referenzierte insight.mcpb, das Build aber insight-<version>.mcpb erzeugt — plus TDZ-Crash (pkg vor Nutzung). Regel: bei kopierten/umgebauten Skripten den ERSTEN echten Lauf im selben Commit verifizieren, nicht nur Syntax.
+- **insight ist jetzt LIVE auf Smithery**: https://insight--paschbaer.run.tools (Release 202, Record-Patch 200, Registry-Eintrag verifiziert).
+
+## 2026-09-20 — Smithery-Erst-Publish-Lessons (in `thinking-mcp-lessons` gespielt)
+- **smithery-first-publish-needs-server-upsert**: Release-PUT 404t für neue Server; Create ist PUT /servers/{q} (Upsert, HTTP 201), nicht POST. Skript hat jetzt Create-Fallback + Release-Retry (create 201 → release 202 → patch 200, end-to-end verifiziert).
+- **smithery-bundle-cap-25mb-trim**: 80-MB-Bundle (onnxruntime Multi-Platform + onnxruntime-web + wasm-Varianten + sourcemaps + better-sqlite3-Toolchain) auf 23.7 MB getrimmt; gzip -9 allein brachte 28→23.7.
+- **spawn-sync-maxbuffer-kills-big-stdout**: tar-stdout (100 MB+) über spawnSync-Pipe crashte still — Default-maxBuffer 1 MB. Fix: maxBuffer 512 MB + stderr pipen/loggen. Regel: spawnSync mit großem erwartetem Output nie ohne maxBuffer.
+- **bundle-filename-version-drift-between-build-and-publish**: publish suchte insight.mcpb, build erzeugt insight-<version>.mcpb (ENOENT) + TDZ-Crash beim ersten Fix. Fix: versionierte Auflösung + pkg nach oben. Regel: ersten echten Lauf kopierter/umgebauter Skripte im selben Commit verifizieren.
+- Seeder 4/4, Round-Trip bestätigt (exp_fa71d807, exp_2f92135e, exp_f99452a2, exp_4da4713b).
