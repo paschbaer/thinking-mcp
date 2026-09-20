@@ -29,3 +29,14 @@ servers/server-insight/emms-data/
 
 # insight store backups
 servers/server-insight/emms-backups/
+
+# server-insight: stale in-place build output (tsconfig builds to dist/ only)
+/servers/server-insight/*.js
+/servers/server-insight/*.d.ts
+/servers/server-insight/consolidation/
+/servers/server-insight/domain/
+/servers/server-insight/evidence/
+/servers/server-insight/guidance/
+/servers/server-insight/retrieval/
+/servers/server-insight/storage/
+/servers/server-insight/tools/
