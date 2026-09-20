@@ -228,3 +228,10 @@
 - **spawnSync-maxbuffer-kills-big-stdout**: tar -cf - mit stdout-Pipe (100 MB+) crashte spawnSync still (status≠0, ENOENT-ähnlich, keine Meldung) — Default-maxBuffer ist 1 MB. Fix: stdio-stderr auf 'pipe' + maxBuffer 512 MB, stderr loggen. Regel: spawnSync mit erwartetem Groß-Output NIE ohne maxBuffer.
 - **build-skript-claims-verify-end-to-end**: Das kopierte publish-skript referenzierte insight.mcpb, das Build aber insight-<version>.mcpb erzeugt — plus TDZ-Crash (pkg vor Nutzung). Regel: bei kopierten/umgebauten Skripten den ERSTEN echten Lauf im selben Commit verifizieren, nicht nur Syntax.
 - **insight ist jetzt LIVE auf Smithery**: https://insight--paschbaer.run.tools (Release 202, Record-Patch 200, Registry-Eintrag verifiziert).
+
+## 2026-09-20 — Smithery-Erst-Publish-Lessons (in `thinking-mcp-lessons` gespielt)
+- **smithery-first-publish-needs-server-upsert**: Release-PUT 404t für neue Server; Create ist PUT /servers/{q} (Upsert, HTTP 201), nicht POST. Skript hat jetzt Create-Fallback + Release-Retry (create 201 → release 202 → patch 200, end-to-end verifiziert).
+- **smithery-bundle-cap-25mb-trim**: 80-MB-Bundle (onnxruntime Multi-Platform + onnxruntime-web + wasm-Varianten + sourcemaps + better-sqlite3-Toolchain) auf 23.7 MB getrimmt; gzip -9 allein brachte 28→23.7.
+- **spawn-sync-maxbuffer-kills-big-stdout**: tar-stdout (100 MB+) über spawnSync-Pipe crashte still — Default-maxBuffer 1 MB. Fix: maxBuffer 512 MB + stderr pipen/loggen. Regel: spawnSync mit großem erwartetem Output nie ohne maxBuffer.
+- **bundle-filename-version-drift-between-build-and-publish**: publish suchte insight.mcpb, build erzeugt insight-<version>.mcpb (ENOENT) + TDZ-Crash beim ersten Fix. Fix: versionierte Auflösung + pkg nach oben. Regel: ersten echten Lauf kopierter/umgebauter Skripte im selben Commit verifizieren.
+- Seeder 4/4, Round-Trip bestätigt (exp_fa71d807, exp_2f92135e, exp_f99452a2, exp_4da4713b).
