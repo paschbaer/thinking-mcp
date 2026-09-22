@@ -310,7 +310,13 @@ export function loadConfig(configDir: string): LoadedConfig {
   }
   const cfg = main as GuidanceMainConfig;
 
-  const hashable: string[] = [JSON.stringify(cfg)];
+  const canonical = (value: unknown): string =>
+    JSON.stringify(value, (_k, v: unknown) =>
+      v !== null && typeof v === "object" && !Array.isArray(v)
+        ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
+        : v,
+    );
+  const hashable: string[] = [canonical(cfg)];
   const loaded: Record<string, Record<string, unknown>> = {};
   for (const key of ["workflow", "responses", "operations", "downstreamServers", "policies"] as const) {
     const ref = cfg[key];
@@ -321,13 +327,13 @@ export function loadConfig(configDir: string): LoadedConfig {
       }
       const data = readJsonFile(path, key);
       loaded[key] = data;
-      hashable.push(JSON.stringify(data));
+      hashable.push(canonical(data));
     }
   }
   let specKit: SpecKitConfig | undefined;
   if (resolveProfile(cfg) === "spec-kit") {
     specKit = buildSpecKitConfig(cfg);
-    hashable.push(JSON.stringify(specKit));
+    hashable.push(canonical(specKit));
   }
 
   const configVersion = `sha256:${hash.copy().update(hashable.join("\n")).digest("hex")}`;

@@ -1,5 +1,10 @@
-/** Exclusive per-feature-directory session locks (FR-061). */
-import { existsSync, readFileSync, writeFileSync, readdirSync, rmSync } from "node:fs";
+/**
+ * Exclusive per-feature-directory session locks (FR-061).
+ * SINGLE-INSTANCE INVARIANT: one FeatureLockRegistry per process must be
+ * shared by all components; concurrent processes are out of scope for the
+ * MVP (single-process deployment).
+ */
+import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
 
@@ -17,13 +22,30 @@ export class FeatureLockRegistry {
 
   private load(): LockFile {
     if (!this.cache) {
-      this.cache = existsSync(this.lockPath) ? (JSON.parse(readFileSync(this.lockPath, "utf-8")) as LockFile) : {};
+      if (!existsSync(this.lockPath)) {
+        this.cache = {};
+      } else {
+        try {
+          this.cache = JSON.parse(readFileSync(this.lockPath, "utf-8")) as LockFile;
+        } catch {
+          // Corrupt lock file must not brick locking: quarantine and rebuild.
+          try {
+            renameSync(this.lockPath, `${this.lockPath}.corrupt-${Date.now()}`);
+          } catch {
+            // quarantine best-effort
+          }
+          this.cache = {};
+        }
+      }
     }
     return this.cache;
   }
 
   private persist(lock: LockFile): void {
-    writeFileSync(this.lockPath, JSON.stringify(lock, null, 2));
+    // Atomic tmp+rename: a crash must never leave a truncated lock file.
+    const tmp = `${this.lockPath}.tmp-${process.pid}-${Date.now()}`;
+    writeFileSync(tmp, JSON.stringify(lock, null, 2));
+    renameSync(tmp, this.lockPath);
     this.cache = lock;
   }
 
@@ -75,7 +97,3 @@ export class FeatureLockRegistry {
 function sepOf(): string {
   return process.platform === "win32" ? "\\" : "/";
 }
-
-// readdirSync/rmSync imported for potential sweep enhancements; keep tree-shaking honest.
-void readdirSync;
-void rmSync;
