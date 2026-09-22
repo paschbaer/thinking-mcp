@@ -237,3 +237,8 @@ UPDATE 2026-09-18 (13): PUBLISHING SETUP. smithery.yaml, scripts/build-mcpb.mjs 
 UPDATE 2026-09-18 (14): LEVEL 3 AUTO-CAPTURE HOOKS. finalize(verified) auto-propose Lesson aus Episode-Signatur (non-blocking, auto_lesson im Response). Git post-commit Hook (auto-capture-hook.mjs): Error-Pattern-Detection in Diff, EMMS_AUTO_CAPTURE=0 zum Deaktivieren. npm Scripts: capture + auto-capture. 85/85 gruen. Commit d31b921.
 
 UPDATE 2026-09-18 (15): CONSOLIDATION WORKER (Phase 3). ConsolidationWorker: Timer-basierte Hintergrund-Tasks (Stale-Scan, Auto-Dedup, Lesson-Promotion), 5-Min-Intervall (unref). StorageAdapter erweitert um listScopes() + findAllEpisodes() (beide Adapter). Wired in tools/index.ts. 5 Contract-Tests; 91/91 gruen. Commit 5cc6512.
+
+## 2026-09-22 — experience_seed_lessons tool (feature/seed-lessons-tool)
+- **What works:** New MCP tool `experience_seed_lessons` (server-side batch lesson seeding, idempotent per slug, per-lesson result reporting). `scripts/seed-lessons.mjs` reduced to a thin MCP client (HTTP default, stdio fallback). Master prompt `.github/prompts/capture-lessons.prompt.md` calls the tool directly — works in any repo without a Thinking-MCP checkout. Migration script `scripts/migrate-stdio-store.mjs` (stdio store → HTTP store) added earlier on this branch.
+- **What's left:** Sync prompt copies in other repos; rebuild/redeploy the Docker image so HTTP clients get the new tool; sync prompt copies after merge.
+- **Current state:** 4 new contract tests green; full suite 98/99 (golden-g1-g3 timeout flake under full-suite load only — passes isolated).

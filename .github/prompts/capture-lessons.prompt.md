@@ -31,43 +31,31 @@ persist each one as an experience episode in the experience-memory server.
 ]
 ```
 
-4. **Ensure the HTTP server is up, then seed via the seeder script.**
-   The seeder writes to the HTTP store (default `EMMS_HTTP_URL =
-   http://localhost:3002/mcp`) so lessons land in the SAME store the
-   Dockerized server serves — NOT in `~/.insight/emms-store.db`.
+4. **Seed via the `experience_seed_lessons` MCP tool** (server-side batch
+   seeding — NO local script, NO repo checkout required):
 
-```bash
-# Step 0: server reachable? (start it if not — it has restart: unless-stopped)
-curl -sf http://localhost:3002/health || \
-  (cd servers/server-insight && docker compose up -d && sleep 3)
-
-cd servers/server-insight
-node scripts/seed-lessons.mjs <path-to-lessons.json>
+```
+experience_seed_lessons {
+  lessons: [ { slug, observation, cause, fix }, ... ],
+  client_context: { scope_id: 'thinking-mcp-lessons', agent_id: 'capture-lessons' }
+}
 ```
 
-   **If the container cannot be started** (no Docker, remote host): fall back
-   with `EMMS_SEED_TRANSPORT=stdio` — this writes the local
-   `~/.insight/emms-store.db` — and afterwards merge it into the HTTP store:
+   The server runs the full episode pipeline (observation → environment →
+   attempt → outcome → hypothesis → finalize) internally and reports a
+   per-lesson status: `seeded` | `duplicate` | `failed`. The tool is
+   transport-independent — it writes to the store of the CONNECTED server
+   (typically the HTTP store at http://localhost:3002/mcp).
 
-```bash
-   EMMS_SEED_TRANSPORT=stdio node scripts/seed-lessons.mjs <lessons.json>
-   # later, with the container stopped (WAL):
-   node scripts/migrate-stdio-store.mjs
-```
-
-   Do NOT silently seed via stdio while the HTTP server is running — the two
-   stores diverge and the episode becomes invisible to `experience_search`
-   over HTTP (observed mismatch, see lessons: split-store).
+   Optional standalone batch seeding from a terminal (e.g. CI): the thin
+   client `scripts/seed-lessons.mjs <lessons.json>` in this repo calls the
+   same tool over HTTP (or `EMMS_SEED_TRANSPORT=stdio`). It is a
+   convenience wrapper only — the MCP tool is the primary path.
 
 5. **Verify** the round-trip with `experience_search` (scope
    `thinking-mcp-lessons`) using the lesson's wording, and report the
-   retrieved episodes to the user. This read path goes through the same HTTP
-   endpoint the seeder wrote to, so it also rules out instance/store
-   mismatches. If the session's `experience-memory` MCP instance is not
-   connected to the HTTP endpoint, verify directly at the store level
-   instead: count the lesson's `lesson-<slug>` rows in
-   `servers/server-insight/emms-data/emms-store.db` (table `idempotency`) —
-   NOT in `~/.insight/emms-store.db`.
+   retrieved episodes to the user. The read goes through the same server
+   instance the seed tool used, so it also rules out store mismatches.
 
 6. **Append a short entry** to `memory-bank/lessonsLearned.md` (constitution
    requirement) — keep it consistent with the episode content.
@@ -76,11 +64,9 @@ node scripts/seed-lessons.mjs <path-to-lessons.json>
 
 - Only capture **validated** lessons (fix confirmed working in this session) —
   never unverified speculation.
-- Idempotency: re-running with the same `slug` never duplicates (the seeder
-  uses `idempotency_key = lesson-<slug>`).
+- Idempotency: re-running with the same `slug` reports `duplicate` — never
+  duplicates (server-side `idempotency_key = lesson-<slug>`).
 - Sensitive data (secrets, tokens, credentials) must be redacted before
   seeding — the server also runs pattern-based redaction as a safety net.
-- Single store of truth: seed over HTTP. stdio is only a documented fallback
-  followed by a migration run — never a silent parallel store.
 - This file is the MASTER prompt (repo Thinking-MCP). Copies in other repos
   must be synced from here; do not edit copies in place.

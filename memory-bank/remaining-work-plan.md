@@ -247,3 +247,8 @@ Trigger: /speckit-plan fuer 001-experience-memory-server
 - **Befund** (Niyama-Bericht): Ein Addendum an Episode `exp_160d2db7-4d8` (niyama-lessons, Docker-Store) sollte an der aktuellen Episode-Revision (Rev 6) anhängen, landete aber als Rev 3 auf dem älteren Workflow der selben Episode. Inhalte sind serverseitig persistent, aber der Revisionsbezug ist vermutlich falsch verdrahtet.
 - **Trigger-Point**: Nächste Scope-Arbeit an Episode-Extend/Addendum-Fluss (`record_observation` gegen bestehende Episode / finalize-Addendum-Pfad in `src/service.ts`).
 - **Aktion erforderlich**: ~~offen~~ **GELÖST 2026-09-19 (Commit siehe git log: fix(emms) replay revision)**: Root Cause war der Idempotenz-Replay von `workflow_start` (FR-028) — er lieferte das ORIGINAL-Ergebnis mit der damaligen Revision zurück; Addendum-Läufe rechneten ab Rev 1 und crashten mit STALE_REVISION. Fix: Replay patcht auf die aktuelle Workflow-Revision + `replayed: true`-Flag; Regressionstest `tests/contracts/replay-revision.test.ts`, Suite 95/95.
+
+## Tracked follow-ups (2026-09-22)
+- [ ] Golden-Test-Flake (`tests/fixtures/golden-g1-g3.test.ts` T046): schlägt im Komplettlauf mit 5s-Timeout fehl, isoliert stabil (auch mit neuen Änderungen). Trigger: nächste Suite-Tuning-Runde — testTimeout für diesen Test erhöhen oder Test-Isolation prüfen. Action required.
+- [ ] Prompt-Kopien von `.github/prompts/capture-lessons.prompt.md` in anderen Repos aus dem Master syncen. Trigger: sobald der Docker-Container mit `experience_seed_lessons` deployed ist. Action required.
+- [ ] Docker-Image neu bauen + deployen (`docker compose build && up -d`), damit HTTP-Clients das neue Tool sehen. Trigger: Merge auf develop. Action required.
