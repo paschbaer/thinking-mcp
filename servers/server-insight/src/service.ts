@@ -900,7 +900,9 @@ export class EmmsService {
     const candidates = new Map<string, SearchRow>();
     const add = (rows: SearchRow[]) => rows.forEach((r) => candidates.set(r.episode_id, r));
     if (args.failure_signature_hash) add(await this.adapter.searchExact(args.failure_signature_hash, args.scope_id));
-    add(await this.adapter.searchFullText(args.query.split(/\s+/).slice(0, 6).join(' '), args.scope_id));
+    const ftsRows = await this.adapter.searchFullText(args.query.split(/\s+/).slice(0, 6).join(' '), args.scope_id);
+    const ftsHitIds = new Set(ftsRows.map((r) => r.episode_id));
+    add(ftsRows);
     if (this.embedding) {
       const qVec = await this.embedding.embed(args.query);
       if (qVec) {
@@ -937,6 +939,11 @@ export class EmmsService {
         applicability * 0.35 +
         (row.state === 'LOCALLY_VERIFIED' || row.state === 'REPRODUCED' ? 0.15 : 0.05) +
         Math.min(useful, 3) * 0.01;
+      // Full-text matches must influence RANKING, not just candidate
+      // discovery: without this, FTS hits score identically to scope-fallback
+      // rows and get cut by the limit (observed: exact-slug queries returned
+      // arbitrary stale episodes). 0.30 keeps signature-exact (0.40) on top.
+      if (ftsHitIds.has(row.episode_id)) score += 0.30;
       if (semanticAvailable && queryVec) {
         const eVec = await this.adapter.getEmbedding(row.episode_id);
         if (eVec) {
