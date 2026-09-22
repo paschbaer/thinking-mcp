@@ -31,18 +31,18 @@
 **Goal**: seven-phase engine with plain-profile tools and completion invariant.
 **Independent test**: fixture config → walk phases with valid/invalid submissions; out-of-phase rejected; `completed` gated on required operations.
 
-- [ ] T017 [US1] Write failing workflow engine tests in `tests/workflow/engine.test.ts`: single active phase, allowed-transitions-only, `invalid_active_phase` rejection, transition table from config (FR-001–003)
-- [ ] T018 [US1] Implement `src/workflow/WorkflowEngine.ts` + `PhaseLifecycle.ts` + `TransitionValidator.ts` (lifecycle order per FR-038) — make T017 pass
-- [ ] T019 [US1] Write failing tests for submission validation in `tests/workflow/submissions.test.ts` (strict schemas, unknown fields rejected, one accepted submission per phase instance per FR-030)
-- [ ] T020 [US1] Implement submission validation + persistence wiring in `src/workflow/` using T013 — make T019 pass
-- [ ] T021 [US1] Write failing contract tests for plain workflow tools in `tests/contract/tools-workflow.test.ts`: `start_workflow`, `get_current_guidance`, 6 submit tools, `get_workflow_state` shapes per contract
-- [ ] T022 [US1] Implement tool handlers + response mapping in `src/mcp-server/ToolHandlers.ts`/`ResponseMapper.ts` — make T021 pass
-- [ ] T023 [P] [US1] Write failing tests for phase instruction composition in `tests/workflow/guidance.test.ts` (configured responses returned verbatim per FR-006)
-- [ ] T024 [US1] Implement response composition from `responses.json` in `src/workflow/` — make T023 pass
-- [ ] T025 [US1] Write failing tests for the v1 completion gate in `tests/workflow/completion.test.ts` (no `completed` while required operations unresolved — FR-004)
-- [ ] T026 [US1] Implement completion invariant gate in `src/workflow/TransitionValidator.ts` wired to operation results — make T025 pass
-- [ ] T027 [P] [US1] Implement `report_blocker` + `resume_workflow` + `blocked` state preservation in `src/workflow/` (FR-028); tests first in `tests/workflow/blocker.test.ts`
-- [ ] T028 [US1] Golden end-to-end test `tests/integration/plain-flow.test.ts`: full 7-phase walk with stub operations (quickstart validation A)
+- [x] T017 [US1] Write failing workflow engine tests in `tests/workflow/engine.test.ts`: single active phase, allowed-transitions-only, `invalid_active_phase` rejection, transition table from config (FR-001–003)
+- [x] T018 [US1] Implement `src/workflow/WorkflowEngine.ts` + `PhaseLifecycle.ts` + `TransitionValidator.ts` (lifecycle order per FR-038) — make T017 pass
+- [x] T019 [US1] Write failing tests for submission validation in `tests/workflow/submissions.test.ts` (strict schemas, unknown fields rejected, one accepted submission per phase instance per FR-030)
+- [x] T020 [US1] Implement submission validation + persistence wiring in `src/workflow/` using T013 — make T019 pass
+- [x] T021 [US1] Write failing contract tests for plain workflow tools in `tests/contract/tools-workflow.test.ts`: `start_workflow`, `get_current_guidance`, 6 submit tools, `get_workflow_state` shapes per contract
+- [x] T022 [US1] Implement tool handlers + response mapping in `src/mcp-server/ToolHandlers.ts`/`ResponseMapper.ts` — make T021 pass
+- [x] T023 [P] [US1] Write failing tests for phase instruction composition in `tests/workflow/guidance.test.ts` (configured responses returned verbatim per FR-006)
+- [x] T024 [US1] Implement response composition from `responses.json` in `src/workflow/` — make T023 pass
+- [x] T025 [US1] Write failing tests for the v1 completion gate in `tests/workflow/completion.test.ts` (no `completed` while required operations unresolved — FR-004)
+- [x] T026 [US1] Implement completion invariant gate in `src/workflow/TransitionValidator.ts` wired to operation results — make T025 pass
+- [x] T027 [P] [US1] Implement `report_blocker` + `resume_workflow` + `blocked` state preservation in `src/workflow/` (FR-028); tests first in `tests/workflow/blocker.test.ts`
+- [x] T028 [US1] Golden end-to-end test `tests/integration/plain-flow.test.ts`: full 7-phase walk with stub operations (quickstart validation A)
 
 ## Phase 4 — US2: Configuration-driven customization (P2)
 
