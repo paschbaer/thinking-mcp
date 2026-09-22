@@ -25,7 +25,11 @@ import { buildGuidance, allowedToolsForState } from './guidance/engine.js';
 import { TransformersEmbedding, cosineSimilarity, type EmbeddingProvider } from './retrieval/semantic.js';
 import { LessonService } from './domain/lesson-service.js';
 import { assessLimits } from './guidance/limits.js';
+import { resolveFtsRelevanceBoost } from './config.js';
 import type { GuidanceEnvelope } from './guidance/envelope.js';
+
+/** Config-driven FTS relevance boost (EMMS_FTS_RELEVANCE_BOOST, default 0.30). */
+const FTS_RELEVANCE_BOOST = resolveFtsRelevanceBoost();
 
 export const POLICY_VERSION = 'emms-policy-2026-09-01';
 
@@ -942,8 +946,9 @@ export class EmmsService {
       // Full-text matches must influence RANKING, not just candidate
       // discovery: without this, FTS hits score identically to scope-fallback
       // rows and get cut by the limit (observed: exact-slug queries returned
-      // arbitrary stale episodes). 0.30 keeps signature-exact (0.40) on top.
-      if (ftsHitIds.has(row.episode_id)) score += 0.30;
+      // arbitrary stale episodes). Boost stays config-bounded below the
+      // signature-exact weight (0.40).
+      if (ftsHitIds.has(row.episode_id)) score += FTS_RELEVANCE_BOOST;
       if (semanticAvailable && queryVec) {
         const eVec = await this.adapter.getEmbedding(row.episode_id);
         if (eVec) {

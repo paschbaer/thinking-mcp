@@ -298,6 +298,17 @@ Plain `docker run` also works — the image defaults
 `EMMS_STORAGE_PATH=/usr/src/app/data/emms-store.db` (inside the node-owned
 volume directory):
 
+#### Environment variables
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `3002` | HTTP listen port |
+| `EMMS_BIND_HOST` | `127.0.0.1` | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works. |
+| `EMMS_STORAGE_BACKEND` | `sqlite` | `sqlite` \| `postgres` (postgres: full-text retrieval not yet at SQLite parity — see remaining-work-plan follow-up) |
+| `EMMS_STORAGE_PATH` | `~/.insight/emms-store.db` | SQLite store location |
+| `EMMS_PG_CONNECTION_STRING` | — | Postgres connection string (required when backend=postgres) |
+| `EMMS_FTS_RELEVANCE_BOOST` | `0.30` | Relevance boost for full-text matches in `experience_search` ranking; clamped to `[0, 0.39]` so signature-exact hits (0.40) always rank first |
+
 ```bash
 docker run -d -p 3002:3002 paschbaer/insight:latest
 ```

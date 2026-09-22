@@ -28,6 +28,20 @@ export function resolvePostgresConnectionString(): string | undefined {
   return process.env.EMMS_PG_CONNECTION_STRING;
 }
 
+/**
+ * Relevance boost for full-text (FTS) matches in experience_search ranking.
+ * Must stay BELOW the signature-exact weight (0.40) so exact signature hits
+ * keep ranking first (review invariant, 2026-09-22). Configurable via
+ * EMMS_FTS_RELEVANCE_BOOST; invalid/missing values fall back to 0.30.
+ */
+export function resolveFtsRelevanceBoost(): number {
+  const env = process.env.EMMS_FTS_RELEVANCE_BOOST;
+  if (env === undefined || env.trim() === '') return 0.30;
+  const raw = Number(env);
+  if (!Number.isFinite(raw)) return 0.30;
+  return Math.min(Math.max(raw, 0), 0.39);
+}
+
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 
 export const DEFAULT_CONFIG: ServerConfig = {};

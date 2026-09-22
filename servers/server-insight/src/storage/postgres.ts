@@ -1,8 +1,10 @@
 /**
  * PostgreSQL + pgvector StorageAdapter (D-team-phase, research.md/Clarifications).
  *
- * Implements the same StorageAdapter contract as SqliteAdapter — tool behavior
- * is identical across backends. Selected via EMMS_STORAGE_BACKEND=postgres;
+ * Implements the same StorageAdapter contract as SqliteAdapter, but full-text
+ * retrieval is NOT yet at SQLite parity (no FTS triggers/backfill/relevance
+ * boost — see memory-bank/remaining-work-plan.md, tracked follow-up).
+ * Selected via EMMS_STORAGE_BACKEND=postgres;
  * the `pg` driver is imported lazily so local SQLite users never need it.
  *
  * Vector columns use pgvector (`CREATE EXTENSION IF NOT EXISTS vector`).
