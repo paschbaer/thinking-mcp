@@ -55,6 +55,7 @@ export interface OperationConfig {
   validation?: import("./operation-validation.js").OperationValidationPolicy;
   output?: { returnToAgent: "none" | "status_only" | "summary" | "summary_and_errors" | "normalized" | "raw"; retainRawResult?: boolean; maximumBytes?: number };
   riskClass?: RiskClass;
+  approved?: boolean;
   fallback?: OperationConfig[];
   condition?: unknown;
 }

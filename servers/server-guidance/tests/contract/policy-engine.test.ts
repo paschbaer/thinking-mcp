@@ -32,9 +32,13 @@ describe("PolicyEngine (FR-052/053, FR-048-adjacent)", () => {
       content: [{ secret: "x" }], warnings: [], errors: [{ message: "e" }], protocolMetadata: {}, validated: true,
     };
     expect(engine.applyExposure(result, "none").content).toEqual([]);
+    expect(engine.applyExposure(result, "none").warnings).toEqual([]);
     expect(engine.applyExposure(result, "status_only").data).toEqual({});
     expect(engine.applyExposure(result, "summary_and_errors").content).toEqual([]);
     expect(engine.applyExposure(result, "summary_and_errors").errors).toHaveLength(1);
+    expect(engine.applyExposure(result, "summary_and_errors").data).toEqual({});
+    expect(engine.applyExposure(result, "summary").data).toEqual({});
+    expect(() => engine.evaluateEgress({ serverId: "p", trustLevel: "trusted", riskClass: "credential_sensitive", args: {}, approved: false })).toThrowError(/authorization_required/);
     expect(engine.applyExposure(result, "raw").content).toHaveLength(1);
   });
 });

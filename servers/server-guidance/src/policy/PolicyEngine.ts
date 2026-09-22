@@ -52,13 +52,13 @@ export class PolicyEngine {
   ): T {
     switch (mode) {
       case "none":
-        return { ...result, content: [], data: {}, summary: "", errors: [] };
+        return { ...result, content: [], data: {}, summary: "", errors: [], warnings: [] };
       case "status_only":
-        return { ...result, content: [], data: {} };
+        return { ...result, content: [], data: {}, warnings: [] };
       case "summary":
-        return { ...result, content: [] };
+        return { ...result, content: [], data: {}, warnings: [] };
       case "summary_and_errors":
-        return { ...result, content: [] };
+        return { ...result, content: [], data: {}, warnings: [] };
       default:
         return result;
     }
