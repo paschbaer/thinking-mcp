@@ -82,6 +82,21 @@ describe('experience_seed_lessons', () => {
     });
     const hits = (search.result as Record<string, unknown>).results as Array<Record<string, unknown>>;
     expect(hits.some((h) => seededIds.includes(h.experience_id as string))).toBe(true);
+
+    // Regression (FTS index was never populated): the full-text arm must
+    // actually match — slug queries must rank the episode ABOVE the scope-list
+    // fallback floor (0.25), and hyphenated queries must not crash
+    // searchFullText with SQLITE_ERROR 'no such column: f.scope_id'.
+    const slugSearch = await call('experience_search', {
+      query: LESSONS[0].slug, scope_id: CTX.scope_id, limit: 20,
+    });
+    const slugHits = (slugSearch.result as Record<string, unknown>).results as Array<{ experience_id: string; relevance: number }>;
+    const match = slugHits.find((h) => seededIds.includes(h.experience_id));
+    expect(match).toBeDefined();
+    expect(match!.relevance).toBeGreaterThan(0.25);
+    // FTS hits must rank to the TOP (relevance boost), not merely appear:
+    // the queried lesson should be result #1.
+    expect(slugHits[0].experience_id).toBe(match!.experience_id);
   });
 
   it('is idempotent: re-run reports duplicates and adds no episodes', async () => {

@@ -31,6 +31,30 @@ export class SqliteAdapter implements StorageAdapter {
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
     runMigrations(this.db);
+    // FTS index maintenance: episodes_fts has NO runtime writer elsewhere,
+    // so (1) backfill missing rows from episodes and (2) keep it in sync via
+    // triggers — without this, experience_search's full-text arm never
+    // matches and retrieval degrades to the scope-list fallback (all
+    // relevance 0.25).
+    this.db.exec(`
+      CREATE TRIGGER IF NOT EXISTS episodes_fts_insert
+      AFTER INSERT ON episodes BEGIN
+        INSERT INTO episodes_fts (episode_id, summary, scope_id)
+        VALUES (new.experience_id, new.goal_summary, new.scope_id);
+      END;
+      CREATE TRIGGER IF NOT EXISTS episodes_fts_update
+      AFTER UPDATE OF goal_summary, scope_id ON episodes BEGIN
+        DELETE FROM episodes_fts WHERE episode_id = new.experience_id;
+        INSERT INTO episodes_fts (episode_id, summary, scope_id)
+        VALUES (new.experience_id, new.goal_summary, new.scope_id);
+      END;
+    `);
+    this.db.prepare(`
+      INSERT INTO episodes_fts (episode_id, summary, scope_id)
+      SELECT e.experience_id, e.goal_summary, e.scope_id FROM episodes e
+      LEFT JOIN episodes_fts f ON f.episode_id = e.experience_id
+      WHERE f.episode_id IS NULL
+    `).run();
     const row = this.db.prepare('SELECT COALESCE(MAX(seq),0) AS s FROM events').get() as { s: number };
     this.seq = row.s;
   }
@@ -361,22 +385,27 @@ export class SqliteAdapter implements StorageAdapter {
   }
 
   async searchFullText(terms: string, scope_id: string): Promise<SearchRow[]> {
-    const scopeFilter = scope_id === '' ? '' : 'AND f.scope_id = ?';
+    // scope filter belongs to the FTS query (its own scope_id column), NOT
+    // to the episodes follow-up query (alias e) — the previous placement
+    // ('AND f.scope_id = ?' appended to the episodes query) threw SQLITE_ERROR
+    // 'no such column: f.scope_id' whenever the FTS index was non-empty
+    // (masked for months by the empty index).
+    const ftsScopeFilter = scope_id === '' ? '' : 'AND scope_id = ?';
     const safe = terms.replace(/[^\w\s]/g, ' ').trim();
     if (!safe) return [];
     const ids = this.db
-      .prepare(`SELECT episode_id FROM episodes_fts WHERE episodes_fts MATCH ?`)
-      .all(safe.split(/\s+/).join(' ')) as { episode_id: string }[];
+      .prepare(`SELECT episode_id FROM episodes_fts WHERE episodes_fts MATCH ? ${ftsScopeFilter}`)
+      .all(...(scope_id === '' ? [safe.split(/\s+/).join(' ')] : [safe.split(/\s+/).join(' '), scope_id])) as { episode_id: string }[];
     if (!ids.length) return [];
     const placeholders = ids.map(() => '?').join(',');
     return this.db
       .prepare(
         `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
                 e.last_verified_at, s.normalized_hash, s.exact_tokens
-         FROM episodes e JOIN signatures s ON s.episode_id = e.experience_id
-         WHERE e.experience_id IN (${placeholders}) ${scopeFilter}`
+         FROM episodes e LEFT JOIN signatures s ON s.episode_id = e.experience_id
+         WHERE e.experience_id IN (${placeholders})`
       )
-      .all(...ids.map((i) => i.episode_id), ...(scope_id === '' ? [] : [scope_id])) as SearchRow[];
+      .all(...ids.map((i) => i.episode_id)) as SearchRow[];
   }
 
   async listInScope(scope_id: string): Promise<SearchRow[]> {
