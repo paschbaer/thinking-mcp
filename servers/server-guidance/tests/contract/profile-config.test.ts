@@ -135,6 +135,56 @@ describe("profile customization (US2, SC-006, FR-006/008)", () => {
     expect(() => loadConfig(join(ws, ".guidance"))).toThrowError(/configuration_invalid/);
   });
 
+  it("deep-merges partial guidance.json specKit block with the profile file", () => {
+    seedCustomProject();
+    write(join(".guidance", "guidance.json"), {
+      ...baseMain,
+      profile: "spec-kit",
+      integrations: { specKit: { enabled: true } },
+    });
+    write(join(".guidance", "profiles", "spec-kit.json"), {
+      version: 2,
+      integrations: {
+        specKit: {
+          enabled: true,
+          discovery: { featureRoot: "specs" },
+          artifacts: { specification: { required: true, patterns: ["spec.md"] } },
+        },
+      },
+    });
+    const config = loadConfig(join(ws, ".guidance"));
+    expect(config.specKit?.discovery.featureRoot).toBe("specs");
+    expect(config.specKit?.artifacts["specification"]?.required).toBe(true);
+  });
+
+  it("required afterEnter failure at start blocks the session (FR-040)", async () => {
+    seedCustomProject();
+    write(join(".guidance", "operations.json"), {
+      version: 2,
+      operations: { "custom-op": { description: "d", type: "process", executable: "definitely-missing-cmd-xyz", required: true, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "status_only" } } },
+    });
+    const config = loadConfig(join(ws, ".guidance"));
+    const engine = new WorkflowEngine({ config, stateDir: join(ws, "state") });
+    const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    const s = engine.getSession(start.sessionId);
+    expect(s.status).toBe("blocked");
+  });
+
+  it("different profile files yield different configurationVersion", () => {
+    seedCustomProject();
+    write(join(".guidance", "guidance.json"), { ...baseMain, profile: "spec-kit" });
+    write(join(".guidance", "profiles", "spec-kit.json"), {
+      version: 2,
+      integrations: { specKit: { enabled: true, discovery: { featureRoot: "specs" } } },
+    });
+    const v1 = loadConfig(join(ws, ".guidance")).configVersion;
+    write(join(".guidance", "profiles", "spec-kit.json"), {
+      version: 2,
+      integrations: { specKit: { enabled: true, discovery: { featureRoot: "other" } } },
+    });
+    expect(loadConfig(join(ws, ".guidance")).configVersion).not.toBe(v1);
+  });
+
   it("validates sampling operation bounds (T031, FR-039 defaults)", () => {
     seedCustomProject();
     write(join(".guidance", "operations.json"), {
