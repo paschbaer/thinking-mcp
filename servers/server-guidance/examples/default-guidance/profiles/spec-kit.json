@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "profile": {
+    "id": "spec-kit",
+    "displayName": "Spec-Kit Orchestrated Development"
+  },
+  "integrations": {
+    "specKit": {
+      "enabled": true,
+      "discovery": {
+        "featureRoot": "specs",
+        "strategy": "explicit",
+        "requireUniqueMatch": true
+      },
+      "artifacts": {
+        "specification": { "required": true, "patterns": ["spec.md"] },
+        "plan": { "required": true, "patterns": ["plan.md"] },
+        "tasks": { "required": true, "patterns": ["tasks.md"] },
+        "research": { "required": false, "patterns": ["research.md"] },
+        "dataModel": { "required": false, "patterns": ["data-model.md"] },
+        "quickstart": { "required": false, "patterns": ["quickstart.md"] },
+        "contracts": { "required": false, "patterns": ["contracts/**"] },
+        "checklists": { "required": false, "patterns": ["checklists/**"] }
+      },
+      "taskExecution": {
+        "mode": "batch",
+        "batch": { "maximumTasks": 3, "respectDependencies": true, "groupParallelTasks": true }
+      },
+      "markdownCheckboxPolicy": "hint",
+      "changes": {
+        "allowAutomaticMinorAdjustments": false,
+        "requireArtifactUpdateFor": [
+          "added_task",
+          "removed_task",
+          "changed_acceptance_criterion",
+          "architecture_change",
+          "public_api_change",
+          "dependency_change"
+        ]
+      },
+      "completion": {
+        "requireAllRequiredTasksCompleted": true,
+        "requireAcceptanceCriteriaCoverage": true,
+        "requireNoUnresolvedPlanChanges": true,
+        "requireCurrentArtifactSnapshot": true
+      }
+    }
+  }
+}
