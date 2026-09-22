@@ -27,6 +27,7 @@ export interface StartResult {
   currentPhase: string;
   status: string;
   guidance: PhaseInstruction;
+  operations: { id: string; status: string; summary: string }[];
 }
 
 export interface SubmitResult {
@@ -83,7 +84,10 @@ export class WorkflowEngine {
     };
     const responses = (this.config.responses as unknown as ResponsesFile | undefined)?.responses ?? {};
     this.instructions = responses;
-    this.operations = ((this.config.operations as unknown as OperationsFile | undefined)?.operations ?? {});
+    const opsRaw = (this.config.operations as unknown as OperationsFile | undefined)?.operations ?? {};
+    this.operations = Object.fromEntries(
+      Object.entries(opsRaw).map(([id, cfg]) => [id, { ...cfg, operationId: id }]),
+    );
   }
 
   startWorkflow(input: { workspaceRoot: string; request: string; workflowId?: string; metadata?: Record<string, unknown> }): StartResult {
@@ -111,6 +115,7 @@ export class WorkflowEngine {
     this.sessions.save(session);
     this.audit.append({ sessionId, eventType: "session_started", data: { workflowId: session.workflowId } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: session.currentPhase, data: {} });
+    const operations = this.runAfterEnter(session, session.currentPhase);
     return {
       accepted: true,
       sessionId,
@@ -118,7 +123,26 @@ export class WorkflowEngine {
       currentPhase: session.currentPhase,
       status: session.status,
       guidance: this.guidanceFor(session),
+      operations,
     };
+  }
+
+  /** Runs afterEnter operations for a phase; required failures are audited (FR-040). */
+  private runAfterEnter(session: WorkflowSession, phase: string): { id: string; status: string; summary: string }[] {
+    const ids = this.definition.phases[phase]?.lifecycle?.afterEnter ?? [];
+    const out: { id: string; status: string; summary: string }[] = [];
+    for (const id of ids) {
+      const op = this.operations[id];
+      if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
+      const run = this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      for (const r of run.results) {
+        out.push({ id: r.operationId, status: r.status, summary: r.summary });
+        if (op.required && r.status !== "succeeded") {
+          this.audit.append({ sessionId: session.sessionId, eventType: "hook_failed", phase, data: { operationId: id } });
+        }
+      }
+    }
+    return out;
   }
 
   getSession(sessionId: string): WorkflowSession {
@@ -209,6 +233,7 @@ export class WorkflowEngine {
     this.audit.append({ sessionId, eventType: "transition_accepted", phase: target, data: { from: previousPhase } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: target, data: {} });
 
+    opResults.push(...this.runAfterEnter(session, target));
     const result: SubmitResult = {
       accepted: true,
       sessionId,

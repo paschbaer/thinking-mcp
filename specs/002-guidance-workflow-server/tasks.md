@@ -49,11 +49,11 @@
 **Goal**: two projects, two processes, one binary.
 **Independent test**: swap `.guidance/` dirs → different instructions/transitions/ops; invalid config fails closed (already covered) and custom ops execute.
 
-- [ ] T029 [US2] Write failing tests in `tests/contract/profile-config.test.ts`: custom instructions returned, custom lifecycle ops bound to phases, second fixture project differs (SC-006, FR-006/008)
-- [ ] T030 [US2] Implement default config artifacts load + example profile JSON validation in `src/config.ts` consumers — make T029 pass
-- [ ] T031 [P] [US2] Implement sampling/elicitation/composite operation config types + validation in `src/types/operation.ts` (FR-039)
-- [ ] T032 [P] [US2] Write failing tests for verify-phase lifecycle binding (`lint`,`test`,`build` process ops) in `tests/workflow/verify-ops.test.ts` (US2 scenario 2)
-- [ ] T033 [US2] Implement process-type operation execution in `src/orchestration/OperationEngine.ts` (executable+args, cwd validation, timeout, output capture per FR-010–012) — make T032 pass
+- [x] T029 [US2] Write failing tests in `tests/contract/profile-config.test.ts`: custom instructions returned, custom lifecycle ops bound to phases, second fixture project differs (SC-006, FR-006/008)
+- [x] T030 [US2] Implement default config artifacts load + example profile JSON validation in `src/config.ts` consumers — make T029 pass
+- [x] T031 [P] [US2] Implement sampling/elicitation/composite operation config types + validation in `src/types/operation.ts` (FR-039)
+- [x] T032 [P] [US2] Write failing tests for verify-phase lifecycle binding (`lint`,`test`,`build` process ops) in `tests/workflow/verify-ops.test.ts` (US2 scenario 2)
+- [x] T033 [US2] Implement process-type operation execution in `src/orchestration/OperationEngine.ts` (executable+args, cwd validation, timeout, output capture per FR-010–012) — make T032 pass
 
 ## Phase 5 — US4: Deterministic downstream orchestration (P1)
 

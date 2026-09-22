@@ -293,6 +293,38 @@ function buildSpecKitConfig(main: GuidanceMainConfig): SpecKitConfig {
 
 const hash = createHash("sha256");
 
+const OPERATION_TYPES = ["process", "mcpTool", "mcpResource", "mcpPrompt", "sampling", "elicitation", "composite"];
+
+/** Deterministic validation of the operations file (T031, FR-039/041). */
+function validateOperations(operationsFile: Record<string, unknown>): void {
+  const ops = operationsFile["operations"];
+  if (ops === undefined) return;
+  if (ops === null || typeof ops !== "object" || Array.isArray(ops)) {
+    throw new ConfigurationError("configuration_invalid", "operations.operations must be an object");
+  }
+  for (const [id, raw] of Object.entries(ops as Record<string, Record<string, unknown>>)) {
+    const type = raw["type"];
+    if (typeof type !== "string" || !OPERATION_TYPES.includes(type)) {
+      throw new ConfigurationError("configuration_invalid", `operations.${id}: unknown type ${String(type)}`);
+    }
+    const sampling = raw["sampling"] as { purpose?: unknown; maxOutputTokens?: unknown; maximumAttempts?: unknown } | undefined;
+    if (type === "sampling") {
+      if (typeof sampling?.purpose !== "string" || sampling.purpose.length === 0) {
+        throw new ConfigurationError("configuration_invalid", `operations.${id}: sampling requires a purpose`);
+      }
+      if (sampling.maxOutputTokens !== undefined && (typeof sampling.maxOutputTokens !== "number" || sampling.maxOutputTokens < 1)) {
+        throw new ConfigurationError("configuration_invalid", `operations.${id}: sampling.maxOutputTokens must be a positive number`);
+      }
+      if (sampling.maximumAttempts !== undefined && (typeof sampling.maximumAttempts !== "number" || sampling.maximumAttempts < 1)) {
+        throw new ConfigurationError("configuration_invalid", `operations.${id}: sampling.maximumAttempts must be a positive number`);
+      }
+    }
+    if (raw["required"] !== true && raw["required"] !== false) {
+      throw new ConfigurationError("configuration_invalid", `operations.${id}: required must be boolean`);
+    }
+  }
+}
+
 /**
  * Load and validate the configuration in `configDir` (the `.guidance/`
  * directory). Deterministic: identical content ⇒ identical configVersion.
@@ -326,12 +358,21 @@ export function loadConfig(configDir: string): LoadedConfig {
         throw new ConfigurationError("configuration_invalid", `${key}: referenced file missing: ${ref.file}`);
       }
       const data = readJsonFile(path, key);
+      if (key === "operations") validateOperations(data);
       loaded[key] = data;
       hashable.push(canonical(data));
     }
   }
   let specKit: SpecKitConfig | undefined;
   if (resolveProfile(cfg) === "spec-kit") {
+    if (!cfg.integrations?.specKit?.discovery?.featureRoot && !cfg.integrations?.specKit?.enabled) {
+      // T030: standalone profile file form (profiles/spec-kit.json)
+      const profilePath = join(configDir, "profiles", "spec-kit.json");
+      const profileFile = readJsonFile(profilePath, "profiles/spec-kit.json") as {
+        integrations?: GuidanceMainConfig["integrations"];
+      };
+      cfg.integrations = { ...profileFile.integrations, ...cfg.integrations };
+    }
     specKit = buildSpecKitConfig(cfg);
     hashable.push(canonical(specKit));
   }
