@@ -106,30 +106,30 @@
 - [x] T065 [US7] Implement task state machine + readiness predicate (fixed set {`completed`,`verified`}, FR-067) — make T064 pass
 - [x] T066 [US7] Write failing scheduler tests in `tests/speckit/scheduler.test.ts`: modes single/batch(3)/allReady/phaseGroup, ready-only release, release/lock lifecycle (FR-068, SC-012)
 - [x] T067 [US7] Implement `DependencyGraph.ts` + `TaskScheduler.ts` — make T066 pass
-- [ ] T068 [US7] Write failing contract tests for profile tools in `tests/contract/tools-speckit.test.ts`: `discover_spec_kit_feature`, `import_spec_kit_artifacts`, `get_spec_kit_status`, `get_next_task`, `start_task`, `submit_task_implementation`, `submit_task_review`, `complete_task`, `validate_spec_kit_completion` (read-only invariant evaluation incl. fault-injection cases: stale snapshot, pending plan change, unverified criterion, incomplete task — SC-013) (release/evidence gating per FR-069; profile-only registration R17)
-- [ ] T069 [US7] Implement profile tool handlers in `src/mcp-server/` — make T068 pass
-- [ ] T070 [US7] Write failing tests for evidence-gated verification binding in `tests/speckit/verification.test.ts` (scopes task/batch/feature/repository bound to tasks via FR-070; agent claims never evidence) and implement verification bindings in `src/integrations/spec-kit/`
-- [ ] T071 [US7] Golden end-to-end test `tests/integration/speckit-flow.test.ts`: import → implement batches → review → verify → complete with stub downstream (quickstart validation B)
+- [x] T068 [US7] Write failing contract tests for profile tools in `tests/contract/tools-speckit.test.ts`: `discover_spec_kit_feature`, `import_spec_kit_artifacts`, `get_spec_kit_status`, `get_next_task`, `start_task`, `submit_task_implementation`, `submit_task_review`, `complete_task`, `validate_spec_kit_completion` (read-only invariant evaluation incl. fault-injection cases: stale snapshot, pending plan change, unverified criterion, incomplete task — SC-013) (release/evidence gating per FR-069; profile-only registration R17)
+- [x] T069 [US7] Implement profile tool handlers in `src/mcp-server/` — make T068 pass
+- [x] T070 [US7] Write failing tests for evidence-gated verification binding in `tests/speckit/verification.test.ts` (scopes task/batch/feature/repository bound to tasks via FR-070; agent claims never evidence) and implement verification bindings in `src/integrations/spec-kit/`
+- [x] T071 [US7] Golden end-to-end test `tests/integration/speckit-flow.test.ts`: import → implement batches → review → verify → complete with stub downstream (quickstart validation B)
 
 ## Phase 8 — US8: Traceability (P2)
 
 **Goal**: requirement → criterion → task → file → test → verification graph with coverage statuses.
 **Independent test**: fixture import + stub verification → report matches expected graph; uncovered criteria listed.
 
-- [ ] T072 [US8] Write failing tests for link acquisition in `tests/speckit/traceability.test.ts`: parsed vs asserted links, invalid asserted IDs rejected, coverage status derivation (FR-071)
-- [ ] T073 [US8] Implement `TraceabilityGraph.ts` + normalizer links — make T072 pass
-- [ ] T074 [P] [US8] Write failing tests for `get_traceability_report` in `tests/contract/tools-traceability.test.ts` (`onlyUncovered` filter) and implement the handler — make pass
+- [x] T072 [US8] Write failing tests for link acquisition in `tests/speckit/traceability.test.ts`: parsed vs asserted links, invalid asserted IDs rejected, coverage status derivation (FR-071)
+- [x] T073 [US8] Implement `TraceabilityGraph.ts` + normalizer links — make T072 pass
+- [x] T074 [P] [US8] Write failing tests for `get_traceability_report` in `tests/contract/tools-traceability.test.ts` (`onlyUncovered` filter) and implement the handler — make pass
 
 ## Phase 9 — US9: Controlled plan changes (P2)
 
 **Goal**: proposals, deterministic classification, approval, refresh + atomic reconciliation.
 **Independent test**: fixture proposals drive classification/approval/refresh; evidence preserved.
 
-- [ ] T075 [US9] Write failing tests for proposal + classification in `tests/speckit/plan-changes.test.ts`: closed trigger list, deterministic minor/major rules, major ⇒ approval via elicitation/blocker channel (FR-072)
-- [ ] T076 [US9] Implement `PlanChangeService.ts` + deterministic classifier — make T075 pass
-- [ ] T077 [US9] Write failing reconciliation tests in `tests/speckit/reconciliation.test.ts`: FR-073 rules table per changed-task class, evidence preservation, atomic apply (crash ⇒ old snapshot authoritative, SC-014)
-- [ ] T078 [US9] Implement `ReconciliationEngine.ts` + `refresh_spec_kit_artifacts` + `propose_plan_change` handlers (preview → atomic apply) — make T077 pass
-- [ ] T079 [US9] Write failing tests for waiver flow in `tests/speckit/waiver.test.ts` (user approval via FR-054 channel, reason, audit event, completion-report listing per FR-071) and implement — make pass
+- [x] T075 [US9] Write failing tests for proposal + classification in `tests/speckit/plan-changes.test.ts`: closed trigger list, deterministic minor/major rules, major ⇒ approval via elicitation/blocker channel (FR-072)
+- [x] T076 [US9] Implement `PlanChangeService.ts` + deterministic classifier — make T075 pass
+- [x] T077 [US9] Write failing reconciliation tests in `tests/speckit/reconciliation.test.ts`: FR-073 rules table per changed-task class, evidence preservation, atomic apply (crash ⇒ old snapshot authoritative, SC-014)
+- [x] T078 [US9] Implement `ReconciliationEngine.ts` + `refresh_spec_kit_artifacts` + `propose_plan_change` handlers (preview → atomic apply) — make T077 pass
+- [x] T079 [US9] Write failing tests for waiver flow in `tests/speckit/waiver.test.ts` (user approval via FR-054 channel, reason, audit event, completion-report listing per FR-071) and implement — make pass
 
 ## Phase 10 — US3: Recoverable & auditable execution (P3)
 
