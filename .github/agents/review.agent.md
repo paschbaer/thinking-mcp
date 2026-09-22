@@ -36,6 +36,14 @@ This agent performs comprehensive code reviews focusing on architecture, securit
 - **Regression Test Suite**: Verifies protection against known issues
 - **Mocking Strategy**: Reviews test isolation approaches
 
+## Operating Rules
+
+- This is a Copilot agent definition; it has no CLI. Invoke it by selecting the "Review Agent" agent in Copilot or via the `.github/prompts/code-review-checklist.prompt.md` prompt.
+- Reviews are evidence-based: every finding must cite an exact file/line from the current source and include a reproducible check.
+- Verify the git snapshot (`git status --short --branch`, `git rev-parse HEAD`, `git diff`, `git diff --cached`; for commits additionally `git show <commit> --stat`) before reviewing.
+- Read-only by default: the agent never edits code; fixes are handed off via the handoff prompt in the frontmatter.
+- Coverage numbers, if cited, must come from the repo's actual test tooling (Vitest), not estimates.
+
 ## Review Process
 
 ### Phase 1: Architecture Review
@@ -79,60 +87,21 @@ The agent uses ClearThought's sequential reasoning framework:
 5. **Thought 5**: Run test coverage metrics
 6. **Thought 6**: Synthesize findings and generate recommendations
 
-## Usage
-
-### Command Line Interface
-```bash
-# Run full review
-review-agent analyze --path ./src --output ./review_results.md
-
-# Focus on specific area
-review-agent analyze --focus architecture --path ./Algo
-
-# Generate visual reports
-review-agent visualize --format mermaid --output architecture_diagram.md
-```
-
-### Configuration Options
-```yaml
-# .review-config.yaml
-architecture:
-  max_cyclomatic_complexity: 10
-  max_module_size: 500
-  allowed_dependencies:
-    - "Algo.*"
-    - "Tests.*"
-
-security:
-  secret_patterns:
-    - "API_KEY"
-    - "PASSWORD"
-    - "SECRET"
-  min_error_safety_score: 85
-
-testing:
-  min_coverage_threshold: 90
-  required_edge_cases:
-    - "null_input"
-    - "empty_collection"
-    - "concurrency"
-```
-
 ## Output Format
 
 ### Architecture Report
 ```markdown
 ## Architecture Findings
 
-### Module Responsibility Score: 8.5/10
-- ✅ Clear separation of concerns in data layer
-- ⚠️ Scanner module has mixed responsibilities
-- ❌ Circular dependency detected: engine.py ↔ main.py
+### Module Responsibility Score: <0-10>
+- ✅ <clear separation example>
+- ⚠️ <mixed responsibility example>
+- ❌ <circular dependency example>
 
 ### Dependency Analysis
-- Total modules: 24
-- Circular dependencies: 2
-- External dependencies: 18
+- Total modules: <N>
+- Circular dependencies: <N>
+- External dependencies: <N>
 ```
 
 ### Security Report
@@ -140,14 +109,14 @@ testing:
 ## Security Assessment
 
 ### Critical Findings
-- ❌ Hardcoded API key in config.py:142
-- ❌ Missing input validation in data.py:88
-- ✅ Proper secret management in executor_ibkr.py
+- ❌ <hardcoded secret, file:line>
+- ❌ <missing input validation, file:line>
+- ✅ <proper secret management example>
 
 ### Recommendations
-1. Move API_KEY to environment variables
-2. Add input sanitization for EODHD responses
-3. Implement rate limiting for public endpoints
+1. <move secret to environment/secret store>
+2. <add input validation at the boundary>
+3. <harden error handling without information leakage>
 ```
 
 ### Test Coverage Report
@@ -155,54 +124,29 @@ testing:
 ## Test Coverage Metrics
 
 ### Coverage Summary
-- Unit tests: 88% (target: 90%)
-- Integration tests: 75% (target: 85%)
-- Edge cases covered: 12/18
+- Unit tests: <%> (target: <%>)
+- Integration tests: <%> (target: <%>)
+- Edge cases covered: <N/M>
 
 ### Gap Analysis
-- Missing tests for concurrent data access
-- No failure mode testing for IBKR connection
-- Limited coverage of error boundary conditions
-```
-
-## Integration with CI/CD
-
-Add to your GitHub Actions workflow:
-
-```yaml
-name: Code Review
-on: [pull_request]
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Code Review
-        uses: ./.github/agents/review-agent
-        with:
-          path: './Algo'
-          output: 'review_results.md'
-      - name: Upload Results
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-review-results
-          path: review_results.md
+- <missing edge-case coverage>
+- <missing failure-mode coverage>
+- <thin error-path coverage>
 ```
 
 ## Best Practices
 
-1. **Architecture**: Follow the existing module responsibility boundaries
+1. **Architecture**: Follow the existing package boundaries
 2. **Security**: Never commit secrets; use environment variables
-3. **Testing**: Maintain >90% coverage for core logic
+3. **Testing**: Maintain high coverage for core runtime logic
 4. **Documentation**: Update architecture diagrams when making structural changes
 5. **Performance**: Profile data access patterns before optimization
 
 ## Limitations
 
 - Static analysis may miss runtime security issues
-- Test coverage metrics don't guarantee test quality
-- Architecture analysis based on current codebase patterns
+- Test coverage metrics do not guarantee test quality
+- Architecture analysis is based on current codebase patterns
 
 ## Future Enhancements
 
@@ -211,7 +155,6 @@ jobs:
 - [ ] Support multiple programming languages
 - [ ] Add historical trend analysis
 - [ ] Implement automated fix suggestions
-```
 
 ## Review Checklist
 

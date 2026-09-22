@@ -7,7 +7,7 @@ agent: Review Agent
 
 Review the provided change set and produce a findings-first report.
 
-Before reviewing, independently verify the manifest snapshot with `git status --short --branch`, `git rev-parse HEAD`, `git diff`, and `git diff --cached`; for a committed change, also verify `git show <commit> --stat` and inspect the commit diff. If the snapshot, manifest hashes, or requested scope do not match, report `REVIEW INCOMPLETE` and do not approve.
+Before reviewing, independently verify the repository state with `git status --short --branch`, `git rev-parse HEAD`, `git diff`, and `git diff --cached`; for a committed change, also verify `git show <commit> --stat` and inspect the commit diff. If the repository state or requested scope does not match the requested review, report `REVIEW INCOMPLETE` and do not approve.
 
 Required format:
 1. Snapshot table: branch, HEAD, review basis, working-tree/unstaged/staged/commit diff hashes, staged/unstaged diff status, post-commit diff status, current-source reads, and tests actually executed.
