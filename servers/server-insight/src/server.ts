@@ -31,7 +31,9 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
 });
 
 function startServer(): void {
-  const PORT = process.env.PORT || 3002;
+  // Number(): env vars are strings; listen(port, host) requires a numeric port
+  // (TS2769 under the 2-arg overload — masked before the host arg was added).
+  const PORT = Number(process.env.PORT) || 3002;
   // Default-sicher: nur localhost binden. Der Docker-Container setzt
   // EMMS_BIND_HOST=0.0.0.0, damit das Port-Mapping (3002:3002) erreichbar ist.
   const HOST = process.env.EMMS_BIND_HOST || '127.0.0.1';
