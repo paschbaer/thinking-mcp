@@ -74,6 +74,7 @@ export interface PlanChange {
 }
 
 export interface SpecKitState {
+  previousSnapshotOverride?: string | null;
   featureId: string;
   featureDirectory: string;
   activeSnapshotId: string | null;
@@ -546,7 +547,78 @@ export class SpecKitEngine {
     return { satisfied: violations.length === 0, violations };
   }
 
-}
+
+  // ---- Phase 8/9 completion APIs ----
+
+  waiveCriterion(state: SpecKitState, criterionId: string, reason: string): void {
+    const criterion = state.criteria[criterionId];
+    if (!criterion) throw new GuidanceError("spec_kit_task_not_found", `unknown criterion ${criterionId}`, { recoverable: true });
+    criterion.waiver = { reason, approvedBy: "user", at: new Date().toISOString() };
+    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_plan_change_approved", data: { criterionId, waiver: reason } });
+  }
+
+  approvePlanChange(state: SpecKitState, changeId: string, decision: "approved" | "rejected"): void {
+    const change = state.planChanges[changeId];
+    if (!change) throw new GuidanceError("spec_kit_plan_change_required", `unknown change ${changeId}`, { recoverable: true });
+    change.status = decision === "approved" ? "artifact_update_required" : "rejected";
+    this.audit({ sessionId: this.sessionId, eventType: decision === "approved" ? "spec_kit_plan_change_approved" : "spec_kit_plan_change_rejected", data: { changeId } });
+  }
+
+  markPlanChangeApplied(state: SpecKitState, changeId: string): void {
+    state.planChanges[changeId]!.status = "applied";
+  }
+
+  /** FR-064 staleness: recompute artifact hashes vs the active snapshot. */
+  isSnapshotStale(state: SpecKitState, featureDirectory: string): boolean {
+    if (!state.activeSnapshotId) return true;
+    const snapshot = state.snapshots.find((s) => s.snapshotId === state.activeSnapshotId);
+    if (!snapshot) return true;
+    for (const artifact of snapshot.artifacts) {
+      const path = join(featureDirectory, artifact.relativePath);
+      if (!existsSync(path)) return true;
+      const content = readFileSync(path, "utf-8");
+      if (sha256(content) !== artifact.sha256) return true;
+    }
+    return false;
+  }
+
+  /** FR-073 apply: build the reconciled state in memory, caller persists atomically. */
+  buildReconciledState(previous: SpecKitState, nextImport: SpecKitState): SpecKitState {
+    const diff = this.reconcile(previous.tasks, nextImport.tasks);
+    const tasks: Record<string, SpecTask> = {};
+    for (const [id, prev] of Object.entries(previous.tasks)) {
+      const next = nextImport.tasks[id];
+      if (!next) {
+        const superseded = { ...prev };
+        void superseded;
+        if (prev.status === "completed") {
+          tasks[id] = { ...prev, status: "completed" }; // retained; flagged by diff
+        }
+        continue;
+      }
+      const changed = diff.changed.includes(id);
+      const completed = prev.status === "completed";
+      if (!changed) {
+        tasks[id] = { ...prev };
+      } else if (prev.status === "pending" || prev.status === "ready") {
+        tasks[id] = { ...next, status: prev.status };
+      } else if (completed) {
+        tasks[id] = { ...next, status: "blocked", previousStatus: prev.status };
+      } else {
+        tasks[id] = { ...next, status: "blocked", previousStatus: prev.status };
+      }
+    }
+    for (const id of diff.added) {
+      tasks[id] = { ...nextImport.tasks[id]!, status: "pending" };
+    }
+    return {
+      ...nextImport,
+      previousSnapshotOverride: previous.activeSnapshotId,
+      tasks,
+      criteria: { ...nextImport.criteria },
+    } as SpecKitState;
+  }}
+
 
 function patternOf(p: string): string { return p; }
 
