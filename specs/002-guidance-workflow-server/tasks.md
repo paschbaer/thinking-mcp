@@ -95,17 +95,17 @@
 **Goal**: import → validate → snapshot → schedule → evidence-gated completion.
 **Independent test**: fixture feature directories drive import, release order, and evidence gating.
 
-- [ ] T057 [US7] Create fixture feature directories in `tests/fixtures/` per research R18 (`valid-minimal`, `valid-full`, `missing-tasks`, `empty-spec`, `duplicate-task-ids`, `unknown-dependency`, `dependency-cycle`, `checkbox-tampered`, `injected-instructions`, `stale-snapshot`)
-- [ ] T058 [US7] Write failing parser golden tests in `tests/speckit/parser.test.ts` over `valid-full` (T### IDs, `[P]`, bold section → sourceSection, dependency refs, FR/AC reference capture, unknown markers ⇒ warnings) (FR-063)
-- [ ] T059 [US7] Implement line-based deterministic parser `src/integrations/spec-kit/ArtifactParser.ts` + `TaskNormalizer.ts` (parserVersion constant) — make T058 pass
-- [ ] T060 [US7] Write failing tests for discovery + import in `tests/speckit/discovery-import.test.ts`: explicit/branch/auto strategies, ambiguity blocks, workspace boundary rejection, artifact identity records, structural validation error classes (FR-061/062/063)
-- [ ] T061 [US7] Implement `FeatureDiscovery.ts` + `ArtifactDiscovery.ts` + `ArtifactImporter.ts` + `ArtifactValidator.ts` — make T060 pass
-- [ ] T062 [US7] Write failing snapshot tests in `tests/speckit/snapshots.test.ts`: immutable manifests, linked history, tiered staleness (stat per state change; full hash at completion), `spec_kit_snapshot_stale` (FR-064)
-- [ ] T063 [US7] Implement `SnapshotManager.ts` + `src/state/SnapshotStore.ts` — make T062 pass
-- [ ] T064 [US7] Write failing task-state machine tests in `tests/speckit/task-states.test.ts`: legal transitions, Guidance-only authority, checkbox = hint (FR-066, SC-011)
-- [ ] T065 [US7] Implement task state machine + readiness predicate (fixed set {`completed`,`verified`}, FR-067) — make T064 pass
-- [ ] T066 [US7] Write failing scheduler tests in `tests/speckit/scheduler.test.ts`: modes single/batch(3)/allReady/phaseGroup, ready-only release, release/lock lifecycle (FR-068, SC-012)
-- [ ] T067 [US7] Implement `DependencyGraph.ts` + `TaskScheduler.ts` — make T066 pass
+- [x] T057 [US7] Create fixture feature directories in `tests/fixtures/` per research R18 (`valid-minimal`, `valid-full`, `missing-tasks`, `empty-spec`, `duplicate-task-ids`, `unknown-dependency`, `dependency-cycle`, `checkbox-tampered`, `injected-instructions`, `stale-snapshot`)
+- [x] T058 [US7] Write failing parser golden tests in `tests/speckit/parser.test.ts` over `valid-full` (T### IDs, `[P]`, bold section → sourceSection, dependency refs, FR/AC reference capture, unknown markers ⇒ warnings) (FR-063)
+- [x] T059 [US7] Implement line-based deterministic parser `src/integrations/spec-kit/ArtifactParser.ts` + `TaskNormalizer.ts` (parserVersion constant) — make T058 pass
+- [x] T060 [US7] Write failing tests for discovery + import in `tests/speckit/discovery-import.test.ts`: explicit/branch/auto strategies, ambiguity blocks, workspace boundary rejection, artifact identity records, structural validation error classes (FR-061/062/063)
+- [x] T061 [US7] Implement `FeatureDiscovery.ts` + `ArtifactDiscovery.ts` + `ArtifactImporter.ts` + `ArtifactValidator.ts` — make T060 pass
+- [x] T062 [US7] Write failing snapshot tests in `tests/speckit/snapshots.test.ts`: immutable manifests, linked history, tiered staleness (stat per state change; full hash at completion), `spec_kit_snapshot_stale` (FR-064)
+- [x] T063 [US7] Implement `SnapshotManager.ts` + `src/state/SnapshotStore.ts` — make T062 pass
+- [x] T064 [US7] Write failing task-state machine tests in `tests/speckit/task-states.test.ts`: legal transitions, Guidance-only authority, checkbox = hint (FR-066, SC-011)
+- [x] T065 [US7] Implement task state machine + readiness predicate (fixed set {`completed`,`verified`}, FR-067) — make T064 pass
+- [x] T066 [US7] Write failing scheduler tests in `tests/speckit/scheduler.test.ts`: modes single/batch(3)/allReady/phaseGroup, ready-only release, release/lock lifecycle (FR-068, SC-012)
+- [x] T067 [US7] Implement `DependencyGraph.ts` + `TaskScheduler.ts` — make T066 pass
 - [ ] T068 [US7] Write failing contract tests for profile tools in `tests/contract/tools-speckit.test.ts`: `discover_spec_kit_feature`, `import_spec_kit_artifacts`, `get_spec_kit_status`, `get_next_task`, `start_task`, `submit_task_implementation`, `submit_task_review`, `complete_task`, `validate_spec_kit_completion` (read-only invariant evaluation incl. fault-injection cases: stale snapshot, pending plan change, unverified criterion, incomplete task — SC-013) (release/evidence gating per FR-069; profile-only registration R17)
 - [ ] T069 [US7] Implement profile tool handlers in `src/mcp-server/` — make T068 pass
 - [ ] T070 [US7] Write failing tests for evidence-gated verification binding in `tests/speckit/verification.test.ts` (scopes task/batch/feature/repository bound to tasks via FR-070; agent claims never evidence) and implement verification bindings in `src/integrations/spec-kit/`
