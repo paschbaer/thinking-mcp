@@ -323,12 +323,6 @@ export class WorkflowEngine {
     this.audit.append({ sessionId, eventType: "phase_exited", phase: previousPhase, data: {} });
     session.previousPhase = previousPhase;
     session.currentPhase = target;
-    this.sessions.update(sessionId, (s) => {
-      s.currentPhase = target;
-      s.previousPhase = previousPhase;
-      s.submissions[phase] = session.submissions[phase]!;
-      if (requestId) s.requestIds[requestId] = result;
-    });
     this.audit.append({ sessionId, eventType: "transition_accepted", phase: target, data: { from: previousPhase } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: target, data: {} });
 
@@ -342,6 +336,12 @@ export class WorkflowEngine {
       guidance: this.guidanceFor(session, target),
       operations: opResults,
     };
+    this.sessions.update(sessionId, (s) => {
+      s.currentPhase = target;
+      s.previousPhase = previousPhase;
+      s.submissions[phase] = session.submissions[phase]!;
+      if (requestId) s.requestIds[requestId] = result;
+    });
     return result;
   }
 
@@ -406,20 +406,21 @@ export class WorkflowEngine {
     }
 
     const now = new Date().toISOString();
-    this.sessions.update(sessionId, (s) => {
-      s.status = "completed";
-      s.currentPhase = "completed";
-      s.completedAt = now;
-      if (requestId) s.requestIds[requestId] = { accepted: true };
-    });
-    this.audit.append({ sessionId, eventType: "workflow_completed", phase: "completed", data: { operations: opResults } });
-    return {
+    const successResult: SubmitResult = {
       accepted: true,
       sessionId,
       currentPhase: "completed",
       status: "completed",
       operations: opResults,
     };
+    this.sessions.update(sessionId, (s) => {
+      s.status = "completed";
+      s.currentPhase = "completed";
+      s.completedAt = now;
+      if (requestId) s.requestIds[requestId] = successResult;
+    });
+    this.audit.append({ sessionId, eventType: "workflow_completed", phase: "completed", data: { operations: opResults } });
+    return successResult;
   }
 
   /** Re-runs the current phase's required beforeExit operations (FR-040 retry). */

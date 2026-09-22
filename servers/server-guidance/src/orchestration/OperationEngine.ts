@@ -115,7 +115,14 @@ export class OperationEngine {
         return { ...base, errors: [{ code: "downstream_connection_failed", message: "downstream invoker not configured" }], summary: "downstream invoker not configured" };
       }
       const args = (config.arguments?.mode === "fixed" ? config.arguments.value : config.arguments?.value ?? {}) as Record<string, unknown>;
-      const outcome = await invoker.invokeTool(config.server ?? "", config.capability ?? "", args);
+      let outcome: Awaited<ReturnType<typeof invoker.invokeTool>>;
+      try {
+        outcome = await invoker.invokeTool(config.server ?? "", config.capability ?? "", args);
+      } catch (err) {
+        // Policy rejections (e.g. allowlist) and invoker crashes fail the
+        // operation deterministically instead of leaking exceptions.
+        return { ...base, errors: [{ code: "operation_result_invalid", message: String(err) }], summary: "invoker rejected the operation" };
+      }
       if (outcome.kind === "transport") {
         return { ...base, errors: [{ code: "downstream_connection_failed", message: outcome.message }], summary: "transport failure" };
       }

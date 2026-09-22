@@ -54,14 +54,28 @@ describe("completion idempotency + invariants (SC-005, SC-013, FR-043)", () => {
     expect(counting.invocationCount()).toBe(countAfterFirst);
   });
 
-  it("failed completion leaves the session active and retry succeeds", async () => {
-    const engine = makeEngine();
+  it("failed completion leaves the session active; retry with succeeding invoker completes", async () => {
+    const config = loadConfig(join(import.meta.dirname, "../workflow/fixtures/guidance"));
+    const opEngine = new OperationEngine();
+    opEngine.setDownstreamInvoker({
+      invokeTool: async () => ({ kind: "transport", message: "stub transport down" }),
+    });
+    const engine = new WorkflowEngine({ config, stateDir: join(ws, "state"), operationEngine: opEngine });
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     await walkToComplete(engine, start.sessionId);
-    // Force failure: fresh invoker returning transport failure
+    const failed = await engine.completeWorkflow(start.sessionId, { summary: "d" }, "req-f1");
+    expect(failed.accepted).toBe(false);
     const s = engine.getSession(start.sessionId);
+    expect(s.status).toBe("active");
     expect(s.currentPhase).toBe("complete");
-    await engine.completeWorkflow(start.sessionId, { summary: "d" }, "req-f1");
+    opEngine.setDownstreamInvoker({
+      invokeTool: async () => {
+        const inv = await counting.invoke();
+        return { kind: "success", content: inv.content };
+      },
+    });
+    const retried = await engine.retryOperations(start.sessionId);
+    expect(retried.accepted).toBe(true);
   });
 
   it("records downstream operation state in the session (FR-044)", async () => {
