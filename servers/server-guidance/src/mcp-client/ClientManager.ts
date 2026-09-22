@@ -64,11 +64,21 @@ export class ClientManager {
     try {
       const client = new Client({ name: "guidance", version: "0.1.0" });
       const transport = await this.transportFor(serverId, config);
+      let timer: NodeJS.Timeout | undefined;
       const readyOrTimeout = Promise.race([
         client.connect(transport),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("handshake timeout")), this.handshakeTimeoutMs)),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("handshake timeout")), this.handshakeTimeoutMs);
+        }),
       ]);
-      await readyOrTimeout;
+      try {
+        await readyOrTimeout;
+      } catch (err) {
+        clearTimeout(timer);
+        try { await client.close(); } catch { /* isolation */ }
+        throw err;
+      }
+      clearTimeout(timer);
       this.clients.set(serverId, client);
       const tools = await client.listTools();
       status.status = "ready";
