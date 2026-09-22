@@ -1079,6 +1079,128 @@ export class EmmsService {
     const guidance = await this.guidanceFor(c);
     return { result: { feedback_id: 'recorded', experience_id: args.experience_id, verdict: args.verdict }, guidance };
   }
+
+  // ---------- lesson seeding (batch capture for /capture-lessons) ----------
+  /**
+   * Seeds curated lessons as complete episodes (observation → environment →
+   * attempt → outcome → hypothesis → finalize). Runs the SAME service calls
+   * a client would issue individually, so redaction, guidance, revision
+   * bookkeeping and idempotency behave identically to the granular tools.
+   * Per-lesson isolation: one failure never rolls back the others; results
+   * are reported per slug with `seeded` | `duplicate` | `failed`.
+   */
+  async seedLessons(args: {
+    lessons: Array<{ slug: string; observation: string; cause: string; fix: string }>;
+    scope_id?: string;
+    client_context: ClientContext;
+  }): Promise<ToolResult> {
+    const scope_id = args.scope_id ?? args.client_context.scope_id;
+    const results: Array<Record<string, unknown>> = [];
+    let seeded = 0, duplicates = 0, failed = 0;
+
+    for (const l of args.lessons) {
+      const ctx: ClientContext = { ...args.client_context, scope_id };
+      try {
+        const start = await this.startWorkflow({
+          goal: `Persist lesson: ${l.slug}`,
+          scope_id,
+          problem_summary: l.observation.slice(0, 120),
+          idempotency_key: `lesson-${l.slug}`,
+          client_context: ctx,
+        });
+        if ((start as { replayed?: boolean }).replayed === true) {
+          // Idempotency replay: this slug was seeded before (lesson-<slug>
+          // key exists). Skip instead of appending duplicate observations to
+          // the already-terminal episode.
+          duplicates++;
+          results.push({
+            slug: l.slug, status: 'duplicate',
+            workflow_id: (start.result as { workflow_id: string }).workflow_id,
+            experience_id: (start.result as { experience_id?: string }).experience_id,
+          });
+          continue;
+        }
+        const wf = start.result.workflow_id as string;
+        let rev = start.result.revision as number;
+        const wfCtx = { ...ctx, workflow_id: wf };
+
+        await this.recordObservation({
+          workflow_id: wf, kind: 'agent_reflection',
+          content: `OBSERVATION: ${l.observation}`,
+          expected_revision: rev, client_context: wfCtx,
+        }); rev++;
+        await this.recordObservation({
+          workflow_id: wf, kind: 'environment_fact',
+          content: JSON.stringify({ area: 'emms-mvp', trap_class: 'recurring-bug' }),
+          expected_revision: rev, client_context: wfCtx,
+        }); rev++;
+        const att = await this.recordAttempt({
+          workflow_id: wf, intent: `Apply fix: ${l.fix}`, risk_classification: 'low',
+          rationale: 'validated during implementation', expected_revision: rev,
+          client_context: wfCtx,
+        }); rev++;
+        await this.completeAttempt({
+          workflow_id: wf, attempt_id: (att.result as { attempt_id: string }).attempt_id,
+          outcome: `Fix applied and verified: ${l.fix}`,
+          classification: 'successful', expected_revision: rev, client_context: wfCtx,
+        }); rev++;
+        await this.proposeHypothesis({
+          workflow_id: wf, statement: `Root cause: ${l.cause}`,
+          expected_revision: rev, client_context: wfCtx,
+        }); rev++;
+        const fin = await this.finalize({
+          workflow_id: wf, requested_outcome: 'partially_verified',
+          expected_revision: rev, client_context: wfCtx,
+        });
+
+        seeded++;
+        results.push({
+          slug: l.slug, status: 'seeded',
+          workflow_id: wf,
+          experience_id: (start.result as { experience_id: string }).experience_id,
+          final_state: (fin.result as { final_state: string }).final_state,
+        });
+      } catch (e) {
+        failed++;
+        const err = e as EmmsError;
+        results.push({
+          slug: l.slug, status: 'failed',
+          error_code: err.code ?? 'INTERNAL_ERROR',
+          message: (err.message ?? String(e)).slice(0, 200),
+        });
+      }
+    }
+    const guidance = buildGuidance({
+      workflow: {
+        workflow_id: 'seed-batch', experience_id: 'seed-batch',
+        goal: 'lesson batch seed', scope_id, state: 'PARTIALLY_VERIFIED',
+        revision: 1, actor_id: args.client_context.agent_id ?? 'local-agent',
+        created_at: this.now(),
+      },
+      episode: {
+        experience_id: 'seed-batch', workflow_id: 'seed-batch', scope_id,
+        visibility: 'repository', goal_summary: 'lesson batch seed',
+        acceptance_criteria: [], problem_summary: '', state: 'PARTIALLY_VERIFIED',
+        created_at: this.now(),
+      },
+      hasFailureObservation: true, hasEnvironmentFact: true,
+      hasAttempt: true, hasSolution: true, hasValidationPlan: true,
+      hasVerifiedOriginal: true, hasVerifiedRegression: false,
+      warnings: [{
+        code: 'SEED_BATCH_SUMMARY', severity: 'low',
+        message: `Lesson batch: ${seeded} seeded, ${duplicates} duplicates, ${failed} failed`,
+      }],
+    });
+    return {
+      result: {
+        seeded, duplicates, failed, lessons: results,
+        next_step: seeded > 0
+          ? 'Verify retrieval with experience_search (scope ' + scope_id + ') using lesson wording'
+          : undefined,
+      },
+      guidance,
+    };
+  }
 }
 
 function jaccard(a: string, b: string): number {

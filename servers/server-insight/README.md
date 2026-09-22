@@ -364,10 +364,16 @@ Bootstraps the full integration in any repo. Invoke the prompt file
 After the setup runs, `/capture-lessons` is available for session-end
 capture and the Level-2 lookup rules are live for task-start retrieval.
 
-### Level 1 — Batch seeding (script)
+### Level 1 — Batch seeding (MCP tool)
 
-`scripts/seed-lessons.mjs` reads a JSON file of lessons and captures each as a
-complete episode (observation → environment → attempt → outcome → hypothesis
+The primary seeding path is the **`experience_seed_lessons` MCP tool** — it
+runs the full episode pipeline server-side, is idempotent per slug
+(`seeded | duplicate | failed` per lesson), and requires NO local script or
+repo checkout. `/capture-lessons` prompts should call it directly.
+
+Optional standalone batch seeding from a terminal (e.g. CI):
+`scripts/seed-lessons.mjs` is a thin client that reads a JSON file of lessons
+and calls the same tool — capturing each as a complete episode (observation → environment → attempt → outcome → hypothesis
 → finalize). Idempotent via `idempotency_key = lesson-<slug>`.
 
 **Transport:** by default the seeder connects to the running HTTP server

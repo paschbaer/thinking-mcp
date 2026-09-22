@@ -263,4 +263,15 @@ export function registerEmmsTools(server: McpServer, deps: ToolDeps): void {
     ...CommonMutationSchema,
     experience_id: z.string().min(1),
   }, async (a) => service.lesson_unpublish(a as never));
+
+  registerTool(server, 'experience_seed_lessons', 'Batch-seed curated lessons as complete episodes (observation → environment → attempt → outcome → hypothesis → finalize). Idempotent per slug; per-lesson result reporting. Works on any transport — no local script or repo checkout required.', {
+    lessons: z.array(z.object({
+      slug: z.string().min(1),
+      observation: z.string().min(1),
+      cause: z.string().min(1),
+      fix: z.string().min(1),
+    })).min(1),
+    scope_id: z.string().min(1).optional(),
+    client_context: ClientContextSchema,
+  }, async (a) => service.seedLessons(a as never));
 }
