@@ -48,6 +48,7 @@ export const ERROR_CODES = [
   "fallback_unavailable",
   "nested_request_limit_exceeded",
   // Spec-Kit profile
+  "spec_kit_feature_in_use",
   "spec_kit_not_enabled",
   "spec_kit_feature_not_found",
   "spec_kit_feature_ambiguous",

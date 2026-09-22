@@ -13,8 +13,10 @@ export interface SchemaValidator {
 
 export function createValidator(schema: unknown): SchemaValidator {
   const schemaHash = `sha256:${createHash("sha256").update(JSON.stringify(schema)).digest("hex")}`;
+  const cached = validatorCache.get(schemaHash);
+  if (cached) return cached;
   const validate = getCompile()(schema);
-  return {
+  const validator: SchemaValidator = {
     schemaHash,
     validate(payload: unknown): ValidationResult {
       const valid = validate(payload) as boolean;
@@ -22,6 +24,8 @@ export function createValidator(schema: unknown): SchemaValidator {
       return { valid, errors };
     },
   };
+  validatorCache.set(schemaHash, validator);
+  return validator;
 }
 
 type AjvValidate = ((data: unknown) => boolean) & { errors?: { instancePath: string; message?: string }[] | null };
@@ -30,6 +34,10 @@ function collectErrors(validate: AjvValidate): string[] {
   return (validate.errors ?? []).map((e) => `${e.instancePath} ${e.message ?? ""}`.trim());
 }
 
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+
+const validatorCache = new Map<string, SchemaValidator>();
 let compileFn: ((schema: unknown) => AjvValidate) | null = null;
 
 /** Lazily constructs the draft-2020-12 compiler (Ajv) with strict mode off. */
@@ -45,6 +53,3 @@ function getCompile(): (schema: unknown) => AjvValidate {
   return compileFn;
 }
 
-// `require` shim for ESM (node:module createRequire)
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
