@@ -82,13 +82,13 @@
 **Goal**: least authority; injection-proof; secret-free outputs.
 **Independent test**: forbidden registrations/invocations rejected + audited; injection payloads never change outcomes; no secrets in outputs.
 
-- [ ] T050 [US5] Write failing tests for agent-side restrictions in `tests/orchestration/governance.test.ts`: register-server/expand-allowlist/arbitrary-tool attempts rejected + audited (FR-047/048, SC-003)
-- [ ] T051 [US5] Implement policy checks in `src/policy/PolicyEngine.ts` — make T050 pass
-- [ ] T052 [US5] Write failing injection tests in `tests/orchestration/injection.test.ts`: policy-overriding text in tool results/prompts/descriptions never changes transitions; exposure-mode-only surfacing (FR-049, SC-009)
-- [ ] T053 [US5] Implement untrusted-content handling + exposure modes in ResultNormalizer/response composition — make T052 pass
-- [ ] T054 [US5] Write failing tests for egress/risk/approval in `tests/orchestration/egress.test.ts`: trust-level data rules, risk classes, destructive/credential-sensitive ops require authorization (FR-052/053)
-- [ ] T055 [US5] Implement DataEgressPolicy + ApprovalPolicy in `src/policy/` — make T054 pass
-- [ ] T056 [P] [US5] Write failing tests for secrets hygiene in `tests/contract/secrets.test.ts` (0 secret patterns in responses/state/audit; FR-050, SC-007) and wire redaction into all writers — make pass
+- [x] T050 [US5] Write failing tests for agent-side restrictions in `tests/orchestration/governance.test.ts`: register-server/expand-allowlist/arbitrary-tool attempts rejected + audited (FR-047/048, SC-003)
+- [x] T051 [US5] Implement policy checks in `src/policy/PolicyEngine.ts` — make T050 pass
+- [x] T052 [US5] Write failing injection tests in `tests/orchestration/injection.test.ts`: policy-overriding text in tool results/prompts/descriptions never changes transitions; exposure-mode-only surfacing (FR-049, SC-009)
+- [x] T053 [US5] Implement untrusted-content handling + exposure modes in ResultNormalizer/response composition — make T052 pass
+- [x] T054 [US5] Write failing tests for egress/risk/approval in `tests/orchestration/egress.test.ts`: trust-level data rules, risk classes, destructive/credential-sensitive ops require authorization (FR-052/053)
+- [x] T055 [US5] Implement DataEgressPolicy + ApprovalPolicy in `src/policy/` — make T054 pass
+- [x] T056 [P] [US5] Write failing tests for secrets hygiene in `tests/contract/secrets.test.ts` (0 secret patterns in responses/state/audit; FR-050, SC-007) and wire redaction into all writers — make pass
 
 ## Phase 7 — US7: Artifact-driven task orchestration (P1 — spec-kit profile)
 
