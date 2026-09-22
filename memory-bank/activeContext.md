@@ -302,3 +302,6 @@
 - Schema example files made realistic (full field sets); transition selection fixed: reason-only transitions only on operation failure; test workspaces get a minimal package.json so verify ops succeed.
 - Known limitation: successful `completed` path requires Phase 5 downstream client (or gitnexus CLI present in workspace).
 - Next: Phase 4 US2 (T029-T033) then Phase 5 US4 (T034-T049) per tasks.md.
+
+## 2026-09-22 — Guidance Phase 3 review APPROVED
+- cb38202 reviewed: APPROVE, 0 HIGH/CRITICAL. F1-F5 persisted as tracked follow-ups in remaining-work-plan.md; F5 (ledger-into-transition) and F7 (missing await) fixed immediately in follow-up commit. Idempotency replay test deferred to next engine scope.
