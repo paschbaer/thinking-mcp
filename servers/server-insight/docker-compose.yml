@@ -7,6 +7,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3002
+      - EMMS_BIND_HOST=0.0.0.0
       # Store + artifacts live OUTSIDE the container (host bind mount) so they
       # survive re-deploys, `docker compose down -v`, and are directly
       # backupable from ./emms-data on the host

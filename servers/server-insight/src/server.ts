@@ -21,19 +21,23 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Error handling middleware
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   console.error('Server error:', err);
+  const message = err instanceof Error ? err.message : String(err);
   res.status(500).json({
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    message: process.env.NODE_ENV === 'development' ? message : undefined,
   });
 });
 
 function startServer(): void {
   const PORT = process.env.PORT || 3002;
+  // Default-sicher: nur localhost binden. Der Docker-Container setzt
+  // EMMS_BIND_HOST=0.0.0.0, damit das Port-Mapping (3002:3002) erreichbar ist.
+  const HOST = process.env.EMMS_BIND_HOST || '127.0.0.1';
 
-  const server = app.listen(PORT, () => {
-    console.log(`Experience Memory MCP server running on port ${PORT}`);
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`Experience Memory MCP server running on ${HOST}:${PORT}`);
     console.log(`Health check available at http://localhost:${PORT}/health`);
   });
 
