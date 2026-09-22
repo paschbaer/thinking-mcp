@@ -203,7 +203,8 @@ export class WorkflowEngine {
     this.sessions.update(sessionId, (s) => {
       s.currentPhase = target;
       s.previousPhase = previousPhase;
-      s.submissions = session.submissions;
+      s.submissions[phase] = session.submissions[phase]!;
+      if (requestId) s.requestIds[requestId] = result;
     });
     this.audit.append({ sessionId, eventType: "transition_accepted", phase: target, data: { from: previousPhase } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: target, data: {} });
@@ -217,11 +218,6 @@ export class WorkflowEngine {
       guidance: this.guidanceFor(session, target),
       operations: opResults,
     };
-    if (requestId) {
-      this.sessions.update(sessionId, (s) => {
-        s.requestIds[requestId] = result;
-      });
-    }
     return result;
   }
 

@@ -126,7 +126,7 @@ describe("workflow engine (FR-001–003)", () => {
 
   it("resume_workflow is the only exit from blocked (FR-028)", async () => {
     const res = await started();
-    engine.reportBlocker(res.sessionId, { category: "x", description: "y", requiresUserDecision: false });
+    await engine.reportBlocker(res.sessionId, { category: "x", description: "y", requiresUserDecision: false });
     const out = await engine.submit(res.sessionId, "understand", { summary: "s" });
     expect(out.accepted).toBe(false);
     if (!out.accepted) expect(out.error!.code).toBe("workflow_blocked");
