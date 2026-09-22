@@ -20,6 +20,7 @@ import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
 import { OperationEngine, type OperationContext } from "../orchestration/OperationEngine.js";
 import { ClientManager } from "../mcp-client/ClientManager.js";
+import { PolicyEngine } from "../policy/PolicyEngine.js";
 
 export interface StartResult {
   accepted: true;
@@ -90,7 +91,7 @@ export class WorkflowEngine {
       Object.entries(opsRaw).map(([id, cfg]) => [id, { ...cfg, operationId: id }]),
     );
     const downstream = this.config.downstreamServers as {
-      servers?: Record<string, { enabled?: boolean; required?: boolean; transport?: { type: string; command?: { executable: string; args: string[]; cwd?: string } }; capabilities?: { allow?: { tools?: string[] } } }>;
+      servers?: Record<string, { enabled?: boolean; required?: boolean; trustLevel?: string; transport?: { type: string; command?: { executable: string; args: string[]; cwd?: string } }; capabilities?: { allow?: { tools?: string[] } } }>;
     } | undefined;
     const servers = downstream?.servers ?? {};
     const enabled = Object.entries(servers).filter(([, v]) => v.enabled !== false);
@@ -104,6 +105,15 @@ export class WorkflowEngine {
         invokeTool: async (serverId, toolName, args) => {
           const allow = this.allowlists?.get(serverId) ?? [];
           this.clientManager!.assertAllowed(serverId, toolName, allow);
+          const serverCfgE = servers[serverId];
+          const opForEgress = Object.values(this.operations).find((o) => o.server === serverId && o.capability === toolName);
+          this.policyEngine.evaluateEgress({
+            serverId,
+            trustLevel: (serverCfgE?.trustLevel as never) ?? "trusted",
+            riskClass: opForEgress?.riskClass,
+            args,
+            approved: opForEgress?.approved === true,
+          });
           const serverCfg = servers[serverId];
           const status = await this.clientManager!.ensureReady(serverId, serverCfg ? { executable: serverCfg.transport?.command?.executable ?? "", args: serverCfg.transport?.command?.args ?? [], cwd: serverCfg.transport?.command?.cwd } : undefined);
           const tool = status.tools.find((t) => t.name === toolName);
@@ -121,6 +131,7 @@ export class WorkflowEngine {
   private clientManager?: ClientManager;
   private allowlists?: Map<string, string[]>;
   private pinnedHashes = new Map<string, string>();
+  private readonly policyEngine = new PolicyEngine();
 
   /** Persists downstream op/server state into the session (FR-044). */
   recordDownstreamState(sessionId: string, opId: string, status: string, summary: string): void {
