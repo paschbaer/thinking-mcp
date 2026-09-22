@@ -1,0 +1,2 @@
+- [ ] T001 A `depends: T002`
+- [ ] T002 B `depends: T001`
