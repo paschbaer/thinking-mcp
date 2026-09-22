@@ -42,20 +42,30 @@ function baseResult(config: OperationConfig): NormalizedResult {
   };
 }
 
+export type DownstreamInvokerResult =
+  | { kind: "success"; content: unknown[]; structuredContent?: unknown }
+  | { kind: "tool_reported"; message: string; content: unknown[] }
+  | { kind: "transport"; message: string };
+
+export interface DownstreamInvoker {
+  invokeTool(serverId: string, toolName: string, args: Record<string, unknown>): Promise<DownstreamInvokerResult>;
+}
+
 export class OperationEngine {
   /** Overridable for tests. */
-  execute: ExecuteFn = (config, ctx, attempt) => this.executeOperation(config, ctx, attempt);
+  execute: ExecuteFn = (config, ctx, attempt) => this.executeOperation(config, ctx, attempt) as unknown as NormalizedResult;
 
-  private executeOperation(config: OperationConfig, ctx: OperationContext, attempt: number): NormalizedResult {
-    return this.executeSync(config, ctx, attempt);
+  private downstreamInvoker: DownstreamInvoker | null = null;
+
+  setDownstreamInvoker(invoker: DownstreamInvoker): void {
+    this.downstreamInvoker = invoker;
   }
 
-  /** Runs a list of operations; required failures stop the run (FR-040). */
-  executeRequired(configs: OperationConfig[], ctx: OperationContext): { allSucceeded: boolean; results: NormalizedResult[] } {
+  async executeRequired(configs: OperationConfig[], ctx: OperationContext): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> {
     const results: NormalizedResult[] = [];
     let allSucceeded = true;
     for (const config of configs) {
-      const result = this.execute(config, ctx, 1);
+      const result = await this.execute(config, ctx, 1);
       results.push(result);
       if (config.required && result.status !== "succeeded") {
         allSucceeded = false;
@@ -65,7 +75,13 @@ export class OperationEngine {
     return { allSucceeded, results };
   }
 
-  private executeSync(config: OperationConfig, ctx: OperationContext, attempt: number): NormalizedResult {
+  private async executeOperation(config: OperationConfig, ctx: OperationContext, attempt: number): Promise<NormalizedResult> {
+    return await this.executeSync(config, ctx, attempt);
+  }
+
+  /** Runs a list of operations; required failures stop the run (FR-040). */
+
+  private async executeSync(config: OperationConfig, ctx: OperationContext, attempt: number): Promise<NormalizedResult> {
     const base = baseResult(config);
 
     if (config.type === "composite") {
@@ -73,7 +89,7 @@ export class OperationEngine {
       const strategy = composite.strategy ?? "sequential";
       const errors: string[] = [];
       for (const step of composite.steps ?? []) {
-        const stepResult = this.executeSync({ ...config, ...step, operationId: config.operationId, required: true } as OperationConfig, ctx, attempt);
+        const stepResult = await this.executeSync({ ...config, ...step, operationId: config.operationId, required: true } as OperationConfig, ctx, attempt);
         if (stepResult.status === "succeeded") {
           return {
             ...base,
@@ -90,6 +106,28 @@ export class OperationEngine {
         ...base,
         errors: errors.map((message) => ({ message })),
         summary: `all alternatives failed: ${errors.join("; ")}`,
+      };
+    }
+
+    if (config.type === "mcpTool") {
+      const invoker = this.downstreamInvoker;
+      if (!invoker) {
+        return { ...base, errors: [{ code: "downstream_connection_failed", message: "downstream invoker not configured" }], summary: "downstream invoker not configured" };
+      }
+      const args = (config.arguments?.mode === "fixed" ? config.arguments.value : config.arguments?.value ?? {}) as Record<string, unknown>;
+      const outcome = await invoker.invokeTool(config.server ?? "", config.capability ?? "", args);
+      if (outcome.kind === "transport") {
+        return { ...base, errors: [{ code: "downstream_connection_failed", message: outcome.message }], summary: "transport failure" };
+      }
+      if (outcome.kind === "tool_reported") {
+        return { ...base, errors: [{ code: "operation_result_invalid", message: outcome.message }], summary: "tool reported an error", content: outcome.content };
+      }
+      return {
+        ...base,
+        status: "succeeded",
+        summary: `${config.operationId} succeeded`,
+        content: outcome.content,
+        protocolMetadata: { structuredContent: outcome.structuredContent ?? null },
       };
     }
 

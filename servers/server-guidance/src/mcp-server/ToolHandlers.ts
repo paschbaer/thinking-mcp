@@ -57,4 +57,22 @@ export class WorkflowTools {
   async cancelWorkflow(sessionId: string): Promise<SubmitResult> {
     return this.engine.cancelWorkflow(sessionId);
   }
+
+  // ---- orchestration tools (FR-046, profile §31) ----
+
+  async getOrchestrationStatus(sessionId: string): Promise<ReturnType<WorkflowEngine["getOrchestrationStatus"]>> {
+    return this.engine.getOrchestrationStatus(sessionId);
+  }
+
+  listConfiguredOperations(): ReturnType<WorkflowEngine["listConfiguredOperations"]> {
+    return this.engine.listConfiguredOperations();
+  }
+
+  async getDownstreamStatus(): Promise<ReturnType<WorkflowEngine["getDownstreamStatus"]>> {
+    return this.engine.getDownstreamStatus();
+  }
+
+  async retryOperation(sessionId: string): Promise<SubmitResult> {
+    return this.engine.retryOperations(sessionId);
+  }
 }

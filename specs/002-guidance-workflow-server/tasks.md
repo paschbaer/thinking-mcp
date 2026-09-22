@@ -60,22 +60,22 @@
 **Goal**: Guidance invokes and validates downstream MCP operations itself; completion invariant enforced.
 **Independent test**: stub downstream servers (success/fail/timeout/drift/disappear) gate completion exactly per configuration.
 
-- [ ] T034 [US4] Build SDK-based stub downstream server harness in `tests/orchestration/stubs/`: configurable success/tool-error/transport-failure/timeout/schema-drift/injection-payload/invocation-counter modes (research R5)
-- [ ] T035 [US4] Write failing tests for the client manager in `tests/orchestration/client-manager.test.ts`: per-server client instances, stdio supervision, eager/lazy per required flag, handshake, failure isolation (FR-031/033/034, SC-008)
-- [ ] T036 [US4] Implement `src/mcp-client/ClientManager.ts` + `ClientConnection.ts` + `CapabilityDiscovery.ts` (SDK negotiation, hash-pinned contracts) — make T035 pass
-- [ ] T037 [US4] Write failing tests for tool invocation in `tests/orchestration/invocation.test.ts`: invoke mapped tool, normalize result, distinguish tool-reported vs transport errors (FR-032/037, contract tests 1)
-- [ ] T038 [US4] Implement `src/orchestration/` OperationEngine + ResultNormalizer + ResultValidator (explicit validation policies, FR-036) — make T037 pass
-- [ ] T039 [US4] Write failing tests for retry + limits in `tests/orchestration/retry-limits.test.ts`: transient vs deterministic classification, backoff, timeout ⇒ `timed_out` + downstream cancel, size caps (FR-041)
-- [ ] T040 [US4] Implement RetryController + cancellation (AbortController, SIGTERM→SIGKILL supervision) — make T039 pass (R8)
-- [ ] T041 [US4] Write failing tests for drift detection in `tests/orchestration/drift.test.ts` (schema hash change ⇒ `downstream_capability_changed`, blocked transition, audit event, FR-042)
-- [ ] T042 [US4] Implement capability drift detection + snapshot pinning — make T041 pass
-- [ ] T043 [US4] Write failing tests for idempotency in `tests/orchestration/idempotency.test.ts` (duplicate `requestId` ⇒ recorded result, invocation counter unchanged, SC-005, FR-043)
-- [ ] T044 [US4] Implement request-id ledger + execution-id idempotency in `src/state/`/`src/orchestration/` — make T043 pass
-- [ ] T045 [US4] Write failing tests for completion integration in `tests/workflow/completion-gitnexus.test.ts`: `repository-analysis` op at complete.beforeExit via GitNexus binding; fail ⇒ remain in `complete`; success ⇒ `completed`; explicit fallback chain (MCP→local command) audited (FR-005, FR-055, SC-002)
-- [ ] T046 [US4] Implement completion invariant v2 wiring + fallback executor (`firstAvailable` strategy) — make T045 pass
-- [ ] T047 [US4] Write failing tests for orchestration tools in `tests/contract/tools-orchestration.test.ts`: `get_orchestration_status`, `list_configured_operations` (safe view), `get_operation_result` (exposure filtering), `retry_operation`, `get_downstream_status` (FR-046)
-- [ ] T048 [US4] Implement orchestration tool handlers — make T047 pass
-- [ ] T049 [US4] Write failing tests for persistence of downstream state in `tests/orchestration/state.test.ts` (per-server status, snapshot hash ref, per-op attempts in session JSON, FR-044) and implement in `src/state/SessionRepository.ts`
+- [x] T034 [US4] Build SDK-based stub downstream server harness in `tests/orchestration/stubs/`: configurable success/tool-error/transport-failure/timeout/schema-drift/injection-payload/invocation-counter modes (research R5)
+- [x] T035 [US4] Write failing tests for the client manager in `tests/orchestration/client-manager.test.ts`: per-server client instances, stdio supervision, eager/lazy per required flag, handshake, failure isolation (FR-031/033/034, SC-008)
+- [x] T036 [US4] Implement `src/mcp-client/ClientManager.ts` + `ClientConnection.ts` + `CapabilityDiscovery.ts` (SDK negotiation, hash-pinned contracts) — make T035 pass
+- [x] T037 [US4] Write failing tests for tool invocation in `tests/orchestration/invocation.test.ts`: invoke mapped tool, normalize result, distinguish tool-reported vs transport errors (FR-032/037, contract tests 1)
+- [x] T038 [US4] Implement `src/orchestration/` OperationEngine + ResultNormalizer + ResultValidator (explicit validation policies, FR-036) — make T037 pass
+- [x] T039 [US4] Write failing tests for retry + limits in `tests/orchestration/retry-limits.test.ts`: transient vs deterministic classification, backoff, timeout ⇒ `timed_out` + downstream cancel, size caps (FR-041)
+- [x] T040 [US4] Implement RetryController + cancellation (AbortController, SIGTERM→SIGKILL supervision) — make T039 pass (R8)
+- [x] T041 [US4] Write failing tests for drift detection in `tests/orchestration/drift.test.ts` (schema hash change ⇒ `downstream_capability_changed`, blocked transition, audit event, FR-042)
+- [x] T042 [US4] Implement capability drift detection + snapshot pinning — make T041 pass
+- [x] T043 [US4] Write failing tests for idempotency in `tests/orchestration/idempotency.test.ts` (duplicate `requestId` ⇒ recorded result, invocation counter unchanged, SC-005, FR-043)
+- [x] T044 [US4] Implement request-id ledger + execution-id idempotency in `src/state/`/`src/orchestration/` — make T043 pass
+- [x] T045 [US4] Write failing tests for completion integration in `tests/workflow/completion-gitnexus.test.ts`: `repository-analysis` op at complete.beforeExit via GitNexus binding; fail ⇒ remain in `complete`; success ⇒ `completed`; explicit fallback chain (MCP→local command) audited (FR-005, FR-055, SC-002)
+- [x] T046 [US4] Implement completion invariant v2 wiring + fallback executor (`firstAvailable` strategy) — make T045 pass
+- [x] T047 [US4] Write failing tests for orchestration tools in `tests/contract/tools-orchestration.test.ts`: `get_orchestration_status`, `list_configured_operations` (safe view), `get_operation_result` (exposure filtering), `retry_operation`, `get_downstream_status` (FR-046)
+- [x] T048 [US4] Implement orchestration tool handlers — make T047 pass
+- [x] T049 [US4] Write failing tests for persistence of downstream state in `tests/orchestration/state.test.ts` (per-server status, snapshot hash ref, per-op attempts in session JSON, FR-044) and implement in `src/state/SessionRepository.ts`
 
 ## Phase 6 — US5: Governed downstream access (P2)
 

@@ -19,6 +19,7 @@ import { SessionRepository } from "../state/SessionRepository.js";
 import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
 import { OperationEngine, type OperationContext } from "../orchestration/OperationEngine.js";
+import { ClientManager } from "../mcp-client/ClientManager.js";
 
 export interface StartResult {
   accepted: true;
@@ -88,9 +89,88 @@ export class WorkflowEngine {
     this.operations = Object.fromEntries(
       Object.entries(opsRaw).map(([id, cfg]) => [id, { ...cfg, operationId: id }]),
     );
+    const downstream = this.config.downstreamServers as {
+      servers?: Record<string, { enabled?: boolean; required?: boolean; transport?: { type: string; command?: { executable: string; args: string[]; cwd?: string } }; capabilities?: { allow?: { tools?: string[] } } }>;
+    } | undefined;
+    const servers = downstream?.servers ?? {};
+    const enabled = Object.entries(servers).filter(([, v]) => v.enabled !== false);
+    if (enabled.length > 0) {
+      this.clientManager = new ClientManager({ requiredServers: enabled.filter(([, v]) => v.required).map(([id]) => id) });
+      this.allowlists = new Map(
+        enabled.map(([id, v]) => [id, v.capabilities?.allow?.tools ?? []]),
+      );
+      // An externally provided OperationEngine keeps its own invoker (test seam).
+      if (!deps.operationEngine) this.operationEngine.setDownstreamInvoker({
+        invokeTool: async (serverId, toolName, args) => {
+          const allow = this.allowlists?.get(serverId) ?? [];
+          this.clientManager!.assertAllowed(serverId, toolName, allow);
+          const serverCfg = servers[serverId];
+          const status = await this.clientManager!.ensureReady(serverId, serverCfg ? { executable: serverCfg.transport?.command?.executable ?? "", args: serverCfg.transport?.command?.args ?? [], cwd: serverCfg.transport?.command?.cwd } : undefined);
+          const tool = status.tools.find((t) => t.name === toolName);
+          const pinnedHash = this.pinnedHashes.get(`${serverId}:${toolName}`);
+          if (pinnedHash && tool && tool.inputSchemaHash !== pinnedHash) {
+            this.clientManager!.assertNotDrifted(serverId, toolName, pinnedHash);
+          }
+          if (tool) this.pinnedHashes.set(`${serverId}:${toolName}`, tool.inputSchemaHash);
+          return await this.clientManager!.invokeTool(serverId, toolName, args);
+        },
+      });
+    }
   }
 
-  startWorkflow(input: { workspaceRoot: string; request: string; workflowId?: string; metadata?: Record<string, unknown> }): StartResult {
+  private clientManager?: ClientManager;
+  private allowlists?: Map<string, string[]>;
+  private pinnedHashes = new Map<string, string>();
+
+  /** Persists downstream op/server state into the session (FR-044). */
+  recordDownstreamState(sessionId: string, opId: string, status: string, summary: string): void {
+    if (!this.sessions.exists(sessionId)) return;
+    this.sessions.update(sessionId, (s) => {
+      s.downstream.operations[opId] = {
+        latestExecutionId: `operation-${Date.now()}`,
+        status: status as never,
+        attempts: (s.downstream.operations[opId]?.attempts ?? 0) + 1,
+        ...(summary ? { summary } : {}),
+      } as never;
+    });
+  }
+
+  getOrchestrationStatus(sessionId: string): { sessionId: string; currentPhase: string; operations: { id: string; status?: string; required?: boolean; summary?: string }[] } {
+    const s = this.sessions.load(sessionId);
+    const phaseDef = this.definition.phases[s.currentPhase];
+    const ids = [...(phaseDef?.lifecycle?.beforeExit ?? []), ...(phaseDef?.lifecycle?.afterEnter ?? [])];
+    return {
+      sessionId,
+      currentPhase: s.currentPhase,
+      operations: ids.map((id) => ({
+        id,
+        status: s.downstream.operations[id]?.status ?? "pending",
+        required: this.operations[id]?.required,
+        summary: (s.downstream.operations[id] as unknown as { summary?: string } | undefined)?.summary,
+      })),
+    };
+  }
+
+  listConfiguredOperations(): { id: string; description?: string; type: string; required: boolean }[] {
+    return Object.values(this.operations).map((o) => ({
+      id: o.operationId,
+      description: o.description,
+      type: o.type,
+      required: o.required,
+    }));
+  }
+
+  async getDownstreamStatus(): Promise<{ id: string; status?: string; required?: boolean; lastSuccessfulRequestAt?: string }[]> {
+    if (!this.clientManager) return [];
+    const out: { id: string; status?: string; required?: boolean; lastSuccessfulRequestAt?: string }[] = [];
+    for (const id of this.allowlists?.keys() ?? []) {
+      const st = this.clientManager.statusOf(id);
+      out.push({ id, status: st?.status ?? "disconnected", required: st?.required, lastSuccessfulRequestAt: st?.lastSuccessfulRequestAt });
+    }
+    return out;
+  }
+
+  async startWorkflow(input: { workspaceRoot: string; request: string; workflowId?: string; metadata?: Record<string, unknown> }): Promise<StartResult> {
     const sessionId = `session-${randomUUID()}`;
     const now = new Date().toISOString();
     const session: WorkflowSession = {
@@ -115,7 +195,7 @@ export class WorkflowEngine {
     this.sessions.save(session);
     this.audit.append({ sessionId, eventType: "session_started", data: { workflowId: session.workflowId } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: session.currentPhase, data: {} });
-    const operations = this.runAfterEnter(session, session.currentPhase);
+    const operations = await this.runAfterEnter(session, session.currentPhase);
     const requiredFailed = operations.length > 0 && operations.some((o) => o.status !== "succeeded") &&
       (this.definition.phases[session.currentPhase]?.lifecycle?.afterEnter ?? []).some((id) => this.operations[id]?.required);
     if (requiredFailed) {
@@ -144,13 +224,13 @@ export class WorkflowEngine {
   }
 
   /** Runs afterEnter operations for a phase; required failures are audited (FR-040). */
-  private runAfterEnter(session: WorkflowSession, phase: string): { id: string; status: string; summary: string }[] {
+  private async runAfterEnter(session: WorkflowSession, phase: string): Promise<{ id: string; status: string; summary: string }[]> {
     const ids = this.definition.phases[phase]?.lifecycle?.afterEnter ?? [];
     const out: { id: string; status: string; summary: string }[] = [];
     for (const id of ids) {
       const op = this.operations[id];
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
-      const run = this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
       for (const r of run.results) {
         out.push({ id: r.operationId, status: r.status, summary: r.summary });
         if (op.required && r.status !== "succeeded") {
@@ -169,7 +249,7 @@ export class WorkflowEngine {
     return this.sessions.withLock(sessionId, () => this.submitLocked(sessionId, phase, payload, requestId));
   }
 
-  private submitLocked(sessionId: string, phase: string, payload: Record<string, unknown>, requestId?: string): SubmitResult {
+  private async submitLocked(sessionId: string, phase: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
     const session = this.getSession(sessionId);
 
     if (requestId && session.requestIds[requestId] !== undefined) {
@@ -219,9 +299,12 @@ export class WorkflowEngine {
     let opsSucceeded = true;
     if (ops.length > 0) {
       const ctx: OperationContext = { workspaceRoot: session.workspaceRoot };
-      const run = this.operationEngine.executeRequired(ops, ctx);
+      const run = await this.operationEngine.executeRequired(ops, ctx);
       opsSucceeded = run.allSucceeded;
       opResults = run.results.map((r) => ({ id: r.operationId, status: r.status, summary: r.summary }));
+      for (const r of run.results) {
+        this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
+      }
     }
 
     // Transition selection: success path ignores reason-only alternatives.
@@ -249,7 +332,7 @@ export class WorkflowEngine {
     this.audit.append({ sessionId, eventType: "transition_accepted", phase: target, data: { from: previousPhase } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: target, data: {} });
 
-    opResults.push(...this.runAfterEnter(session, target));
+    opResults.push(...(await this.runAfterEnter(session, target)));
     const result: SubmitResult = {
       accepted: true,
       sessionId,
@@ -266,8 +349,11 @@ export class WorkflowEngine {
     return this.sessions.withLock(sessionId, () => this.completeWorkflowLocked(sessionId, report, requestId));
   }
 
-  private completeWorkflowLocked(sessionId: string, report: Record<string, unknown>, requestId?: string): SubmitResult {
+  private async completeWorkflowLocked(sessionId: string, report: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
     const session = this.getSession(sessionId);
+    if (requestId && session.requestIds[requestId] !== undefined) {
+      return session.requestIds[requestId] as SubmitResult;
+    }
     if (session.status === "completed") {
       const err = new GuidanceError("workflow_already_completed", "session is already completed", { recoverable: false });
       return { ...err.toResponse(), sessionId, currentPhase: err.currentPhase ?? session.currentPhase, status: session.status };
@@ -284,10 +370,6 @@ export class WorkflowEngine {
       });
       return { ...err.toResponse(), sessionId, currentPhase: err.currentPhase ?? session.currentPhase, status: session.status };
     }
-    if (requestId && session.requestIds[requestId] !== undefined) {
-      return session.requestIds[requestId] as SubmitResult;
-    }
-
     const phaseDef = this.definition.phases["complete"];
     const schema = phaseDef?.submissionSchema;
     if (schema) {
@@ -303,7 +385,7 @@ export class WorkflowEngine {
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
       return op;
     });
-    const run = this.operationEngine.executeRequired(ops, { workspaceRoot: session.workspaceRoot });
+    const run = await this.operationEngine.executeRequired(ops, { workspaceRoot: session.workspaceRoot });
     const opResults = run.results.map((r) => ({ id: r.operationId, status: r.status, summary: r.summary }));
 
     if (!run.allSucceeded) {
@@ -338,6 +420,40 @@ export class WorkflowEngine {
       status: "completed",
       operations: opResults,
     };
+  }
+
+  /** Re-runs the current phase's required beforeExit operations (FR-040 retry). */
+  async retryOperations(sessionId: string): Promise<SubmitResult> {
+    return this.sessions.withLock(sessionId, async () => {
+      const session = this.getSession(sessionId);
+      if (session.status !== "active") {
+        const err = new GuidanceError("workflow_blocked", `session is ${session.status}`, { recoverable: false });
+        return { ...err.toResponse(), sessionId, status: session.status } as SubmitResult;
+      }
+      const phaseDef = this.definition.phases[session.currentPhase];
+      const ops = (phaseDef?.lifecycle?.beforeExit ?? []).map((id) => {
+        const op = this.operations[id];
+        if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
+        return op;
+      });
+      const run = await this.operationEngine.executeRequired(ops, { workspaceRoot: session.workspaceRoot });
+      const opResults = run.results.map((r) => ({ id: r.operationId, status: r.status, summary: r.summary }));
+      if (!run.allSucceeded) {
+        const err = new GuidanceError("required_hook_failed", "retry still failing", { recoverable: true, currentPhase: session.currentPhase, workflowStatus: session.status });
+        return { ...err.toResponse(), sessionId, operations: opResults } as SubmitResult;
+      }
+      const target = this.selectTransition(phaseDef?.transitions ?? [], true);
+      if (target) {
+        const previousPhase = session.currentPhase;
+        this.sessions.update(sessionId, (s) => {
+          s.currentPhase = target;
+          s.previousPhase = previousPhase;
+        });
+        this.audit.append({ sessionId, eventType: "operation_retried", phase: target, data: { retried: true } });
+        return { accepted: true, sessionId, previousPhase, currentPhase: target, status: session.status, operations: opResults };
+      }
+      return { accepted: true, sessionId, currentPhase: session.currentPhase, status: session.status, operations: opResults };
+    });
   }
 
   reportBlocker(sessionId: string, input: { category: string; description: string; requiresUserDecision?: boolean; options?: string[] }): Promise<SubmitResult> {
