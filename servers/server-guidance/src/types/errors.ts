@@ -20,6 +20,7 @@ export const ERROR_CODES = [
   "state_persistence_failed",
   "workflow_already_completed",
   "workflow_cancelled",
+  "workflow_blocked",
   "internal_error",
   // v2 orchestration
   "downstream_server_not_configured",
