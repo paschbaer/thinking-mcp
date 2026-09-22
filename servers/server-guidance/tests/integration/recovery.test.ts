@@ -39,7 +39,7 @@ describe("crash recovery + retention (FR-029/043, SC-004)", () => {
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     // "restart": new engine instance over the same state dir
     const engine2 = makeEngine();
-    const state = engine2.getWorkflowState(start.sessionId);
+    const state = await engine2.getWorkflowState(start.sessionId);
     expect(state.currentPhase).toBe("understand");
     expect(state.status).toBe("active");
   });
@@ -50,7 +50,7 @@ describe("crash recovery + retention (FR-029/043, SC-004)", () => {
     // simulate a crash mid-operation
     engine.recordDownstreamState(start.sessionId, "repository-analysis", "running", "");
     const engine2 = makeEngine();
-    const s = engine2.getWorkflowState(start.sessionId);
+    const s = await engine2.getWorkflowState(start.sessionId);
     expect(s.downstream.operations["repository-analysis"]!.status).toBe("unknown");
   });
 
@@ -81,6 +81,7 @@ describe("crash recovery + retention (FR-029/043, SC-004)", () => {
     // active sessions are never pruned
     const active = await engine.startWorkflow({ workspaceRoot: ws, request: "r2" });
     expect(engine.pruneFinishedSessions(90)).toBe(0);
-    expect(engine.getWorkflowState(active.sessionId).status).toBe("active");
+    void active;
+    expect((await engine.getWorkflowState(active.sessionId)).status).toBe("active");
   });
 });

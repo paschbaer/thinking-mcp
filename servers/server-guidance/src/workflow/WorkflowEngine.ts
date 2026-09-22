@@ -148,8 +148,11 @@ export class WorkflowEngine {
     });
   }
 
-  getWorkflowState(sessionId: string): WorkflowSession {
-    return this.getSession(sessionId);
+  async getWorkflowState(sessionId: string): Promise<WorkflowSession> {
+    return await this.sessions.withLock(sessionId, () => {
+      const session = this.reconcileRunningOperations(this.sessions.load(sessionId));
+      return session;
+    });
   }
 
   getOrchestrationStatus(sessionId: string): { sessionId: string; currentPhase: string; operations: { id: string; status?: string; required?: boolean; summary?: string }[] } {
@@ -259,7 +262,10 @@ export class WorkflowEngine {
   }
 
   getSession(sessionId: string): WorkflowSession {
-    return this.reconcileRunningOperations(this.sessions.load(sessionId));
+    // Pure read — running-op reconciliation happens under the session lock
+    // via getWorkflowState (write-on-read outside the lock caused a
+    // lost-update window, review Phase 10-12 Finding 1).
+    return this.sessions.load(sessionId);
   }
 
   /**
