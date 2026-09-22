@@ -3,7 +3,7 @@
  * Phase guidance and transitions come exclusively from configuration.
  */
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
 import type {
@@ -70,6 +70,7 @@ export class WorkflowEngine {
   constructor(deps: EngineDeps) {
     this.config = deps.config;
     this.sessions = new SessionRepository(join(deps.stateDir, "sessions"));
+    this.archiveDir = join(deps.stateDir, "archive");
     this.audit = new AuditRepository(join(deps.stateDir, "history"));
     this.operationEngine = deps.operationEngine ?? new OperationEngine();
     const file = this.config.workflow as unknown as {
@@ -132,6 +133,7 @@ export class WorkflowEngine {
   private allowlists?: Map<string, string[]>;
   private pinnedHashes = new Map<string, string>();
   private readonly policyEngine = new PolicyEngine();
+  private readonly archiveDir: string;
 
   /** Persists downstream op/server state into the session (FR-044). */
   recordDownstreamState(sessionId: string, opId: string, status: string, summary: string): void {
@@ -144,6 +146,10 @@ export class WorkflowEngine {
         ...(summary ? { summary } : {}),
       } as never;
     });
+  }
+
+  getWorkflowState(sessionId: string): WorkflowSession {
+    return this.getSession(sessionId);
   }
 
   getOrchestrationStatus(sessionId: string): { sessionId: string; currentPhase: string; operations: { id: string; status?: string; required?: boolean; summary?: string }[] } {
@@ -253,7 +259,46 @@ export class WorkflowEngine {
   }
 
   getSession(sessionId: string): WorkflowSession {
-    return this.sessions.load(sessionId);
+    return this.reconcileRunningOperations(this.sessions.load(sessionId));
+  }
+
+  /**
+   * FR-043 crash recovery: operations recorded as `running` at load time were
+   * interrupted — reconcile them to `unknown` (state-changing ops block rather
+   * than re-run). Read-only/idempotent ops may be retried by policy later.
+   */
+  private reconcileRunningOperations(session: WorkflowSession): WorkflowSession {
+    let changed = false;
+    for (const [opId, entry] of Object.entries(session.downstream.operations)) {
+      if (entry.status === ("running" as never)) {
+        session.downstream.operations[opId] = { ...entry, status: "unknown" as never };
+        changed = true;
+      }
+    }
+    if (changed) this.sessions.save(session);
+    return session;
+  }
+
+  /** FR-029: archive/delete finished sessions older than the retention period. */
+  pruneFinishedSessions(maxAgeDays: number, mode: "archive" | "delete" = "archive"): number {
+    const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+    let pruned = 0;
+    for (const id of this.sessions.list()) {
+      const s = this.sessions.load(id);
+      if (s.status !== "completed" && s.status !== "cancelled") continue;
+      const ref = s.completedAt ?? s.updatedAt;
+      if (new Date(ref).getTime() < cutoff) {
+        const target = join(this.archiveDir, `${id}.json`);
+        mkdirSync(this.archiveDir, { recursive: true });
+        if (mode === "archive") {
+          writeFileSync(target, JSON.stringify(s, null, 2));
+        }
+        this.sessions.remove(id);
+        this.audit.append({ sessionId: id, eventType: mode === "archive" ? "session_archived" : "session_deleted", data: { retentionDays: maxAgeDays } });
+        pruned += 1;
+      }
+    }
+    return pruned;
   }
 
   submit(sessionId: string, phase: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
@@ -310,6 +355,9 @@ export class WorkflowEngine {
     let opsSucceeded = true;
     if (ops.length > 0) {
       const ctx: OperationContext = { workspaceRoot: session.workspaceRoot };
+      for (const op of ops) {
+        this.recordDownstreamState(sessionId, op.operationId, "running", "");
+      }
       const run = await this.operationEngine.executeRequired(ops, ctx);
       opsSucceeded = run.allSucceeded;
       opResults = run.results.map((r) => ({ id: r.operationId, status: r.status, summary: r.summary }));

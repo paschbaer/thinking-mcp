@@ -65,6 +65,11 @@ export class SessionRepository {
     }
   }
 
+  remove(sessionId: string): void {
+    const path = this.pathOf(sessionId);
+    if (existsSync(path)) rmSync(path, { force: true });
+  }
+
   list(): string[] {
     return readdirSync(this.dir).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
   }
