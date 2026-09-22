@@ -116,6 +116,22 @@ export class WorkflowEngine {
     this.audit.append({ sessionId, eventType: "session_started", data: { workflowId: session.workflowId } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: session.currentPhase, data: {} });
     const operations = this.runAfterEnter(session, session.currentPhase);
+    const requiredFailed = operations.length > 0 && operations.some((o) => o.status !== "succeeded") &&
+      (this.definition.phases[session.currentPhase]?.lifecycle?.afterEnter ?? []).some((id) => this.operations[id]?.required);
+    if (requiredFailed) {
+      // FR-040: a required afterEnter failure blocks the session at start.
+      this.sessions.update(sessionId, (s) => {
+        s.status = "blocked";
+        s.previousPhase = s.currentPhase;
+        s.blockers.push({
+          blockerId: `blocker-${randomUUID()}`,
+          category: "required_operation_failed",
+          description: "a required afterEnter operation failed at session start",
+          requiresUserDecision: false,
+        });
+      });
+      this.audit.append({ sessionId, eventType: "hook_failed", phase: session.currentPhase, data: { blocked: true } });
+    }
     return {
       accepted: true,
       sessionId,

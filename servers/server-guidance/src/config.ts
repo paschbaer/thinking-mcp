@@ -365,13 +365,31 @@ export function loadConfig(configDir: string): LoadedConfig {
   }
   let specKit: SpecKitConfig | undefined;
   if (resolveProfile(cfg) === "spec-kit") {
-    if (!cfg.integrations?.specKit?.discovery?.featureRoot && !cfg.integrations?.specKit?.enabled) {
-      // T030: standalone profile file form (profiles/spec-kit.json)
-      const profilePath = join(configDir, "profiles", "spec-kit.json");
-      const profileFile = readJsonFile(profilePath, "profiles/spec-kit.json") as {
+    const profileFilePath = join(configDir, "profiles", "spec-kit.json");
+    if (existsSync(profileFilePath)) {
+      // T030: standalone profile file form (profiles/spec-kit.json) — deep-merged
+      // over any inline integrations.specKit (guidance.json wins per key).
+      const profileFile = readJsonFile(profileFilePath, "profiles/spec-kit.json") as {
         integrations?: GuidanceMainConfig["integrations"];
       };
-      cfg.integrations = { ...profileFile.integrations, ...cfg.integrations };
+      // Deep merge (review finding: shallow merge silently dropped profile-file
+      // discovery/artifacts when guidance.json carried a partial specKit block).
+      const p = profileFile.integrations?.specKit ?? {};
+      const c = cfg.integrations?.specKit ?? {};
+      const sk = {
+        ...p,
+        ...c,
+        discovery: { ...p.discovery, ...c.discovery },
+        artifacts: { ...p.artifacts, ...c.artifacts },
+        taskExecution: {
+          ...p.taskExecution,
+          ...c.taskExecution,
+          batch: { ...p.taskExecution?.batch, ...c.taskExecution?.batch },
+        },
+        changes: { ...p.changes, ...c.changes },
+        completion: { ...p.completion, ...c.completion },
+      };
+      cfg.integrations = { specKit: sk };
     }
     specKit = buildSpecKitConfig(cfg);
     hashable.push(canonical(specKit));
