@@ -136,28 +136,28 @@
 **Goal**: restart survival, idempotent recovery, full auditability.
 **Independent test**: restart between every state change; history complete; concurrent requests serialized.
 
-- [ ] T080 [US3] Write failing restart-recovery tests in `tests/integration/restart.test.ts`: resume at same phase + orchestration state; `running` op reconciliation; unknown state-changing outcome blocks re-run (FR-043, SC-004)
-- [ ] T081 [US3] Implement crash-recovery reconciliation in `src/state/` + `src/orchestration/` — make T080 pass
-- [ ] T082 [US3] Write failing concurrency tests in `tests/workflow/concurrency.test.ts`: per-session serialization, `session_locked` recoverable error (FR-022) — make pass with T011 mutex
-- [ ] T083 [US3] Write failing audit-completeness tests in `tests/contract/audit.test.ts`: every v1+v2+profile event emitted at the right transition incl. snapshot id (FR-045, SC-015) — close gaps in emitters
-- [ ] T084 [US3] Write failing retention tests in `tests/contract/retention.test.ts` (FR-029: 90-day default, archive-or-delete recorded, active never pruned) and implement in `src/state/`
+- [x] T080 [US3] Write failing restart-recovery tests in `tests/integration/restart.test.ts`: resume at same phase + orchestration state; `running` op reconciliation; unknown state-changing outcome blocks re-run (FR-043, SC-004)
+- [x] T081 [US3] Implement crash-recovery reconciliation in `src/state/` + `src/orchestration/` — make T080 pass
+- [x] T082 [US3] Write failing concurrency tests in `tests/workflow/concurrency.test.ts`: per-session serialization, `session_locked` recoverable error (FR-022) — make pass with T011 mutex
+- [x] T083 [US3] Write failing audit-completeness tests in `tests/contract/audit.test.ts`: every v1+v2+profile event emitted at the right transition incl. snapshot id (FR-045, SC-015) — close gaps in emitters
+- [x] T084 [US3] Write failing retention tests in `tests/contract/retention.test.ts` (FR-029: 90-day default, archive-or-delete recorded, active never pruned) and implement in `src/state/`
 
 ## Phase 11 — US6: Structured human input (P3)
 
 **Goal**: elicitation with graceful degradation; bounded sampling.
 **Independent test**: stub host with/without elicitation+sampling capabilities.
 
-- [ ] T085 [US6] Write failing tests for sampling/elicitation operations in `tests/orchestration/sampling-elicitation.test.ts`: bounded sampling (purpose/prompt/token/retry limits, advisory-only), elicitation request when supported, structured blocker + `resolve_operation_input` fallback, denied credential fields (FR-039/054, US6)
-- [ ] T086 [US6] Implement `src/orchestration/SamplingOperation.ts` + `ElicitationOperation.ts` + shared `src/policy/ElicitationService.ts` — make T085 pass
+- [x] T085 [US6] Write failing tests for sampling/elicitation operations in `tests/orchestration/sampling-elicitation.test.ts`: bounded sampling (purpose/prompt/token/retry limits, advisory-only), elicitation request when supported, structured blocker + `resolve_operation_input` fallback, denied credential fields (FR-039/054, US6)
+- [x] T086 [US6] Implement `src/orchestration/SamplingOperation.ts` + `ElicitationOperation.ts` + shared `src/policy/ElicitationService.ts` — make T085 pass
 
 ## Phase 12 — Polish & cross-cutting
 
-- [ ] T087 Implement loopback-only HTTP transport in `src/server.ts` + Express adapter (bind guard test: non-loopback bind fails; FR-027); tests first in `tests/contract/http-transport.test.ts`
-- [ ] T088 [P] Write failing perf test `tests/integration/overhead.test.ts` (SC-010: <1 s p95 Guidance-added transition overhead with stubs) and optimize hot paths to pass
-- [ ] T089 [P] Implement structured leveled operational logging (FR-059) behind `src/state/AuditRepository.ts` logger with redaction; tests in `tests/contract/logging.test.ts` first
-- [ ] T090 Full contract-test sweep: run all `tests/contract/` suites; fix regressions across stories; confirm behavioral guarantees 1–7 in `contracts/upstream-mcp-tools.md`
-- [ ] T091 Update `README.md` (build, run, transports, profiles, config reference) and root docs references; remove examples of stale behavior
-- [ ] T092 Pre-merge gate: run full `npm test`, `npm run typecheck`; update knowledge graph (`gitnexus analyze --no-stats`); run `detect_changes()`; update `memory-bank/activeContext.md` + `progress.md` (constitution IV)
+- [x] T087 Implement loopback-only HTTP transport in `src/server.ts` + Express adapter (bind guard test: non-loopback bind fails; FR-027); tests first in `tests/contract/http-transport.test.ts`
+- [x] T088 [P] Write failing perf test `tests/integration/overhead.test.ts` (SC-010: <1 s p95 Guidance-added transition overhead with stubs) and optimize hot paths to pass
+- [x] T089 [P] Implement structured leveled operational logging (FR-059) behind `src/state/AuditRepository.ts` logger with redaction; tests in `tests/contract/logging.test.ts` first
+- [x] T090 Full contract-test sweep: run all `tests/contract/` suites; fix regressions across stories; confirm behavioral guarantees 1–7 in `contracts/upstream-mcp-tools.md`
+- [x] T091 Update `README.md` (build, run, transports, profiles, config reference) and root docs references; remove examples of stale behavior
+- [x] T092 Pre-merge gate: run full `npm test`, `npm run typecheck`; update knowledge graph (`gitnexus analyze --no-stats`); run `detect_changes()`; update `memory-bank/activeContext.md` + `progress.md` (constitution IV)
 
 ## Dependencies
 

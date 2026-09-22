@@ -138,6 +138,34 @@ export class OperationEngine {
       };
     }
 
+    if (config.type === "sampling") {
+      const sampling = (config as unknown as { sampling?: { purpose?: string; maxOutputTokens?: number; maximumAttempts?: number } }).sampling;
+      if (!sampling?.purpose) {
+        return { ...base, errors: [{ code: "operation_arguments_invalid", message: "sampling requires a purpose" }], summary: "sampling misconfigured" };
+      }
+      // Phase 3+ engines without an upstream sampling capability degrade to a
+      // warning: sampling is advisory-only and never transition-authoritative.
+      return {
+        ...base,
+        status: "succeeded",
+        validated: true,
+        warnings: [{ code: "sampling_degraded", message: "upstream sampling unavailable — advisory result omitted" }],
+        summary: `sampling (advisory, purpose: ${sampling.purpose}) degraded per policy`,
+      };
+    }
+
+    if (config.type === "elicitation") {
+      // Structured blocker: the session stays recoverable; input arrives via
+      // resolve_operation_input (FR-054).
+      return {
+        ...base,
+        status: "input_required",
+        summary: "structured user input required",
+        data: { inputRequest: { fields: [], schema: "stored-with-operation" } },
+        errors: [],
+      };
+    }
+
     if (config.type !== "process") {
       // Downstream MCP operations require the client manager (Phase 5, FR-031).
       return {
