@@ -45,13 +45,18 @@ persist each one as an experience episode in the experience-memory server.
 3. **Write them to a JSON file** (array of objects with slug, observation,
    cause, fix).
 
-4. **Seed via the EMMS server** — call the MCP tools directly:
-   \`workflow_start\` → \`experience_record_observation\` (agent_reflection:
-   OBSERVATION; environment_fact: trap_class) → \`experience_record_attempt\`
-   → \`experience_complete_attempt\` (successful) →
-   \`experience_propose_hypothesis\` (root cause) → \`experience_finalize\`
-   (partially_verified). Use \`idempotency_key = lesson-<slug>\` (re-runs
-   never duplicate).
+4. **Seed via the \`experience_seed_lessons\` MCP tool** (server-side batch
+   seeding — one call for all lessons, no script or repo checkout needed):
+
+   \`experience_seed_lessons { lessons: [ { slug, observation, cause, fix },
+   ... ], client_context: { scope_id: "<repo-lessons-scope>", agent_id:
+   "capture-lessons" } }\`
+
+   The server runs the full episode pipeline per lesson internally
+   (observation → environment → attempt → outcome → hypothesis → finalize)
+   and is idempotent per slug (\`idempotency_key = lesson-<slug>\`): re-runs
+   report \`duplicate\` instead of duplicating. Per-lesson status is
+   returned: \`seeded\` | \`duplicate\` | \`failed\`.
 
 5. **Verify** the round-trip with \`experience_search\` using the lesson's
    wording.
