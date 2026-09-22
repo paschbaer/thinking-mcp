@@ -1,0 +1,13 @@
+{
+	"servers": {
+		"clearthought": {
+			"url": "http://localhost:3000/mcp",
+			"type": "http"
+		},
+		"gitnexus": {
+			"command": "gitnexus",
+			"args": ["mcp"]
+    }
+	},
+	"inputs": []
+}
