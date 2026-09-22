@@ -296,3 +296,9 @@
 - Phase 2 foundational (T006-T016) committed (4bdefbe) + review-fix commits (1b54853, 1970d8d). 39/39 tests, typecheck/build clean.
 - Phase 2 review (Review Agent): 2 HIGH (spec_kit_feature_in_use missing from ERROR_CODES; non-atomic lock persistence) + useful MEDIUMs (canonical hashing, createRequire order, validator memoization) — ALL FIXED. Verdict was needs-changes; fixes verified on disk via terminal grep after /mnt/d silent-patch no-ops (edit-tool reported success twice but changes absent — always re-verify with grep, patch via terminal python).
 - Next: Phase 3 / US1 workflow engine (T017-T028) on user go-ahead.
+
+## 2026-09-22 — Guidance Phase 3 complete (US1 workflow engine)
+- Phase 3 (T017-T028) committed (cb38202). WorkflowEngine + WorkflowTools + OperationEngine (process + composite firstAvailable). 52/52 tests.
+- Schema example files made realistic (full field sets); transition selection fixed: reason-only transitions only on operation failure; test workspaces get a minimal package.json so verify ops succeed.
+- Known limitation: successful `completed` path requires Phase 5 downstream client (or gitnexus CLI present in workspace).
+- Next: Phase 4 US2 (T029-T033) then Phase 5 US4 (T034-T049) per tasks.md.
