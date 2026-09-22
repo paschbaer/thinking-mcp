@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "responses": {
+    "understand": {
+      "title": "Understand the Request",
+      "instruction": "Analyze the development request before proposing an implementation. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. Do not create an implementation plan yet.",
+      "requiredActions": [
+        "Inspect the relevant repository context.",
+        "Distinguish confirmed facts from assumptions.",
+        "Identify blocking questions explicitly."
+      ]
+    },
+    "plan": {
+      "title": "Create the Implementation Plan",
+      "instruction": "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification. Do not start implementation yet.",
+      "requiredActions": []
+    },
+    "review_and_adjust_plan": {
+      "title": "Review and Adjust the Plan",
+      "instruction": "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives. Submit the complete adjusted plan.",
+      "requiredActions": []
+    },
+    "implement": {
+      "title": "Implement the Approved Plan",
+      "instruction": "Implement the approved plan. Follow the approved task identifiers, avoid unrelated changes, and report all changed, created, and deleted files plus deviations.",
+      "requiredActions": []
+    },
+    "review_and_fix_implementation": {
+      "title": "Review and Fix the Implementation",
+      "instruction": "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting.",
+      "requiredActions": []
+    },
+    "verify": {
+      "title": "Verify the Implementation",
+      "instruction": "Guidance will execute the configured verification operations. Analyze failures and return to implementation review when code changes are required. Do not claim success while a mandatory operation is failing.",
+      "requiredActions": []
+    },
+    "complete": {
+      "title": "Complete the Workflow",
+      "instruction": "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. Guidance executes all mandatory completion operations before completion.",
+      "requiredActions": []
+    }
+  }
+}
