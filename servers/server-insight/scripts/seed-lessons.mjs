@@ -1,9 +1,20 @@
 /**
  * Lesson seeder: persists lessons (recurring bugs, traps, best practices)
- * as EMMS experience episodes via the running server's stdio interface.
+ * as EMMS experience episodes via the running server's HTTP endpoint
+ * (default) or via stdio (opt-in).
  *
  * Usage:
  *   node scripts/seed-lessons.mjs lessons.json
+ *
+ * Transport selection:
+ *   HTTP (default): connects to $EMMS_HTTP_URL (default
+ *     http://localhost:3002/mcp) — writes into the SAME store the running
+ *     server uses (Docker volume or stdio store), avoiding the split-store
+ *     inconsistency where the seeder wrote to ~/.insight while the Docker
+ *     server read from emms-data/.
+ *   stdio (opt-in): EMMS_SEED_TRANSPORT=stdio spawns dist/dev.js locally —
+ *     writes to ~/.insight/emms-store.db (or $EMMS_STORAGE_PATH); use
+ *     scripts/migrate-stdio-store.mjs to merge into the HTTP store.
  *
  * Input format (JSON array):
  * [
@@ -20,6 +31,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,12 +48,25 @@ if (!inputPath) {
 const LESSONS = JSON.parse(readFileSync(inputPath, 'utf8'));
 const SCOPE = process.env.EMMS_LESSON_SCOPE ?? 'thinking-mcp-lessons';
 
-const transport = new StdioClientTransport({
-  command: 'node',
-  args: [distEntry],
-});
+const USE_STDIO = process.env.EMMS_SEED_TRANSPORT === 'stdio';
+const HTTP_URL = process.env.EMMS_HTTP_URL ?? 'http://localhost:3002/mcp';
+
+const transport = USE_STDIO
+  ? new StdioClientTransport({ command: 'node', args: [distEntry] })
+  : new StreamableHTTPClientTransport(new URL(HTTP_URL));
 const client = new Client({ name: 'lesson-seeder', version: '1.0' });
-await client.connect(transport);
+try {
+  await client.connect(transport);
+} catch (e) {
+  if (USE_STDIO) throw e;
+  console.error(
+    `ERROR: cannot reach HTTP server at ${HTTP_URL} (${e.message}).\n` +
+    'Start it with `docker compose up -d` in servers/server-insight, ' +
+    'or set EMMS_SEED_TRANSPORT=stdio to seed the local ~/.insight store ' +
+    '(then migrate with scripts/migrate-stdio-store.mjs).'
+  );
+  process.exit(1);
+}
 
 async function call(name, args) {
   const res = await client.callTool({ name, arguments: args });

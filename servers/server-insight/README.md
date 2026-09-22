@@ -368,12 +368,38 @@ capture and the Level-2 lookup rules are live for task-start retrieval.
 
 `scripts/seed-lessons.mjs` reads a JSON file of lessons and captures each as a
 complete episode (observation → environment → attempt → outcome → hypothesis
-→ finalize). Idempotent via `idempotency_key = lesson-<slug>`:
+→ finalize). Idempotent via `idempotency_key = lesson-<slug>`.
+
+**Transport:** by default the seeder connects to the running HTTP server
+(`$EMMS_HTTP_URL`, default `http://localhost:3002/mcp`), so lessons land in
+the SAME store the server serves — including the Docker container's
+`emms-data/` volume. Start the container first (`docker compose up -d`).
+Set `EMMS_SEED_TRANSPORT=stdio` to spawn the server locally instead — this
+writes to `~/.insight/emms-store.db` (or `$EMMS_STORAGE_PATH`); afterwards
+merge it into the HTTP store with the migration script (see below).
 
 ```bash
 node scripts/seed-lessons.mjs tests/fixtures/lessons.json
 # re-running never duplicates (verified: second run leaves count at 7)
 ```
+
+#### Store migration (stdio → HTTP store)
+
+Episodes written before/during stdio-only usage (default store
+`~/.insight/emms-store.db`) can be merged into the Docker HTTP store
+(`emms-data/emms-store.db`) — or in any direction between two stores:
+
+```bash
+# stop the insight container first (WAL contention)
+node scripts/migrate-stdio-store.mjs                 # ~/.insight -> emms-data
+node scripts/migrate-stdio-store.mjs --dry-run       # preview counts only
+node scripts/migrate-stdio-store.mjs --source <db> --target <db>
+```
+
+Row copy is `INSERT OR IGNORE` on primary keys (full-row dedupe for the
+PK-less `signatures` table), content-addressed artifact files are copied
+when missing, and missing FTS5 index rows are rebuilt from `episodes`.
+Idempotent — safe to re-run; never overwrites newer target rows.
 
 The seed file (`tests/fixtures/lessons.json`) doubles as the portable,
 reviewable source of truth for your team's traps. Wire it into your workflow:
