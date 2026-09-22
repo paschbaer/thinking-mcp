@@ -9,58 +9,58 @@
 
 ## Ambiguities & Conflicts (FMEA top risks)
 
-- [ ] CHK001 - Is "material deviation" in the plan-change triggers enumerated exhaustively (closed list) rather than left to classification judgment? [Ambiguity, Spec FR-072]
-- [ ] CHK002 - Does the spec enumerate which task states count as the "configured success state" for dependency satisfaction, or is it left configurable without defaults? [Clarity, Spec FR-067]
-- [ ] CHK003 - Are requirements defined for two concurrent sessions operating on the same Spec-Kit feature directory (second session blocked, read-only, or allowed)? [Gap, Spec FR-022/FR-061]
-- [ ] CHK004 - Is a default numeric bound specified for parallel task implementation concurrency, or is "when configuration permits" the only statement? [Clarity, Spec FR-041/FR-068]
-- [ ] CHK005 - Is post-terminal behavior specified: what a new session for an already-`completed` feature must do (reject, resume-read-only, re-open)? [Gap, Spec FR-002/FR-074]
-- [ ] CHK006 - Does the `waived` coverage status have a specified approval owner, channel, and audit requirement, or can coverage be waived without a defined process? [Gap, Spec FR-071/FR-074]
-- [ ] CHK007 - Are default values quantified for artifact size, parsed-entity count, task count, and excerpt limits, or only "configurable limits"? [Clarity, Spec FR-041/FR-075]
-- [ ] CHK008 - Is atomicity of reconciliation apply specified (what state results if the process dies between preview and apply)? [Gap, Spec FR-073]
-- [ ] CHK009 - Is the parser-version upgrade path defined for existing snapshots (re-import required, flag, or auto-reconcile)? [Gap, Spec FR-063/FR-064]
+- [x] CHK001 - Is "material deviation" in the plan-change triggers enumerated exhaustively (closed list) rather than left to classification judgment? [Ambiguity, Spec FR-072]
+- [x] CHK002 - Does the spec enumerate which task states count as the "configured success state" for dependency satisfaction, or is it left configurable without defaults? [Clarity, Spec FR-067]
+- [x] CHK003 - Are requirements defined for two concurrent sessions operating on the same Spec-Kit feature directory (second session blocked, read-only, or allowed)? [Gap, Spec FR-022/FR-061]
+- [x] CHK004 - Is a default numeric bound specified for parallel task implementation concurrency, or is "when configuration permits" the only statement? [Clarity, Spec FR-041/FR-068]
+- [x] CHK005 - Is post-terminal behavior specified: what a new session for an already-`completed` feature must do (reject, resume-read-only, re-open)? [Gap, Spec FR-002/FR-074]
+- [x] CHK006 - Does the `waived` coverage status have a specified approval owner, channel, and audit requirement, or can coverage be waived without a defined process? [Gap, Spec FR-071/FR-074]
+- [x] CHK007 - Are default values quantified for artifact size, parsed-entity count, task count, and excerpt limits, or only "configurable limits"? [Clarity, Spec FR-041/FR-075]
+- [x] CHK008 - Is atomicity of reconciliation apply specified (what state results if the process dies between preview and apply)? [Gap, Spec FR-073]
+- [x] CHK009 - Is the parser-version upgrade path defined for existing snapshots (re-import required, flag, or auto-reconcile)? [Gap, Spec FR-063/FR-064]
 
 ## Requirement Completeness
 
-- [ ] CHK010 - Are requirements defined for single-task cancellation distinct from batch and session cancellation? [Gap, Spec FR-057/FR-066]
-- [ ] CHK011 - Are requirements specified for a selected feature whose `tasks.md` normalizes to zero tasks? [Coverage, Gap]
-- [ ] CHK012 - Are requirements defined for downstream operations returning partial results (partial content with success status)? [Coverage, Spec FR-036]
-- [ ] CHK013 - Are requirements defined for how `deferred` tasks are surfaced in completion reports and later re-included? [Completeness, Spec FR-066/FR-074]
-- [ ] CHK014 - Are capability-change notifications (subscriptions) requirements specified or explicitly excluded? [Completeness, Gap vs profile §9.4]
-- [ ] CHK015 - Are requirements defined for restoring an active task batch after session restart (is a released batch still claimed)? [Completeness, Spec FR-043/FR-069]
+- [x] CHK010 - Are requirements defined for single-task cancellation distinct from batch and session cancellation? [Gap, Spec FR-057/FR-066]
+- [x] CHK011 - Are requirements specified for a selected feature whose `tasks.md` normalizes to zero tasks? [Coverage, Gap]
+- [x] CHK012 - Are requirements defined for downstream operations returning partial results (partial content with success status)? [Coverage, Spec FR-036]
+- [x] CHK013 - Are requirements defined for how `deferred` tasks are surfaced in completion reports and later re-included? [Completeness, Spec FR-066/FR-074]
+- [x] CHK014 - Are capability-change notifications (subscriptions) requirements specified or explicitly excluded? [Completeness, Gap vs profile §9.4]
+- [x] CHK015 - Are requirements defined for restoring an active task batch after session restart (is a released batch still claimed)? [Completeness, Spec FR-043/FR-069]
 
 ## Requirement Clarity
 
-- [ ] CHK016 - Are "staleness of artifact snapshot" (FR-064) and "capability drift" (FR-042) terminologically distinguished with separate detection rules? [Clarity]
-- [ ] CHK017 - Is the severity-to-consequence mapping for review findings (which severities are "blocking") explicitly defined? [Clarity, Spec FR-069]
-- [ ] CHK018 - Is "unresolved material deviation" (completion invariant) operationally distinguished from a recorded-but-approved deviation? [Clarity, Spec FR-074]
-- [ ] CHK019 - Are the profile-implied activation keys ("enables Spec-Kit integration", "configures a feature root") named exactly as they appear in configuration? [Clarity, Spec FR-060]
+- [x] CHK016 - Are "staleness of artifact snapshot" (FR-064) and "capability drift" (FR-042) terminologically distinguished with separate detection rules? [Clarity]
+- [x] CHK017 - Is the severity-to-consequence mapping for review findings (which severities are "blocking") explicitly defined? [Clarity, Spec FR-069]
+- [x] CHK018 - Is "unresolved material deviation" (completion invariant) operationally distinguished from a recorded-but-approved deviation? [Clarity, Spec FR-074]
+- [x] CHK019 - Are the profile-implied activation keys ("enables Spec-Kit integration", "configures a feature root") named exactly as they appear in configuration? [Clarity, Spec FR-060]
 
 ## Requirement Consistency
 
-- [ ] CHK020 - Are the checkbox-policy rule (FR-066), the `hint` default (US7), and SC-011 consistent in every place the checkbox is mentioned? [Consistency]
-- [ ] CHK021 - Do the plain-profile completion invariant (FR-004) and the Spec-Kit invariants (FR-074) compose without conflict for a `spec-kit` session (no double/contradictory gating)? [Consistency]
-- [ ] CHK022 - Does plan-change approval (FR-072) consistently use the FR-054 elicitation/blocker channel in both the user story and the requirement text? [Consistency]
-- [ ] CHK023 - Is the interaction between immutable snapshots (FR-073) and finished-session retention/pruning (FR-029) resolved (are snapshots retained, archived, or pruned)? [Conflict, Gap]
-- [ ] CHK024 - Are exposure modes for downstream results (FR-037) applied consistently to verification evidence shown in traceability reports? [Consistency]
+- [x] CHK020 - Are the checkbox-policy rule (FR-066), the `hint` default (US7), and SC-011 consistent in every place the checkbox is mentioned? [Consistency]
+- [x] CHK021 - Do the plain-profile completion invariant (FR-004) and the Spec-Kit invariants (FR-074) compose without conflict for a `spec-kit` session (no double/contradictory gating)? [Consistency]
+- [x] CHK022 - Does plan-change approval (FR-072) consistently use the FR-054 elicitation/blocker channel in both the user story and the requirement text? [Consistency]
+- [x] CHK023 - Is the interaction between immutable snapshots (FR-073) and finished-session retention/pruning (FR-029) resolved (are snapshots retained, archived, or pruned)? [Conflict, Gap]
+- [x] CHK024 - Are exposure modes for downstream results (FR-037) applied consistently to verification evidence shown in traceability reports? [Consistency]
 
 ## Acceptance Criteria Quality
 
-- [ ] CHK025 - Can SC-012 ("0% releases of non-ready tasks") be objectively measured without ambiguity about what counts as a release attempt? [Measurability, Spec SC-012]
-- [ ] CHK026 - Does every FR group (FR-060–075) have at least one acceptance scenario in the user stories? [Completeness, Gap]
-- [ ] CHK027 - Is the SC-014 reconciliation-preservation claim measurable as written (defines what "evidence preserved" means per task field)? [Measurability, Spec SC-014]
+- [x] CHK025 - Can SC-012 ("0% releases of non-ready tasks") be objectively measured without ambiguity about what counts as a release attempt? [Measurability, Spec SC-012]
+- [x] CHK026 - Does every FR group (FR-060–075) have at least one acceptance scenario in the user stories? [Completeness, Gap]
+- [x] CHK027 - Is the SC-014 reconciliation-preservation claim measurable as written (defines what "evidence preserved" means per task field)? [Measurability, Spec SC-014]
 
 ## Scenario Coverage
 
-- [ ] CHK028 - Are requirements defined for an agent disputing a review finding's severity or fix requirement (appeal path)? [Coverage, Gap]
-- [ ] CHK029 - Are recovery requirements defined for a crash between reconciliation preview and apply? [Coverage, Exception Flow]
-- [ ] CHK030 - Are requirements specified for features whose artifacts use formatting variants (nested lists, CRLF, non-UTF8) beyond the happy-path parser contract? [Coverage, Edge Case]
+- [x] CHK028 - Are requirements defined for an agent disputing a review finding's severity or fix requirement (appeal path)? [Coverage, Gap]
+- [x] CHK029 - Are recovery requirements defined for a crash between reconciliation preview and apply? [Coverage, Exception Flow]
+- [x] CHK030 - Are requirements specified for features whose artifacts use formatting variants (nested lists, CRLF, non-UTF8) beyond the happy-path parser contract? [Coverage, Edge Case]
 
 ## Non-Functional Requirements
 
-- [ ] CHK031 - Are performance expectations for import/reconciliation specified for large task sets, or explicitly deferred with a bound? [Clarity, Gap vs SC-010 scope]
-- [ ] CHK032 - Are audit-event requirements complete for every task state transition in the FR-066 machine (transition ↔ event mapping)? [Completeness, Spec FR-045]
+- [x] CHK031 - Are performance expectations for import/reconciliation specified for large task sets, or explicitly deferred with a bound? [Clarity, Gap vs SC-010 scope]
+- [x] CHK032 - Are audit-event requirements complete for every task state transition in the FR-066 machine (transition ↔ event mapping)? [Completeness, Spec FR-045]
 
 ## Dependencies & Assumptions
 
-- [ ] CHK033 - Is the assumed task-identifier format (`T###`) validated against actual Spec-Kit output formats, and is deviation handling defined? [Assumption, Spec FR-063]
-- [ ] CHK034 - Is degraded-mode behavior defined when required downstream servers are unavailable for non-completion verification scopes? [Coverage, Dependency]
+- [x] CHK033 - Is the assumed task-identifier format (`T###`) validated against actual Spec-Kit output formats, and is deviation handling defined? [Assumption, Spec FR-063]
+- [x] CHK034 - Is degraded-mode behavior defined when required downstream servers are unavailable for non-completion verification scopes? [Coverage, Dependency]
