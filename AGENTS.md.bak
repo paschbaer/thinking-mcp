@@ -437,9 +437,7 @@ This project is indexed by GitNexus as **thinking-mcp**. Use the GitNexus MCP to
 ## Experience Memory Lookup (EMMS) — Level 2 proactive retrieval
 
 Before working in a known trap domain, search prior experience via the
-**experience-memory** MCP server (HTTP: `http://localhost:3002/mcp`,
-registered user-scope as `insight`; single store of truth:
-`servers/server-insight/emms-data/emms-store.db`):
+local **experience-memory** server (stdio, `servers/server-insight`):
 
 Trigger domains → search query keywords:
 
@@ -464,9 +462,4 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   recorded fix (`known_bad_attempts` = paths that already failed) and record
   `experience_record_reuse_feedback` afterwards (verdict `useful`/`harmful`).
 - No hit: proceed normally — and if the session uncovers a new recurring trap,
-  seed it via the `experience_seed_lessons` MCP tool (server-side, idempotent
-  per slug; see `.github/prompts/capture-lessons.prompt.md` — the MASTER
-  prompt). The thin client `servers/server-insight/scripts/seed-lessons.mjs`
-  (HTTP, or `EMMS_SEED_TRANSPORT=stdio`) is a CI convenience only; a stdio
-  store written this way must be merged back via
-  `servers/server-insight/scripts/migrate-stdio-store.mjs`.
+  seed it via `servers/server-insight/scripts/seed-lessons.mjs`.
