@@ -305,3 +305,6 @@
 
 ## 2026-09-22 — Guidance Phase 3 review APPROVED
 - cb38202 reviewed: APPROVE, 0 HIGH/CRITICAL. F1-F5 persisted as tracked follow-ups in remaining-work-plan.md; F5 (ledger-into-transition) and F7 (missing await) fixed immediately in follow-up commit. Idempotency replay test deferred to next engine scope.
+
+## 2026-09-22 — Guidance Phase 7b/8/9 review APPROVED
+- 8658697 reviewed: APPROVED with tracked follow-ups (0 HIGH/CRITICAL; 3 MEDIUM + 5 LOW recorded in remaining-work-plan.md).
