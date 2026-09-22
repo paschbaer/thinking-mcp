@@ -6,25 +6,25 @@
 
 ## Phase 1 — Setup
 
-- [ ] T001 Scaffold `servers/server-guidance` package: `package.json` (`@paschbaer/guidance`, ESM, bin `mcp-server-guidance`, scripts build/test/typecheck mirroring `servers/server-insight`), `tsconfig.json` + `tsconfig.build.json` (strict, Node16), `vitest.config.ts`, `.gitignore`
-- [ ] T002 Create directory skeleton `src/{mcp-server,mcp-client,orchestration,workflow,integrations/spec-kit,policy,state,types}` and `tests/{contract,fixtures,orchestration,workflow,speckit,integration}` with placeholder barrel exports
-- [ ] T003 Add pinned dependencies per plan research R1/R10: `@modelcontextprotocol/sdk`, `ajv`, `zod`, `express` + dev deps `tsx`, `typescript`, `vitest`; verify `npm install && npm run build` succeeds
-- [ ] T004 Create default JSON configuration template files in `examples/default-guidance/` (`guidance.json`, `workflow.json`, `responses.json`, `operations.json`, `downstream-servers.json`, `policies.json`, `profiles/spec-kit.json`) matching `contracts/downstream-config-contract.md`, including GitNexus/Insight/Memory bindings (FR-056) and checklist-derived defaults (spec Assumptions)
-- [ ] T005 [P] Write README skeleton with build/run/test instructions and transport notes
+- [x] T001 Scaffold `servers/server-guidance` package: `package.json` (`@paschbaer/guidance`, ESM, bin `mcp-server-guidance`, scripts build/test/typecheck mirroring `servers/server-insight`), `tsconfig.json` + `tsconfig.build.json` (strict, Node16), `vitest.config.ts`, `.gitignore`
+- [x] T002 Create directory skeleton `src/{mcp-server,mcp-client,orchestration,workflow,integrations/spec-kit,policy,state,types}` and `tests/{contract,fixtures,orchestration,workflow,speckit,integration}` with placeholder barrel exports
+- [x] T003 Add pinned dependencies per plan research R1/R10: `@modelcontextprotocol/sdk`, `ajv`, `zod`, `express` + dev deps `tsx`, `typescript`, `vitest`; verify `npm install && npm run build` succeeds
+- [x] T004 Create default JSON configuration template files in `examples/default-guidance/` (`guidance.json`, `workflow.json`, `responses.json`, `operations.json`, `downstream-servers.json`, `policies.json`, `profiles/spec-kit.json`) matching `contracts/downstream-config-contract.md`, including GitNexus/Insight/Memory bindings (FR-056) and checklist-derived defaults (spec Assumptions)
+- [x] T005 [P] Write README skeleton with build/run/test instructions and transport notes
 
 ## Phase 2 — Foundational (blocks all stories)
 
-- [ ] T006 Write failing contract tests for config loading in `tests/contract/config-loader.test.ts`: valid minimal config, each `configuration_invalid` violation class, YAML rejection, profile resolution (explicit / implied spec-kit / plain per FR-060), config hash stability (FR-009, FR-026, R15)
-- [ ] T007 Implement `src/config.ts`: JSON loader, Ajv-based built-in config schema validation (strict additionalProperties), sha256 `configurationVersion`, profile resolver, fail-closed errors — make T006 pass
-- [ ] T008 [P] Define core types in `src/types/`: session, submission, operation configs, operation execution/normalized result, snapshot, task, plan change, traceability, audit events per `data-model.md`
-- [ ] T009 [P] Implement stable error model in `src/types/errors.ts` + `src/mcp-server/errors.ts`: full v1+v2+profile code set, `{accepted, error{code,message,recoverable}, allowedActions}` response shape (contracts/upstream-mcp-tools.md)
-- [ ] T010 Write failing tests for atomic persistence in `tests/contract/state-repositories.test.ts`: tmp+rename session writes, JSONL append-only audit, operation-result files, corruption-on-crash simulation (FR-019, FR-021)
-- [ ] T011 Implement `src/state/`: `SessionRepository` (atomic read/write), `AuditRepository` (JSONL, secret-redaction hook), `OperationRepository`, session mutex — make T010 pass (FR-019, FR-021, FR-022)
-- [ ] T012 [P] Implement per-session async mutex + feature-lock file registry in `src/state/locks.ts` with stale-lock startup sweep (`feature_in_use` errors, FR-061/R19); tests in `tests/contract/feature-lock.test.ts` first
-- [ ] T013 [P] Implement Ajv validator factory in `src/workflow/schema-validator.ts`: draft 2020-12, strict `additionalProperties: false`, schema hash pinning (FR-007, FR-030, FR-042); tests first in `tests/contract/schema-validator.test.ts`
-- [ ] T014 [P] Implement closed-namespace template resolver in `src/orchestration/template-resolver.ts` (`${ns.path}`, fail on unknown vars, no code execution, R6); tests first in `tests/contract/template-resolver.test.ts`
-- [ ] T015 Implement upstream MCP server skeleton in `src/mcp-server/`: SDK `McpServer`, tool registration registry, zod input parsing, stdio entry `src/index.ts` (FR-016/027/031); smoke test in `tests/contract/server-smoke.test.ts` first
-- [ ] T016 Implement credential reference resolution + redaction engine in `src/policy/redaction.ts` (secret patterns, never-log list, FR-050); tests first in `tests/contract/redaction.test.ts`
+- [x] T006 Write failing contract tests for config loading in `tests/contract/config-loader.test.ts`: valid minimal config, each `configuration_invalid` violation class, YAML rejection, profile resolution (explicit / implied spec-kit / plain per FR-060), config hash stability (FR-009, FR-026, R15)
+- [x] T007 Implement `src/config.ts`: JSON loader, Ajv-based built-in config schema validation (strict additionalProperties), sha256 `configurationVersion`, profile resolver, fail-closed errors — make T006 pass
+- [x] T008 [P] Define core types in `src/types/`: session, submission, operation configs, operation execution/normalized result, snapshot, task, plan change, traceability, audit events per `data-model.md`
+- [x] T009 [P] Implement stable error model in `src/types/errors.ts` + `src/mcp-server/errors.ts`: full v1+v2+profile code set, `{accepted, error{code,message,recoverable}, allowedActions}` response shape (contracts/upstream-mcp-tools.md)
+- [x] T010 Write failing tests for atomic persistence in `tests/contract/state-repositories.test.ts`: tmp+rename session writes, JSONL append-only audit, operation-result files, corruption-on-crash simulation (FR-019, FR-021)
+- [x] T011 Implement `src/state/`: `SessionRepository` (atomic read/write), `AuditRepository` (JSONL, secret-redaction hook), `OperationRepository`, session mutex — make T010 pass (FR-019, FR-021, FR-022)
+- [x] T012 [P] Implement per-session async mutex + feature-lock file registry in `src/state/locks.ts` with stale-lock startup sweep (`feature_in_use` errors, FR-061/R19); tests in `tests/contract/feature-lock.test.ts` first
+- [x] T013 [P] Implement Ajv validator factory in `src/workflow/schema-validator.ts`: draft 2020-12, strict `additionalProperties: false`, schema hash pinning (FR-007, FR-030, FR-042); tests first in `tests/contract/schema-validator.test.ts`
+- [x] T014 [P] Implement closed-namespace template resolver in `src/orchestration/template-resolver.ts` (`${ns.path}`, fail on unknown vars, no code execution, R6); tests first in `tests/contract/template-resolver.test.ts`
+- [x] T015 Implement upstream MCP server skeleton in `src/mcp-server/`: SDK `McpServer`, tool registration registry, zod input parsing, stdio entry `src/index.ts` (FR-016/027/031); smoke test in `tests/contract/server-smoke.test.ts` first
+- [x] T016 Implement credential reference resolution + redaction engine in `src/policy/redaction.ts` (secret patterns, never-log list, FR-050); tests first in `tests/contract/redaction.test.ts`
 
 ## Phase 3 — US1: Deterministic workflow session (P1)
 
