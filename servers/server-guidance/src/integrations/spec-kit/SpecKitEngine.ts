@@ -196,7 +196,8 @@ export class SpecKitEngine {
 
   private assertInsideWorkspace(dir: string): void {
     const resolved = resolve(dir);
-    if (!resolved.startsWith(resolve(this.workspaceRoot))) {
+    const ws = resolve(this.workspaceRoot);
+    if (resolved !== ws && !resolved.startsWith(ws + "/") && !resolved.startsWith(ws + "\\")) {
       throw new GuidanceError("spec_kit_feature_outside_workspace", `outside workspace: ${dir}`, { recoverable: false });
     }
   }
@@ -226,7 +227,7 @@ export class SpecKitEngine {
       const stat = statSync(path);
       artifacts.push({
         type,
-        relativePath: join(feature.directory, patternOf(def.patterns[0] ?? "")),
+        relativePath: patternOf(def.patterns[0] ?? ""),
         sha256: sha256(content),
         sizeBytes: stat.size,
         mtimeAtImport: stat.mtime.toISOString(),
@@ -312,7 +313,8 @@ export class SpecKitEngine {
     }
     for (const task of Object.values(tasks)) {
       for (const link of task.linkedCriteria) {
-        criteria[link.id]?.linkedTaskIds.push(task.taskId);
+        if (criteria[link.id]) criteria[link.id]!.linkedTaskIds.push(task.taskId);
+        else findings.push({ severity: "warning", message: `${task.taskId} links unknown criterion ${link.id}` });
       }
     }
 
@@ -427,10 +429,18 @@ export class SpecKitEngine {
   }
 
   submitReview(state: SpecKitState, batchId: string, findings: { findingId: string; taskIds: string[]; severity: string; fixRequired: boolean; fixApplied: boolean }[]): void {
+    const batch = state.batches[batchId];
+    if (!batch) throw new GuidanceError("spec_kit_task_not_released", `batch ${batchId} unknown`, { recoverable: true });
     for (const f of findings) {
       for (const taskId of f.taskIds) {
         const task = state.tasks[taskId];
         if (!task) continue;
+        if (task.status === "completed") {
+          throw new GuidanceError("spec_kit_task_not_found" as never, `task ${taskId} is completed and cannot regress`, { recoverable: false });
+        }
+        if (!batch.taskIds.includes(taskId)) {
+          throw new GuidanceError("spec_kit_task_not_released", `task ${taskId} not in released batch`, { recoverable: true });
+        }
         task.review = task.review ?? { findings: [], unresolved: [] };
         const existingIdx = task.review.findings.findIndex((x) => x.findingId === f.findingId);
         if (existingIdx >= 0) task.review.findings[existingIdx] = { findingId: f.findingId, severity: f.severity, fixRequired: f.fixRequired, fixApplied: f.fixApplied };

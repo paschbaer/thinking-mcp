@@ -59,10 +59,16 @@ describe("SpecKitEngine — discovery & import (FR-061/062/063)", () => {
     expect(feature.directory).toContain("specs/valid-full");
   });
 
-  it("rejects feature directories outside the workspace", () => {
-    const engine = new SpecKitEngine(ws, stateDir, "sha256:x", { ...config, featureRoot: "../outside" }, audit, "session-test");
-    // ../outside resolves to a sibling of the workspace ⇒ outside_workspace
-    expect(() => engine.discoverFeature("anything")).toThrowError(/outside the workspace|not_found/);
+  it("rejects feature directories outside the workspace (real sibling dir)", () => {
+    const siblingSpecs = join(ws, "..", "guidance-sk-outside", "specs");
+    mkdirSync(join(siblingSpecs, "evil"), { recursive: true });
+    writeFileSync(join(siblingSpecs, "evil", "spec.md"), "# evil");
+    try {
+      const engine = new SpecKitEngine(ws, stateDir, "sha256:x", { ...config, featureRoot: "../guidance-sk-outside/specs" }, audit, "session-test");
+      expect(() => engine.discoverFeature("evil")).toThrowError(/outside workspace/);
+    } finally {
+      rmSync(join(ws, "..", "guidance-sk-outside"), { recursive: true, force: true });
+    }
   });
 
   it("missing required artifacts produce blocking findings (FR-063)", () => {
