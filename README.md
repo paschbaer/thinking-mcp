@@ -8,6 +8,7 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 |--------|---------|-------------|
 | [Clear Thought](./servers/server-clear-thought) | `@paschbaer/clear-thought` | Sequential thinking tools, mental models, debugging approaches, risk analysis (pre-mortem, FMEA, fault trees), causal & game-theoretic analysis, Fermi estimation, guided workflow recipes, and stochastic decision algorithms (MDP, MCTS, bandit, Bayesian optimization, HMM) |
 | [Insight](./servers/server-insight) | `@paschbaer/insight` | Evidence-backed long-term experience memory for coding agents: capture structured debugging episodes, validate fixes with objective evidence, hybrid retrieval (exact/normalized signatures + full-text + local semantic embeddings), per-response guidance on the next recommended request, visibility isolation and audit. Setup via `/setup-insight` prompt file (see server README). MVP; spec-driven |
+| [Guidance](./servers/server-guidance) | `@paschbaer/guidance` | Configurable workflow orchestrator: phases, transitions, agent instructions, validation schemas and security policies live in project-owned `.guidance/` config; drives coding agents through structured development loops (understand → plan → implement → verify) with downstream operation gates (lint/test/build), optional Spec-Kit integration profile, stdio + streamable-HTTP transports. Spec-driven |
 
 > **Merged:** the former `@paschbaer/stochasticthinking` server is now part of
 > Clear Thought (toolset `stochastic`). The standalone package is deprecated —
@@ -53,6 +54,32 @@ The server also exposes 7 workflow **prompts** and 4 session **resources**
 
 📖 Full tool reference with parameters, responses and usage examples:
 [Clear Thought — Tool Reference](./servers/server-clear-thought/README.md#tool-reference)
+
+## Guidance — structured development workflows
+
+[Guidance](./servers/server-guidance) is a **workflow orchestrator**: instead of
+adding thinking tools, it puts the *development process itself* under
+project-owned configuration. A `.guidance/` directory in your repository defines
+the phases (understand → plan → review → implement → review-fix → verify →
+complete), the agent instruction for each phase, strict JSON-Schemas for every
+submission, lifecycle operation gates (e.g. lint/test/build must pass before
+completion) and security policies (egress, redaction, approval gates). The
+agent is driven through the loop with 17 workflow tools (`start_workflow`,
+`get_current_guidance`, `submit_*`, `report_blocker`, …); an optional
+**Spec-Kit profile** adds 12 tools for spec-driven task execution with
+evidence-gated completion.
+
+```bash
+# stdio (local agent)
+cd servers/server-guidance && npm install && npm run build
+node dist/index.js        # workspace = cwd, config from ./.guidance/
+
+# or HTTP via Docker
+cd servers/server-guidance && docker compose up -d   # http://localhost:3003/mcp
+```
+
+Intro, configuration reference and agent-usage examples:
+[Guidance README](./servers/server-guidance/README.md).
 
 ## Using it with your coding agent
 
