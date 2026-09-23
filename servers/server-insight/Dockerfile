@@ -16,10 +16,6 @@ RUN npm install --ignore-scripts --no-audit --no-fund
 # Build native module for the container platform, then the project
 RUN npm rebuild better-sqlite3
 
-# Fix CommonJS/ESM compatibility issue in Smithery SDK by inlining okay-error functions
-RUN sed -i '2,3d' node_modules/@smithery/sdk/dist/shared/config.js && \
-    sed -i '2i const ok = (value) => ({ ok: true, value });\nconst err = (error) => ({ ok: false, error });' node_modules/@smithery/sdk/dist/shared/config.js
-
 # Copy source files
 COPY . .
 
@@ -57,6 +53,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["node", "dist/server.js"]
 
 # Label the image
-LABEL org.opencontainers.image.source="https://github.com/paschbaer/thinking-mcp/tree/main/servers/insight"
+LABEL org.opencontainers.image.source="https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-insight"
 LABEL org.opencontainers.image.description="Experience Memory MCP server (EMMS) — evidence-backed long-term memory for coding agents"
 LABEL org.opencontainers.image.licenses="MIT"
