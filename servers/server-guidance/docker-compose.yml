@@ -1,0 +1,27 @@
+
+services:
+  guidance:
+    build: .
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      # Container port-mapping requires 0.0.0.0 inside the container
+      # (explicit operator opt-in; local runs default to loopback, FR-027).
+      - GUIDANCE_BIND_HOST=0.0.0.0
+      # Workspace: .guidance/ (config + state) lives OUTSIDE the container
+      # (host bind mount) so sessions, snapshots and audit survive re-deploys
+      # and are directly backupable from ./workspace on the host.
+      - GUIDANCE_WORKSPACE_ROOT=/workspace
+      # Optional: set to require `Authorization: Bearer <token>` on /mcp.
+      # - GUIDANCE_AUTH_TOKEN=change-me
+    volumes:
+      - ./workspace:/workspace
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
