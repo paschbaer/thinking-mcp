@@ -242,3 +242,8 @@ UPDATE 2026-09-18 (15): CONSOLIDATION WORKER (Phase 3). ConsolidationWorker: Tim
 - **What works:** New MCP tool `experience_seed_lessons` (server-side batch lesson seeding, idempotent per slug, per-lesson result reporting). `scripts/seed-lessons.mjs` reduced to a thin MCP client (HTTP default, stdio fallback). Master prompt `.github/prompts/capture-lessons.prompt.md` calls the tool directly — works in any repo without a Thinking-MCP checkout. Migration script `scripts/migrate-stdio-store.mjs` (stdio store → HTTP store) added earlier on this branch.
 - **What's left:** Sync prompt copies in other repos; rebuild/redeploy the Docker image so HTTP clients get the new tool; sync prompt copies after merge.
 - **Current state:** 4 new contract tests green; full suite 98/99 (golden-g1-g3 timeout flake under full-suite load only — passes isolated).
+
+## 2026-09-23: Works / Left / State
+- **What works:** clear-thought + insight laufen ohne Smithery auf direktem SDK-Streamable-HTTP (stateful Sessions); Dockerfiles ohne Sed-Patch; insight deterministisches npm ci mit eigenem Lockfile; Root-Compose mit Bind-Host-Vars; Session-Reaper (60min TTL, 500er Cap); alle Unit-Tests (152+99) grün; Container-E2E per SDK-Client verifiziert (47/20 Tools, Tool-Calls OK).
+- **What's left:** Merge von feature/sdk-streamable-transport-migration nach develop (Rebase) steht aus; akzeptierte Review-Beobachtungen (400/-32700-Parse-Error, nicht registrierte Wegwerf-Sessions, Smithery-Reste) getrackt im remaining-work-plan; Smithery-Deploy-Strategie (Scripts + smithery.yaml) zu entscheiden.
+- **Current State:** Feature-Branch 1caa690, Review-HIGHs geschlossen, bereit für Merge nach develop.
