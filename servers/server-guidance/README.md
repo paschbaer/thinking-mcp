@@ -283,6 +283,202 @@ registered in addition to the workflow tools:
 }
 ```
 
+## Configuration in depth
+
+### How the files relate
+
+`guidance.json` is the **entry point**; it references the other five files.
+The loader (`loadConfig`) reads it first, then pulls in each referenced file,
+validates everything and computes a deterministic `configVersion` hash over
+the merged content — any change to any file changes the config version (and
+thereby snapshot staleness detection).
+
+```mermaid
+flowchart TD
+    G["guidance.json<br/>(entry point)"] -->|file ref| W["workflow.json<br/>state machine"]
+    G -->|file ref| R["responses.json<br/>phase instructions"]
+    G -->|file ref| O["operations.json<br/>operation definitions"]
+    G -->|file ref| D["downstream-servers.json<br/>MCP clients"]
+    G -->|file ref| P["policies.json<br/>security + validation"]
+    O -->|id reference:<br/>lifecycle hooks & gates| W
+    O -->|server + capability<br/>reference| D
+    P -.->|trustLevel &<br/>egress policy| D
+    W -->|submissionSchema path| S["schemas/*.json"]
+    S -.->|validate submissions| R
+    G -->|profile: spec-kit| SK["profiles/spec-kit.json<br/>(optional, deep-merged)"]
+```
+
+Roles at a glance:
+
+| File | Role | Referenced by |
+|---|---|---|
+| `guidance.json` | Entry point: project identity, profile selection, file references, state, orchestration defaults, security switches | — (loaded first) |
+| `workflow.json` | The state machine: phases, transitions, lifecycle hooks, terminal states | `guidance.json` |
+| `responses.json` | What the agent is *told* to do in each phase (title, instruction, required actions) | `guidance.json`; phase keys must match `workflow.json` phase names |
+| `operations.json` | *What* runs and *how it is validated*: process/MCP operations used by lifecycle hooks and gates | `guidance.json`; operation IDs referenced from `workflow.json` |
+| `downstream-servers.json` | *Where* MCP operations run: transports, allowlists, timeouts, trust levels | `guidance.json`; `server` IDs referenced from `operations.json` |
+| `policies.json` | Security and validation policy: egress per trust level, submission validation strictness, redaction, output limits | `guidance.json`; trust level names referenced from `downstream-servers.json` |
+| `schemas/*.json` | Submission validation per phase | `workflow.json` (`submissionSchema` path per phase) |
+
+> **Scaffold note:** missing `guidance.json` is scaffolded on first start
+> (see below) — a minimal valid default 7-phase configuration. Existing files
+> are never overwritten; invalid configuration always fails closed.
+
+### `guidance.json` — attribute reference
+
+| Attribute | Type | Default | Meaning |
+|---|---|---|---|
+| `version` | number | — (**required**) | Config format version; must be `2` |
+| `profile` | `"plain"` \| `"spec-kit"` | derived | Tool surface selection. If omitted: `spec-kit` when `integrations.specKit` keys are present (FR-060), else `plain` |
+| `project.name` | string | — (**required**) | Project identity, used in responses/audit |
+| `workflow.file` | string | — | Path to `workflow.json` (relative to `.guidance/`) |
+| `responses.file` | string | — | Path to `responses.json` |
+| `operations.file` | string | — | Path to `operations.json` |
+| `downstreamServers.file` | string | — | Path to `downstream-servers.json` |
+| `policies.file` | string | — | Path to `policies.json` |
+| `state.directory` | string | `state` | State directory (sessions, audit, snapshots) |
+| `state.persistAfterEveryOperation` | boolean | — | Persist session state after each mutation (crash safety) |
+| `state.retainRawMcpResponses` | boolean | — | Keep raw downstream responses on disk (audit depth vs. disk usage) |
+| `orchestration.defaultTimeoutSeconds` | number | — | Default timeout for operations without own `timeoutSeconds` |
+| `orchestration.defaultRetryCount` | number | — | Default retry count for transient downstream failures |
+| `orchestration.maximumConcurrentOperations` | number | — | Concurrency cap for parallel operations |
+| `orchestration.failClosedForRequiredOperations` | boolean | — | Required operation failure ⇒ block (true) instead of continue-with-warning |
+| `security.allowAgentDefinedServers` | boolean | — | May the *agent* register new downstream servers at runtime (default: no) |
+| `security.allowAgentDefinedOperations` | boolean | — | May the agent define new operations at runtime |
+| `security.allowAgentProvidedCommands` | boolean | — | May the agent pass raw commands to process operations |
+| `security.restrictWorkingDirectory` | boolean | — | Pin process operations to the workspace root |
+| `security.redactSensitiveOutput` | boolean | — | Apply policy redaction patterns to agent-facing output |
+| `integrations.specKit` | object | — | Spec-Kit integration config; presence influences profile resolution (see below) |
+
+### `workflow.json` — attribute reference
+
+| Attribute | Type | Meaning |
+|---|---|---|
+| `workflow.id` | string | Workflow identifier (appears in sessions/audit) |
+| `workflow.initialPhase` | string | Phase a new session starts in |
+| `workflow.terminalStates` | string[] | Names of terminal states (`completed`, `cancelled`) |
+| `phases.<name>.response` | string | Key into `responses.json` for this phase's agent instruction |
+| `phases.<name>.submissionSchema` | string | Path to the phase's JSON-Schema (relative to `.guidance/`) |
+| `phases.<name>.transitions[]` | array | Possible transitions from this phase |
+| `transitions[].to` | string | Target phase |
+| `transitions[].when` | string | Success condition (`submission_valid`, `required_operations_succeeded`) — fires only on success |
+| `transitions[].reason` | string | Failure condition (`verification_failed`, `major_plan_revision_required`, …) — fires only on failure |
+| `phases.<name>.lifecycle.beforeEnter[]` | operation IDs | Run before entering this phase; required failure blocks the transition (at session start: session starts `blocked`) |
+| `phases.<name>.lifecycle.beforeExit[]` | operation IDs | Run when leaving this phase; required failure keeps the session in the phase |
+| `phases.<name>.lifecycle.afterEnter[]` | operation IDs | Run after entering; failures are non-blocking and audited |
+| `phases.<name>.lifecycle.afterExit[]` | operation IDs | Run after leaving; failures are non-blocking and audited |
+| `states.<name>.terminal` | boolean | Marks a terminal state |
+| `states.<name>.system` | boolean | System states (`blocked`) are not directly transitionable |
+
+### `responses.json` — attribute reference
+
+| Attribute | Type | Meaning |
+|---|---|---|
+| `responses.<phaseKey>.title` | string | Short phase title shown to the agent |
+| `responses.<phaseKey>.instruction` | string | The full instruction for this phase (what the agent should do / not do) |
+| `responses.<phaseKey>.requiredActions` | string[] | Explicit action checklist the agent must perform in this phase |
+
+Phase keys must match the phase names in `workflow.json`.
+
+### `operations.json` — attribute reference
+
+| Attribute | Type | Meaning |
+|---|---|---|
+| `operations.<id>.description` | string | Human-readable description |
+| `operations.<id>.type` | `"process"` \| MCP types | `process` runs a local executable; MCP types call downstream servers |
+| `operations.<id>.executable` / `.args` | string / string[] | Command for `type: "process"` |
+| `operations.<id>.server` / `.capability` | string | For MCP operations: downstream server ID + tool name |
+| `operations.<id>.required` | boolean | Required operations gate transitions (`required_hook_failed` on failure); optional failures are warnings |
+| `operations.<id>.timeoutSeconds` | number | Per-operation timeout; on exceed the call fails as transport error (retried per policy) |
+| `operations.<id>.validation.exitCodeMustBeZero` | boolean | `process`: exit code 0 ⇒ succeeded |
+| `operations.<id>.output.returnToAgent` | string | Exposure mode: `summary_and_errors` (redacted default), `status_only`, `normalized`, `raw` — controls how much reaches the agent |
+| `operations.<id>.riskClass` / `.approved` | string / boolean | Risk-class approval gate: risky operations need explicit approval |
+
+### `downstream-servers.json` — attribute reference
+
+| Attribute | Type | Meaning |
+|---|---|---|
+| `servers.<id>.displayName` | string | Human-readable name |
+| `servers.<id>.enabled` | boolean | `false` = server is skipped entirely |
+| `servers.<id>.required` | boolean | Required servers must become ready at startup (fail otherwise) |
+| `servers.<id>.trustLevel` | string | One of `policies.trustLevels` — drives egress policy |
+| `servers.<id>.transport` | object | `type: "stdio"` + `command.executable/args/cwd` |
+| `servers.<id>.connection.startupTimeoutSeconds` | number | Handshake timeout |
+| `servers.<id>.connection.requestTimeoutSeconds` | number | Per-request timeout (positive finite; enforced as transport failure) |
+| `servers.<id>.connection.reconnect` | object | `enabled`, `maximumAttempts`, `delayMilliseconds` |
+| `servers.<id>.capabilities.allow.tools` | string[] | **Allowlist**: only these tools may be invoked on this server |
+| `servers.<id>.capabilities.allow.resources` / `.prompts` | string[] | Same for resources/prompts |
+| `servers.<id>.environment` | object | Env for the child process (`inherit`, `variables.<NAME>.fromHost`) |
+
+### `policies.json` — attribute reference
+
+| Attribute | Type | Meaning |
+|---|---|---|
+| `trustLevels.<name>.dataEgress` | string | `none` \| `validated_inputs_only` \| `project_data` \| `project_data_with_approval` — what data may flow to a server with this trust level |
+| `validation.requireAcceptanceCriteria` | boolean | Understanding submissions must contain acceptance criteria |
+| `validation.requireUniqueTaskIds` | boolean | Plan task IDs must be unique |
+| `validation.rejectUnknownDependencies` | boolean | Task dependencies must reference known tasks |
+| `validation.rejectDependencyCycles` | boolean | Reject cycles in the task dependency graph |
+| `validation.rejectEmptyArtifacts` | boolean | Reject empty Spec-Kit artifacts at import |
+| `reviewFindings.blockingSeverities` | string[] | Review severities that block advancement (e.g. `high`, `critical`) |
+| `redaction.patterns` | string[] | Regex patterns redacted from agent-facing operation output |
+| `outputDefaults.returnToAgent` | string | Default exposure mode for operations without own setting |
+| `outputDefaults.maxExcerptBytes` | number | Max excerpt size returned to the agent |
+| `outputDefaults.maxArtifactBytes` | number | Max artifact size accepted at import |
+| `outputDefaults.maximumTasks` / `.maximumEntities` | number | Import size limits |
+
+### Best practice: configuration order
+
+Configure **inside-out, dependency-first** — each step only references things
+that already exist, so you can validate as you go:
+
+```mermaid
+flowchart LR
+    A["1. policies.json<br/>(Trust-Level + Validierung)"] --> B["2. downstream-servers.json<br/>(Vertrauensgrad zuweisen)"]
+    B --> C["3. operations.json<br/>(Server-/Capability-Referenzen)"]
+    C --> D["4. schemas/*.json<br/>(Submit-Strukturen fixieren)"]
+    D --> E["5. responses.json<br/>(Agent-Anweisungen je Phase)"]
+    E --> F["6. workflow.json<br/>(Phasen + Referenzen verdrahten)"]
+    F --> G["7. guidance.json<br/>(Entry Point zuletzt)"]
+```
+
+1. **`policies.json` first.** Decide the security posture before anything
+   exists that could leak: trust levels, egress, redaction patterns, blocking
+   severities, validation strictness. Everything later refers to these names.
+2. **`downstream-servers.json`.** Register the servers you actually run, each
+   with a trust level from step 1 and tight allowlists. Start with zero servers
+   if unsure — `{"version":2,"servers":{}}` is valid.
+3. **`operations.json`.** Define gates (lint/test/build) as `process`
+   operations, and downstream operations against the servers from step 2
+   (`server` + `capability` must exist there). Mark only what truly gates the
+   transition as `required: true`.
+4. **`schemas/*.json`.** Fix what each phase submission must contain. Keep
+   schemas minimal (`additionalProperties: false`) — they are the contract
+   that keeps agent output reviewable.
+5. **`responses.json`.** Write the agent instructions per phase, keyed exactly
+   by your future workflow phase names. This is where the process quality
+   lives — invest here.
+6. **`workflow.json`.** Now wire phases, transitions and lifecycle hooks. Only
+   reference operation IDs from step 3 and schema paths from step 4 — the
+   engine throws `operation_not_configured` otherwise (non-recoverable).
+7. **`guidance.json` last.** It is trivial once everything exists: set project
+   name, profile and the five file references.
+
+**Working rules:**
+
+- Validate after every step: the server either starts (config valid) or fails
+  with a precise `configuration_invalid` message pointing at the offending
+  attribute. `mcp-server-guidance-init` scaffolds a working baseline to start
+  from instead of a blank page.
+- Change one file at a time; the deterministic `configVersion` hash makes every
+  change visible (and invalidates Spec-Kit snapshots deliberately).
+- Keep gates honest: `required: true` means "the workflow must not pass
+  without this". Optional gates (`required: false`) are signals, not fences.
+- Treat `operations.<id>.output.returnToAgent: "raw"` as an exception with
+  review — `summary_and_errors` + redaction is the safe default.
+- In Docker: put `.guidance/` into the mounted `workspace/` volume; scaffold
+  creates a default there automatically on first start.
+
 ## Using Guidance inside an agent (chat)
 
 Register the server in your MCP client:
