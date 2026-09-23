@@ -33,6 +33,21 @@ describe("ClientManager (FR-031/033/034/042, SC-008)", () => {
     await mgr.shutdown();
   });
 
+  it("enforces requestTimeoutSeconds as a transport failure (FR-035, Review Finding M2)", async () => {
+    const slow = createStubServer("timeout");
+    const mgr = new ClientManager();
+    mgr.useTransport("slow", () => slow.clientTransport);
+    await mgr.ensureReady("slow");
+    const out = await mgr.invokeTool("slow", "analyze", {}, 0.05);
+    expect(out.kind).toBe("transport");
+    if (out.kind === "transport") expect(out.message).toMatch(/timed out/);
+    // Unconfigured = unbounded: the same stub without timeout must succeed,
+    // proving the timeout is what produced the transport failure above.
+    const ok = await mgr.invokeTool("slow", "analyze", {});
+    expect(ok.kind).not.toBe("transport");
+    await mgr.shutdown();
+  });
+
   it("classifies tool-reported errors vs transport failures", async () => {
     const toolErr = createStubServer("tool_error");
     const mgr = new ClientManager({ requiredServers: ["x"] });

@@ -33,6 +33,10 @@ export function createStubServer(mode: StubMode, toolName = "analyze"): StubHand
     },
     async () => {
       invocations += 1;
+      if (mode === "timeout") {
+        // Simulates a downstream that never answers in time (FR-035).
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+      }
       if (mode === "tool_error") {
         return { isError: true as const, content: [{ type: "text" as const, text: "stub tool error" }] };
       }

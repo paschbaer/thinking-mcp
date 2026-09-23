@@ -132,8 +132,13 @@ export class ClientManager {
     }
   }
 
-  /** Invokes a tool and classifies transport vs tool-reported errors (FR-037). */
-  async invokeTool(serverId: string, toolName: string, args: Record<string, unknown>): Promise<
+  /**
+   * Invokes a tool and classifies transport vs tool-reported errors (FR-037).
+   * When `requestTimeoutSeconds` is provided, the invocation is aborted after
+   * that many seconds and reported as a transport failure (retry semantics
+   * preserved upstream). Unconfigured = unbounded (explicit opt-in).
+   */
+  async invokeTool(serverId: string, toolName: string, args: Record<string, unknown>, requestTimeoutSeconds?: number): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
     | { kind: "transport"; message: string }
@@ -145,10 +150,24 @@ export class ClientManager {
       return { kind: "transport", message: String(err) };
     }
     let response: { isError?: boolean; content?: unknown[]; structuredContent?: unknown };
+    let timer: NodeJS.Timeout | undefined;
     try {
-      response = (await client.callTool({ name: toolName, arguments: args })) as typeof response;
+      const call = client.callTool({ name: toolName, arguments: args });
+      response = requestTimeoutSeconds === undefined
+        ? (await call) as typeof response
+        : (await Promise.race([
+            call,
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error(`request timed out after ${requestTimeoutSeconds}s`)),
+                requestTimeoutSeconds * 1000,
+              );
+            }),
+          ])) as typeof response;
     } catch (err) {
       return { kind: "transport", message: String(err) };
+    } finally {
+      clearTimeout(timer);
     }
     this.statuses.get(serverId)!.lastSuccessfulRequestAt = new Date().toISOString();
     if (response.isError) {
