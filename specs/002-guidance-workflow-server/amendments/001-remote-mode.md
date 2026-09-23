@@ -1,6 +1,6 @@
 # Spec Amendment: Remote Mode (Central Container) — v3
 
-> Status: **PROPOSAL** (awaiting approval)
+> Status: **APPROVED** (open questions Q1–Q4 decided, see §10)
 > Base: `specs/002-guidance-workflow-server/spec.md` (v1 + v2 + v2.1)
 > Date: 2026-09-23
 > Decisions locked by user: (1a) client-executed process operations ·
@@ -134,10 +134,11 @@ init_session {
   Upload mitgelieferten `configFiles` aufgelöst (Remote-Modus kennt kein
   Server-Dateisystem des Clients).
 
-**FR-102.8 (Limits):** `init_session` MUSS Größenlimits erzwingen
-(Konfig-Payload ≤ 1 MB default, max. aktive Sessions pro Key konfigurierbar,
-Default 10; Session-TTL konfigurierbar, Default 30 Tage Inaktivität), um
-Resource-Exhaustion zu verhindern.
+**FR-102.8 (Limits — DECIDED):** `init_session` MUSS Größenlimits erzwingen:
+Konfig-Payload ≤ 1 MB (Default), max. 10 aktive Sessions pro Key (Default,
+konfigurierbar), Session-TTL **30 Tage Inaktivität** (DECIDED Q2, Default,
+konfigurierbar via `GUIDANCE_SESSION_TTL_DAYS`); abgelaufene Sessions werden
+beim nächsten Zugriff mit `session_not_found` abgelehnt und lazily entfernt.
 
 ## 5. Session-Binding und Repo-Isolation
 
@@ -157,8 +158,9 @@ Resource-Exhaustion zu verhindern.
   Sessions können sich gegenseitig nicht lesen oder beeinflussen; ein
   Cross-Session-Zugriff ist strukturell ausgeschlossen (kein API-Pfad, keine
   Pfad-Überschneidung).
-- **FR-103.4** Der Audit-Trail jeder Session MUSS den Key (Identifikator) und
-  die `configVersion` enthalten.
+- **FR-103.4** Der Audit-Trail jeder Session MUSS den Key (Identifikator,
+  **Klartext** — DECIDED Q3; der Key ist kein Secret, nur der Token ist es)
+  und die `configVersion` enthalten.
 
 ## 6. Client-executed Process Operations (1a)
 
@@ -237,8 +239,8 @@ report_operation_result {
   Container-Neustart; bestehende Sessions des alten Keys werden dabei
   unbrauchbar (dokumentiertes Verhalten) — Alternative „Session-Weitergeltung"
   bewusst NICHT spezifiziert (Verweigerung ist sicherer).
-- **Rate Limiting:** `init_session` MUSS rate-limited sein (Default: 10/min
-  pro Quell-IP) gegen Config-Upload-Flutung.
+- **Rate Limiting:** `init_session` MUSS rate-limited sein (**20 Requests/min
+  pro Quell-IP** — DECIDED Q4; 429 bei Überschreitung) gegen Config-Upload-Flutung.
 - **Kein Kryptografieschein:** FR-104.5 — Client-Reports sind Vertrauens-
  anker; die Spec verspricht keine Integrität, die nicht geliefert wird.
 
@@ -261,7 +263,12 @@ report_operation_result {
   Teilspeicherung, kein Session-Eintrag.
 - AC-R7: Fehlender/falscher Bearer-Token auf JEDEM Tool ⇒ 401.
 
-## 10. Offene Punkte (Nachfragen)
+## 10. Entscheidungen (DECIDED 2026-09-23)
 
-Siehe Chat: Q1 (Key:Repo-Verhältnis), Q2 (TTL-Default), Q3 (Key-Namen in
-Audit vs. Pseudonymisierung), Q4 (Rate-Limit-Defaults).
+- **Q1 (Key:Repo):** Key pro Repo empfohlen (1 Key : N Sessions zulässig);
+  anonymous Fallback ohne Pairs (FR-101.6, user decision).
+- **Q2 (TTL):** 30 Tage Inaktivität (FR-102.8).
+- **Q3 (Audit):** Key im Klartext (FR-103.4).
+- **Q4 (Rate Limit):** 20 Requests/min pro Quell-IP (Security Considerations).
+
+Alle offenen Punkte sind damit geschlossen — Implementierung freigegeben.
