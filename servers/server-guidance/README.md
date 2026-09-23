@@ -321,18 +321,54 @@ classification, approval + artifact-update lifecycle instead of silent edits).
 
 ## Tool reference
 
-**Workflow tools (17):** `start_workflow`, `get_current_guidance`,
-`submit_understanding`, `submit_plan`, `submit_plan_review`,
-`submit_implementation`, `submit_implementation_review`, `submit_verification`,
-`complete_workflow`, `get_workflow_state`, `report_blocker`, `resume_workflow`,
-`cancel_workflow`, `get_orchestration_status`, `list_configured_operations`,
-`retry_operation`, `get_downstream_status`.
+Common conventions: every tool returns a JSON text payload. `sessionId` refers
+to a started workflow session. `requestId` (optional on all mutating tools)
+makes the call idempotent — repeating a call with the same `requestId` does not
+apply the change twice (request ledger). Submissions are validated against the
+phase's JSON-Schema; validation failures return `submission_invalid` with
+details.
 
-**Spec-Kit tools (12, profile `spec-kit` only):** `discover_spec_kit_feature`,
-`import_spec_kit_artifacts`, `get_spec_kit_status`, `get_next_task`,
-`start_task`, `submit_task_implementation`, `submit_task_review`,
-`complete_task`, `propose_plan_change`, `refresh_spec_kit_artifacts`,
-`get_traceability_report`, `validate_spec_kit_completion`.
+### Workflow tools (17)
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `start_workflow` | `workspaceRoot`, `request`, `workflowId?`, `metadata?` | Starts a session, runs initial-phase `beforeEnter` operations (a required failure starts the session `blocked`) and returns the initial phase instruction. `workspaceRoot` must be inside the server-configured workspace |
+| `get_current_guidance` | `sessionId` | Read-only: title, instruction and required actions of the current phase (from `responses.json`). Call after every transition |
+| `submit_understanding` | `sessionId`, `requestId?`, `summary`, `assumptions?`, `acceptanceCriteria?` | Submits the *understand* phase: request analysis, assumptions, measurable acceptance criteria |
+| `submit_plan` | `sessionId`, `requestId?`, `tasks` | Submits the implementation plan: stable task IDs, dependencies, affected files, planned tests |
+| `submit_plan_review` | `sessionId`, `requestId?`, `findings?`, `approvedPlan?` | Plan review; blocking findings (per policy severities) loop back to `plan`, approval advances to `implement` |
+| `submit_implementation` | `sessionId`, `requestId?`, `implementedTasks`, `changedFiles` | Implementation evidence: which tasks were implemented and which files changed |
+| `submit_implementation_review` | `sessionId`, `requestId?`, `findings?`, `filesChangedDuringReview?` | Code-review results; `implementation_changes_required` loops back to `implement` |
+| `submit_verification` | `sessionId`, `requestId?`, `verificationSummary` | Verification report; the phase's `beforeExit` gates (lint/test/build) run on transition |
+| `complete_workflow` | `sessionId`, `requestId?`, `summary` | Final report; runs required completion operations (e.g. repository analysis). Success moves the session to the terminal state |
+| `get_workflow_state` | `sessionId`, `includeHistory?` | Read-only: full persisted session state (phases, downstream operation states, blockers). Reconciles stale `running` operations to `unknown` under a lock |
+| `report_blocker` | `sessionId`, `category`, `description`, `requiresUserDecision?`, `options?` | Reports a blocker the agent cannot resolve; the session enters `blocked` until `resume_workflow` |
+| `resume_workflow` | `sessionId`, `decision`, `notes?` | Ends `blocked` and returns the session to its previous phase with the user decision recorded |
+| `cancel_workflow` | `sessionId` | Graceful cancellation (FR-057): no new operations run, state moves to the `cancelled` terminal state |
+| `get_orchestration_status` | `sessionId` | Read-only: status of the operations of the active phase (running / succeeded / failed / timed_out) |
+| `list_configured_operations` | — | Read-only: all operations defined in `operations.json` (no session needed) |
+| `retry_operation` | `sessionId` | Re-runs failed **required** operations of the current phase (transient downstream failures) |
+| `get_downstream_status` | — | Read-only: connection health of all configured downstream servers |
+
+### Spec-Kit tools (12, profile `spec-kit` only)
+
+All tools operate on the Spec-Kit state of the session (created by
+`import_spec_kit_artifacts` and persisted per session).
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `discover_spec_kit_feature` | `sessionId`, `featureId?` | Locates the feature directory under the configured `featureRoot` (strategy-aware: explicit ID, single candidate, …). Workspace-boundary checked |
+| `import_spec_kit_artifacts` | `sessionId`, `featureId?` | Imports spec.md / plan.md / tasks.md (+ optional research, data-model, contracts, checklists), validates structure (unique task IDs, dependency graph, cycles) and creates an **immutable hash-pinned snapshot** |
+| `get_spec_kit_status` | `sessionId` | Read-only: feature, active snapshot, active batch, validation findings, task-status counts, open plan changes |
+| `get_next_task` | `sessionId` | Read-only: tasks that are release-ready (dependencies satisfied) and the recommended next task |
+| `start_task` | `sessionId`, `batchId?`, `taskIds[]` | Moves tasks into `in_progress` within a batch (batch release semantics, defaults to the active batch) |
+| `submit_task_implementation` | `sessionId`, `batchId?`, `evidence[]` | Per-task evidence: summary, changed files, tests added/updated, deviations, unresolved issues. Checkboxes in tasks.md are hints — only this evidence counts |
+| `submit_task_review` | `sessionId`, `batchId?`, `findings[]` | Review findings per task (`severity`, `fixRequired`, `fixApplied`); blocking severities gate completion |
+| `complete_task` | `sessionId`, `taskId` | Marks a task completed — only after implementation + review evidence and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing |
+| `propose_plan_change` | `sessionId`, `changeType`, `reason`, `affectedTasks`, `impact` | Proposes a plan deviation; deterministic `minor`/`major` classification from the change type and impact flags; major changes require artifact update + approval before completion |
+| `refresh_spec_kit_artifacts` | `sessionId` | Re-imports the artifacts and activates a fresh snapshot (for approved plan changes / external edits) |
+| `get_traceability_report` | `sessionId` | Read-only: acceptance criteria ↔ task coverage |
+| `validate_spec_kit_completion` | `sessionId`, `snapshotCurrent`, `requiredVerificationSucceeded`, `completionOpsSucceeded` | Evaluates the completion invariants (no uncompleted tasks, no open plan changes, criteria coverage, verification) and returns violations |
 
 ## Build & test
 
