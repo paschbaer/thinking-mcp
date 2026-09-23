@@ -115,6 +115,14 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
     expect((status.tasks as Record<string, number>)["pending"]).toBe(2);
   });
 
+  it("Traversal-SessionId wird abgewiesen (Path Safety Regression)", async () => {
+    await start("spec-kit");
+    const res = await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "../../escaped" } });
+    expect(res.isError).toBe(true);
+    const text = String((res.content as { type: string; text: string }[])[0]!.text);
+    expect(text).toMatch(/invalid sessionId/);
+  });
+
   it("get_spec_kit_status vor dem Import liefert strukturierten Fehler (kein Crash)", async () => {
     await start("spec-kit");
     const res = await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "ghost" } });
