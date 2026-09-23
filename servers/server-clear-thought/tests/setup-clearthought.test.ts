@@ -352,3 +352,52 @@ it("detail: 'full' still serves the legacy parameter tables", async () => {
   expect(first.total_parts).toBeGreaterThanOrEqual(3); // ~19.5KB legacy size
   expect(first.content_part).toContain('Essential parameters');
 });
+
+
+it('tracked follow-up #1: compact output contains EXACTLY ONE marker pair', async () => {
+  const { server, state } = setupServer();
+  registerAgentsGuide(server, state);
+  const first = await call(server, { project_name: 'MarkerCo' });
+  let doc = first.content_part;
+  for (let i = 1; i < first.total_parts; i++) {
+    doc += (await call(server, { project_name: 'MarkerCo', part: i })).content_part;
+  }
+  // Regression guard: if the compact template ever re-embeds the markers,
+  // buildGuideBlock's wrapping would duplicate them and merge mode would
+  // silently fall back to the append branch (block_replaced: false).
+  expect(doc.split(START).length - 1).toBe(1);
+  expect(doc.split(END).length - 1).toBe(1);
+  // same guarantee in merge mode (re-merge must replace, not append)
+  const merged = await call(server, {
+    project_name: 'MarkerCo v2',
+    existing_agents_md: doc
+  });
+  expect(merged.block_replaced).toBe(true);
+  expect(merged.content.split(START).length - 1).toBe(1);
+});
+
+it('tracked follow-up #2: hard escalation propagates isError through the utility toolset', async () => {
+  const { server, state } = setupServer();
+  registerUtilityToolset(server, state);
+  const handler = getTool(server, 'utility').handler;
+  const extra = { sessionId: 's-toolset-escalate' };
+
+  // exhaust the soft budget: 2 full calls + 3 soft loop_detected
+  for (let i = 0; i < 5; i++) {
+    const r = await handler(
+      { operation: 'setup_clearthought', project_name: 'ViaToolset' },
+      extra
+    );
+    const data = JSON.parse(r.content[0].text);
+    expect(['success', 'loop_detected']).toContain(data.status);
+  }
+  // 6th call: hard error must propagate verbatim through the dispatcher
+  const hard = await handler(
+    { operation: 'setup_clearthought', project_name: 'ViaToolset' },
+    extra
+  );
+  expect(hard.isError).toBe(true);
+  const data = JSON.parse(hard.content[0].text);
+  expect(data.status).toBe('refused_do_not_retry');
+  expect(data.terminal).toBe(true);
+});
