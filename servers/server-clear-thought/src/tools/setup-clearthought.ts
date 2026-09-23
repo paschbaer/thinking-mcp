@@ -15,6 +15,11 @@ const GUIDE_HEADING = '# Clear Thought — Reasoning Tool Guide';
  *  short response is guaranteed visible, which text notes inside the large
  *  payload cannot guarantee. */
 const FULL_CALL_LOOP_THRESHOLD = 2;
+/** After this many blocked attempts, escalate from a normal loop_detected
+ *  result to a HARD tool error (isError: true). Observed 2026-09-23: some
+ *  models ignore `status: 'loop_detected'` success-results entirely and keep
+ *  retrying 20+ times; a protocol-level error is the only signal they obey. */
+const LOOP_ERROR_ESCALATION = 3;
 /** Module-level per-session counter for full-mode setup_clearthought calls. */
 const fullCallCounters = new Map<string, number>();
 
@@ -32,28 +37,44 @@ interface LoopBlockArgs {
 /**
  * Builds the short loop-detected response. Deliberately small (< 1KB) so it
  * cannot be truncated/offloaded — that is the entire point of the guard.
+ * After LOOP_ERROR_ESCALATION blocked attempts the result becomes a HARD tool
+ * error (isError: true): models that ignore non-success statuses in normal
+ * results do obey protocol-level errors.
  */
 function buildLoopBlockedResponse({ sessionId, calls }: LoopBlockArgs) {
+  const hard = calls - FULL_CALL_LOOP_THRESHOLD > LOOP_ERROR_ESCALATION;
   return {
+    isError: hard,
     content: [
       {
         type: 'text' as const,
         text: JSON.stringify(
-          {
-            status: 'loop_detected',
-            one_shot: true,
-            calls_in_session: calls,
-            message:
-              'setup_clearthought already SUCCEEDED ' +
-              calls +
-              ' times in this session without a part parameter. ' +
-              'Unchanged repeated calls never produce new content — this is ' +
-              'blocked to stop an endless retry loop. The guide is delivered ' +
-              'PAGED: call with part: 0 (then 1, 2, ... until final_part) to ' +
-              'fetch it properly, or proceed with your actual task now. ' +
-              'Only pass force:true if you genuinely need a newly rendered guide.',
-            how_to_override: 'force: true'
-          },
+          hard
+            ? {
+                status: 'refused_do_not_retry',
+                blocked_attempts: calls - FULL_CALL_LOOP_THRESHOLD,
+                message:
+                  'BLOCKED. setup_clearthought was refused ' +
+                  (calls - FULL_CALL_LOOP_THRESHOLD) +
+                  ' times in this session. Calling it again will keep failing. ' +
+                  'STOP calling this tool and continue your task without it.',
+                terminal: true
+              }
+            : {
+                status: 'loop_detected',
+                one_shot: true,
+                calls_in_session: calls,
+                message:
+                  'setup_clearthought already SUCCEEDED ' +
+                  calls +
+                  ' times in this session without a part parameter. ' +
+                  'Unchanged repeated calls never produce new content — this is ' +
+                  'blocked to stop an endless retry loop. The guide is delivered ' +
+                  'PAGED: call with part: 0 (then 1, 2, ... until final_part) to ' +
+                  'fetch it properly, or proceed with your actual task now. ' +
+                  'Only pass force:true if you genuinely need a newly rendered guide.',
+                how_to_override: 'force: true'
+              },
           null,
           2
         )

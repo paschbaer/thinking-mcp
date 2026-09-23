@@ -275,3 +275,39 @@ it('paged part calls do NOT trip the loop guard; unparameterized repeats still d
   const blocked = await tool.handler(args, extra);
   expect(JSON.parse(blocked.content[0].text).status).toBe('loop_detected');
 });
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { defaultConfig } from '../src/config.js';
+import { SessionState } from '../src/state/SessionState.js';
+import { __resetLoopGuardForTests, registerAgentsGuide } from '../src/tools/setup-clearthought.js';
+import { AGENTS_TEMPLATE } from '../src/tools/setup-clearthought-template.js';
+import { registerUtilityToolset } from '../src/toolsets/utility.js';
+
+
+it('escalation: after 3 blocked attempts the guard returns a HARD tool error', async () => {
+  const { server, state } = setupServer();
+  registerAgentsGuide(server, state);
+  const tool = getTool(server, 'setup_clearthought');
+  const extra = { sessionId: 's-escalate' };
+  const args = { project_name: 'Spam' };
+
+  await tool.handler(args, extra);
+  await tool.handler(args, extra);
+  // calls 3-5: soft loop_detected, isError false
+  for (let i = 3; i <= 5; i++) {
+    const r = await tool.handler(args, extra);
+    expect(r.isError).toBeFalsy();
+    expect(JSON.parse(r.content[0].text).status).toBe('loop_detected');
+  }
+  // call 6+: hard error, clients must treat it as a failed tool call
+  const hard = await tool.handler(args, extra);
+  expect(hard.isError).toBe(true);
+  const data = JSON.parse(hard.content[0].text);
+  expect(data.status).toBe('refused_do_not_retry');
+  expect(data.terminal).toBe(true);
+  // stays SHORT even when hard
+  expect(hard.content[0].text.length).toBeLessThan(1000);
+});
