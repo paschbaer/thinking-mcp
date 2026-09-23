@@ -180,7 +180,8 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
         activeBatchId: state.activeBatchId,
         validation: state.validation,
         tasks: Object.values(state.tasks).reduce<Record<string, number>>((acc, t) => { acc[t.status] = (acc[t.status] ?? 0) + 1; return acc; }, {}),
-        pendingPlanChanges: Object.values(state.planChanges).filter((p) => p.status === "proposed").length,
+        // offen = noch nicht entschieden/appliziert (proposed | artifact_update_required)
+        pendingPlanChanges: Object.values(state.planChanges).filter((p) => p.status === "proposed" || p.status === "artifact_update_required").length,
       });
     },
   );
@@ -201,7 +202,7 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Startet Aufgaben in einem Batch (Status → in_progress)",
     { ...sessionId, ...batchId, taskIds: z.array(z.string().min(1)).min(1) },
     async ({ sessionId: sid, batchId: bid, taskIds }) =>
-      toJson(withState(sid, (engine, state) => {
+      toJson(await withState(sid, (engine, state) => {
         const target = bid ?? state.activeBatchId;
         if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
         engine.startTask(state, target, taskIds);
@@ -213,7 +214,7 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Reicht Implementierungsnachweise für Aufgaben ein",
     { ...sessionId, ...batchId, evidence: z.array(z.record(z.unknown())) },
     async ({ sessionId: sid, batchId: bid, evidence }) =>
-      toJson(withState(sid, (engine, state) => {
+      toJson(await withState(sid, (engine, state) => {
         const target = bid ?? state.activeBatchId;
         if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
         engine.submitImplementation(state, target, evidence as Parameters<SpecKitEngine["submitImplementation"]>[2]);
@@ -225,7 +226,7 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Reicht Review-Findings für Aufgaben ein",
     { ...sessionId, ...batchId, findings: z.array(z.record(z.unknown())) },
     async ({ sessionId: sid, batchId: bid, findings }) =>
-      toJson(withState(sid, (engine, state) => {
+      toJson(await withState(sid, (engine, state) => {
         const target = bid ?? state.activeBatchId;
         if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
         engine.submitReview(state, target, findings as Parameters<SpecKitEngine["submitReview"]>[2]);
@@ -237,7 +238,7 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Markiert eine verifizierte Aufgabe als completed",
     { ...sessionId, taskId: z.string().min(1) },
     async ({ sessionId: sid, taskId }) =>
-      toJson(withState(sid, (engine, state) => { engine.completeTask(state, taskId); })),
+      toJson(await withState(sid, (engine, state) => { engine.completeTask(state, taskId); })),
   );
 
   server.tool(
@@ -251,7 +252,7 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
       impact: z.object({ acceptanceCriteria: z.boolean(), publicApi: z.boolean(), dependencies: z.boolean() }),
     },
     async ({ sessionId: sid, changeType, reason, affectedTasks, impact }) =>
-      toJson(withState(sid, (engine, state) => {
+      toJson(await withState(sid, (engine, state) => {
         engine.proposePlanChange(state, { changeType, reason, affectedTasks, impact });
       })),
   );

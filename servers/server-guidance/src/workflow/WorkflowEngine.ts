@@ -26,10 +26,16 @@ import { PolicyEngine } from "../policy/PolicyEngine.js";
 import { createRedactor } from "../policy/redaction.js";
 
 const TRUST_LEVELS: readonly TrustLevel[] = ["untrusted", "restricted", "trusted", "privileged"];
+/** Warn-once-Gedächtnis: eine Fehlkonfiguration soll nicht pro Call warnen. */
+const trustLevelWarned = new Set<string>();
 /** Normalizes a configured trustLevel to the TrustLevel union; unknown values fall back to "trusted". */
 function toTrustLevel(value: string | undefined, serverId?: string): TrustLevel {
   if (value !== undefined && !TRUST_LEVELS.includes(value as TrustLevel)) {
-    process.stderr.write(`[guidance] warning: unknown trustLevel "${value}" for server ${serverId ?? "?"}; falling back to "trusted"\n`);
+    const key = `${serverId ?? "?"}:${value}`;
+    if (!trustLevelWarned.has(key)) {
+      trustLevelWarned.add(key);
+      process.stderr.write(`[guidance] warning: unknown trustLevel "${value}" for server ${serverId ?? "?"}; falling back to "trusted"\n`);
+    }
   }
   return TRUST_LEVELS.includes(value as TrustLevel) ? (value as TrustLevel) : "trusted";
 }
