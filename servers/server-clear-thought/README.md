@@ -394,7 +394,11 @@ Quantifies whether resolving an uncertainty is worth the research cost (EVPI-sty
 Echoes the provided `text` back — smoke test for the tool wiring.
 
 #### `setup_clearthought`
-Returns a ready-to-use AGENTS.md reasoning-tool guide for consuming projects. See [Agent Guide](#agent-guide) for modes, markers, and chat prompts.
+Returns a ready-to-use AGENTS.md reasoning-tool guide for consuming projects.
+One-shot: it always succeeds on the first call — never retry it; the response
+puts `status: "success"` first and includes `one_shot: true` so agents cannot
+mistake a truncated view for a failure. See [Agent Guide](#agent-guide) for
+modes, markers, and chat prompts.
 
 ### Session tools
 
