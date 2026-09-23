@@ -410,7 +410,10 @@ a SHORT `part_out_of_range` error naming the valid range. Merge mode
 Additionally a server-side loop guard counts part-less full-mode calls per
 session: from the 3rd call it answers with a SHORT `loop_detected` response
 (no guide content) so endless retry loops cannot burn tokens — `force: true`
-is the explicit escape hatch for intentional re-rendering. See [Agent Guide](#agent-guide) for
+is the explicit escape hatch for intentional re-rendering. After 3 blocked
+attempts the response escalates to a HARD tool error (`isError: true`,
+`status: "refused_do_not_retry"`) — some models ignore non-success statuses in
+normal results; a protocol-level error is the only signal they reliably obey. See [Agent Guide](#agent-guide) for
 modes, markers, and chat prompts.
 
 ### Session tools
