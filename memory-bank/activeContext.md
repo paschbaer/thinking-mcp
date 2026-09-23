@@ -318,3 +318,10 @@
 - 2026-09-23 — M2/M3/F7 abgeschlossen (commits 7efaa16, 2b7bbb2, 6cdc842, e3bded6, d1cd01b): requestTimeoutSeconds erzwungen, alle `as never` entfernt, Spec-Kit 12 Tools profil-gated registriert (Option C, lazy Engine-Cache je sessionId + atomic StateStore). Review-HIGH (sessionId-Pfad-Traversal im StateStore) sofort geschlossen. Suite: 136/136. Offen: getrackte LOWs in remaining-work-plan.md; Merge-Flow (rebase→develop, squash→main) wartet auf User-Freigabe.
 - 2026-09-23 — Alle getrackten LOW-Findings behoben (ab985b9, 5c34f3d): Review-HIGH (fehlendes await → '{}'-Payloads bei 5 Mutation-Tools) vom Reviewer gefunden und sofort mit Regressions-Test geschlossen. Suite 137/137. Merge-Flow wartet weiter auf User-Freigabe.
 - 2026-09-23 — HTTP-Betrieb implementiert und in Container verifiziert: POST /mcp (streamable, stateless), Bearer-Auth optional, GUIDANCE_BIND_HOST-Opt-in, Dockerfile+Compose (Port 3003, /workspace-Volume). Suite 142/142. Server jetzt auch über HTTP einsatzbereit; develop um 2 Commits ahead of origin (push via User).
+
+## 2026-09-23: SDK-Streamable-Transport-Migration (feature/sdk-streamable-transport-migration)
+- clear-thought + insight: @smithery/sdk-Wrapper entfernt, direkter StreamableHTTPServerTransport (stateful Sessions, mcp-session-id, enableJsonResponse). Keine neue Abhängigkeit, Sed-Patch aus beiden Dockerfiles gefallen.
+- Container-Härtung: clear-thought npm ci + compose modernisiert + CLEAR_THOUGHT_BIND_HOST; insight Label-Pfad gefixt, server-lokales Lockfile + npm ci (LOW resolved).
+- Root-Cause-Trap beim Migrationstest: fehlendes await server.connect(transport) — Transport annahm Sessions, Server antwortete nie. Nur per offiziellem SDK-Client-E2E gegen dist/Container auffindbar (curl-SSE-Artefakte irreführend).
+- Review (Review-Agent): 2 HIGHs (Root-Compose-Bind-Hosts, ungebremstes Session-Wachstum) — beide gefixt in 1caa690; 3 akzeptierte LOW/INFO-Beobachtungen getrackt im remaining-work-plan.
+- Stand: 3 Commits auf Feature-Branch (bc5326c, dd065b4, 1caa690), Baum sauber; Merge nach develop noch offen.
