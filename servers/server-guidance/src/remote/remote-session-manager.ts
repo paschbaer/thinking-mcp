@@ -113,8 +113,11 @@ export class RemoteSessionManager {
     if (files && typeof files === "object") {
       for (const [rel, content] of Object.entries(files)) {
         if (typeof content !== "string") throw new Error(`configuration_invalid: configFiles.${rel} must be a string`);
-        const target = join(cfgDir, rel);
-        if (!resolve(target).startsWith(resolve(cfgDir))) {
+        const target = resolve(join(cfgDir, rel));
+        const root = resolve(cfgDir);
+        // F2-Fix: relativ + separator-bewusst (kein Prefix-Only-Match).
+        const relPath = target.slice(root.length + 1);
+        if (target !== root && (relPath.startsWith("/") || relPath.startsWith("\\") || relPath.includes(".."))) {
           throw new Error("configuration_invalid: configFiles path escapes session config directory");
         }
         mkdirSync(join(target, ".."), { recursive: true });
