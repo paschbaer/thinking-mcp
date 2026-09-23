@@ -38,10 +38,15 @@ export function ensureConfiguration(configDir: string): { scaffolded: boolean; c
   return result;
 }
 
-export function composeApplication(workspaceRoot: string, configDir: string, stateDir: string): Composition {
-  ensureConfiguration(configDir);
+export function composeApplication(
+  workspaceRoot: string,
+  configDir: string,
+  stateDir: string,
+  options?: { operationEngine?: ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"]; skipScaffold?: boolean },
+): Composition {
+  if (!options?.skipScaffold) ensureConfiguration(configDir);
   const config = loadConfig(configDir);
-  const engine = new WorkflowEngine({ config, stateDir });
+  const engine = new WorkflowEngine({ config, stateDir, operationEngine: options?.operationEngine });
   const tools = new WorkflowTools(engine);
   return { config, configDir, stateDir, engine, tools };
 }
