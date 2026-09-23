@@ -96,6 +96,17 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
         .filter((p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback))
         .map((p) => p.token);
 
+      // one_shot note is scoped per mode: merge mode legitimately allows repeat
+      // calls (idempotent in-place updates); full mode must never be retried.
+      const note =
+        mode === 'full'
+          ? 'This call SUCCEEDED and the guide in `content` is complete. ' +
+            'Do NOT call this tool again to retry or verify — proceed directly ' +
+            'to writing `content` to AGENTS.md as described in nextSteps.'
+          : 'This call SUCCEEDED. Repeat calls with existing_agents_md are ' +
+            'allowed for idempotent in-place updates, but never call it again ' +
+            'to retry or verify success.';
+
       return {
         content: [
           {
@@ -106,11 +117,8 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
                 // a truncated tool-result view, which caused agents to assume
                 // failure and retry the call in an endless loop (2026-09-23).
                 status: 'success',
-                one_shot: true,
-                note:
-                  'This call SUCCEEDED and the guide in `content` is complete. ' +
-                  'Do NOT call this tool again — proceed directly to writing ' +
-                  '`content` to AGENTS.md as described in nextSteps.',
+                one_shot: mode === 'full',
+                note,
                 mode,
                 block_replaced: blockReplaced,
                 ...(warning ? { warning } : {}),

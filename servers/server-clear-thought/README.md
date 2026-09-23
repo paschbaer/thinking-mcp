@@ -396,8 +396,9 @@ Echoes the provided `text` back — smoke test for the tool wiring.
 #### `setup_clearthought`
 Returns a ready-to-use AGENTS.md reasoning-tool guide for consuming projects.
 One-shot: it always succeeds on the first call — never retry it; the response
-puts `status: "success"` first and includes `one_shot: true` so agents cannot
-mistake a truncated view for a failure. See [Agent Guide](#agent-guide) for
+puts `status: "success"` first and includes a `one_shot` flag plus an explicit
+"do NOT call again" note (full mode) so agents cannot mistake a truncated view
+for a failure; merge mode allows idempotent repeat calls via `existing_agents_md`. See [Agent Guide](#agent-guide) for
 modes, markers, and chat prompts.
 
 ### Session tools
