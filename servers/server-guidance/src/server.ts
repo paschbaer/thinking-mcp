@@ -12,10 +12,11 @@ import express from "express";
 import { join } from "node:path";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { GuidanceError } from "./types/errors.js";
+import { existsSync } from "node:fs";
 import { createGuidanceServer } from "./mcp-server/GuidanceServer.js";
 import { registerWorkflowTools } from "./mcp-server/register-tools.js";
 import { registerSpecKitTools, toEngineSpecKitConfig } from "./mcp-server/register-spec-kit-tools.js";
-import { composeApplication } from "./main.js";
+import { composeApplication, ensureConfiguration } from "./main.js";
 import { AuditRepository } from "./state/SessionRepository.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Request, Response, NextFunction } from "express";
@@ -97,6 +98,8 @@ export function createHttpApp(opts: HttpAppOptions) {
       }
     : (_req: Request, _res: Response, next: NextFunction) => next();
 
+  // Scaffold-on-first-start (Option D) VOR der Komposition.
+  ensureConfiguration(opts.configDir);
   // Komposition EINMAL pro Boot (HIGH-2): geteilte Repositories/Locks.
   const composed = composeApplication(opts.workspaceRoot, opts.configDir, opts.stateDir);
   const composedView: ComposedApp = {
@@ -107,7 +110,10 @@ export function createHttpApp(opts: HttpAppOptions) {
   };
 
   app.get("/health", (_req, res) => {
-    res.json({ server: "guidance", status: "ok" });
+    // configured = Konfiguration nach optionalem Scaffold vorhanden.
+    // Healthcheck-Muster: 200 immer, aber 'configured:false' macht einen
+    // unkonfigurierten Server im Monitoring sofort sichtbar.
+    res.json({ server: "guidance", status: "ok", configured: existsSync(join(opts.configDir, "guidance.json")) });
   });
 
   // Stateless streamable HTTP: fresh server+transport per request; workflow

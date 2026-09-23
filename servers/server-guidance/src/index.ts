@@ -5,7 +5,7 @@ import { createGuidanceServer } from "./mcp-server/GuidanceServer.js";
 import { registerWorkflowTools } from "./mcp-server/register-tools.js";
 import { registerSpecKitTools } from "./mcp-server/register-spec-kit-tools.js";
 import { toEngineSpecKitConfig } from "./mcp-server/register-spec-kit-tools.js";
-import { composeApplication } from "./main.js";
+import { composeApplication, ensureConfiguration } from "./main.js";
 import { AuditRepository } from "./state/SessionRepository.js";
 export const GUIDANCE_SERVER_NAME = "guidance";
 export const SERVER_VERSION = "0.1.0";
