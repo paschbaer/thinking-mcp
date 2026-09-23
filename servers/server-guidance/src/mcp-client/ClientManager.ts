@@ -143,6 +143,10 @@ export class ClientManager {
     | { kind: "tool_reported"; message: string; content: unknown[] }
     | { kind: "transport"; message: string }
   > {
+    if (requestTimeoutSeconds !== undefined && (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)) {
+      // Vor clientFor: invalid config beats connection errors in reporting.
+      return { kind: "transport", message: `invalid requestTimeoutSeconds: ${requestTimeoutSeconds}` };
+    }
     let client: Client;
     try {
       client = this.clientFor(serverId);
@@ -151,9 +155,6 @@ export class ClientManager {
     }
     let response: { isError?: boolean; content?: unknown[]; structuredContent?: unknown };
     let timer: NodeJS.Timeout | undefined;
-    if (requestTimeoutSeconds !== undefined && (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)) {
-      return { kind: "transport", message: `invalid requestTimeoutSeconds: ${requestTimeoutSeconds}` };
-    }
     try {
       const call = client.callTool({ name: toolName, arguments: args });
       // The raced call is intentionally abandoned on timeout; swallow its late

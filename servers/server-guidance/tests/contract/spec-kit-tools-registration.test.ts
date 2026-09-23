@@ -6,7 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { composeApplication } from "../../src/main.js";
-import { registerWorkflowTools } from "../../src/mcp-server/register-tools.js";
+import { registerWorkflowTools, WORKFLOW_TOOL_NAMES } from "../../src/mcp-server/register-tools.js";
 import { registerSpecKitTools, SPEC_KIT_TOOL_NAMES, toEngineSpecKitConfig } from "../../src/mcp-server/register-spec-kit-tools.js";
 import { createGuidanceServer } from "../../src/mcp-server/GuidanceServer.js";
 import { loadConfig } from "../../src/config.js";
@@ -95,11 +95,14 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
     for (const n of SPEC_KIT_TOOL_NAMES) expect(names).not.toContain(n);
   });
 
-  it("spec-kit profile: alle 12 Tools registriert", async () => {
+  it("spec-kit profile: exakt Workflow- + Spec-Kit-Oberfläche (keine Duplikate, nichts fehlt)", async () => {
     await start("spec-kit");
     const { tools } = await client.listTools();
-    const names = tools.map((t) => t.name);
-    for (const n of SPEC_KIT_TOOL_NAMES) expect(names).toContain(n);
+    const names = tools.map((t) => t.name).sort();
+    const expected = [...WORKFLOW_TOOL_NAMES, ...SPEC_KIT_TOOL_NAMES].sort();
+    // Exakte Mengengleichheit: fängt fehlende UND doppelt registrierte Tools.
+    expect(names).toEqual(expected);
+    expect(new Set(names).size).toBe(names.length);
   });
 
   it("discover → import → get_next_task Round-Trip über das Protokoll", async () => {

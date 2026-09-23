@@ -27,7 +27,10 @@ import { createRedactor } from "../policy/redaction.js";
 
 const TRUST_LEVELS: readonly TrustLevel[] = ["untrusted", "restricted", "trusted", "privileged"];
 /** Normalizes a configured trustLevel to the TrustLevel union; unknown values fall back to "trusted". */
-function toTrustLevel(value: string | undefined): TrustLevel {
+function toTrustLevel(value: string | undefined, serverId?: string): TrustLevel {
+  if (value !== undefined && !TRUST_LEVELS.includes(value as TrustLevel)) {
+    process.stderr.write(`[guidance] warning: unknown trustLevel "${value}" for server ${serverId ?? "?"}; falling back to "trusted"\n`);
+  }
   return TRUST_LEVELS.includes(value as TrustLevel) ? (value as TrustLevel) : "trusted";
 }
 
@@ -134,7 +137,7 @@ export class WorkflowEngine {
             serverId,
             // Unrecognized configured values fall back to "trusted" (documented
             // default), keeping the egress check type-safe instead of cast.
-            trustLevel: toTrustLevel(serverCfgE?.trustLevel),
+            trustLevel: toTrustLevel(serverCfgE?.trustLevel, serverId),
             riskClass: opForEgress?.riskClass,
             args,
             approved: opForEgress?.approved === true,
@@ -264,10 +267,13 @@ export class WorkflowEngine {
         });
         this.audit.append({ sessionId, eventType: "hook_failed", phase: session.currentPhase, data: { lifecycle: "beforeEnter", operationId: id, blocked: true } });
         session.status = "blocked";
+        // Symmetrie zum Submit-Pfad: ein required failure blockiert sofort;
+        // weitere beforeEnter/afterEnter-Ops laufen nicht mehr (fail-fast).
+        break;
       }
     }
     this.audit.append({ sessionId, eventType: "phase_entered", phase: session.currentPhase, data: {} });
-    const afterEnterResults = await this.runAfterEnter(session, session.currentPhase);
+    const afterEnterResults = startBlocked ? [] : await this.runAfterEnter(session, session.currentPhase);
     const operations = [...opResultsStart, ...afterEnterResults];
     // requiredFailed must be computed over afterEnter results ONLY — failed
     // required beforeEnter start-ops already blocked the session above.

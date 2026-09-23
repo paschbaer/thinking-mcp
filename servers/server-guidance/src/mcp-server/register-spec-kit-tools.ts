@@ -129,13 +129,23 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
   const featureId = { featureId: z.string().min(1).optional() };
   const batchId = { batchId: z.string().min(1).optional() };
 
-  const withState = (sessionIdValue: string, fn: (engine: SpecKitEngine, state: SpecKitState) => SpecKitState | void) => {
-    const engine = resolver.resolve(sessionIdValue);
-    const state = resolver.store.load(sessionIdValue);
-    const next = fn(engine, state) ?? state;
-    resolver.store.save(sessionIdValue, next);
-    return next;
+  // Per-Session-Mutex: serialisiert read-modify-write über StateStore, auch
+  // falls ein Handler künftig async wird (Lost-Update-Schutz, vgl. withLock).
+  const sessionLocks = new Map<string, Promise<unknown>>();
+  const withLock = async <T>(sessionIdValue: string, fn: () => T): Promise<T> => {
+    const previous = sessionLocks.get(sessionIdValue) ?? Promise.resolve();
+    const run = previous.then(fn, fn);
+    sessionLocks.set(sessionIdValue, run.catch(() => {}));
+    return await run;
   };
+  const withState = async (sessionIdValue: string, fn: (engine: SpecKitEngine, state: SpecKitState) => SpecKitState | void) =>
+    withLock(sessionIdValue, () => {
+      const engine = resolver.resolve(sessionIdValue);
+      const state = resolver.store.load(sessionIdValue);
+      const next = fn(engine, state) ?? state;
+      resolver.store.save(sessionIdValue, next);
+      return next;
+    });
 
   server.tool(
     "discover_spec_kit_feature",
