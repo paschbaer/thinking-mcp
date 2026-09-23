@@ -9,12 +9,8 @@ WORKDIR /usr/src/app
 # Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies (skip prepare script)
+# Install dependencies (skip prepare script; no Smithery SDK patch needed anymore)
 RUN npm ci --ignore-scripts
-
-# Fix CommonJS/ESM compatibility issue in Smithery SDK by inlining okay-error functions
-RUN sed -i '2,3d' node_modules/@smithery/sdk/dist/shared/config.js && \
-    sed -i '2i const ok = (value) => ({ ok: true, value });\nconst err = (error) => ({ ok: false, error });' node_modules/@smithery/sdk/dist/shared/config.js
 
 # Copy source files
 COPY . .

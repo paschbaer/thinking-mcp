@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   clear-thought:
     build: .
@@ -8,7 +6,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - LOG_LEVEL=info
+      # Needed for the container port-mapping (server defaults to loopback)
+      - CLEAR_THOUGHT_BIND_HOST=0.0.0.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
