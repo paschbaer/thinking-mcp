@@ -46,10 +46,11 @@ function buildLoopBlockedResponse({ sessionId, calls }: LoopBlockArgs) {
             message:
               'setup_clearthought already SUCCEEDED ' +
               calls +
-              ' times in this session and returned the complete guide. ' +
-              'The full content was delivered in the first response ' +
-              '(check your client for the earlier tool result / offloaded file). ' +
-              'Do NOT call this tool again — proceed with your actual task now. ' +
+              ' times in this session without a part parameter. ' +
+              'Unchanged repeated calls never produce new content — this is ' +
+              'blocked to stop an endless retry loop. The guide is delivered ' +
+              'PAGED: call with part: 0 (then 1, 2, ... until final_part) to ' +
+              'fetch it properly, or proceed with your actual task now. ' +
               'Only pass force:true if you genuinely need a newly rendered guide.',
             how_to_override: 'force: true'
           },
@@ -106,10 +107,13 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
     'Return a ready-to-use AGENTS.md reasoning-tool guide (with usage rules, ' +
       'tool routing and workflow recipes) for projects consuming this server, ' +
       'optionally merged into existing AGENTS.md content. ' +
-      'IMPORTANT: This is a ONE-SHOT tool. It always succeeds on the first call; ' +
-      'never call it again to retry or verify — vary nothing and repeat nothing. ' +
-      'If the response is truncated in your view, the call still succeeded: ' +
-      'read `status` first and stop after one call.',
+      'FULL mode delivers the guide PAGED: the first call returns part 0 of ' +
+      'total_parts; you MUST then fetch part 1, 2, ... with the SAME arguments ' +
+      'plus part: N until final_part is true, and concatenate the parts 1:1. ' +
+      'Those part fetches are REQUIRED follow-ups, not retries. What you must ' +
+      'NEVER do: repeat a call UNCHANGED to retry or verify — that is blocked ' +
+      'after 2 attempts. MERGE mode (existing_agents_md) returns the complete ' +
+      'document in one response and allows idempotent repeat updates.',
     {
       project_name: z
         .string()
