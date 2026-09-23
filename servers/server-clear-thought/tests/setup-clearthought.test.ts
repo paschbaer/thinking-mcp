@@ -48,6 +48,23 @@ it('full mode returns a complete document with substituted placeholders', async 
   expect(data.unresolved_placeholders).toEqual([]);
 });
 
+it('serialization puts status FIRST and marks the call as one-shot (anti-retry-loop invariant)', async () => {
+  const { server, state } = setupServer();
+  registerAgentsGuide(server, state);
+  const raw = await getTool(server, 'setup_clearthought').handler(
+    { project_name: 'OrderTest' },
+    {}
+  );
+  const parsed = JSON.parse(raw.content[0].text);
+  // status must survive truncation of large payloads -> first serialized field
+  const rawText = raw.content[0].text as string;
+  const firstKey = rawText.trim().replace(/^\{/, '').split('"')[1];
+  expect(firstKey).toBe('status');
+  expect(parsed.status).toBe('success');
+  expect(parsed.one_shot).toBe(true);
+  expect(parsed.note).toMatch(/do NOT call this tool again/i);
+});
+
 it('reports unresolved placeholders when optional context is omitted', async () => {
   const { server, state } = setupServer();
   registerAgentsGuide(server, state);
