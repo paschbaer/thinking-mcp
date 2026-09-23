@@ -9,9 +9,10 @@ WORKDIR /usr/src/app
 # Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies (skip prepare script; ignore-scripts because
-# better-sqlite3 is rebuilt explicitly below with platform-correct binaries)
-RUN npm install --ignore-scripts --no-audit --no-fund
+# Install dependencies deterministically from the committed lockfile
+# (skip prepare script; ignore-scripts because better-sqlite3 is rebuilt
+# explicitly below with platform-correct binaries)
+RUN npm ci --ignore-scripts
 
 # Build native module for the container platform, then the project
 RUN npm rebuild better-sqlite3
