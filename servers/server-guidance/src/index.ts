@@ -1,21 +1,20 @@
-/**
- * Guidance MCP server — stdio entry point.
- *
- * Functionality is delivered incrementally per
- * specs/002-guidance-workflow-server/tasks.md; the full upstream tool surface
- * is specified in contracts/upstream-mcp-tools.md.
- */
+/** Guidance MCP server — stdio entry point (composition root, Review Finding 1). */
+import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createGuidanceServer } from "./mcp-server/GuidanceServer.js";
-
+import { registerWorkflowTools } from "./mcp-server/register-tools.js";
+import { composeApplication } from "./main.js";
 export const GUIDANCE_SERVER_NAME = "guidance";
 export const SERVER_VERSION = "0.1.0";
 
 async function main(): Promise<void> {
+  const workspaceRoot = process.cwd();
+  const app = composeApplication(workspaceRoot, join(workspaceRoot, ".guidance"), join(workspaceRoot, ".guidance", "state"));
   const server = createGuidanceServer();
+  registerWorkflowTools(server, app.tools, workspaceRoot);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write(`[${GUIDANCE_SERVER_NAME}] v${SERVER_VERSION} ready (stdio).\n`);
+  process.stderr.write(`[${GUIDANCE_SERVER_NAME}] v${SERVER_VERSION} ready (stdio, profile: ${app.config.profile})\n`);
 }
 
 main().catch((err: unknown) => {
