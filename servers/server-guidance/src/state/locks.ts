@@ -53,7 +53,7 @@ export class FeatureLockRegistry {
     const lock = this.load();
     const holder = lock[featureDir];
     if (holder && holder.sessionId !== sessionId) {
-      throw new GuidanceError("spec_kit_feature_in_use" as never, `feature locked by ${holder.sessionId}`, {
+      throw new GuidanceError("spec_kit_feature_in_use", `feature locked by ${holder.sessionId}`, {
         recoverable: true,
       });
     }
@@ -65,7 +65,7 @@ export class FeatureLockRegistry {
     const lock = this.load();
     const holder = lock[featureDir];
     if (holder && holder.sessionId !== sessionId) {
-      throw new GuidanceError("spec_kit_feature_in_use" as never, `feature locked by ${holder.sessionId}`, {
+      throw new GuidanceError("spec_kit_feature_in_use", `feature locked by ${holder.sessionId}`, {
         recoverable: true,
       });
     }

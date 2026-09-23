@@ -11,7 +11,9 @@ import type {
 } from "../config.js";
 import type {
   OperationConfig,
+  OperationStatus,
   PhaseInstruction,
+  TrustLevel,
   WorkflowDefinition,
   WorkflowSession,
 } from "../types/index.js";
@@ -22,6 +24,12 @@ import { OperationEngine, type OperationContext } from "../orchestration/Operati
 import { ClientManager } from "../mcp-client/ClientManager.js";
 import { PolicyEngine } from "../policy/PolicyEngine.js";
 import { createRedactor } from "../policy/redaction.js";
+
+const TRUST_LEVELS: readonly TrustLevel[] = ["untrusted", "restricted", "trusted", "privileged"];
+/** Normalizes a configured trustLevel to the TrustLevel union; unknown values fall back to "trusted". */
+function toTrustLevel(value: string | undefined): TrustLevel {
+  return TRUST_LEVELS.includes(value as TrustLevel) ? (value as TrustLevel) : "trusted";
+}
 
 export interface StartResult {
   accepted: true;
@@ -124,7 +132,9 @@ export class WorkflowEngine {
           const opForEgress = Object.values(this.operations).find((o) => o.server === serverId && o.capability === toolName);
           this.policyEngine.evaluateEgress({
             serverId,
-            trustLevel: (serverCfgE?.trustLevel as never) ?? "trusted",
+            // Unrecognized configured values fall back to "trusted" (documented
+            // default), keeping the egress check type-safe instead of cast.
+            trustLevel: toTrustLevel(serverCfgE?.trustLevel),
             riskClass: opForEgress?.riskClass,
             args,
             approved: opForEgress?.approved === true,
@@ -151,15 +161,15 @@ export class WorkflowEngine {
   private readonly archiveDir: string;
 
   /** Persists downstream op/server state into the session (FR-044). */
-  recordDownstreamState(sessionId: string, opId: string, status: string, summary: string): void {
+  recordDownstreamState(sessionId: string, opId: string, status: OperationStatus, summary: string): void {
     if (!this.sessions.exists(sessionId)) return;
     this.sessions.update(sessionId, (s) => {
       s.downstream.operations[opId] = {
         latestExecutionId: `operation-${Date.now()}`,
-        status: status as never,
+        status,
         attempts: (s.downstream.operations[opId]?.attempts ?? 0) + 1,
         ...(summary ? { summary } : {}),
-      } as never;
+      };
     });
   }
 
@@ -321,8 +331,8 @@ export class WorkflowEngine {
   private reconcileRunningOperations(session: WorkflowSession): WorkflowSession {
     let changed = false;
     for (const [opId, entry] of Object.entries(session.downstream.operations)) {
-      if (entry.status === ("running" as never)) {
-        session.downstream.operations[opId] = { ...entry, status: "unknown" as never };
+      if (entry.status === "running") {
+        session.downstream.operations[opId] = { ...entry, status: "unknown" };
         changed = true;
       }
     }
