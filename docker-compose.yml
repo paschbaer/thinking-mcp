@@ -14,6 +14,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      # Required for container port-mapping (servers default to loopback)
+      - CLEAR_THOUGHT_BIND_HOST=0.0.0.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -29,6 +31,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3002
+      # Required for container port-mapping (server defaults to loopback)
+      - EMMS_BIND_HOST=0.0.0.0
       # Store + artifacts live OUTSIDE the container (host bind mount) so they
       # survive re-deploys, `docker compose down -v`, and are directly
       # backupable from ./servers/server-insight/emms-data on the host

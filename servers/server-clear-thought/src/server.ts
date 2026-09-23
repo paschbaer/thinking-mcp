@@ -19,6 +19,10 @@ import { ServerConfigSchema, type ServerConfig } from './config.js';
 interface HttpSession {
   server: Server;
   transport: StreamableHTTPServerTransport;
+  /** Epoch ms of last request — used by the idle-session reaper. */
+  lastSeen: number;
+  /** Wire session id once the client initializes (set via onsessioninitialized). */
+  sessionId?: string;
 }
 
 /** Session registry — populated via onsessioninitialized. */
@@ -39,20 +43,47 @@ function createSession(): HttpSession {
     sessionIdGenerator: () => randomUUID(),
     enableJsonResponse: true,
     onsessioninitialized: (id: string) => {
+      session.sessionId = id;
       sessions.set(id, session);
     },
   });
   transport.onclose = () => {
-    for (const [id, s] of sessions) {
-      if (s.transport === transport) {
-        sessions.delete(id);
-        break;
-      }
-    }
+    if (session.sessionId) sessions.delete(session.sessionId);
   };
-  const session: HttpSession = { server, transport };
+  const session: HttpSession = { server, transport, lastSeen: Date.now() };
   return session;
 }
+
+
+// --- Session hygiene (review HIGH-2): bound in-memory session growth. ---
+const IDLE_SESSION_TTL_MS = 3600000;
+const MAX_SESSIONS = 500;
+
+/** Close + drop sessions idle longer than the TTL; also evict oldest beyond MAX_SESSIONS. */
+function sweepSessions(): void {
+  const now = Date.now();
+  for (const [id, s] of sessions) {
+    if (now - s.lastSeen > IDLE_SESSION_TTL_MS) {
+      sessions.delete(id);
+      void s.transport.close().catch(() => undefined);
+      void s.server.close().catch(() => undefined);
+    }
+  }
+  while (sessions.size > MAX_SESSIONS) {
+    let oldestId: string | undefined;
+    let oldest = Infinity;
+    for (const [id, s] of sessions) {
+      if (s.lastSeen < oldest) { oldest = s.lastSeen; oldestId = id; }
+    }
+    if (!oldestId) break;
+    const victim = sessions.get(oldestId);
+    sessions.delete(oldestId);
+    void victim?.transport.close().catch(() => undefined);
+    void victim?.server.close().catch(() => undefined);
+  }
+}
+const sweepTimer = setInterval(sweepSessions, 5 * 60_000);
+sweepTimer.unref();
 
 // Express app with the MCP streamable transport mounted at /mcp.
 // Exported so tests can bind it to an ephemeral port.
@@ -62,6 +93,7 @@ app.post('/mcp', express.json({ limit: '10mb' }), async (req: Request, res: Resp
   try {
     const sessionId = req.headers['mcp-session-id'];
     let session = typeof sessionId === 'string' ? sessions.get(sessionId) : undefined;
+    if (session) session.lastSeen = Date.now();
     if (!session) {
       // Covers initialize (no session id yet) and clients that never reuse a
       // session id: each gets a fresh server instance with its own SessionState.
@@ -110,6 +142,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Error handling middleware
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (res.headersSent) return _next(err);
   console.error('Server error:', err);
   res.status(500).json({
     error: 'Internal server error',
@@ -144,6 +177,7 @@ function startServer(): void {
 
   // Graceful shutdown handling
   const shutdown = () => {
+    clearInterval(sweepTimer);
     void closeAllSessions();
     server.close(() => {
       console.log('Server closed');
