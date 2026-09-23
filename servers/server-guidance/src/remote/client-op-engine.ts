@@ -46,7 +46,7 @@ export class ClientOpEngine {
       if (report) {
         return {
           operationId: config.operationId,
-          status: report.status === "succeeded" ? ("succeeded" as const) : (report.status === "failed" ? ("failed" as const) : ("cancelled" as const)),
+          status: report.status === "succeeded" ? ("succeeded" as const) : report.status,
           summary: report.summary || `client-reported: ${report.status}`,
           data: { exitCode: report.exitCode, clientReported: true },
           content: [],

@@ -138,7 +138,11 @@ export class RemoteSessionManager {
     }
 
     // FR-102.2: In-memory-Validierung durch Komposition (wirft bei invalid).
-    const composition = composeApplication(wsRootFor(sessionId), cfgDir, join(dir, "state"));
+    const ledger = new ClientOpLedger();
+    const composition = composeApplication(wsRootFor(sessionId), cfgDir, join(dir, "state"), {
+      operationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
+      skipScaffold: true,
+    });
 
     const now = new Date().toISOString();
     const meta: RemoteSessionMeta = {
@@ -150,7 +154,6 @@ export class RemoteSessionManager {
     };
     writeFileSync(this.metaPath(sessionId), JSON.stringify(meta, null, 2));
 
-    const ledger = new ClientOpLedger();
     const session: RemoteSession = { meta, composition, ledger };
     (session as unknown as { canonical?: string }).canonical = canonical;
     this.enforcePerKeyLimit(key ?? null);
@@ -228,10 +231,27 @@ export class RemoteSessionManager {
     return this.pairs.configured;
   }
 
+  /** H2-Fix: Key eines gueltigen Tokens (list_sessions-Restriktion). */
+  keyForToken(bearerToken: string): string | null {
+    if (!this.pairs.configured) return null; // anonymer Modus: nur anonyme Sessions
+    for (const key of this.pairs.keys()) {
+      if (this.pairs.authenticate(key, bearerToken)) return key;
+    }
+    return null;
+  }
+
+  /** H2-Fix: Sessions gefiltert nach Aufrufer-Identitaet. */
+  listSessionsFor(callerKey: string | null): RemoteSessionMeta[] {
+    return this.listSessions().filter((m) => m.key === callerKey);
+  }
+
   private restore(meta: RemoteSessionMeta): RemoteSession {
-    const dir = this.sessionDir(meta.sessionId);
-    const composition = composeApplication(wsRootFor(meta.sessionId), this.configDir(meta.sessionId), join(dir, "state"));
     const ledger = new ClientOpLedger();
+    const dir = this.sessionDir(meta.sessionId);
+    const composition = composeApplication(wsRootFor(meta.sessionId), this.configDir(meta.sessionId), join(dir, "state"), {
+      operationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
+      skipScaffold: true,
+    });
     const session: RemoteSession = { meta, composition, ledger };
     this.cache.set(meta.sessionId, session);
     return session;
@@ -242,10 +262,11 @@ export class RemoteSessionManager {
     const p = this.metaPath(sessionId);
     if (!existsSync(p)) return;
     const meta = JSON.parse(readFileSync(p, "utf-8")) as RemoteSessionMeta;
+    // H1-Fix: Idle-Alter aus dem VOR-touch lastAccessAt berechnen.
+    const idleDays = (Date.now() - new Date(meta.lastAccessAt).getTime()) / 86_400_000;
+    if (idleDays > TTL_DAYS) throw new Error("session_not_found");
     meta.lastAccessAt = new Date().toISOString();
     writeFileSync(p, JSON.stringify(meta, null, 2));
-    const ageDays = (Date.now() - new Date(meta.lastAccessAt).getTime()) / 86_400_000;
-    if (ageDays > TTL_DAYS) throw new Error("session_not_found");
   }
 
   private enforcePerKeyLimit(key: string | null): void {

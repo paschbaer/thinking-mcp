@@ -6,6 +6,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RemoteSessionManager, RemoteSession } from "./remote-session-manager.js";
+import { getBearerToken } from "./remote-context.js";
 
 function toJson(result: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
@@ -63,7 +64,11 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     "list_sessions",
     "FR-103: Listet die Remote-Sessions dieses Servers (Meta, ohne Inhalt)",
     {},
-    async () => toJson({ sessions: manager.listSessions() }),
+    async () => {
+      // H2-Fix: nur Sessions des eigenen Keys (anonymous: nur anonyme).
+      const callerKey = manager.keyForToken(getBearerToken());
+      return toJson({ sessions: manager.listSessionsFor(callerKey) });
+    },
   );
 
   server.tool(
@@ -131,7 +136,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitUnderstanding(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      if (result.accepted === true) session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "plan", payload: {}, requestId: reqId };
+      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "understand", payload: payload, requestId: reqId };
       return toJson(reshapeRemote(result));
     },
   );
@@ -143,7 +148,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     async ({ sessionId: sid, requestId: reqId, tasks }) => {
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitPlan(sid, { tasks }, reqId)) as unknown as Record<string, unknown>;
-      if (result.accepted === true) session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "review_plan", payload: { summary: "plan submitted" }, requestId: reqId };
+      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "plan", payload: { tasks }, requestId: reqId };
       return toJson(reshapeRemote(result));
     },
   );
@@ -155,7 +160,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitPlanReview(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      if (result.accepted === true) session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "implement", payload: { summary: "plan approved" }, requestId: reqId };
+      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "review_plan", payload: payload, requestId: reqId };
       return toJson(reshapeRemote(result));
     },
   );
@@ -167,7 +172,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitImplementation(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      if (result.accepted === true) session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "review_implementation", payload: { summary: "implementation submitted" }, requestId: reqId };
+      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "implement", payload: payload, requestId: reqId };
       return toJson(reshapeRemote(result));
     },
   );
@@ -179,7 +184,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitImplementationReview(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      if (result.accepted === true) session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "verify", payload: { summary: "review done" }, requestId: reqId };
+      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "review_implementation", payload: payload, requestId: reqId };
       return toJson(reshapeRemote(result));
     },
   );
@@ -187,11 +192,12 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
   server.tool(
     "submit_verification",
     "Reicht Verifizierungsergebnisse ein; loest die Client-Gates (verify beforeExit) aus",
-    { ...sessionId, ...requestId, verificationSummary: z.array(z.string()) },
-    async ({ sessionId: sid, requestId: reqId, verificationSummary }) => {
+    { ...sessionId, ...requestId, summary: z.string(), verificationSummary: z.array(z.string()) },
+    async ({ sessionId: sid, requestId: reqId, summary, verificationSummary }) => {
       const session = manager.resolve(sid);
-      const result = (await toolsOf(session).submitVerification(sid, { verificationSummary }, reqId)) as unknown as Record<string, unknown>;
-      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "verify", payload: { verificationSummary }, requestId: reqId };
+      const payload = { summary, verificationSummary };
+      const result = (await toolsOf(session).submitVerification(sid, payload, reqId)) as unknown as Record<string, unknown>;
+      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "verify", payload, requestId: reqId };
       return toJson(reshapeRemote(result));
     },
   );
