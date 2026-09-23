@@ -323,6 +323,12 @@ Roles at a glance:
 > **Scaffold note:** missing `guidance.json` is scaffolded on first start
 > (see below) — a minimal valid default 7-phase configuration. Existing files
 > are never overwritten; invalid configuration always fails closed.
+>
+> **Where `.guidance/` belongs:** in the workspace of the project Guidance
+> orchestrates — *not* inside the server source directory
+> (`servers/server-guidance/`). That directory is server code only; its
+> `.guidance/` (if present, e.g. from a test run with cwd=server dir) is
+> git-ignored. For Docker use the mounted `workspace/` volume instead.
 
 ### `guidance.json` — attribute reference
 
