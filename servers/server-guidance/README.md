@@ -76,6 +76,86 @@ Environment variables (HTTP):
 | `GUIDANCE_WORKSPACE_ROOT` | cwd | Workspace containing `.guidance/` |
 | `GUIDANCE_AUTH_TOKEN` | *(unset)* | If set, `/mcp` requires `Authorization: Bearer <token>` (401 otherwise). `/health` stays open |
 
+### Bearer authentication (HTTP)
+
+The bearer token is a **shared secret you choose yourself** — the server does
+not issue tokens. It is enforced only when `GUIDANCE_AUTH_TOKEN` is set:
+unset = `/mcp` is open to everyone who can reach the port. **Always set a
+token when binding to a non-loopback host** (`GUIDANCE_BIND_HOST=0.0.0.0`,
+as the shipped `docker-compose.yml` does for container port-mapping).
+
+**1. Generate a strong random token:**
+
+```bash
+openssl rand -hex 32
+# → 64 hex characters, e.g. 9f1c3b7e4a2d… (never reuse across deployments)
+```
+
+**2. Configure the server** (`docker-compose.yml` or your runtime environment):
+
+```yaml
+    environment:
+      - PORT=3003
+      - GUIDANCE_BIND_HOST=0.0.0.0
+      - GUIDANCE_WORKSPACE_ROOT=/workspace
+      - GUIDANCE_AUTH_TOKEN=9f1c3b7e4a2d…   # ← your generated value
+```
+
+Environment changes require a container restart (`docker compose up -d`),
+not a rebuild.
+
+**3. Configure the client** to send the same value on every MCP call:
+
+```json
+{
+  "servers": {
+    "guidance": {
+      "type": "http",
+      "url": "http://localhost:3003/mcp",
+      "headers": { "Authorization": "Bearer 9f1c3b7e4a2d…" }
+    }
+  }
+}
+```
+
+**4. Verify it is active** (the `/health` endpoint is unauthenticated by
+design and does not tell you):
+
+```bash
+# without token → 401 unauthorized (auth is ON)
+curl -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3003/mcp \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# with token → 200
+curl -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3003/mcp \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer 9f1c3b7e4a2d…" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+Status codes on `/mcp`:
+
+| Status | Meaning |
+|---|---|
+| `401` | Token configured but missing/wrong (`Authorization` header must be exactly `Bearer <token>`) |
+| `405` | Token OK, but method not allowed (`GET`/`DELETE` in stateless mode) |
+| `406` | Missing `accept: application/json, text/event-stream` header |
+| `200` | Success |
+
+**Properties & limits:**
+
+- There is **no expiry, refresh or rotation mechanism** — to rotate, change the
+  env variable, restart the container, and update all client headers.
+- The comparison is timing-safe (constant-time on SHA-256 digests), but the
+  token travels in plain headers — use it behind TLS / within a trusted
+  network only.
+- `GET /health` is deliberately unauthenticated (no sensitive data) so that
+  Docker healthchecks and load balancers work without secrets.
+- stdio transport needs no token (the agent process IS the trust boundary).
+
 ## Configuration (`.guidance/`)
 
 All configuration is JSON, version 2. Full contract:
