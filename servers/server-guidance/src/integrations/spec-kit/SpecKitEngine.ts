@@ -437,7 +437,7 @@ export class SpecKitEngine {
         const task = state.tasks[taskId];
         if (!task) continue;
         if (task.status === "completed") {
-          throw new GuidanceError("spec_kit_task_not_found" as never, `task ${taskId} is completed and cannot regress`, { recoverable: false });
+          throw new GuidanceError("spec_kit_task_not_found", `task ${taskId} is completed and cannot regress`, { recoverable: false });
         }
         if (!batch.taskIds.includes(taskId)) {
           throw new GuidanceError("spec_kit_task_not_released", `task ${taskId} not in released batch`, { recoverable: true });
