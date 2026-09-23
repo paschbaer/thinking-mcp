@@ -293,3 +293,12 @@ Trigger: /speckit-plan fuer 001-experience-memory-server
       [Review 44063c6 #4]
 - [x] Akzeptierte Beobachtung: section:'recipes' ohne Guard (statisch,
       ~2-3KB) - nur bei beobachtetem Spam Rate-Limit ergaenzen.
+
+## Post-Implementation-Review Trigger: Remote-Mode (Amendment 001)
+Findings liegen in specs/002-guidance-workflow-server/amendments/
+001-remote-mode-review-findings.md (2 MEDIUM, 6 LOW). Implementierung läuft
+parallel in separatem Chat. Trigger: sobald die Remote-Mode-Implementierung
+merged/committet wird, MUSS der Post-Implementation-Review jede Zeile der
+Findings-Datei gegen den Code prüfen ([x] + Code-Referenz), bevor der Scope
+geschlossen wird. Insbesondere M1 (init_session-Idempotenz vs. Multi-Session)
+und M2 (401 vs. session_not_found Kanaltrennung) sind Merge-Blocker-Kandidaten.

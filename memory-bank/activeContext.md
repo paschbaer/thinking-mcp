@@ -340,3 +340,11 @@
      via toolsets/registry.ts untested). [R: 44063c6 Review #4]
   3. Beobachtung akzeptiert: section:'recipes' ist unguarded (statischer
      ~2-3KB-Payload); Rate-Limit nur falls Spam beobachtet wird.
+
+## 2026-09-23: Spec-Review Amendment 001-remote-mode (v3)
+- Review durchgeführt: 0 Blocker, 2 MEDIUM (M1 Idempotenz-vs-MultiSession,
+  M2 401-vs-session_not_found), 6 LOW. Findings persistiert in
+  specs/002-guidance-workflow-server/amendments/001-remote-mode-review-findings.md
+- Implementierung läuft PARALLEL in separatem Chat (bereits src/main.ts
+  composeApplication-Optionen). Post-Implementation-Review nach Merge Pflicht
+  (Trigger in remaining-work-plan.md eingetragen).
