@@ -283,3 +283,13 @@ Trigger: /speckit-plan fuer 001-experience-memory-server
 - [x] HTTP-Transport-Migration clear-thought+insight (bc5326c, dd065b4, 1caa690) Review-HIGHs RESOLVED: (1) Root-docker-compose.yml setzt jetzt CLEAR_THOUGHT_BIND_HOST/EMMS_BIND_HOST=0.0.0.0, (2) Idle-Session-Reaper (TTL 60min, Sweep 5min, unref'd) + MAX_SESSIONS=500 LRU-Eviction begrenzt Session-Wachstum. Tests 152+99 grün, Container-E2E re-verifiziert.
 - [ ] Akzeptierte Beobachtungen aus Review 1caa690 (Trigger: nächste HTTP-/Deployment-Maintenance): (a) POST mit malformed JSON antwortet 500 statt 400/-32700 (LOW), (b) Non-initialize-POSTs ohne gültige Session-ID erzeugen kurzlebige, nicht registrierte Server-Instanzen — Reap trifft sie nicht, Freigabe via GC (LOW), (c) Smithery-Reste: build:smithery/deploy-Scripts + smithery.yaml in beiden Servern — vor nächstem Smithery-Deploy entscheiden: entfernen oder reaktivieren (INFO).
 - [x] Guidance (EMMS-Vorlage) Dockerfile LOW (npm-install-ohne-lockfile) RESOLVED (632b31e): server-lokales package-lock.json force-added, Dockerfile auf npm ci + COPY package*.json umgestellt; Docker-Build + Health + MCP-Initialize(200) gegen gemountetes Example-Workspace verifiziert. Damit sind alle drei Server deterministisch.
+
+## Getrackte Follow-ups (2026-09-23, setup_clearthought)
+- [ ] Marker-Paar-Einzigartigkeit im Compact-Output testen
+      (doc.split(START).length-1 === 1). Trigger: jede kuenftige
+      Template-Aenderung an setup-clearthought-templates.ts. [Review a5c5c98 #2]
+- [ ] Eskalation (isError) ueber Utility-Toolset-Dispatcher testen.
+      Trigger: naechste Aenderung an toolsets/registry.ts oder Loop-Guard.
+      [Review 44063c6 #4]
+- [x] Akzeptierte Beobachtung: section:'recipes' ohne Guard (statisch,
+      ~2-3KB) - nur bei beobachtetem Spam Rate-Limit ergaenzen.
