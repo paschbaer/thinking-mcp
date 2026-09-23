@@ -17,6 +17,8 @@ services:
       # Optional: set to require `Authorization: Bearer <token>` on /mcp.
       # - GUIDANCE_AUTH_TOKEN=change-me
     volumes:
+      # Host-Verzeichnis muss für UID 1000 (node) beschreibbar sein:
+      #   mkdir -p ./workspace && sudo chown 1000:1000 ./workspace
       - ./workspace:/workspace
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3003/health"]

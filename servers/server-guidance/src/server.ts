@@ -10,6 +10,7 @@
  */
 import express from "express";
 import { join } from "node:path";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { GuidanceError } from "./types/errors.js";
 import { createGuidanceServer } from "./mcp-server/GuidanceServer.js";
 import { registerWorkflowTools } from "./mcp-server/register-tools.js";
@@ -49,21 +50,29 @@ export interface HttpAppOptions {
   authToken?: string;
 }
 
-/** Creates a fully wired McpServer (workflow tools + optional spec-kit). */
-export function createConfiguredServer(opts: HttpAppOptions): McpServer {
-  const app = composeApplication(opts.workspaceRoot, opts.configDir, opts.stateDir);
+interface ComposedApp {
+  tools: import("./mcp-server/ToolHandlers.js").WorkflowTools;
+  profile: string;
+  configVersion: string;
+  specKit?: import("./config.js").SpecKitConfig;
+}
+
+/** Creates a fully wired McpServer over the SHARED composition (one per boot,
+ * not per request — SessionRepository locks are instance-scoped and would be
+ * defeated by per-request composition). */
+export function createConfiguredServer(opts: HttpAppOptions, composed: ComposedApp): McpServer {
   const server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, opts.workspaceRoot);
-  if (app.config.profile === "spec-kit") {
-    if (!app.config.specKit) {
+  registerWorkflowTools(server, composed.tools, opts.workspaceRoot);
+  if (composed.profile === "spec-kit") {
+    if (!composed.specKit) {
       throw new GuidanceHttpError("profile spec-kit requires specKit integration config");
     }
     const audit = new AuditRepository(join(opts.stateDir, "history"));
     registerSpecKitTools(server, {
       workspaceRoot: opts.workspaceRoot,
       stateDir: opts.stateDir,
-      configVersion: app.config.configVersion,
-      specKitConfig: toEngineSpecKitConfig(app.config.specKit),
+      configVersion: composed.configVersion,
+      specKitConfig: toEngineSpecKitConfig(composed.specKit),
       audit: (event) => audit.append({ sessionId: event.sessionId, eventType: event.eventType, phase: event.phase, data: event.data }),
     });
   }
@@ -75,13 +84,27 @@ export function createHttpApp(opts: HttpAppOptions) {
   const app = express();
   const authHeader = opts.authToken !== undefined
     ? (req: Request, res: Response, next: NextFunction) => {
-        if (req.headers.authorization !== `Bearer ${opts.authToken}`) {
+        const provided = req.headers.authorization ?? "";
+        const expected = `Bearer ${opts.authToken}`;
+        // timing-safe comparison (constant-length digests)
+        const a = createHash("sha256").update(provided).digest();
+        const b = createHash("sha256").update(expected).digest();
+        if (!timingSafeEqual(a, b)) {
           res.status(401).json({ error: "unauthorized" });
           return;
         }
         next();
       }
     : (_req: Request, _res: Response, next: NextFunction) => next();
+
+  // Komposition EINMAL pro Boot (HIGH-2): geteilte Repositories/Locks.
+  const composed = composeApplication(opts.workspaceRoot, opts.configDir, opts.stateDir);
+  const composedView: ComposedApp = {
+    tools: composed.tools,
+    profile: composed.config.profile,
+    configVersion: composed.config.configVersion,
+    specKit: composed.config.specKit,
+  };
 
   app.get("/health", (_req, res) => {
     res.json({ server: "guidance", status: "ok" });
@@ -91,7 +114,7 @@ export function createHttpApp(opts: HttpAppOptions) {
   // sessions persist in stateDir, so nothing session-critical lives in RAM.
   app.post("/mcp", express.json({ limit: "10mb" }), authHeader, async (req: Request, res: Response) => {
     try {
-      const server = createConfiguredServer(opts);
+      const server = createConfiguredServer(opts, composedView);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined, // stateless
         enableJsonResponse: true,
@@ -105,7 +128,8 @@ export function createHttpApp(opts: HttpAppOptions) {
     } catch (err) {
       if (!res.headersSent) {
         console.error("[guidance] /mcp error:", err);
-        res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: `internal error: ${String(err)}` }, id: null });
+        // MEDIUM-1: kein internes Detail an den Client (nur Server-Log).
+        res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "internal error" }, id: null });
       }
     }
   });

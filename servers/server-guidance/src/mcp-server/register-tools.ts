@@ -4,6 +4,8 @@
  * Reihenfolge: Registrierung VOR connect() (SDK-Anforderung).
  */
 import { z } from "zod";
+import { resolve } from "node:path";
+import { GuidanceError } from "../types/errors.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WorkflowTools } from "./ToolHandlers.js";
 
@@ -26,12 +28,25 @@ export const SPEC_KIT_TOOL_NAMES = [
   "get_traceability_report", "validate_spec_kit_completion",
 ] as const;
 
+/**
+ * HIGH-Fix (HTTP-Review): ein client-supplied workspaceRoot muss innerhalb des
+ * serverkonfigurierten Roots liegen (resolve + Prefix-Check, separator-bewusst).
+ */
+export function assertWorkspaceInside(serverRoot: string, candidate: string): string {
+  const resolved = resolve(candidate);
+  const root = resolve(serverRoot);
+  if (resolved !== root && !resolved.startsWith(root + "/") && !resolved.startsWith(root + "\\")) {
+    throw new GuidanceError("configuration_invalid", `workspaceRoot escapes the configured workspace: ${candidate}`, { recoverable: false });
+  }
+  return resolved;
+}
+
 export function registerWorkflowTools(server: McpServer, tools: WorkflowTools, workspaceRoot: string): void {
   server.tool(
     "start_workflow",
     "Startet eine Workflow-Session im Workspace",
     { workspaceRoot: z.string(), request: z.string(), workflowId: z.string().optional(), metadata: z.record(z.unknown()).optional() },
-    async (input) => toJson(await tools.startWorkflow({ ...input, workspaceRoot: input.workspaceRoot ?? workspaceRoot })),
+    async (input) => toJson(await tools.startWorkflow({ ...input, workspaceRoot: assertWorkspaceInside(workspaceRoot, input.workspaceRoot ?? workspaceRoot) })),
   );
   server.tool(
     "get_current_guidance",
