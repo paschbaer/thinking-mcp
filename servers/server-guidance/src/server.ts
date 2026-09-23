@@ -17,6 +17,10 @@ import { createGuidanceServer } from "./mcp-server/GuidanceServer.js";
 import { registerWorkflowTools } from "./mcp-server/register-tools.js";
 import { registerSpecKitTools, toEngineSpecKitConfig } from "./mcp-server/register-spec-kit-tools.js";
 import { composeApplication, ensureConfiguration } from "./main.js";
+import { PairStore, loadPairsFromEnv } from "./remote/pair-store.js";
+import { RemoteSessionManager } from "./remote/remote-session-manager.js";
+import { registerRemoteTools } from "./remote/remote-tools.js";
+import { runWithBearerToken } from "./remote/remote-context.js";
 import { AuditRepository } from "./state/SessionRepository.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Request, Response, NextFunction } from "express";
@@ -49,6 +53,8 @@ export interface HttpAppOptions {
   stateDir: string;
   /** Set to require `Authorization: Bearer <token>` on /mcp. */
   authToken?: string;
+  /** FR-100: Remote-Modus (zentraler Container, Config-Upload je Session). */
+  remote?: { pairs: PairStore };
 }
 
 interface ComposedApp {
@@ -61,8 +67,9 @@ interface ComposedApp {
 /** Creates a fully wired McpServer over the SHARED composition (one per boot,
  * not per request — SessionRepository locks are instance-scoped and would be
  * defeated by per-request composition). */
-export function createConfiguredServer(opts: HttpAppOptions, composed: ComposedApp): McpServer {
+export function createConfiguredServer(opts: HttpAppOptions, composed: ComposedApp | undefined): McpServer {
   const server = createGuidanceServer();
+  if (!composed) return server; // Remote-Modus: Registrierung via registerRemoteTools
   registerWorkflowTools(server, composed.tools, opts.workspaceRoot);
   if (composed.profile === "spec-kit") {
     if (!composed.specKit) {
@@ -100,14 +107,18 @@ export function createHttpApp(opts: HttpAppOptions) {
 
   // Scaffold-on-first-start (Option D) VOR der Komposition.
   ensureConfiguration(opts.configDir);
-  // Komposition EINMAL pro Boot (HIGH-2): geteilte Repositories/Locks.
-  const composed = composeApplication(opts.workspaceRoot, opts.configDir, opts.stateDir);
-  const composedView: ComposedApp = {
-    tools: composed.tools,
-    profile: composed.config.profile,
-    configVersion: composed.config.configVersion,
-    specKit: composed.config.specKit,
-  };
+  // Komposition EINMAL pro Boot (HIGH-2) — im Remote-Modus (FR-100) KEINE
+  // Boot-Komposition: Engine/Tools je Session via RemoteSessionManager.
+  const manager = opts.remote ? new RemoteSessionManager(opts.stateDir, opts.remote.pairs) : undefined;
+  const composed = opts.remote ? undefined : composeApplication(opts.workspaceRoot, opts.configDir, opts.stateDir);
+  const composedView: ComposedApp | undefined = composed
+    ? {
+        tools: composed.tools,
+        profile: composed.config.profile,
+        configVersion: composed.config.configVersion,
+        specKit: composed.config.specKit,
+      }
+    : undefined;
 
   app.get("/health", (_req, res) => {
     // configured = guidance.json existiert aktuell. Nach dem Scaffold im Boot
@@ -119,8 +130,38 @@ export function createHttpApp(opts: HttpAppOptions) {
   // Stateless streamable HTTP: fresh server+transport per request; workflow
   // sessions persist in stateDir, so nothing session-critical lives in RAM.
   app.post("/mcp", express.json({ limit: "10mb" }), authHeader, async (req: Request, res: Response) => {
-    try {
-      const server = createConfiguredServer(opts, composedView);
+    // FR-103.1: Bearer-Token in den Tool-Handler-Kontext propagieren.
+      const token = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+      // FR-103.1: Session-Binding — Session nur mit dem Token ihres Keys.
+      if (manager) {
+        const pName = (req.body as { params?: { name?: string } } | undefined)?.params?.name;
+        const args = (req.body as { params?: { arguments?: { sessionId?: string; key?: string } } } | undefined)?.params?.arguments;
+        // FR-102.1: init_session-Auth (key MUSS zum Bearer-Token passen).
+        if (pName === "init_session" && manager.pairsConfigured) {
+          const key = args?.key;
+          if (!key || !manager.authenticateKey(key, token)) {
+            res.status(401).json({ jsonrpc: "2.0", error: { code: -32001, message: "unauthorized: key/token mismatch" }, id: (req.body as { id?: unknown })?.id ?? null });
+            return;
+          }
+        }
+        const sid = args?.sessionId;
+        if (typeof sid === "string") {
+          try {
+            const meta = manager.getSessionMeta(sid) ?? { sessionId: sid, key: null, configVersion: "", createdAt: "", lastAccessAt: "" };
+
+            manager.assertSessionBinding(meta, token);
+            console.error("[guidance][dbg] binding-passed", sid);
+          } catch (err) {
+            // FR-103.1: strukturiertes JSON-RPC-Error (kein Existenz-Oracle).
+            res.status(404).json({ jsonrpc: "2.0", error: { code: -32001, message: String((err as Error).message) }, id: req.body?.id ?? null });
+            return;
+          }
+        }
+      }
+      return await runWithBearerToken(token, async () => {
+      try {
+      const server = createConfiguredServer(opts, composedView!);
+      if (manager) registerRemoteTools(server, manager);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined, // stateless
         enableJsonResponse: true,
@@ -131,13 +172,14 @@ export function createHttpApp(opts: HttpAppOptions) {
       });
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
-    } catch (err) {
-      if (!res.headersSent) {
+      } catch (err) {
         console.error("[guidance] /mcp error:", err);
         // MEDIUM-1: kein internes Detail an den Client (nur Server-Log).
-        res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "internal error" }, id: null });
+        if (!res.headersSent) {
+          res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "internal error" }, id: null });
+        }
       }
-    }
+    });
   });
 
   // Stateless mode: GET (SSE stream) and DELETE (session termination) are invalid.
@@ -157,11 +199,17 @@ export async function startHttpServer(host?: string, port = 0): Promise<{ port: 
     assertLoopback(effectiveHost); // fail-closed unless explicitly overridden
   }
   const workspaceRoot = process.env.GUIDANCE_WORKSPACE_ROOT || process.cwd();
+  // FR-101: Pairs laden (optional). Konfiguriert ⇒ Remote-Modus (FR-100).
+  const pairs = new PairStore(await loadPairsFromEnv());
+  const remote = pairs.configured || process.env.GUIDANCE_REMOTE_MODE === "1"
+    ? { pairs }
+    : undefined;
   const app = createHttpApp({
     workspaceRoot,
     configDir: join(workspaceRoot, ".guidance"),
     stateDir: join(workspaceRoot, ".guidance", "state"),
     authToken: process.env.GUIDANCE_AUTH_TOKEN,
+    remote,
   });
   return await new Promise((resolvePromise) => {
     const server = app.listen(port, effectiveHost, () => {
