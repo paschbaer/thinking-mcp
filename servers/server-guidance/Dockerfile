@@ -1,5 +1,8 @@
 FROM node:22-alpine
 
+# Install curl for health check (must happen before USER node)
+RUN apk add --no-cache curl
+
 # Copy package files first for better layer caching
 COPY package*.json ./
 
@@ -29,7 +32,7 @@ EXPOSE 3003
 USER node
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3003/health || exit 1
 
 # Start the HTTP server (binds GUIDANCE_BIND_HOST, default loopback)
