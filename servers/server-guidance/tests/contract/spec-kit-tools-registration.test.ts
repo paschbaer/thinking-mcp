@@ -118,6 +118,22 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
     expect((status.tasks as Record<string, number>)["pending"]).toBe(2);
   });
 
+  it("withState-Tools liefern ein nicht-leeres Payload (Regression: fehlendes await)", async () => {
+    await start("spec-kit");
+    await client.callTool({ name: "import_spec_kit_artifacts", arguments: { sessionId: "s2" } });
+    // propose_plan_change geht durch withState — Response darf nicht {} sein.
+    const res = await client.callTool({ name: "propose_plan_change", arguments: { sessionId: "s2", changeType: "changed_requirement", reason: "clarified SC-001", affectedTasks: [], impact: { acceptanceCriteria: true, publicApi: false, dependencies: false } } });
+    const parsed = textOf(res);
+    // withState gibt den (mutierten) State zurück — die Plan-Änderung muss
+    // darin enthalten sein, das Payload darf nicht leer sein.
+    const changes = parsed.planChanges as Record<string, Record<string, unknown>>;
+    expect(Object.keys(changes).length).toBe(1);
+    expect(Object.values(changes)[0]!.classification).toBeDefined();
+    // Ein zweiter Aufruf validiert die Mutex-Kette (kein Poisoning).
+    const res2 = await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "s2" } });
+    expect((textOf(res2).pendingPlanChanges as number)).toBe(1);
+  });
+
   it("Traversal-SessionId wird abgewiesen (Path Safety Regression)", async () => {
     await start("spec-kit");
     const res = await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "../../escaped" } });
