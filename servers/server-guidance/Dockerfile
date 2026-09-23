@@ -1,17 +1,11 @@
 FROM node:22-alpine
 
-# Install curl for health check
-RUN apk add --no-cache curl
-
-# Create app directory
-WORKDIR /usr/src/app
-
 # Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies (npm workspaces hoist the lockfile to the repo root,
-# so this server has no standalone package-lock.json — use npm install).
-RUN npm install --no-audit --no-fund --ignore-scripts
+# Install deterministically from the server-local committed lockfile.
+# (ignore-scripts: native/postinstall steps are handled explicitly below.)
+RUN npm ci --no-audit --no-fund --ignore-scripts
 
 # Copy source files
 COPY . .
