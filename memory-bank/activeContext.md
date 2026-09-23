@@ -348,3 +348,4 @@
 - Implementierung läuft PARALLEL in separatem Chat (bereits src/main.ts
   composeApplication-Optionen). Post-Implementation-Review nach Merge Pflicht
   (Trigger in remaining-work-plan.md eingetragen).
+- 2026-09-23 — Remote-Mode (spec amendment 001) implementiert: init_session-Config-Upload, Pair-Auth (optional, anonymer Fallback), sessiongebundene Tools, ClientOpEngine (1a), report_operation_result mit Auto-Retry, TTL 30d, configured-aware /health. Review: 2 CRITICAL (ClientOpEngine nie verdrahtet — Patch-Verlust; lastAttempt nur bei accepted) + 2 HIGH behoben. 155/155 Tests. Branch feature/remote-mode-session-binding, Merge nach develop offen.
