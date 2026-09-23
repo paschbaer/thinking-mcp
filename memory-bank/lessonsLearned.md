@@ -249,3 +249,14 @@
 - **MCP-Server-Transport-Wiring**: StreamableHTTPServerTransport OHNE `await server.connect(transport)` = Sessions werden erstellt, Antworten kommen nie (hängende Clients). Beim manuellen Session-Management IMMER connect vor handleRequest; Verifikation nur mit dem offiziellen SDK-Client gegen den gebauten Stand (nicht gegen tsx-Quelle und nicht per curl — SSE-Streams lassen curl ohne Session-Header hängen und suggerieren Fehlfunktionen).
 - **Express-App-Fehlerpfad mit offenen Responses**: shutdown/`uncaughtException`-Handler, die `server.close(cb)` mit Callback verwenden, hängen ewig, wenn der Server nie erfolgreich gelisten hat (EADDRINUSE) — immer Fallback-`setTimeout(...).unref()` ergänzen.
 - **WSL-Testhygiene**: Hintergrund-node-Prozesse auf /mnt/d hinterlassen Geister-Listen-Sockets; EADDRINUSE-Ketten und "leere" Logs täuschen über den eigentlichen Fehler hinweg. Vor Servertests Ports gezielt prüfen (ss -tln) und Prozesse per PID vom Socket killen, nicht per breitem pgrep (hasst VS-Code-Server-Prozesse).
+
+
+### Avoid These Mistakes (2026-09-23, setup_clearthought Endless-Retry-Loop)
+- **Tool-Response-Feldreihenfolge für LLM-Clients**: Bei Antworten >15 KB stehen
+  Trailing-Felder (`status`, `nextSteps`) im truncierten/offgeloadeten
+  Tool-Result-View oft NICHT mehr im Modell-Kontext — das Modell hält einen
+  erfolgreichen Call für fehlgeschlagen und retryt endlos (beobachtet: 47 Calls
+  mit rotierenden `project_name`s). Regel: Bei großen Responses IMMER `status`
+  (und bei Einmal-Tools ein explizites `one_shot: true` + "do NOT call again")
+  als ERSTE Felder serialisieren, plus denselben Warnhinweis in die
+  Tool-Description. Generisch: Erfolgssignal nie hinter Megabytes verstecken.

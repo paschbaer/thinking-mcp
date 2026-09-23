@@ -30,7 +30,11 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
     'setup_clearthought',
     'Return a ready-to-use AGENTS.md reasoning-tool guide (with usage rules, ' +
       'tool routing and workflow recipes) for projects consuming this server, ' +
-      'optionally merged into existing AGENTS.md content',
+      'optionally merged into existing AGENTS.md content. ' +
+      'IMPORTANT: This is a ONE-SHOT tool. It always succeeds on the first call; ' +
+      'never call it again to retry or verify — vary nothing and repeat nothing. ' +
+      'If the response is truncated in your view, the call still succeeded: ' +
+      'read `status` first and stop after one call.',
     {
       project_name: z
         .string()
@@ -98,6 +102,15 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
             type: 'text',
             text: JSON.stringify(
               {
+                // status FIRST: large `content` can push trailing fields out of
+                // a truncated tool-result view, which caused agents to assume
+                // failure and retry the call in an endless loop (2026-09-23).
+                status: 'success',
+                one_shot: true,
+                note:
+                  'This call SUCCEEDED and the guide in `content` is complete. ' +
+                  'Do NOT call this tool again — proceed directly to writing ' +
+                  '`content` to AGENTS.md as described in nextSteps.',
                 mode,
                 block_replaced: blockReplaced,
                 ...(warning ? { warning } : {}),
@@ -111,8 +124,7 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
                   mode === 'full'
                     ? 'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
                     : 'Repeat calls with updated content stay idempotent via the clear-thought markers.'
-                ],
-                status: 'success'
+                ]
               },
               null,
               2
