@@ -66,6 +66,7 @@ const MINIMAL_CONFIG: Record<string, unknown> = {
   state: { directory: "state", persistAfterEveryOperation: true },
   security: { restrictWorkingDirectory: true, redactSensitiveOutput: true },
   configFiles: {
+    "guidance.json": JSON.stringify({ version: 2, profile: "plain", project: { name: "remote-test" }, workflow: { file: "workflow.json" }, responses: { file: "responses.json" }, operations: { file: "operations.json" }, downstreamServers: { file: "downstream-servers.json" }, policies: { file: "policies.json" }, state: { directory: "state", persistAfterEveryOperation: true }, security: { restrictWorkingDirectory: true, redactSensitiveOutput: true } }),
     "workflow.json": JSON.stringify({
       version: 2,
       workflow: { id: "w", initialPhase: "understand", terminalStates: ["completed", "cancelled"] },
@@ -84,6 +85,7 @@ const MINIMAL_CONFIG: Record<string, unknown> = {
     "policies.json": JSON.stringify({ version: 2, trustLevels: { trusted: { dataEgress: "project_data" } }, validation: {}, reviewFindings: { blockingSeverities: ["high"] }, redaction: { patterns: [] }, outputDefaults: { returnToAgent: "summary_and_errors" } }),
     "schemas/understand.schema.json": JSON.stringify({ type: "object", additionalProperties: false, required: ["summary"], properties: { summary: { type: "string" } } }),
     "schemas/plan.schema.json": JSON.stringify({ type: "object", additionalProperties: false, required: ["summary"], properties: { summary: { type: "string" } } }),
+    "schemas/verify.schema.json": JSON.stringify({ type: "object", additionalProperties: false, required: ["summary", "verificationSummary"], properties: { summary: { type: "string" }, verificationSummary: { type: "array", items: { type: "string" } } } }),
   },
 };
 
@@ -91,9 +93,11 @@ describe("remote mode (spec amendment 001)", () => {
   it("anonymous: init_session ohne key + start_workflow über die Session (FR-101.6)", async () => {
     await boot({ forceRemote: true });
     const init = await call("init_session", { config: MINIMAL_CONFIG });
+    if (!init.sessionId) console.log("[dbg] init resp:", JSON.stringify(init));
     expect(init.sessionId).toBeTruthy();
     const sid = init.sessionId as string;
     const start = await call("start_workflow", { sessionId: sid, request: "remote demo" });
+    if (!start.accepted) console.log("[dbg] start resp:", JSON.stringify(start));
     expect(start.accepted).toBe(true);
     expect(start.currentPhase).toBe("understand");
   });
@@ -134,5 +138,62 @@ describe("remote mode (spec amendment 001)", () => {
     const a = await call("init_session", { config: MINIMAL_CONFIG });
     const b = await call("init_session", { config: MINIMAL_CONFIG });
     expect(b.sessionId).toBe(a.sessionId);
+  });
+});
+
+const GATED_CONFIG: Record<string, unknown> = {
+  ...MINIMAL_CONFIG,
+  configFiles: {
+    ...(MINIMAL_CONFIG.configFiles as Record<string, string>),
+    "workflow.json": JSON.stringify({
+      version: 2,
+      workflow: { id: "wg", initialPhase: "understand", terminalStates: ["completed", "cancelled"] },
+      phases: {
+        understand: { response: "understand", submissionSchema: "schemas/understand.schema.json", transitions: [{ to: "verify", when: "submission_valid" }] },
+        verify: { response: "plan", submissionSchema: "schemas/verify.schema.json", lifecycle: { beforeExit: ["gate-test"] }, transitions: [{ to: "completed", when: "required_operations_succeeded" }] },
+      },
+      states: { completed: { terminal: true }, blocked: { system: true }, cancelled: { terminal: true } },
+    }),
+    "operations.json": JSON.stringify({ version: 2, operations: {
+      "gate-test": { description: "client gate", type: "process", executable: "echo", args: ["ok"], required: true, timeoutSeconds: 30, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+    } }),
+  },
+};
+
+describe("remote mode FR-104 (client-reported gates)", () => {
+  it("verify-submit liefert client_operations_pending; report vollzieht die Transition (FR-104.1-104.3)", async () => {
+    await boot({ forceRemote: true });
+    const init = await call("init_session", { config: GATED_CONFIG });
+    const sid = init.sessionId as string;
+    const start = await call("start_workflow", { sessionId: sid, request: "gates" });
+    expect(start.accepted).toBe(true);
+    const wfSid = start.sessionId as string;
+    const u = await call("submit_understanding", { sessionId: wfSid, summary: "s" });
+    expect(u.accepted).toBe(true);
+    const v = await call("submit_verification", { sessionId: wfSid, summary: "v", verificationSummary: ["tested"] });
+    if (!v.code) console.log("[dbg] v:", JSON.stringify(v));
+    expect(v.code).toBe("client_operations_pending");
+    expect((v.pendingOperations as { operationId: string }[])[0]!.operationId).toBe("gate-test");
+    const rep = await call("report_operation_result", {
+      sessionId: wfSid, operationId: "gate-test", status: "succeeded", exitCode: 0, summary: "client ran it",
+    });
+    expect(rep.accepted).toBe(true);
+    expect(rep.currentPhase ?? (rep.workflowStatus as string)).toBeDefined();
+  });
+
+  it("failed client report blockiert die Transition (required)", async () => {
+    await boot({ forceRemote: true });
+    const init = await call("init_session", { config: GATED_CONFIG });
+    const sid = init.sessionId as string;
+    const start = await call("start_workflow", { sessionId: sid, request: "gates" });
+    const wfSid = start.sessionId as string;
+    await call("submit_understanding", { sessionId: wfSid, summary: "s" });
+    await call("submit_verification", { sessionId: wfSid, summary: "v", verificationSummary: ["tested"] });
+    const rep = await call("report_operation_result", {
+      sessionId: wfSid, operationId: "gate-test", status: "failed", exitCode: 1, summary: "tests red",
+    });
+    // Failed required report ⇒ Transition blockiert (Session bleibt in verify)
+    expect(rep.accepted).toBe(false);
+    expect((rep.error as { code?: string } | undefined)?.code).toBe("required_hook_failed");
   });
 });

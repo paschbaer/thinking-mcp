@@ -150,7 +150,6 @@ export function createHttpApp(opts: HttpAppOptions) {
             const meta = manager.getSessionMeta(sid) ?? { sessionId: sid, key: null, configVersion: "", createdAt: "", lastAccessAt: "" };
 
             manager.assertSessionBinding(meta, token);
-            console.error("[guidance][dbg] binding-passed", sid);
           } catch (err) {
             // FR-103.1: strukturiertes JSON-RPC-Error (kein Existenz-Oracle).
             res.status(404).json({ jsonrpc: "2.0", error: { code: -32001, message: String((err as Error).message) }, id: req.body?.id ?? null });
