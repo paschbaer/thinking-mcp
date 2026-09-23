@@ -296,6 +296,21 @@ const hash = createHash("sha256");
 const OPERATION_TYPES = ["process", "mcpTool", "mcpResource", "mcpPrompt", "sampling", "elicitation", "composite"];
 
 /** Deterministic validation of the operations file (T031, FR-039/041). */
+function validateDownstreamServers(data: Record<string, unknown>): void {
+  const servers = data["servers"];
+  if (servers === undefined || servers === null) return;
+  if (typeof servers !== "object" || Array.isArray(servers)) {
+    throw new ConfigurationError("configuration_invalid", "downstreamServers.servers must be an object");
+  }
+  for (const [id, raw] of Object.entries(servers as Record<string, Record<string, unknown>>)) {
+    const connection = raw["connection"] as { requestTimeoutSeconds?: unknown } | undefined;
+    const t = connection?.requestTimeoutSeconds;
+    if (t !== undefined && (typeof t !== "number" || !Number.isFinite(t) || t <= 0)) {
+      throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.requestTimeoutSeconds must be a positive finite number`);
+    }
+  }
+}
+
 function validateOperations(operationsFile: Record<string, unknown>): void {
   const ops = operationsFile["operations"];
   if (ops === undefined) return;
@@ -359,6 +374,7 @@ export function loadConfig(configDir: string): LoadedConfig {
       }
       const data = readJsonFile(path, key);
       if (key === "operations") validateOperations(data);
+      if (key === "downstreamServers") validateDownstreamServers(data);
       loaded[key] = data;
       hashable.push(canonical(data));
     }

@@ -70,6 +70,17 @@ describe("lifecycle points beforeEnter/afterExit (FR-008/FR-038, Review Finding 
     const out = await engine.submit(start.sessionId, "understand", { summary: "s" });
     expect(out.accepted).toBe(true);
     expect(out.operations?.some((o) => o.id === "goodbye-op" && o.status === "succeeded")).toBe(true);
+    // Ordering (Review LOW): goodbye-op Result stammt aus afterExit NACH der
+    // Transition — audit muss phase_exited (understand) VOR phase_entered (plan)
+    // und beide VOR dem Op-Ergebnis geloggt haben.
+    const historyDir = join(stateDir, "history");
+    // Append-only JSONL: Dateizeilenreihenfolge = Ereignisreihenfolge.
+    const lines = readdirSync(historyDir).flatMap((f) =>
+      readFileSync(join(historyDir, f), "utf-8").split("\n").filter(Boolean));
+    const exitedAt = lines.findIndex((l) => { const e = JSON.parse(l) as { eventType: string; phase?: string }; return e.eventType === "phase_exited" && e.phase === "understand"; });
+    const enteredAt = lines.findIndex((l) => { const e = JSON.parse(l) as { eventType: string; phase?: string }; return e.eventType === "phase_entered" && e.phase === "plan"; });
+    expect(exitedAt).toBeGreaterThanOrEqual(0);
+    expect(enteredAt).toBeGreaterThan(exitedAt);
   });
 
   it("required beforeEnter failure blocks the transition; session stays in previous phase", async () => {
@@ -149,8 +160,15 @@ describe("lifecycle points beforeEnter/afterExit (FR-008/FR-038, Review Finding 
     const engine = makeEngine();
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     expect(start.status).toBe("blocked");
+    // Review LOW: das fehlgeschlagene beforeEnter-Op muss im Start-Ergebnis
+    // sichtbar und im Audit protokolliert sein.
+    expect(start.operations?.some((o) => o.id === "fail-op" && o.status === "failed")).toBe(true);
     const s = await engine.getWorkflowState(start.sessionId);
     expect(s.status).toBe("blocked");
     expect(s.blockers.length).toBe(1);
+    expect(s.downstream.operations["fail-op"]!.status).toBe("failed");
+    const historyDir = join(stateDir, "history");
+    const all = readdirSync(historyDir).flatMap((f) => readFileSync(join(historyDir, f), "utf-8").split("\n").filter(Boolean));
+    expect(all.some((line) => (JSON.parse(line) as { eventType: string }).eventType === "hook_failed")).toBe(true);
   });
 });
