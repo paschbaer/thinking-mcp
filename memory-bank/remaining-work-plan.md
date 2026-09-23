@@ -285,10 +285,10 @@ Trigger: /speckit-plan fuer 001-experience-memory-server
 - [x] Guidance (EMMS-Vorlage) Dockerfile LOW (npm-install-ohne-lockfile) RESOLVED (632b31e): server-lokales package-lock.json force-added, Dockerfile auf npm ci + COPY package*.json umgestellt; Docker-Build + Health + MCP-Initialize(200) gegen gemountetes Example-Workspace verifiziert. Damit sind alle drei Server deterministisch.
 
 ## Getrackte Follow-ups (2026-09-23, setup_clearthought)
-- [ ] Marker-Paar-Einzigartigkeit im Compact-Output testen
+- [x] ERL. (develop 024ddf4) Marker-Paar-Einzigartigkeit im Compact-Output testen
       (doc.split(START).length-1 === 1). Trigger: jede kuenftige
       Template-Aenderung an setup-clearthought-templates.ts. [Review a5c5c98 #2]
-- [ ] Eskalation (isError) ueber Utility-Toolset-Dispatcher testen.
+- [x] ERL. (develop 024ddf4) Eskalation (isError) ueber Utility-Toolset-Dispatcher testen.
       Trigger: naechste Aenderung an toolsets/registry.ts oder Loop-Guard.
       [Review 44063c6 #4]
 - [x] Akzeptierte Beobachtung: section:'recipes' ohne Guard (statisch,
