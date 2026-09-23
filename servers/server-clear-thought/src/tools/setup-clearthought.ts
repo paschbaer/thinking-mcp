@@ -8,6 +8,58 @@ const END_MARKER = '<!-- clear-thought:agents-guide:end -->';
 const BODY_HEADING = '## Ground rules';
 const GUIDE_HEADING = '# Clear Thought — Reasoning Tool Guide';
 
+/** Repeated full-mode calls beyond this threshold per session are answered
+ *  with a SHORT blocked response instead of the ~20KB guide. Rationale: when
+ *  the guide response is offloaded/truncated by the client, the model sees no
+ *  success flag at all and retries endlessly (observed 47x, 2026-09-23). A
+ *  short response is guaranteed visible, which text notes inside the large
+ *  payload cannot guarantee. */
+const FULL_CALL_LOOP_THRESHOLD = 2;
+/** Module-level per-session counter for full-mode setup_clearthought calls. */
+const fullCallCounters = new Map<string, number>();
+
+/** Test hook: clears the per-session loop-guard counters. Not part of the
+ *  public tool API — used by the unit tests to isolate counter state. */
+export function __resetLoopGuardForTests(): void {
+  fullCallCounters.clear();
+}
+
+interface LoopBlockArgs {
+  sessionId: string;
+  calls: number;
+}
+
+/**
+ * Builds the short loop-detected response. Deliberately small (< 1KB) so it
+ * cannot be truncated/offloaded — that is the entire point of the guard.
+ */
+function buildLoopBlockedResponse({ sessionId, calls }: LoopBlockArgs) {
+  return {
+    content: [
+      {
+        type: 'text' as const,
+        text: JSON.stringify(
+          {
+            status: 'loop_detected',
+            calls_in_session: calls,
+            message:
+              'setup_clearthought already SUCCEEDED ' +
+              calls +
+              ' times in this session and returned the complete guide. ' +
+              'The full content was delivered in the first response ' +
+              '(check your client for the earlier tool result / offloaded file). ' +
+              'Do NOT call this tool again — proceed with your actual task now. ' +
+              'Only pass force:true if you genuinely need a newly rendered guide.',
+            how_to_override: 'force: true'
+          },
+          null,
+          2
+        )
+      }
+    ]
+  };
+}
+
 interface Placeholder {
   token: string;
   value?: string;
@@ -64,9 +116,18 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
           'Content of an existing AGENTS.md. Providing it switches to merge mode: ' +
             'the guide is integrated into this content (replacing a previously ' +
             'inserted guide block if present) instead of returning a full document.'
+        ),
+      force: z
+        .boolean()
+        .optional()
+        .describe(
+          'Escape hatch for the per-session loop guard: pass true ONLY to ' +
+            'intentionally re-render the guide after setup_clearthought was ' +
+            'already called multiple times in this session.'
         )
     },
-    async (args) => {
+    async (args, extra) => {
+      const sessionId = extra?.sessionId ?? 'no-session';
       const template = loadTemplate();
       const placeholders: Placeholder[] = [
         { token: '{{PROJECT_NAME}}', value: args.project_name, fallback: '<your project>' },
@@ -90,6 +151,20 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
         content = merged.content;
       } else {
         content = buildFullDocument(rendered, block);
+      }
+
+      // --- Loop guard (server-side anti-retry) -------------------------------
+      // Counts FULL-mode calls per session. From the threshold on, repeated
+      // calls get a SHORT blocked response instead of the ~20KB guide, because
+      // offloaded/truncated large responses hide the success flag from the
+      // model and cause endless retries (observed 2026-09-23). Merge-mode
+      // calls are exempt (idempotent updates are legitimate), as is force:true.
+      if (mode === 'full' && args.force !== true) {
+        const calls = (fullCallCounters.get(sessionId) ?? 0) + 1;
+        fullCallCounters.set(sessionId, calls);
+        if (calls > FULL_CALL_LOOP_THRESHOLD) {
+          return buildLoopBlockedResponse({ sessionId, calls });
+        }
       }
 
       const unresolved = placeholders
