@@ -35,11 +35,21 @@ function toJson(result: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
 }
 
+const SESSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+/** Wirft bei pfad-traversierenden oder formatwidrigen Session-IDs (Path Safety). */
+export function assertSafeSessionId(sessionId: string): void {
+  if (!SESSION_ID_PATTERN.test(sessionId)) {
+    throw new GuidanceError("configuration_invalid", `invalid sessionId: ${JSON.stringify(sessionId.slice(0, 32))}`, { recoverable: true });
+  }
+}
+
 /** Persistiert SpecKitState je Session (atomic tmp+rename, FR-052 pattern). */
 export class SpecKitStateStore {
   constructor(private readonly stateDir: string) {}
 
   private path(sessionId: string): string {
+    assertSafeSessionId(sessionId);
     return join(this.stateDir, "spec-kit-states", `${sessionId}.json`);
   }
 
@@ -76,7 +86,10 @@ export interface SpecKitToolOptions {
  * Lazy SpecKitEngine-Cache je (sessionId): der Konstruktor ist session-gebunden,
  * Engines werden erst beim ersten Toolaufruf erzeugt (Option C).
  */
+const ENGINE_CACHE_LIMIT = 64;
+
 export class SpecKitEngineResolver {
+  /** Einfacher FIFO-Cap: verhindert unbegrenztes Wachstum bei vielen Sessions. */
   private readonly cache = new Map<string, SpecKitEngine>();
   readonly store: SpecKitStateStore;
 
@@ -85,6 +98,11 @@ export class SpecKitEngineResolver {
   }
 
   resolve(sessionId: string): SpecKitEngine {
+    assertSafeSessionId(sessionId);
+    if (this.cache.size >= ENGINE_CACHE_LIMIT) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest !== undefined) this.cache.delete(oldest);
+    }
     let engine = this.cache.get(sessionId);
     if (!engine) {
       engine = new SpecKitEngine(
@@ -186,7 +204,9 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     { ...sessionId, ...batchId, evidence: z.array(z.record(z.unknown())) },
     async ({ sessionId: sid, batchId: bid, evidence }) =>
       toJson(withState(sid, (engine, state) => {
-        engine.submitImplementation(state, bid ?? state.activeBatchId ?? "", evidence as Parameters<SpecKitEngine["submitImplementation"]>[2]);
+        const target = bid ?? state.activeBatchId;
+        if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
+        engine.submitImplementation(state, target, evidence as Parameters<SpecKitEngine["submitImplementation"]>[2]);
       })),
   );
 
@@ -196,7 +216,9 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     { ...sessionId, ...batchId, findings: z.array(z.record(z.unknown())) },
     async ({ sessionId: sid, batchId: bid, findings }) =>
       toJson(withState(sid, (engine, state) => {
-        engine.submitReview(state, bid ?? state.activeBatchId ?? "", findings as Parameters<SpecKitEngine["submitReview"]>[2]);
+        const target = bid ?? state.activeBatchId;
+        if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
+        engine.submitReview(state, target, findings as Parameters<SpecKitEngine["submitReview"]>[2]);
       })),
   );
 
