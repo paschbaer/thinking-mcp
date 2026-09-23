@@ -399,6 +399,12 @@ One-shot: it always succeeds on the first call — never retry it; the response
 puts `status: "success"` first and includes a `one_shot` flag plus an explicit
 "do NOT call again" note (full mode) so agents cannot mistake a truncated view
 for a failure; merge mode allows idempotent repeat calls via `existing_agents_md`.
+**Compact guide (default) + on-demand sections:** the guide template ships in
+two sizes — `detail: 'compact'` (default, ~7KB rendered: routing table without
+parameter columns, recipes outsourced) and `detail: 'full'` (legacy ~20KB with
+parameter tables and inlined recipes). The workflow-recipe tool chains are
+served on explicit request via `section: 'recipes'` (SHORT response, no paging).
+
 **Paged delivery (root-cause fix for large-response offloading):** full mode
 delivers the guide in parts of ~4.5 KB — small enough that every response stays
 inline in the model context instead of being offloaded to a file. `part: 0`
