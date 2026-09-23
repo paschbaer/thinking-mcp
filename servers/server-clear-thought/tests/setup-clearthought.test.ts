@@ -193,6 +193,8 @@ it('loop guard: blocks the 3rd full-mode call with a SHORT response and force ov
   const blocked = JSON.parse(third.content[0].text);
   expect(blocked.status).toBe('loop_detected');
   expect(blocked.calls_in_session).toBe(3);
+  // hardening: blocked payload keeps the one-shot invariant visible
+  expect(blocked.one_shot).toBe(true);
   // SHORT response: must stay far below the offload threshold (~20KB)
   expect(third.content[0].text.length).toBeLessThan(2000);
   expect(blocked.content).toBeUndefined();

@@ -41,6 +41,7 @@ function buildLoopBlockedResponse({ sessionId, calls }: LoopBlockArgs) {
         text: JSON.stringify(
           {
             status: 'loop_detected',
+            one_shot: true,
             calls_in_session: calls,
             message:
               'setup_clearthought already SUCCEEDED ' +
