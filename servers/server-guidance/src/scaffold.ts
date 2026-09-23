@@ -36,10 +36,15 @@ export interface ScaffoldResult {
 
 function fileIfMissing(root: string, rel: string, content: string, created: string[]): void {
   const target = join(root, rel);
-  if (existsSync(target)) return; // NEVER overwrite
-  mkdirSync(join(target, ".."), { recursive: true });
-  writeFileSync(target, content);
-  created.push(rel);
+  // "wx": atomar exklusiv — existiert die Datei zwischen Check und Write
+  // (TOCTOU), schlägt der Write fehl statt zu überschreiben (NEVER overwrite).
+  try {
+    mkdirSync(join(target, ".."), { recursive: true });
+    writeFileSync(target, content, { flag: "wx" });
+    created.push(rel);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+  }
 }
 
 /** Kleiner gemergter Submission-Schema-Generator (summary + Listenfelder). */
@@ -141,8 +146,10 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
               ? {
                   response: "complete",
                   submissionSchema: "schemas/complete.schema.json",
-                  lifecycle: { beforeEnter: ["repository-analysis"] },
-                  transitions: [{ to: "completed", when: "required_operations_succeeded" }],
+                  // Kein beforeEnter-Op im Scaffold: jede lifecycle-Referenz
+                  // MUSS in operations.json definiert sein (sonst wirft der
+                  // Engine operation_not_configured, non-recoverable).
+                  transitions: [{ to: "completed", when: "submission_valid" }],
                 }
               : phase === "verify"
                 ? {
