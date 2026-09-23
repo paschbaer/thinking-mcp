@@ -238,6 +238,7 @@ export class WorkflowEngine {
       const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
       for (const r of run.results) {
         opResultsStart.push(this.exposeOpResult(r, op));
+        this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
       }
       if (op.required && !run.allSucceeded) {
         startBlocked = true;
@@ -255,8 +256,11 @@ export class WorkflowEngine {
       }
     }
     this.audit.append({ sessionId, eventType: "phase_entered", phase: session.currentPhase, data: {} });
-    const operations = [...opResultsStart, ...(await this.runAfterEnter(session, session.currentPhase))];
-    const requiredFailed = operations.length > 0 && operations.some((o) => o.status !== "succeeded") &&
+    const afterEnterResults = await this.runAfterEnter(session, session.currentPhase);
+    const operations = [...opResultsStart, ...afterEnterResults];
+    // requiredFailed must be computed over afterEnter results ONLY — failed
+    // required beforeEnter start-ops already blocked the session above.
+    const requiredFailed = afterEnterResults.length > 0 && afterEnterResults.some((o) => o.status !== "succeeded") &&
       (this.definition.phases[session.currentPhase]?.lifecycle?.afterEnter ?? []).some((id) => this.operations[id]?.required);
     if (requiredFailed) {
       // FR-040: a required afterEnter failure blocks the session at start.
@@ -460,7 +464,7 @@ export class WorkflowEngine {
           currentPhase: session.currentPhase,
           workflowStatus: session.status,
         });
-        return { ...err.toResponse(), sessionId, operations: opResults } as SubmitResult;
+        return { ...err.toResponse(), sessionId, status: session.status, operations: opResults } as SubmitResult;
       }
     }
 
