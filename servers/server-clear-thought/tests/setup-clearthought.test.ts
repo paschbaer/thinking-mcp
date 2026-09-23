@@ -5,12 +5,16 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultConfig } from '../src/config.js';
 import { SessionState } from '../src/state/SessionState.js';
-import { registerAgentsGuide } from '../src/tools/setup-clearthought.js';
+import { __resetLoopGuardForTests, registerAgentsGuide } from '../src/tools/setup-clearthought.js';
 import { AGENTS_TEMPLATE } from '../src/tools/setup-clearthought-template.js';
 import { registerUtilityToolset } from '../src/toolsets/utility.js';
 
 const START = '<!-- clear-thought:agents-guide:start -->';
 const END = '<!-- clear-thought:agents-guide:end -->';
+
+beforeEach(() => {
+  __resetLoopGuardForTests();
+});
 
 function setupServer() {
   const server = new McpServer({ name: 'test', version: '0.0.0' });
@@ -174,4 +178,38 @@ it('appends with a warning when END appears before START', async () => {
   expect(data.block_replaced).toBe(false);
   expect(data.warning).toBeDefined();
   expect(data.content).toContain('some text');
+});
+
+
+it('loop guard: blocks the 3rd full-mode call with a SHORT response and force overrides it', async () => {
+  const { server, state } = setupServer();
+  registerAgentsGuide(server, state);
+  const tool = getTool(server, 'setup_clearthought');
+  const extra = { sessionId: 's-loop' };
+
+  await tool.handler({ project_name: 'A' }, extra);
+  await tool.handler({ project_name: 'B' }, extra);
+  const third = await tool.handler({ project_name: 'C' }, extra);
+  const blocked = JSON.parse(third.content[0].text);
+  expect(blocked.status).toBe('loop_detected');
+  expect(blocked.calls_in_session).toBe(3);
+  // SHORT response: must stay far below the offload threshold (~20KB)
+  expect(third.content[0].text.length).toBeLessThan(2000);
+  expect(blocked.content).toBeUndefined();
+
+  // merge mode is exempt from the counter
+  const merge = await tool.handler({ existing_agents_md: '# My Agents\n\nBody.' }, extra);
+  const merged = JSON.parse(merge.content[0].text);
+  expect(merged.mode).toBe('merge');
+  expect(merged.status).toBe('success');
+
+  // force overrides the block and delivers content again
+  const forced = await tool.handler({ project_name: 'D', force: true }, extra);
+  const forcedData = JSON.parse(forced.content[0].text);
+  expect(forcedData.status).toBe('success');
+  expect(forcedData.content).toContain('# Clear Thought — Reasoning Tool Guide for D');
+
+  // counter is per session: another session still gets content
+  const other = await tool.handler({ project_name: 'E' }, { sessionId: 's-other' });
+  expect(JSON.parse(other.content[0].text).status).toBe('success');
 });
