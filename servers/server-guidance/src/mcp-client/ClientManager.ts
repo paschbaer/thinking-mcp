@@ -151,8 +151,17 @@ export class ClientManager {
     }
     let response: { isError?: boolean; content?: unknown[]; structuredContent?: unknown };
     let timer: NodeJS.Timeout | undefined;
+    if (requestTimeoutSeconds !== undefined && (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)) {
+      return { kind: "transport", message: `invalid requestTimeoutSeconds: ${requestTimeoutSeconds}` };
+    }
     try {
       const call = client.callTool({ name: toolName, arguments: args });
+      // The raced call is intentionally abandoned on timeout; swallow its late
+      // rejection so it cannot surface as an unhandled rejection. Note: the
+      // downstream request is NOT cancelled (MCP callTool has no AbortSignal)
+      // — retries after a timeout may duplicate side effects on non-idempotent
+      // tools (tracked follow-up).
+      call.catch(() => {});
       response = requestTimeoutSeconds === undefined
         ? (await call) as typeof response
         : (await Promise.race([
