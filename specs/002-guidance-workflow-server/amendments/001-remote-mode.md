@@ -4,8 +4,9 @@
 > Base: `specs/002-guidance-workflow-server/spec.md` (v1 + v2 + v2.1)
 > Date: 2026-09-23
 > Decisions locked by user: (1a) client-executed process operations ·
-> Token-per-session via server-configured `Key`/`Token` pairs (array) ·
-> `Key` supplied at `init_session`
+> Auth: optional `Key`/`Token` pairs (array). **No pairs configured =
+> anonymous access (as today)** — a single global bearer token remains
+> supported · `Key` supplied at `init_session` when pairs are configured
 
 ## 1. Motivation
 
@@ -31,16 +32,22 @@ entstehende Session gebunden — Repo B kann Repo A strukturell nicht erreichen
 - Moduswahl: HTTP-Server läuft im `remote`-Modus, wenn mindestens ein
   Key/Token-Paar konfiguriert ist (`GUIDANCE_KEY_TOKENS`, s. u.). Ohne Pairs
   verhält sich der Server wie bisher (local, optional `GUIDANCE_AUTH_TOKEN`).
-- **FR-100 (Mode Resolution):** Bei konfigurierten Pairs MUSS der Server alle
-  Workspace-Boot-Zeit-Annahmen deaktivieren: kein Scaffold, kein
-  `composeApplication` bei Start, keine `GUIDANCE_WORKSPACE_ROOT`-Abhängigkeit.
-  `start_workflow` ohne vorheriges `init_session` MUSS mit
-  `configuration_not_found` (recoverable) abgelehnt werden.
+- **FR-100 (Mode Resolution):** Der Server läuft im Remote-Modus, wenn
+  `GUIDANCE_WORKSPACE_ROOT` **nicht** auf ein Verzeichnis mit vorhandener
+  `.guidance/guidance.json` zeigt ODER Pairs konfiguriert sind (X-Header /
+  explicit env `GUIDANCE_REMOTE_MODE=1` erzwingt Remote; siehe FR-101.6).
+  Im Remote-Modus MÜSSEN alle Workspace-Boot-Zeit-Annahmen deaktiviert sein:
+  kein Scaffold, kein `composeApplication` bei Start, keine
+  `GUIDANCE_WORKSPACE_ROOT`-Abhängigkeit. `start_workflow` ohne vorheriges
+  `init_session` MUSS mit `configuration_not_found` (recoverable) abgelehnt
+  werden. Implizite Modus-Autoerkennung ist FEHLERANFÄLLIG — empfohlen wird
+  das explizite `GUIDANCE_REMOTE_MODE=1`.
 
-## 3. Server-Konfiguration: Key/Token-Pairs
+## 3. Server-Konfiguration: Key/Token-Pairs (optional)
 
-**FR-101 (Pair Definition):** Der Server MUSS bei Start ein Array von
-`{key, token}`-Paaren laden. Konfiguration über Env-Variable:
+**FR-101 (Pair Definition):** Der Server KANN bei Start ein Array von
+`{key, token}`-Paaren laden (OPTIONAL — siehe Fallback FR-101.6).
+Konfiguration über Env-Variable:
 
 ```bash
 GUIDANCE_KEY_TOKENS='[
@@ -66,7 +73,24 @@ oder alternativ per Datei `GUIDANCE_KEY_TOKENS_FILE=/run/secrets/guidance-pairs.
 - **FR-101.5** Der selbe Token DARF von mehreren Clients gleichzeitig genutzt
   werden (Team-Betrieb eines Repos); er berechtigt ausschließlich für
   Sessions, die mit dem **zugehörigen Key** erstellt wurden
-  (Token-per-Session-Bindung, FR-104).
+  (Token-per-Session-Bindung, FR-103).
+- **FR-101.6 (Anonymous Fallback — DECIDED):** Sind **keine** Pairs
+  konfiguriert, gilt der bisherige anonymous/globale-Auth-Modus:
+  (a) Ohne `GUIDANCE_AUTH_TOKEN` ist `/mcp` offen (wie bisher);
+  (b) mit `GUIDANCE_AUTH_TOKEN` gilt der globale Bearer für ALLE Sessions.
+  `init_session` MUSS dann OHNE `key` aufgerufen werden (key darf nicht
+  übergeben werden — sonst `configuration_invalid`); Sessions werden an
+  den **globalen Kontext** gebunden. Isolation zwischen Sessions bleibt
+  via `sessionId` (Kapplung) bestehen; Cross-Repo-Schutz über Tokens
+  existiert in diesem Modus NICHT (dokumentierte Grenze).
+- **FR-101.7 (Mode-Matrix):**
+
+  | Pairs konfiguriert | `GUIDANCE_AUTH_TOKEN` | Effektives Verhalten |
+  |---|---|---|
+  | ja | ignoriert | Pair-Auth; `init_session` MUSS key+matchenden Token liefern |
+  | nein | ja | Global-Bearer-Auth; `init_session` OHNE key |
+  | nein | nein | Anonymous; `init_session` OHNE key |
+  | ja UND kein Volume/State | — | Remote-Mode erfordert Volume für FR-106 (Session-Persistenz) |
 
 ## 4. `init_session` — Config-Upload und Session-Erzeugung
 
@@ -74,7 +98,7 @@ oder alternativ per Datei `GUIDANCE_KEY_TOKENS_FILE=/run/secrets/guidance-pairs.
 
 ```
 init_session {
-  key: string,              // FR-101.1 Identifikator
+  key?: string,             // NUR wenn Pairs konfiguriert (FR-101.7); sonst verboten
   config: { … },            // vollständige .guidance-Konfiguration ALS PAYLOAD
   configFiles?: {           // alternative Form: Dateiinhalte statt Inline-Objekt
     "guidance.json": string, "workflow.json": string, …, "schemas/understand.schema.json": string
@@ -83,8 +107,11 @@ init_session {
 } → { sessionId, configVersion, workflow: { id, phases[] }, warnings[] }
 ```
 
-- **FR-102.1** Authentifizierung: `Authorization: Bearer <token>` MUSS zum
-  übermittelten `key` passen (Pair-Lookup); sonst `401`/`unauthorized`.
+- **FR-102.1** Authentifizierung: MIT Pairs MUSS `Authorization: Bearer
+  <token>` zum übermittelten `key` passen (Pair-Lookup); sonst
+  `401`/`unauthorized`. OHNE Pairs (anonymer Fallback) MUSS `key`
+  **nicht** übergeben werden; ein trotzdem übergebener `key` ist ein
+  Fehler (`configuration_invalid`) — keine stillerFallback-Mischformen.
 - **FR-102.2** Die Konfiguration wird **in-memory** mit denselben Regeln wie
   `loadConfig` validiert (Schema-Prüfung, Referenz-Auflösung, Cross-File-
   Konsistenz). Ungültige Config ⇒ `configuration_invalid` mit präziser
@@ -117,9 +144,11 @@ Resource-Exhaustion zu verhindern.
 **FR-103 (Strict Session Binding):**
 
 - **FR-103.1** Jeder Werkzeugaufruf mit `sessionId` MUSS prüfen: Session
-  existiert UND der präsentierte Bearer-Token passt zum Key der Session; sonst
-  `session_not_found` (nicht unterscheidbar von „keine Berechtigung" — keine
-  Existenz-Oracle-Leaks).
+  existiert UND die Auth passt — MIT Pairs: Bearer-Token muss zum Key der
+  Session passen; OHNE Pairs: globaler Bearer (falls konfiguriert) muss
+  gültig sein, sonst keine zusätzliche Bindung (anonymer Modus, wie
+  heute). Bei Nichtbestehen: `session_not_found` (nicht unterscheidbar
+  von „keine Berechtigung" — keine Existenz-Oracle-Leaks).
 - **FR-103.2** Komponenten-Instanziierung (Engine, PolicyEngine, Operation-
   Verfolgung, Audit) erfolgt **pro Session**;Instanzen teilen KEINEN Zustand
   über Sessions hinweg (Muster: `SpecKitEngineResolver`).
@@ -197,9 +226,11 @@ report_operation_result {
 
 ## 8. Security Considerations
 
-- **Key-Reuse:** Ein Key DARF mehrere Sessions haben (z. B. mehrere
-  Parallel-Features im selben Repo). Isolation bleibt gewahrt (FR-103.3);
-  empfohlen: ein Key pro Repo, nicht pro Team.
+- **Key-Reuse (nur mit Pairs):** Ein Key DARF mehrere Sessions haben
+  (z. B. mehrere Parallel-Features im selben Repo). Isolation bleibt
+  gewahrt (FR-103.3); empfohlen: ein Key pro Repo, nicht pro Team.
+  Im anonymen Modus (ohne Pairs) gilt: Cross-Repo-Schutz über Tokens
+  existiert nicht — geeignet für Single-Operator-Setups.
 - **Kein Existenz-Oracle:** `session_not_found` für fremde und nicht
   existierende Sessions identisch.
 - **Rotation:** Pair-Rotation = neues Pair hinzufügen, altes entfernen,
@@ -219,8 +250,9 @@ report_operation_result {
 - AC-R2: `init_session` mit gültigem (key, token) + vollständiger Config ⇒
   `sessionId` + `configVersion`; Workflow-Zyklus understand→…→complete ist
   über die Session durchführbar.
-- AC-R3: Session A (key-a) kann mit Token-b nicht bedient werden
-  (`session_not_found`).
+- AC-R3: MIT Pairs: Session A (key-a) kann mit Token-b nicht bedient
+  werden (`session_not_found`). OHNE Pairs: Session bedienbar mit
+  globalem Bearer bzw. anonym (wie bisher) — dokumentierte Grenze.
 - AC-R4: `verify`-Phase mit `beforeExit: [test]` liefert
   `client_operations_pending`; erst `report_operation_result { status:
   "succeeded" }` vollzieht die Transition. Failed ⇒ verbleib in Phase.
