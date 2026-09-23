@@ -326,3 +326,4 @@
 - Root-Cause-Trap beim Migrationstest: fehlendes await server.connect(transport) — Transport annahm Sessions, Server antwortete nie. Nur per offiziellem SDK-Client-E2E gegen dist/Container auffindbar (curl-SSE-Artefakte irreführend).
 - Review (Review-Agent): 2 HIGHs (Root-Compose-Bind-Hosts, ungebremstes Session-Wachstum) — beide gefixt in 1caa690; 3 akzeptierte LOW/INFO-Beobachtungen getrackt im remaining-work-plan.
 - Stand: 3 Commits auf Feature-Branch (bc5326c, dd065b4, 1caa690), Baum sauber; Merge nach develop noch offen.
+- 2026-09-23 — Option D implementiert (scaffold-on-first-start, init-CLI, configured-aware /health; 4683720). Review-HIGH (scaffolded workflow referenzierte undefiniertes repository-analysis-Op → operation_not_configured an complete) sofort gefixt + E2E-Regressions test (scaffold-e2e). TOCTOU via wx-Flag. Config-Doku: Abhängigkeitsgraph + Attribut-Referenz + Best-Practice-Reihenfolge (ec14fe6). Suite 149/149.
