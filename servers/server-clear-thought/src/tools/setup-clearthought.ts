@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SessionState } from '../state/SessionState.js';
 import { AGENTS_TEMPLATE } from './setup-clearthought-template.js';
+import { AGENTS_TEMPLATE_COMPACT, RECIPES_SECTION } from './setup-clearthought-templates.js';
 
 const START_MARKER = '<!-- clear-thought:agents-guide:start -->';
 const END_MARKER = '<!-- clear-thought:agents-guide:end -->';
@@ -173,6 +174,24 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
             'intentionally re-render the guide after setup_clearthought was ' +
             'already called multiple times in this session.'
         ),
+      detail: z
+        .enum(['compact', 'full'])
+        .optional()
+        .describe(
+          'Guide verbosity. compact (default): ~7KB, routing table without ' +
+            'parameter columns (parameters live in the tool schemas), recipes ' +
+            'OUTSOURCED to section: recipes. full: the complete legacy guide ' +
+            'with parameter columns and inlined recipes (~20KB, 4-5 paged ' +
+            'parts). Use full only when you really need the parameter tables.'
+        ),
+      section: z
+        .enum(['guide', 'recipes'])
+        .optional()
+        .describe(
+          'Which section to serve. guide (default): the AGENTS.md guide. ' +
+            'recipes: ONLY the workflow-recipe tool chains as a SHORT ' +
+            'response (paged delivery does not apply).'
+        ),
       part: z
         .number()
         .int()
@@ -189,7 +208,29 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
     },
     async (args, extra) => {
       const sessionId = extra?.sessionId ?? 'no-session';
-      const template = loadTemplate();
+
+      // Recipes-on-demand: SHORT standalone response, bypasses paging,
+      // placeholders and the loop guard entirely.
+      if (args.section === 'recipes') {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(
+                {
+                  status: 'success',
+                  section: 'recipes',
+                  content: RECIPES_SECTION
+                },
+                null,
+                2
+              )
+            }
+          ]
+        };
+      }
+
+      const template = loadTemplate(args.detail ?? 'compact');
       const placeholders: Placeholder[] = [
         { token: '{{PROJECT_NAME}}', value: args.project_name, fallback: '<your project>' },
         { token: '{{DOMAIN_CONTEXT}}', value: args.domain_context, fallback: '<describe your domain>' },
@@ -355,10 +396,11 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
   );
 }
 
-/** The AGENTS.md template is embedded (see setup-clearthought-template.ts) so it
- *  survives Docker builds with *.md ignores and single-file bundling. */
-function loadTemplate(): string {
-  return AGENTS_TEMPLATE;
+/** The AGENTS.md templates are embedded (see setup-clearthought-template.ts
+ *  and setup-clearthought-templates.ts) so they survive Docker builds with
+ *  *.md ignores and single-file bundling. */
+function loadTemplate(detail: 'compact' | 'full'): string {
+  return detail === 'full' ? AGENTS_TEMPLATE : AGENTS_TEMPLATE_COMPACT;
 }
 
 function applyPlaceholders(template: string, placeholders: Placeholder[]): string {

@@ -311,3 +311,44 @@ it('escalation: after 3 blocked attempts the guard returns a HARD tool error', a
   // stays SHORT even when hard
   expect(hard.content[0].text.length).toBeLessThan(1000);
 });
+
+it('compact detail (default): guide is SMALL and recipes are outsourced', async () => {
+  const { server, state } = setupServer();
+  registerAgentsGuide(server, state);
+  const first = await call(server, { project_name: 'CompactCo' });
+  expect(first.delivery).toBe('paged');
+  // compact guide must render well below the offload threshold (~20KB):
+  // total across all parts stays under ~9KB -> at most 2 parts
+  let doc = first.content_part;
+  for (let i = 1; i < first.total_parts; i++) {
+    doc += (await call(server, { project_name: 'CompactCo', part: i })).content_part;
+  }
+  expect(doc.length).toBeLessThan(9500);
+  expect(first.total_parts).toBeLessThanOrEqual(2);
+  // recipes are NOT inlined anymore
+  expect(doc).not.toContain('## Workflow recipes (clear-thought)');
+  expect(doc).toContain("section: 'recipes'");
+  expect(doc).toContain('Guide for CompactCo');
+});
+
+it("section: 'recipes' returns the recipe chains as a SHORT response", async () => {
+  const { server, state } = setupServer();
+  registerAgentsGuide(server, state);
+  const r = await call(server, { section: 'recipes' });
+  expect(r.status).toBe('success');
+  expect(r.section).toBe('recipes');
+  expect(r.content).toContain('debug-failure');
+  expect(r.content).toContain('decision-under-uncertainty');
+  // SHORT: no paging metadata, well under offload threshold
+  expect(r.total_parts).toBeUndefined();
+  expect(r.content.length).toBeLessThan(5000);
+});
+
+it("detail: 'full' still serves the legacy parameter tables", async () => {
+  const { server, state } = setupServer();
+  registerAgentsGuide(server, state);
+  const first = await call(server, { project_name: 'FullCo', detail: 'full' });
+  expect(first.delivery).toBe('paged');
+  expect(first.total_parts).toBeGreaterThanOrEqual(3); // ~19.5KB legacy size
+  expect(first.content_part).toContain('Essential parameters');
+});
