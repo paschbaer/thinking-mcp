@@ -266,7 +266,7 @@ export class WorkflowEngine {
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
       const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
       for (const r of run.results) {
-        out.push({ id: r.operationId, status: r.status, summary: r.summary });
+        out.push(this.exposeOpResult(r, op));
         if (op.required && r.status !== "succeeded") {
           this.audit.append({ sessionId: session.sessionId, eventType: "hook_failed", phase, data: { operationId: id } });
         }
@@ -325,6 +325,23 @@ export class WorkflowEngine {
     return this.sessions.withLock(sessionId, () => this.submitLocked(sessionId, phase, payload, requestId));
   }
 
+  /** FR-037/§30: op result filtered per returnToAgent exposure before agent-facing use. */
+  private exposeOpResult(
+    r: { operationId: string; status: string; summary: string; content?: unknown[]; data?: Record<string, unknown> },
+    config?: OperationConfig,
+  ): { id: string; status: string; summary: string } {
+    const mode = config?.output?.returnToAgent ?? "summary_and_errors";
+    const exposed = this.policyEngine.applyExposure(
+      { ...r, content: r.content ?? [], data: r.data ?? {}, errors: [], warnings: [], protocolMetadata: {} },
+      mode,
+    );
+    const errorMessages: string[] = (r as { errors?: { message: string }[] }).errors?.map((e) => e.message) ?? [];
+    const suffix = errorMessages.length > 0 && (mode === "summary_and_errors" || mode === "normalized" || mode === "raw")
+      ? `: ${errorMessages.join("; ").slice(0, 500)}`
+      : "";
+    return { id: r.operationId, status: r.status, summary: exposed.summary + suffix };
+  }
+
   private async submitLocked(sessionId: string, phase: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
     const session = this.getSession(sessionId);
 
@@ -380,7 +397,8 @@ export class WorkflowEngine {
       }
       const run = await this.operationEngine.executeRequired(ops, ctx);
       opsSucceeded = run.allSucceeded;
-      opResults = run.results.map((r) => ({ id: r.operationId, status: r.status, summary: r.summary }));
+      const opById = new Map(ops.map((op) => [op.operationId, op]));
+      opResults = run.results.map((r) => this.exposeOpResult(r, opById.get(r.operationId)));
       for (const r of run.results) {
         this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
       }
@@ -465,7 +483,8 @@ export class WorkflowEngine {
       return op;
     });
     const run = await this.operationEngine.executeRequired(ops, { workspaceRoot: session.workspaceRoot });
-    const opResults = run.results.map((r) => ({ id: r.operationId, status: r.status, summary: r.summary }));
+    const opById = new Map(ops.map((op) => [op.operationId, op]));
+    const opResults = run.results.map((r) => this.exposeOpResult(r, opById.get(r.operationId)));
 
     if (!run.allSucceeded) {
       this.audit.append({ sessionId, eventType: "hook_failed", phase: "complete", data: { results: opResults } });
@@ -517,7 +536,8 @@ export class WorkflowEngine {
         return op;
       });
       const run = await this.operationEngine.executeRequired(ops, { workspaceRoot: session.workspaceRoot });
-      const opResults = run.results.map((r) => ({ id: r.operationId, status: r.status, summary: r.summary }));
+      const opById = new Map(ops.map((op) => [op.operationId, op]));
+      const opResults = run.results.map((r) => this.exposeOpResult(r, opById.get(r.operationId)));
       if (!run.allSucceeded) {
         const err = new GuidanceError("required_hook_failed", "retry still failing", { recoverable: true, currentPhase: session.currentPhase, workflowStatus: session.status });
         return { ...err.toResponse(), sessionId, operations: opResults } as SubmitResult;
