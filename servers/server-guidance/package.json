@@ -8,7 +8,8 @@
   "bugs": "https://github.com/paschbaer/thinking-mcp/issues",
   "type": "module",
   "bin": {
-    "mcp-server-guidance": "dist/index.js"
+    "mcp-server-guidance": "dist/index.js",
+    "mcp-server-guidance-init": "dist/init.js"
   },
   "files": [
     "dist",

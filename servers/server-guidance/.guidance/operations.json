@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "operations": {
+    "lint": {
+      "description": "run linter",
+      "type": "process",
+      "executable": "npm",
+      "args": [
+        "run",
+        "lint"
+      ],
+      "required": false,
+      "timeoutSeconds": 120,
+      "validation": {
+        "exitCodeMustBeZero": true
+      },
+      "output": {
+        "returnToAgent": "summary_and_errors"
+      }
+    },
+    "test": {
+      "description": "run test suite",
+      "type": "process",
+      "executable": "npm",
+      "args": [
+        "test"
+      ],
+      "required": true,
+      "timeoutSeconds": 600,
+      "validation": {
+        "exitCodeMustBeZero": true
+      },
+      "output": {
+        "returnToAgent": "summary_and_errors"
+      }
+    },
+    "build": {
+      "description": "build the project",
+      "type": "process",
+      "executable": "npm",
+      "args": [
+        "run",
+        "build"
+      ],
+      "required": true,
+      "timeoutSeconds": 300,
+      "validation": {
+        "exitCodeMustBeZero": true
+      },
+      "output": {
+        "returnToAgent": "summary_and_errors"
+      }
+    }
+  }
+}
