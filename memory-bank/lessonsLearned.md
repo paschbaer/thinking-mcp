@@ -260,3 +260,17 @@
   (und bei Einmal-Tools ein explizites `one_shot: true` + "do NOT call again")
   als ERSTE Felder serialisieren, plus denselben Warnhinweis in die
   Tool-Description. Generisch: Erfolgssignal nie hinter Megabytes verstecken.
+
+### Experience Memory Capture (2026-09-23)
+- Session-Lessons wurden per `experience_seed_lessons` in den EMMS-Store
+  (`thinking-mcp-lessons`) geseedet, beide `PARTIALLY_VERIFIED`,
+  Round-Trip per `experience_search` verifiziert:
+  - `large-tool-response-status-truncation` (exp_f3795b94-c9a) — siehe
+    "setup_clearthought Endless-Retry-Loop" oben; Fix in 38875a9/a8fb97d.
+  - `mnt-d-readfile-linewrap-edit-mismatch` (exp_8c20e8af-668) — read_file
+    liefert auf /mnt/d hart umgebrochene Zeilen; edit-Tools brauchen
+    Byte-Exaktheit. Fix: Terminal-Python-Patch mit Occurrence-Assertion +
+    sofortiger grep-Verifikation; Terminal-Lesen ist Disk-Autorität.
+- Hinweis: EMMS-Suche ist im MVP nur Full-Text/Signature (semantische Suche
+  inaktiv) — mit Slug-Fragmenten suchen (z.B. "status-truncation"), nicht
+  mit freier Beschreibung.
