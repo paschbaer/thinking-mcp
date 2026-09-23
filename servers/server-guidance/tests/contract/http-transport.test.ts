@@ -11,6 +11,7 @@ const FIXTURE = join(import.meta.dirname, "../workflow/fixtures/guidance");
 
 beforeEach(() => {
   ws = mkdtempSync(join(tmpdir(), "guidance-http-"));
+  process.env.GUIDANCE_WORKSPACE_ROOT = ws;
   cfgDir = join(ws, ".guidance");
   stateDir = join(ws, ".guidance", "state");
   mkdirSync(cfgDir, { recursive: true });
@@ -24,6 +25,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete process.env.GUIDANCE_WORKSPACE_ROOT;
   rmSync(ws, { recursive: true, force: true });
 });
 
@@ -48,7 +50,6 @@ describe("HTTP transport (FR-027 loopback-only)", () => {
   });
 
   it("MCP endpoint: tools/list and start_workflow over streamable HTTP (stateless)", async () => {
-    process.env.GUIDANCE_WORKSPACE_ROOT = ws;
     const { port } = await startHttpServer("127.0.0.1", 0);
     const call = async (body: Record<string, unknown>) =>
       (await fetch(`http://127.0.0.1:${port}/mcp`, {
@@ -65,7 +66,6 @@ describe("HTTP transport (FR-027 loopback-only)", () => {
     expect(parsed.accepted).toBe(true);
     expect(parsed.currentPhase).toBe("understand");
   });
-    delete process.env.GUIDANCE_WORKSPACE_ROOT;
 
   it("auth token enforced when GUIDANCE_AUTH_TOKEN option is set", async () => {
     const { createHttpApp } = await import("../../src/server.js");
@@ -80,6 +80,19 @@ describe("HTTP transport (FR-027 loopback-only)", () => {
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     expect(health.status).toBe(200); // health bleibt offen
     server.close();
+  });
+
+  it("workspaceRoot escape über start_workflow wird abgewiesen (HIGH-1 Regression)", async () => {
+    const { port } = await startHttpServer("127.0.0.1", 0);
+    const res = await fetch(`http://127.0.0.1:${port}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "start_workflow", arguments: { workspaceRoot: "/etc", request: "escape" } } }),
+    });
+    expect(res.status).toBe(200); // Transport-Ebene OK
+    const text = ((await res.json()) as { result: { content: { text: string }[] } }).result.content[0]!.text;
+    // GuidanceError wird als Text-Error-Content zurückgegeben (kein Crash).
+    expect(text).toMatch(/escapes the configured workspace/);
   });
 
   it("stateless mode rejects GET/DELETE on /mcp", async () => {
