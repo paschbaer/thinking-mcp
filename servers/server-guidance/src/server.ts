@@ -110,9 +110,9 @@ export function createHttpApp(opts: HttpAppOptions) {
   };
 
   app.get("/health", (_req, res) => {
-    // configured = Konfiguration nach optionalem Scaffold vorhanden.
-    // Healthcheck-Muster: 200 immer, aber 'configured:false' macht einen
-    // unkonfigurierten Server im Monitoring sofort sichtbar.
+    // configured = guidance.json existiert aktuell. Nach dem Scaffold im Boot
+    // ist das praktisch immer true; false signalisiert post-bootes Löschen
+    // oder Scaffold=off-Betrieb (dann startet der Server aber gar nicht).
     res.json({ server: "guidance", status: "ok", configured: existsSync(join(opts.configDir, "guidance.json")) });
   });
 
