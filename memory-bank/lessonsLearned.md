@@ -274,3 +274,16 @@
 - Hinweis: EMMS-Suche ist im MVP nur Full-Text/Signature (semantische Suche
   inaktiv) — mit Slug-Fragmenten suchen (z.B. "status-truncation"), nicht
   mit freier Beschreibung.
+
+### Avoid These Mistakes (2026-09-23, Fortsetzung Loop-Defense)
+- **Kurze Erfolgs-Antworten stoppen Loops NICHT zuverlaessig**: Modelle
+  ignorieren selbst sichtbare status:'loop_detected'-Results (20+ Retries
+  beobachtet) — nur Protokoll-Fehler (isError:true) wirken zuverlaessig.
+  Eskalationsstufe einplanen, nicht nur Status-Felder.
+- **Templates duerfen Marker nicht selbst enthalten**: buildGuideBlock wrappt
+  den Body — ein im Template hinterlegter End-Marker verdoppelt ihn und
+  Merge-Mode faellt stumm in den Append-Fallback (block_replaced:false +
+  warning). Regel: Marker-Nur-Durch-Code; Test fehlt noch (getrackt).
+- **create_file auf /mnt/d**: diesmal sofort per grep verifiziert — okay.
+  Aber Heredoc-Anhaenge an Testdateien koennen bei abgebrochenen Terminals
+  Dateien duplizieren: vor Commit immer grep -c auf Helfer-Symbole.

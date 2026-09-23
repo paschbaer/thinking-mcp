@@ -328,3 +328,15 @@
 - Stand: 3 Commits auf Feature-Branch (bc5326c, dd065b4, 1caa690), Baum sauber; Merge nach develop noch offen.
 - 2026-09-23 — Option D implementiert (scaffold-on-first-start, init-CLI, configured-aware /health; 4683720). Review-HIGH (scaffolded workflow referenzierte undefiniertes repository-analysis-Op → operation_not_configured an complete) sofort gefixt + E2E-Regressions test (scaffold-e2e). TOCTOU via wx-Flag. Config-Doku: Abhängigkeitsgraph + Attribut-Referenz + Best-Practice-Reihenfolge (ec14fe6). Suite 149/149.
 - 2026-09-23 — Store-Abgleich: STDIO-Store (~/.insight, 76 Episoden, Stand 22.09.) war disjunkt vom Docker-Store (37, heutige Lessons). migrate-stdio-store.mjs (Container gestoppt, vorher Dry-Run) → DOCKER-Store jetzt 113 Episoden, FTS 113/113, Container healthy, Suche via HTTP verifiziert (alte STDIO-Episoden + heutige Lessons beide auffindbar). STDIO-Store unangetastet als Backup.
+
+## 2026-09-23: setup_clearthought Loop-Defense-Serie abgeschlossen
+- Feature-Zweige gemerged (develop): Loop-Guard (d9d6759), F4-Härtung (184a7ec),
+  Pagination (53f7714/582a9b9), Eskalation (44063c6), Compact-Guide + Recipes-
+  on-Demand (a5c5c98). Reviews: jeweils 0 HIGH/CRITICAL, approved.
+- Getrackte Follow-ups (Reviews, trigger = naechste Template-/Tool-Aenderung):
+  1. Test fehlt: Compact-Output muss GENAU EIN Marker-Paar enthalten
+     (Regression waere doppelte Marker -> Merge-Fallback). [R: a5c5c98 Review #2]
+  2. Eskalationstest ueber den Utility-Toolset-Dispatcher (isError-Propagation
+     via toolsets/registry.ts untested). [R: 44063c6 Review #4]
+  3. Beobachtung akzeptiert: section:'recipes' ist unguarded (statischer
+     ~2-3KB-Payload); Rate-Limit nur falls Spam beobachtet wird.

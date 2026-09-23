@@ -247,3 +247,16 @@ UPDATE 2026-09-18 (15): CONSOLIDATION WORKER (Phase 3). ConsolidationWorker: Tim
 - **What works:** clear-thought + insight laufen ohne Smithery auf direktem SDK-Streamable-HTTP (stateful Sessions); Dockerfiles ohne Sed-Patch; insight deterministisches npm ci mit eigenem Lockfile; Root-Compose mit Bind-Host-Vars; Session-Reaper (60min TTL, 500er Cap); alle Unit-Tests (152+99) grün; Container-E2E per SDK-Client verifiziert (47/20 Tools, Tool-Calls OK).
 - **What's left:** Merge von feature/sdk-streamable-transport-migration nach develop (Rebase) steht aus; akzeptierte Review-Beobachtungen (400/-32700-Parse-Error, nicht registrierte Wegwerf-Sessions, Smithery-Reste) getrackt im remaining-work-plan; Smithery-Deploy-Strategie (Scripts + smithery.yaml) zu entscheiden.
 - **Current State:** Feature-Branch 1caa690, Review-HIGHs geschlossen, bereit für Merge nach develop.
+
+### 2026-09-23 — setup_clearthought Retry-Loop-Serie (abgeschlossen)
+**What works:** Endless-Retry-Loop vollstaendig behoben, in 5 Stufen:
+(1) status-first Serialization + one_shot-Note, (2) serverseitiger Loop-Guard
+(short loop_detected ab 3. Full-Call), (3) Pagination (~4.5KB/Part, part-N-Abruf,
+guard-exempt), (4) Eskalation auf isError:true (refused_do_not_retry) nach
+3 geblockten Versuchen, (5) Compact-Guide als Default (~7KB, 1-2 Parts statt 5)
+mit detail:'full' Legacy-Modus und section:'recipes' On-Demand-Abruf.
+157->160 Tests gruen; root AGENTS.md-Regen auf detail:'full' gepinnt.
+**What's left:** 3 getrackte Follow-ups (siehe remaining-work-plan.md); Push der
+neueren Commits (a5c5c98) + Docker-Rebuild ausstehend (SSH-Agent je Terminal).
+**Current state:** develop = origin/develop + a5c5c98 (lokaler Commit);
+alle Server-Commits reviewed, 0 HIGH/CRITICAL.
