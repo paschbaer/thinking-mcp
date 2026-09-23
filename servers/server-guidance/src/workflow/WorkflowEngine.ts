@@ -228,8 +228,34 @@ export class WorkflowEngine {
     };
     this.sessions.save(session);
     this.audit.append({ sessionId, eventType: "session_started", data: { workflowId: session.workflowId } });
+    // FR-038: beforeEnter der Initial-Phase vor dem Betreten; Required-Failure
+    // => Session startet geblockt (FR-040).
+    const opResultsStart: { id: string; status: string; summary: string }[] = [];
+    let startBlocked = false;
+    for (const id of this.definition.phases[session.currentPhase]?.lifecycle?.beforeEnter ?? []) {
+      const op = this.operations[id];
+      if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
+      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      for (const r of run.results) {
+        opResultsStart.push(this.exposeOpResult(r, op));
+      }
+      if (op.required && !run.allSucceeded) {
+        startBlocked = true;
+        this.sessions.update(sessionId, (s) => {
+          s.status = "blocked";
+          s.blockers.push({
+            blockerId: `blocker-${randomUUID()}`,
+            category: "required_operation_failed",
+            description: `beforeEnter operation ${id} failed at session start`,
+            requiresUserDecision: false,
+          });
+        });
+        this.audit.append({ sessionId, eventType: "hook_failed", phase: session.currentPhase, data: { lifecycle: "beforeEnter", operationId: id, blocked: true } });
+        session.status = "blocked";
+      }
+    }
     this.audit.append({ sessionId, eventType: "phase_entered", phase: session.currentPhase, data: {} });
-    const operations = await this.runAfterEnter(session, session.currentPhase);
+    const operations = [...opResultsStart, ...(await this.runAfterEnter(session, session.currentPhase))];
     const requiredFailed = operations.length > 0 && operations.some((o) => o.status !== "succeeded") &&
       (this.definition.phases[session.currentPhase]?.lifecycle?.afterEnter ?? []).some((id) => this.operations[id]?.required);
     if (requiredFailed) {
@@ -416,12 +442,50 @@ export class WorkflowEngine {
       return { ...err.toResponse(), sessionId, status: session.status, operations: opResults } as SubmitResult;
     }
 
+    // FR-038: beforeEnter der Ziel-Phase VOR dem Betreten; Required-Failure
+    // blockiert die Transition (Session bleibt in der alten Phase).
+    const beforeEnterIds = this.definition.phases[target]?.lifecycle?.beforeEnter ?? [];
+    for (const id of beforeEnterIds) {
+      const op = this.operations[id];
+      if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
+      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      for (const r of run.results) {
+        opResults.push(this.exposeOpResult(r, op));
+        this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
+      }
+      if (op.required && !run.allSucceeded) {
+        this.audit.append({ sessionId, eventType: "hook_failed", phase: target, data: { lifecycle: "beforeEnter", operationId: id } });
+        const err = new GuidanceError("required_hook_failed", `beforeEnter operation ${id} failed; transition blocked`, {
+          recoverable: true,
+          currentPhase: session.currentPhase,
+          workflowStatus: session.status,
+        });
+        return { ...err.toResponse(), sessionId, operations: opResults } as SubmitResult;
+      }
+    }
+
     const previousPhase = session.currentPhase;
     this.audit.append({ sessionId, eventType: "phase_exited", phase: previousPhase, data: {} });
     session.previousPhase = previousPhase;
     session.currentPhase = target;
     this.audit.append({ sessionId, eventType: "transition_accepted", phase: target, data: { from: previousPhase } });
     this.audit.append({ sessionId, eventType: "phase_entered", phase: target, data: {} });
+
+    // FR-038: afterExit der alten Phase nach dem Verlassen (nicht-blockierend,
+    // Required-Failures werden auditiert).
+    const afterExitIds = this.definition.phases[previousPhase]?.lifecycle?.afterExit ?? [];
+    for (const id of afterExitIds) {
+      const op = this.operations[id];
+      if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
+      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      for (const r of run.results) {
+        opResults.push(this.exposeOpResult(r, op));
+        this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
+      }
+      if (op.required && !run.allSucceeded) {
+        this.audit.append({ sessionId, eventType: "hook_failed", phase: previousPhase, data: { lifecycle: "afterExit", operationId: id } });
+      }
+    }
 
     opResults.push(...(await this.runAfterEnter(session, target)));
     const result: SubmitResult = {
