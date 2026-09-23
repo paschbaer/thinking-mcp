@@ -21,6 +21,7 @@ import { createValidator, type SchemaValidator } from "./schema-validator.js";
 import { OperationEngine, type OperationContext } from "../orchestration/OperationEngine.js";
 import { ClientManager } from "../mcp-client/ClientManager.js";
 import { PolicyEngine } from "../policy/PolicyEngine.js";
+import { createRedactor } from "../policy/redaction.js";
 
 export interface StartResult {
   accepted: true;
@@ -71,7 +72,20 @@ export class WorkflowEngine {
     this.config = deps.config;
     this.sessions = new SessionRepository(join(deps.stateDir, "sessions"));
     this.archiveDir = join(deps.stateDir, "archive");
-    this.audit = new AuditRepository(join(deps.stateDir, "history"));
+    const redactionPatterns = (this.config.policies as { redaction?: { patterns?: string[] } } | undefined)?.redaction?.patterns
+      ?? ["\\bapi[_-]?key\\b", "\\btoken\\b", "\\bsecret\\b", "\\bpassword\\b", "\\bauthorization\\b"];
+    const redact = (serialized: string): string => {
+      let out = serialized;
+      for (const pattern of redactionPatterns) {
+        try {
+          out = out.replace(new RegExp(`(["']?)(${pattern})\\1\\s*[:=]\\s*("[^"]*"|'[^']*'|[^\\s,}]+)`, "gi"), `$1$2$1: "[REDACTED]"`);
+        } catch {
+          // invalid pattern: skip (fail-open verhindern wäre Verstärkung; Muster sind config-kontrolliert)
+        }
+      }
+      return out;
+    };
+    this.audit = new AuditRepository(join(deps.stateDir, "history"), redact);
     this.operationEngine = deps.operationEngine ?? new OperationEngine();
     const file = this.config.workflow as unknown as {
       version: number;
