@@ -67,6 +67,28 @@ interface Placeholder {
   fallback: string;
 }
 
+/** Target size per delivered part (chars). Well below the ~20KB client
+ *  offload threshold so each response arrives inline in the model context. */
+const PART_SIZE = 4500;
+
+/** Splits text into chunks of at most maxChars, breaking at line boundaries
+ *  so markdown structure is never cut mid-line. */
+function splitIntoParts(text: string, maxChars: number): string[] {
+  const lines = text.split('\n');
+  const parts: string[] = [];
+  let current = '';
+  for (const line of lines) {
+    if (current.length > 0 && current.length + line.length + 1 > maxChars) {
+      parts.push(current);
+      current = line;
+    } else {
+      current = current.length === 0 ? line : current + '\n' + line;
+    }
+  }
+  if (current.length > 0) parts.push(current);
+  return parts;
+}
+
 /**
  * Serves the AGENTS.md template shipped with this package so that an LLM
  * agent can add a ready-made reasoning-tool guide to any project's
@@ -125,6 +147,19 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
           'Escape hatch for the per-session loop guard: pass true ONLY to ' +
             'intentionally re-render the guide after setup_clearthought was ' +
             'already called multiple times in this session.'
+        ),
+      part: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe(
+          'FULL mode delivers the guide PAGED (each part well under the ' +
+            'client offload threshold, so every response stays inline): ' +
+            'part 0 (or omitted) returns metadata + the first part and ' +
+            'reports total_parts; follow up with part: 1, 2, ... to fetch ' +
+            'the remaining parts in order. part calls are exempt from the ' +
+            'loop guard. Ignored in merge mode.'
         )
     },
     async (args, extra) => {
@@ -160,7 +195,7 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
       // offloaded/truncated large responses hide the success flag from the
       // model and cause endless retries (observed 2026-09-23). Merge-mode
       // calls are exempt (idempotent updates are legitimate), as is force:true.
-      if (mode === 'full' && args.force !== true) {
+      if (mode === 'full' && args.force !== true && args.part === undefined) {
         const calls = (fullCallCounters.get(sessionId) ?? 0) + 1;
         fullCallCounters.set(sessionId, calls);
         if (calls > FULL_CALL_LOOP_THRESHOLD) {
@@ -168,6 +203,89 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
         }
       }
 
+      const unresolved0 = placeholders
+        .filter((p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback))
+        .map((p) => p.token);
+
+      // --- Paged delivery (root-cause fix for response offloading) ----------
+      // Full-mode responses are split into parts small enough to stay inline.
+      // The first call returns metadata + part 0 and tells the agent how many
+      // parts exist; subsequent calls fetch part N directly. `part` calls are
+      // exempt from the loop guard (they are deterministic fetches, not
+      // retries). Merge mode is never paged (existing_agents_md input implies
+      // a write-back flow where the full document is required).
+      if (mode === 'full') {
+        const parts = splitIntoParts(content, PART_SIZE);
+        const requested = args.part ?? 0;
+        if (requested >= parts.length) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify(
+                  {
+                    status: 'part_out_of_range',
+                    one_shot: true,
+                    part: requested,
+                    total_parts: parts.length,
+                    message:
+                      'Invalid part: this guide has ' +
+                      parts.length +
+                      ' parts (0..' +
+                      (parts.length - 1) +
+                      '). Fetch the missing parts in order and stop.',
+                    how_to_fix: 'part: 0..' + (parts.length - 1)
+                  },
+                  null,
+                  2
+                )
+              }
+            ]
+          };
+        }
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(
+                {
+                  status: 'success',
+                  one_shot: true,
+                  delivery: 'paged',
+                  part: requested,
+                  total_parts: parts.length,
+                  final_part: requested === parts.length - 1,
+                  mode,
+                  content_part: parts[requested],
+                  unresolved_placeholders: unresolved0,
+                  nextSteps:
+                    requested < parts.length - 1
+                      ? [
+                          'Fetch the next part: call setup_clearthought again with the SAME arguments plus part: ' +
+                            (requested + 1) +
+                            ' (total ' +
+                            parts.length +
+                            ' parts).',
+                          'Then assemble all parts in order (they concatenate 1:1) and write the result to AGENTS.md.'
+                        ]
+                      : [
+                          'Final part received. Concatenate parts 0..' +
+                            (parts.length - 1) +
+                            ' in order (1:1, no separators) and write the result to AGENTS.md.',
+                          'Fill any unresolved placeholders directly in the written file.',
+                          'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
+                        ]
+                },
+                null,
+                2
+              )
+            }
+          ]
+        };
+      }
+
+      // After the paged block, mode is guaranteed 'merge': the full-mode path
+      // returned inside the paged block. Simplify the merge-only response.
       const unresolved = placeholders
         .filter((p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback))
         .map((p) => p.token);
@@ -175,13 +293,9 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
       // one_shot note is scoped per mode: merge mode legitimately allows repeat
       // calls (idempotent in-place updates); full mode must never be retried.
       const note =
-        mode === 'full'
-          ? 'This call SUCCEEDED and the guide in `content` is complete. ' +
-            'Do NOT call this tool again to retry or verify — proceed directly ' +
-            'to writing `content` to AGENTS.md as described in nextSteps.'
-          : 'This call SUCCEEDED. Repeat calls with existing_agents_md are ' +
-            'allowed for idempotent in-place updates, but never call it again ' +
-            'to retry or verify success.';
+        'This call SUCCEEDED. Repeat calls with existing_agents_md are ' +
+        'allowed for idempotent in-place updates, but never call it again ' +
+        'to retry or verify success.';
 
       return {
         content: [
@@ -193,7 +307,7 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
                 // a truncated tool-result view, which caused agents to assume
                 // failure and retry the call in an endless loop (2026-09-23).
                 status: 'success',
-                one_shot: mode === 'full',
+                one_shot: false,
                 note,
                 mode,
                 block_replaced: blockReplaced,
@@ -201,13 +315,9 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
                 content,
                 unresolved_placeholders: unresolved,
                 nextSteps: [
-                  mode === 'merge'
-                    ? 'Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication.'
-                    : 'Write `content` to the AGENTS.md at the target project root.',
+                  'Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication.',
                   'Fill any unresolved placeholders directly in the written file.',
-                  mode === 'full'
-                    ? 'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
-                    : 'Repeat calls with updated content stay idempotent via the clear-thought markers.'
+                  'Repeat calls with updated content stay idempotent via the clear-thought markers.'
                 ]
               },
               null,
