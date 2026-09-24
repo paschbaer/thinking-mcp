@@ -465,3 +465,21 @@ Umsetzung (Option A):
   bleibt das Publishing-Werkzeug.
 - Nächster Smithery-Publish prüft die neuen yamls in der Praxis
   (Rescan-Score gegen RB-10-Historie vergleichen).
+
+## Entscheidungen (User, 2026-09-24) + neue Pakete
+1. Smithery: NICHT „tot lassen" — aktive Pflege (Option A bereits umgesetzt).
+2. CB-4 Option A: JA — insight wird remote nutzbar → EMMS_AUTH_TOKEN.
+3. 1b Downstream-Spec: JA — Remote-Mode wird um Downstream-MCP-Support erweitert.
+
+- [ ] CB-20 MEDIUM (Decision 2): EMMS_AUTH_TOKEN für insight nach dem
+  GUIDANCE_AUTH_TOKEN-Pattern (timing-safe Bearer an /mcp, /health offen,
+  compose-Env-Doku, Tests 401/200). Aufwand ~1h. Trigger: ab sofort —
+  letzte offene Security-Position. Action required.
+- [ ] CB-21 MEDIUM (Decision 3): Remote-Mode Downstream-Support — (1) Spec-
+  Amendment zu specs/002 (Downstream-Ops statt awaiting_client; Interaktion
+  mit FR-104.5/Trust klären), (2) Implementierung im OperationEngine-Stack.
+  Aufwand: Spec ½ Tag, Dev separat. Trigger: nächster Remote-Mode-Scope.
+- [ ] CB-22 LOW (Decision 1, aktive Pflege): beim nächsten Release Publish
+  via publish-smithery.mjs (validiert die neuen stdio-yamls praktisch) +
+  Rescan-Score gegen RB-10-Historie (96/100) hier dokumentieren.
+  Trigger: nächster Release.
