@@ -344,7 +344,8 @@ Code-Verifikation aller offenen Zeilen. Ergebnisse:
 Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach
 Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
 
-## Cluster 2c (GELÖST 9bcc6c6, 2026-09-24)
+## Cluster 2c (GELÖST 9bcc6c6, 2026-09-24; Review APPROVED 0 HIGH/CRIT)
+- [ ] R-6..R-8 LOW/INFO (Post-Commit-Review 9bcc6c6 — akzeptierte Beobachtungen): (R-6) Downstream-Error-Message-Pfade (tool_reported/transport) tragen messages unverratzt durch errors[] — redact beim nächsten Touch der OperationEngine. (R-7) Secret-Value-Patterns ohne Word-Boundary → mögliche False-Positive-Blocks im restricted-Modus (fail-closed, akzeptiert); Boundary-Verfeinerung optional. (R-8) redactUnknown setzt azyklische (JSON-derived) Strukturen voraus — im Docstring dokumentieren. Trigger: nächste Änderung an OperationEngine/redaction.ts. Accepted observations mit rationale.
 - [x] Egress Content-Checks (Phase 6 MEDIUM): evaluateEgress (restricted/
   validated_inputs_only) verwirft Scalar-Args mit High-Confidence-Credential-
   Werten (Private-Keys, AKIA/ghp_/github_pat_/sk-/JWT/xox-Pattern) via
