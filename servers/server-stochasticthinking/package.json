@@ -39,8 +39,7 @@
         "watch": "npx tsc --watch",
         "prepare": "npm run build",
         "prebuild": "npm run clean",
-        "prepublishOnly": "npm run build",
-        "deploy": "smithery deploy"
+        "prepublishOnly": "npm run build"
     },
     "repository": {
         "type": "git",
