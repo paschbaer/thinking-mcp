@@ -144,6 +144,16 @@ export function createHttpApp(opts: HttpAppOptions) {
             return;
           }
         }
+        // Q4: Rate-Limit für init_session (20/min pro Quell-IP, 429).
+        if (pName === "init_session") {
+          const ip = (req.socket.remoteAddress ?? "unknown").replace(/^::ffff:/, "");
+          try {
+            manager.checkInitRateLimit(ip);
+          } catch (err) {
+            res.status(429).json({ jsonrpc: "2.0", error: { code: -32002, message: String((err as Error).message) }, id: (req.body as { id?: unknown })?.id ?? null });
+            return;
+          }
+        }
         const sid = args?.sessionId;
         if (typeof sid === "string") {
           try {
