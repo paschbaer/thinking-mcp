@@ -25,7 +25,6 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "build:smithery": "npx @smithery/cli build",
     "test": "vitest run",
     "test:live": "node scripts/funktionstest.mjs",
     "test:coverage": "vitest --coverage",
@@ -44,7 +43,6 @@
     "prebuild": "npm run clean",
     "prepublishOnly": "npm run build",
     "dev:watch": "npm run watch",
-    "deploy": "smithery deploy",
     "build:mcpb": "node scripts/build-mcpb.mjs",
     "eval:llm": "node evals/run.mjs",
     "sync:guide": "node scripts/sync-agents-template.mjs",

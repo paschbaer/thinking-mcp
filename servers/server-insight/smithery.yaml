@@ -1,1 +1,15 @@
-runtime: "typescript"
+# Smithery configuration: https://smithery.ai/docs/config#smitheryyaml
+# stdio transport via the npm bin entry (dist/dev.js). Optional storage path
+# maps to EMMS_STORAGE_PATH (see src/config.ts env fallback). Publishing runs
+# through scripts/publish-smithery.mjs (the v4 CLI has no deploy command).
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      storagePath:
+        type: string
+        description: Path to the SQLite store file (defaults to ./emms-store.db).
+    description: Experience Memory MCP server (stdio).
+  commandFunction: |-
+    config => ({ command: 'node', args: ['dist/dev.js'], env: config.storagePath ? { EMMS_STORAGE_PATH: config.storagePath } : {} })

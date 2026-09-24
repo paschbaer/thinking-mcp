@@ -1,1 +1,12 @@
-runtime: "typescript" 
+# Smithery configuration: https://smithery.ai/docs/config#smitheryyaml
+# stdio transport via the npm bin entry (dist/dev.js). The server itself is
+# framework-free (official MCP SDK only); publishing runs through
+# scripts/publish-smithery.mjs (the v4 CLI has no deploy command).
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+    description: Clear Thought MCP server (stdio).
+  commandFunction: |-
+    config => ({ command: 'node', args: ['dist/dev.js'] })
