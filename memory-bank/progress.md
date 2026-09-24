@@ -297,6 +297,10 @@ root engines >=20); CB-8 (Guidance-Array-Reject 400/-32600); CB-10
 guidance 162/162 + tsc, yarn install --immutable grün (kein Lockfile-Drift
 durch engines-Änderung). Alle CB-Findings damit GELÖST; offen nur noch
 CB-4-Option-A (Auth, Future-Work) + INFO-Beobachtungen.
-**What's left:** Push; Docker-Compose-Neustart verifizieren (Binding greift
-erst bei `docker compose up` neu); CB-4-Option-A bei Fernzugriffs-Bedarf.
+**What's left:** Push (25ca34e CI-Fix inklusive); Docker-Compose-Neustart
+verifizieren (Binding greift erst bei `docker compose up` neu); CB-4-Option-A
+bei Fernzugriffs-Bedarf.
+**Current state:** CI-Run zu 344055a rot: TS2769 stochastic (PORT-String unter
+2-arg listen, CB-5-Nachbarn) — gefixt mit Number()-Coercion (identisch zum
+bekannten insight-Muster), yarn build + tsc + Tests grün, 25ca34e gemerged.
 **Current state:** fix/repo-hygiene 5 Commits, FF-Merge nach develop folgt.
