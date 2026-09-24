@@ -7,7 +7,7 @@
  * Session semantics: one McpServer + transport per MCP session, keyed by the
  * `mcp-session-id` header.
  */
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
@@ -28,6 +28,22 @@ interface HttpSession {
 
 /** Session registry — populated via onsessioninitialized. */
 const sessions = new Map<string, HttpSession>();
+
+// CB-20 (Decision 2): optional bearer auth — if EMMS_AUTH_TOKEN is set, /mcp
+// requires `Authorization: Bearer <token>` (timing-safe via constant-length
+// digests, same pattern as guidance). Unset ⇒ open (loopback default bind).
+const requireBearer = (req: Request, res: Response, next: NextFunction): void => {
+  const expected = process.env.EMMS_AUTH_TOKEN;
+  if (!expected) return next();
+  const provided = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+  const a = createHash('sha256').update(provided).digest();
+  const b = createHash('sha256').update(expected).digest();
+  if (!timingSafeEqual(a, b)) {
+    res.status(401).json({ error: 'unauthorized' });
+    return;
+  }
+  next();
+};
 
 /** Resolve server config from the environment (EMMS_STORAGE_PATH etc.). */
 function resolveEnvConfig(): ServerConfig {
@@ -87,7 +103,7 @@ sweepTimer.unref();
 // Exported so tests can bind it to an ephemeral port.
 export const app = express();
 
-app.post('/mcp', express.json({ limit: '10mb' }), async (req: Request, res: Response) => {
+app.post('/mcp', express.json({ limit: '10mb' }), requireBearer, async (req: Request, res: Response) => {
   try {
     const sessionId = req.headers['mcp-session-id'];
     const known = typeof sessionId === 'string' ? sessions.get(sessionId) : undefined;
@@ -137,8 +153,8 @@ const handleSessionRequest = async (req: Request, res: Response) => {
   await session.transport.handleRequest(req, res, req.body);
 };
 
-app.get('/mcp', (req: Request, res: Response) => { void handleSessionRequest(req, res); });
-app.delete('/mcp', (req: Request, res: Response) => { void handleSessionRequest(req, res); });
+app.get('/mcp', requireBearer, (req: Request, res: Response) => { void handleSessionRequest(req, res); });
+app.delete('/mcp', requireBearer, (req: Request, res: Response) => { void handleSessionRequest(req, res); });
 
 // Add health check endpoint
 app.get('/health', (_req: Request, res: Response) => {

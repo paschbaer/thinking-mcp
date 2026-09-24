@@ -304,6 +304,7 @@ volume directory):
 |---|---|---|
 | `PORT` | `3002` | HTTP listen port |
 | `EMMS_BIND_HOST` | `127.0.0.1` | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works. |
+| `EMMS_AUTH_TOKEN` | — (auth off) | CB-20: when set, `/mcp` requires `Authorization: Bearer <token>` (timing-safe). `/health` stays open. Recommended whenever the server is reachable beyond loopback. |
 | `EMMS_STORAGE_BACKEND` | `sqlite` | `sqlite` \| `postgres` (postgres: full-text retrieval not yet at SQLite parity — see remaining-work-plan follow-up) |
 | `EMMS_STORAGE_PATH` | `~/.insight/emms-store.db` | SQLite store location |
 | `EMMS_PG_CONNECTION_STRING` | — | Postgres connection string (required when backend=postgres) |
