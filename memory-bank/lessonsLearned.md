@@ -303,6 +303,15 @@
   `app.listen(PORT)` ohne Host-Arg bindet 0.0.0.0 — Loopback-Default immer
   explizit setzen.
 
+### Experience Memory Capture (2026-09-24, Review-Batches)
+6 validierte Lessons über `experience_seed_lessons` in den laufenden
+insight-Server (HTTP :3002, scope `thinking-mcp-lessons`) geseedet und per
+`experience_search` round-trip-verifiziert (6/6, tier PARTIALLY_VERIFIED):
+session-registry-orphan-pattern, verify-cleanup-claims-by-grep,
+yarn-lockfile-format-mismatch, env-port-string-2arg-listen,
+validation-throw-swallowed-by-catch, fts5-bare-operators-survive-sanitization.
+Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
+
 ### Avoid These Mistakes (2026-09-24, Batch B/C+D)
 - **Validierungs-Throws nicht in allgemeine Catch-Blöcke legen**: Der neue
   Malformed-Hash-Error in `evidence/store.ts pathFor()` wurde anfangs vom
