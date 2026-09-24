@@ -444,8 +444,8 @@ Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
 - [x] CB-15 LOW (entdeckt 2026-09-24, GELÖST 373ade5): `develop` zu den push-Branches in test.yml hinzugefügt — develop-Pushes triggern CI jetzt direkt.
 
 
-## Cluster 3 — Smithery-Discovery (2026-09-24 abgeschlossen, Entscheidung AUSSTEHEND)
-Befunde:
+## Cluster 3 — Smithery (ENTSCHEIDUNG A getroffen, UMGESETZT d566d94, 2026-09-24)
+Discovery-Befunde (vor der Entscheidung):
 - clear-thought: smithery.yaml = nur `runtime: typescript` (Legacy-Auto-Build,
   kein startCommand); @smithery/sdk längst entfernt; stdio-Entry vorhanden
   (dist/dev.js, bin-invocation.test.ts); Publish historisch via
@@ -453,12 +453,15 @@ Befunde:
 - insight: dito (yaml nur runtime-Zeile, kein SDK, stdio-Entry vorhanden).
 - stochasticthinking: VOLLständige Smithery-Integration (yaml mit Dockerfile-
   Build + stdio startCommand, @smithery/sdk im Code, Release b6e38872 auf
-  Smithery; RB-8: stdio/MCPB = install-only).
+  Smithery; RB-8: stdio/MCPB = install-only) — unangetastet gelassen.
 - guidance: nie Smithery-published, sauber.
-Optionen:
-- A (bleiben): yamls modernisieren (stdio startCommand → dist/dev.js), tote
-  deploy/build:smithery-Scripts entfernen, publish-smithery.mjs behalten.
-  Aufwand ~1h inkl. Tests.
-- B (verlassen): yamls + Scripts in allen Servern entfernen, npm/Docker als
-  alleinige Distribution; bestehende Smithery-Installationen veralten.
-Entscheidung: User.
+Umsetzung (Option A):
+- [x] clear-thought/insight: smithery.yaml auf echten stdio startCommand
+  modernisiert (dist/dev.js; insight mappt optional storagePath →
+  EMMS_STORAGE_PATH).
+- [x] Tote deploy-Scripts (v4-CLI) in allen drei Servern entfernt;
+  clear-thought build:smithery mit der SDK-Entfernung mit entfernt;
+  stochastic build:smithery (live) unangetastet. publish-smithery.mjs
+  bleibt das Publishing-Werkzeug.
+- Nächster Smithery-Publish prüft die neuen yamls in der Praxis
+  (Rescan-Score gegen RB-10-Historie vergleichen).
