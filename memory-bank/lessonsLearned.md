@@ -313,3 +313,9 @@
 - **Lockfile-Format-Konflikt schläft im Repo**: v1-Format + yarn@4-Pin fiel
   nicht auf, weil test.yml nicht bei develop-Pushes läuft. Bei CI-Problemen
   erst die Trigger-Matrix prüfen, bevor man „CI grün" als Beweis zitiert.
+- **listen(port)-String-Falle (2. Vorkommnis!)**: `process.env.PORT` ist ein
+  String — der 1-Arg-Overload von `app.listen` schluckt das, aber beim
+  Nachziehen des Host-Arguments (2-Arg-Overload) knallt TS2769. insight hatte
+  den identischen Bug (+ Fix-Kommentar dort). Regel: `Number(process.env.PORT)`
+  von Anfang an; IMMER `tsc`/`yarn build` für jeden getouchten Server laufen
+  lassen — vitest (esbuild) typecheckt NICHT und ist kein Build-Ersatz.
