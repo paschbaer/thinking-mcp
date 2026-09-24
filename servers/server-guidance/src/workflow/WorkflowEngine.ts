@@ -3,7 +3,7 @@
  * Phase guidance and transitions come exclusively from configuration.
  */
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
 import type {
@@ -38,6 +38,34 @@ function toTrustLevel(value: string | undefined, serverId?: string): TrustLevel 
     }
   }
   return TRUST_LEVELS.includes(value as TrustLevel) ? (value as TrustLevel) : "trusted";
+}
+
+/** 2e (L264): Capability-Pins über Restarts retten — vorher in-memory, Drift
+ *  nach einem Restart wurde stillschweigend akzeptiert (Re-Pin beim ersten
+ *  Call). Merge-on-save: mehrere Engine-Instanzen teilen sich den stateDir
+ *  (Remote-Modus: eine Composition je Session). */
+const CAPABILITY_PIN_FILE = "capability-hashes.json";
+
+function loadCapabilityPins(stateDir: string): Record<string, string> {
+  const file = join(stateDir, CAPABILITY_PIN_FILE);
+  if (!existsSync(file)) return {};
+  try {
+    return JSON.parse(readFileSync(file, "utf-8")) as Record<string, string>;
+  } catch {
+    return {}; // korrupte Datei: neu pinnen statt hart zu failen
+  }
+}
+
+function saveCapabilityPins(stateDir: string, pins: Map<string, string>): void {
+  const file = join(stateDir, CAPABILITY_PIN_FILE);
+  let merged: Record<string, string> = {};
+  try {
+    if (existsSync(file)) merged = JSON.parse(readFileSync(file, "utf-8")) as Record<string, string>;
+  } catch {
+    merged = {}; // korrupte Datei ersetzen
+  }
+  for (const [key, hash] of pins) merged[key] = hash;
+  writeFileSync(file, JSON.stringify(merged, null, 2));
 }
 
 export interface StartResult {
@@ -103,6 +131,10 @@ export class WorkflowEngine {
       return out;
     };
     this.audit = new AuditRepository(join(deps.stateDir, "history"), redact);
+    // 2e: persistierte Capability-Pins laden (Drift-Detection überlebt Restarts)
+    for (const [key, hash] of Object.entries(loadCapabilityPins(deps.stateDir))) {
+      this.pinnedHashes.set(key, hash);
+    }
     this.operationEngine = deps.operationEngine ?? new OperationEngine();
     const file = this.config.workflow as unknown as {
       version: number;
@@ -155,7 +187,10 @@ export class WorkflowEngine {
           if (pinnedHash && tool && tool.inputSchemaHash !== pinnedHash) {
             this.clientManager!.assertNotDrifted(serverId, toolName, pinnedHash);
           }
-          if (tool) this.pinnedHashes.set(`${serverId}:${toolName}`, tool.inputSchemaHash);
+          if (tool) {
+            this.pinnedHashes.set(`${serverId}:${toolName}`, tool.inputSchemaHash);
+            saveCapabilityPins(deps.stateDir, this.pinnedHashes); // 2e: Pin persistieren
+          }
           const requestTimeoutSeconds = serverCfg?.connection?.requestTimeoutSeconds;
           return await this.clientManager!.invokeTool(serverId, toolName, args, requestTimeoutSeconds);
         },
