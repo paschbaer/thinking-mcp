@@ -344,6 +344,19 @@ Code-Verifikation aller offenen Zeilen. Ergebnisse:
 Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach
 Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
 
+## Cluster 2e (GELÖST ffdf393, 2026-09-24)
+- [x] Capability-Hashes über Restarts: capability-hashes.json im stateDir
+  (merge-on-save, tolerant load); Drift nach Restart wird jetzt ERKANNT
+  (downstream_capability_changed) statt stillschweigend neu gepinnt —
+  Verhaltensänderung mit Absicht.
+- [x] F8-Waiver-Audit: Audit-Entry führt jetzt approvedBy + at (dedizierter
+  Event-Typ spec_kit_criterion_waived bleibt F5/2b).
+- [x] F8-Testlücken geschlossen (f8-gaps.test.ts, 4 Tests): Contracts-
+  Artifacts (Hash, Content wird bewusst nicht im State behalten — in
+  importArtifacts dokumentiert), Removed-Task-Reconciliation (removed
+  geflaggt, completed retained), Plan-Change-Terminality-Flow,
+  Waiver-Audit-Felder. 169/169 + tsc + build grün.
+
 ## Cluster 2d (GELÖST 18b27cf, 2026-09-24)
 - [x] Parser-Dead-Code: TASK_LINE/ID_TOKEN entfernt; hasSection (Export ohne
   einen einzigen Aufruf) entfernt; toter Doppel-Import readdirSync +
