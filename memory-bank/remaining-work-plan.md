@@ -483,3 +483,10 @@ Umsetzung (Option A):
   via publish-smithery.mjs (validiert die neuen stdio-yamls praktisch) +
   Rescan-Score gegen RB-10-Historie (96/100) hier dokumentieren.
   Trigger: nächster Release.
+
+## Review d566d94 (Smithery Option A, 2026-09-24; APPROVED 0 HIGH/CRIT)
+- [ ] R-20/R-21 INFO/LOW: YAML-Parser-Validierung lokal nicht möglich —
+  praktische Validierung beim nächsten Publish (CB-22). R-21: clear-thought
+  exponiert leere configSchema (properties: {}) — Rescan könnte Config-UX-
+  Punkte (historisch 25/25) verlieren; ggf. debug-Flag als Option exponieren.
+  Evaluation zusammen mit CB-22-Rescan. Trigger: nächster Release/Publish.
