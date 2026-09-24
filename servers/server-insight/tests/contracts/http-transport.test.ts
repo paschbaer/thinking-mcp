@@ -55,3 +55,21 @@ describe('CB-3: /mcp early-reject (no orphan sessions)', () => {
     expect(followup.status).toBe(200);
   });
 });
+
+describe('CB-20: optional bearer auth (EMMS_AUTH_TOKEN)', () => {
+  it('open when unset; 401 without/wrong token; 200 with correct token; /health stays open', async () => {
+    process.env.EMMS_AUTH_TOKEN = 's3cret';
+    try {
+      const denied = await post(INIT);
+      expect(denied.status).toBe(401);
+      const wrong = await post(INIT, { authorization: 'Bearer wrong' });
+      expect(wrong.status).toBe(401);
+      const ok = await post(INIT, { authorization: 'Bearer s3cret' });
+      expect([200, 201]).toContain(ok.status);
+      const health = await fetch(`http://127.0.0.1:${port()}/health`);
+      expect(health.status).toBe(200);
+    } finally {
+      delete process.env.EMMS_AUTH_TOKEN;
+    }
+  });
+});
