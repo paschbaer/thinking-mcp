@@ -295,6 +295,11 @@
   Session-Header early-rejecten (body.method-Pruefung) oder Session sofort mit
   pending-State registrieren. Beim Review nach `onsessioninitialized` +
   `sessions.set` greppen.
+- **Branch-Disziplin: BRANCH VOR DEM ERSTEN COMMIT anlegen** (2x in dieser
+  Session direkt auf develop committet — jeweils per reset --mixed repariert,
+  aber vermeidbar). Regel: nach `git checkout -b feature/...` als ALLERERSTER
+  Schritt erst committen, dann weiterarbeiten; nie `git commit` ausführen,
+  ohne den Branch-Namen im Prompt-Prefix geprüft zu haben.
 - **Commit-/Memory-bank-Behauptungen grep-verifizieren**: „dbg-Logs entfernt"
   (c22585a) war unvollstaendig — 1 [dbg] verblieb in src L132. Behauptungen ueber
   abgeschlossene Bereinigungen nie trauen, immer selbst zaehlen.
