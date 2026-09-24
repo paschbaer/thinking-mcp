@@ -287,9 +287,9 @@ Feature-Branches mit Tests + tsc + build + Review-Protocol:
   buildReconciledState an (Task-Fortschritt überlebt); 2 neue Tools
   approve_plan_change/apply_plan_change. Inventur: SpecKitState-Persistence
   war bereits realisiert (stale Eintrag).
-**What's left:** Push (29b22c2 + Docs); docker compose up --build (CB-4-Binding);
-Entscheidungen: Smithery (Cluster 3-Discovery vorab), 1b Downstream-Spec,
-CB-4-Option-A; Kleinkitems L253/256/257.
-**Current state:** develop@29b22c2 — Bestandsplan Code-Pakete vollständig
-abgeschlossen (189/189 Tests guidance gesamt, tsc + yarn build grün, CI auf
-develop etabliert).
+**What's left:** Push (3c4f36f + Docs); docker compose up --build (CB-4-Binding
++ Auth-Env); Smithery-Publish beim nächsten Release (CB-22); CB-21 Spec-Amendment
+(Downstream-Support); Kleinkitems L253/256/257.
+**Current state:** develop@3c4f36f — CB-20 insight-Auth abgeschlossen (letzte
+Security-Position); offen nur noch CB-21 (Spec ½ Tag) + CB-22 (Publish-Pflege)
++ Kleinkitems.

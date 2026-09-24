@@ -471,10 +471,12 @@ Umsetzung (Option A):
 2. CB-4 Option A: JA — insight wird remote nutzbar → EMMS_AUTH_TOKEN.
 3. 1b Downstream-Spec: JA — Remote-Mode wird um Downstream-MCP-Support erweitert.
 
-- [ ] CB-20 MEDIUM (Decision 2): EMMS_AUTH_TOKEN für insight nach dem
-  GUIDANCE_AUTH_TOKEN-Pattern (timing-safe Bearer an /mcp, /health offen,
-  compose-Env-Doku, Tests 401/200). Aufwand ~1h. Trigger: ab sofort —
-  letzte offene Security-Position. Action required.
+- [x] CB-20 MEDIUM (Decision 2, GELÖST 3c4f36f): EMMS_AUTH_TOKEN implementiert
+  (timing-safe Bearer an /mcp POST/GET/DELETE; unset = offen, Loopback-Default
+  bleibt Basis-Schutz; /health offen; compose-Passthrough + README-Doku).
+  Test: 401 ohne/falsch, 200 korrekt, /health 200. 106/106 + tsc + build grün.
+  Position geschlossen — insight ist remote-fähig (Token setzen + ggf.
+  EMMS_BIND_HOST anpassen).
 - [ ] CB-21 MEDIUM (Decision 3): Remote-Mode Downstream-Support — (1) Spec-
   Amendment zu specs/002 (Downstream-Ops statt awaiting_client; Interaktion
   mit FR-104.5/Trust klären), (2) Implementierung im OperationEngine-Stack.
