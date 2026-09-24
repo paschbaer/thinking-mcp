@@ -10,7 +10,7 @@ import { join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { composeApplication, type Composition } from "../main.js";
 import { WorkflowEngine } from "../workflow/WorkflowEngine.js";
-import { ClientOpEngine, ClientOpLedger } from "./client-op-engine.js";
+import { ClientOpEngine, ClientOpLedger, type OpReport } from "./client-op-engine.js";
 import { getBearerToken } from "./remote-context.js";
 import { RateLimiter } from "./rate-limiter.js";
 import { PairStore } from "./pair-store.js";
@@ -33,6 +33,15 @@ export interface RemoteSession {
   lastAttempt?: { sessionId: string; phase: string; payload: Record<string, unknown>; requestId?: string };
   /** Workflow-Session-Id (von start_workflow erzeugt). */
   workflowSid?: string;
+}
+
+/** L305(a): Persistenter Session-Zustand (state.json je Session).
+ *  formatVersion allows tolerant migration: unknown versions are ignored. */
+interface PersistedSessionState {
+  formatVersion: 2;
+  workflowSids: string[];
+  lastAttempt?: RemoteSession["lastAttempt"];
+  ledgerReports: OpReport[];
 }
 
 const TTL_DAYS = Number(process.env.GUIDANCE_SESSION_TTL_DAYS || "30");
@@ -73,6 +82,20 @@ export class RemoteSessionManager {
         if (meta.canonicalHash) {
           this.canonicalIndex.set(`${bucket}:${meta.canonicalHash}`, meta.sessionId);
         }
+        // L305(a): Workflow-Bindings aus state.json wiederaufbauen.
+        const statePath = join(this.sessionsRoot, dir, "state.json");
+        if (existsSync(statePath)) {
+          try {
+            const st = JSON.parse(readFileSync(statePath, "utf-8")) as PersistedSessionState;
+            if (st.formatVersion === 2) {
+              for (const wf of st.workflowSids ?? []) {
+                if (!this.workflowToRemote.has(wf)) this.workflowToRemote.set(wf, meta.sessionId);
+              }
+            }
+          } catch {
+            // korrupte state.json überspringen (Meta bleibt leading source)
+          }
+        }
       } catch {
         // korrupte Meta überspringen (nicht blockierend)
       }
@@ -91,6 +114,24 @@ export class RemoteSessionManager {
 
   private configDir(sessionId: string): string {
     return join(this.sessionDir(sessionId), "config");
+  }
+
+  private statePath(sessionId: string): string {
+    return join(this.sessionDir(sessionId), "state.json");
+  }
+
+  /** L305(a): Workflow-Bindings + Ledger + lastAttempt über Restarts retten.
+   *  Separate state.json (NICHT meta.json) — v1-Sessions ohne state.json
+   *  migrieren tolerant (leere Defaults), kein Meta-Schema-Bruch. */
+  persistSessionState(session: RemoteSession): void {
+    const sid = session.meta.sessionId;
+    const payload: PersistedSessionState = {
+      formatVersion: 2,
+      workflowSids: [...this.workflowToRemote.entries()].filter(([, remote]) => remote === sid).map(([wf]) => wf),
+      lastAttempt: session.lastAttempt,
+      ledgerReports: session.ledger.all(),
+    };
+    writeFileSync(this.statePath(sid), JSON.stringify(payload, null, 2));
   }
 
   /** FR-102.8: Payload-Größenlimit. */
@@ -298,6 +339,10 @@ export class RemoteSessionManager {
     assertSafeSessionId(remoteSessionId);
     assertSafeSessionId(workflowSessionId);
     this.workflowToRemote.set(workflowSessionId, remoteSessionId);
+    // L305(a): Binding sofort persistieren (Cache-Session vorhanden, da
+    // registerWorkflowSession immer nach resolve/initSession aufgerufen wird).
+    const cached = this.cache.get(remoteSessionId);
+    if (cached) this.persistSessionState(cached);
   }
 
   /** FR-103.1: (key, token) des Session-Metas gegen das Pair-Array prüfen. */
@@ -341,6 +386,24 @@ export class RemoteSessionManager {
       skipScaffold: true,
     });
     const session: RemoteSession = { meta, composition, ledger };
+    // L305(a): state.json (Ledger, lastAttempt, Workflow-Binding) rehydrieren.
+    const sp = this.statePath(meta.sessionId);
+    if (existsSync(sp)) {
+      try {
+        const st = JSON.parse(readFileSync(sp, "utf-8")) as PersistedSessionState;
+        if (st.formatVersion === 2) {
+          for (const report of st.ledgerReports ?? []) ledger.record(report);
+          if (st.lastAttempt) session.lastAttempt = st.lastAttempt;
+          const wf = st.workflowSids?.[st.workflowSids.length - 1];
+          if (wf) {
+            session.workflowSid = wf;
+            if (!this.workflowToRemote.has(wf)) this.workflowToRemote.set(wf, meta.sessionId);
+          }
+        }
+      } catch {
+        // korrupte state.json: Session funktioniert trotzdem (leerer Ledger)
+      }
+    }
     this.cache.set(meta.sessionId, session);
     return session;
   }

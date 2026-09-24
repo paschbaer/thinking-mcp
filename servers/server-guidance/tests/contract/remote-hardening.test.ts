@@ -175,3 +175,37 @@ describe("remote-mode hardening (CB-1/CB-2, Codebase-Review 2026-09-24)", () => 
     expect(ok.meta.sessionId).toBeTruthy();
   });
 });
+
+describe("remote-mode restart persistence (L305a, 2026-09-24)", () => {
+  it("L305a: Restart zwischen start_workflow und Folgetool erhält Binding, Ledger und lastAttempt", () => {
+    const stateDir = join(ws, ".guidance", "state");
+    const mgr1 = new RemoteSessionManager(stateDir, new PairStore([]));
+    const s = mgr1.initSession({ config: MINIMAL_CONFIG });
+    const sid = s.meta.sessionId;
+    const wfSid = "wf-restart-persist-test";
+    mgr1.registerWorkflowSession(sid, wfSid);
+    s.ledger.record({ operationId: "op-1", status: "succeeded", exitCode: 0, summary: "client ran it", reportedAt: new Date().toISOString() });
+    s.lastAttempt = { sessionId: wfSid, phase: "understand", payload: { summary: "s" }, requestId: "req-1" };
+    mgr1.persistSessionState(s);
+
+    // Neuer Manager = simulierter Restart (gleicher stateDir)
+    const mgr2 = new RemoteSessionManager(stateDir, new PairStore([]));
+    const resolved = mgr2.resolve(wfSid); // Binding überlebt den Restart
+    expect(resolved.meta.sessionId).toBe(sid);
+    expect(resolved.ledger.get("op-1")?.summary).toBe("client ran it"); // Ledger überlebt
+    expect(resolved.lastAttempt?.phase).toBe("understand"); // lastAttempt überlebt
+    expect(resolved.workflowSid).toBe(wfSid);
+  });
+
+  it("L305a: v1-Sessions ohne state.json migrieren tolerant (Restore ohne Zustand)", () => {
+    const stateDir = join(ws, ".guidance", "state");
+    const mgr1 = new RemoteSessionManager(stateDir, new PairStore([]));
+    const s = mgr1.initSession({ config: MINIMAL_CONFIG });
+    // kein persistSessionState — Verzeichnis enthält nur meta.json + config (v1-Layout)
+    const mgr2 = new RemoteSessionManager(stateDir, new PairStore([]));
+    const resolved = mgr2.resolve(s.meta.sessionId);
+    expect(resolved.meta.sessionId).toBe(s.meta.sessionId);
+    expect(resolved.ledger.all()).toEqual([]);
+    expect(resolved.lastAttempt).toBeUndefined();
+  });
+});
