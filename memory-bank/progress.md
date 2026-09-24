@@ -274,3 +274,16 @@ Loopback-Defaults/Reaper.
 **Current state:** develop@2d580fa clean, ahead 4; Review abgeschlossen, keine
 Merge-Blocker für die unpushten Guidance-Commits (CB-1/2 pre-existing bzw.
 Rollback-Lücke — kein Datenverlust-Risiko).
+
+### 2026-09-24 — Batch B (CB-3/CB-11/CB-12, abgeschlossen)
+**What works:** Session-Orphan-Hardening in insight + clear-thought: POST /mcp
+early-reject (400/-32600 für non-initialize ohne bekannte Session-Id),
+malformed JSON → 400/-32700 (schließt 1caa690(a)); CB-11 Hash-Validierung in
+evidence pathFor (inkl. Fix: pathFor VOR dem Read-Miss-Catch auflösen);
+CB-12 verifiziert + gefixt (FTS5-Tokens gequotet). Tests: insight 105/105,
+clear-thought 166/166 (je +6/+4 neue), tsc beider Server grün.
+**What's left:** Push von c416bba; CB-14 (yarn.lock v1-Format vs yarn@4.6.0-Pin,
+HIGH-Kandidat für PR nach main) + CB-15 (test.yml ohne develop-Trigger) neu
+getrackt; dann Batch C (CB-4 Option B: compose 127.0.0.1-Bind) + Batch D.
+**Current state:** develop@c416bba, ahead 1 (Batch B committet, FF-Merge,
+Feature-Branch gelöscht).
