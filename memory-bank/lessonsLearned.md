@@ -302,3 +302,14 @@
   Installation nicht (package.json hat kein deprecated-Feld). Zusatzfalle:
   `app.listen(PORT)` ohne Host-Arg bindet 0.0.0.0 — Loopback-Default immer
   explizit setzen.
+
+### Avoid These Mistakes (2026-09-24, Batch B/C+D)
+- **Validierungs-Throws nicht in allgemeine Catch-Blöcke legen**: Der neue
+  Malformed-Hash-Error in `evidence/store.ts pathFor()` wurde anfangs vom
+  Read-Miss-Catch in `read()` verschluckt („Artifact content not found") —
+  der Test mit genauer MessageAssertion hat es sofort aufgedeckt. Regel:
+  pfad-/inputvalidierung VOR try-Blöcken auflösen; Tests auf die konkrete
+  Fehlermeldung, nicht nur „wirft irgendwas".
+- **Lockfile-Format-Konflikt schläft im Repo**: v1-Format + yarn@4-Pin fiel
+  nicht auf, weil test.yml nicht bei develop-Pushes läuft. Bei CI-Problemen
+  erst die Trigger-Matrix prüfen, bevor man „CI grün" als Beweis zitiert.
