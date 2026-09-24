@@ -130,6 +130,13 @@ export function createHttpApp(opts: HttpAppOptions) {
   // Stateless streamable HTTP: fresh server+transport per request; workflow
   // sessions persist in stateDir, so nothing session-critical lives in RAM.
   app.post("/mcp", express.json({ limit: "10mb" }), authHeader, async (req: Request, res: Response) => {
+    // CB-8: batch/array bodies bypass the per-request pre-checks below (they
+    // read req.body.params) — reject them outright (defense-in-depth; the
+    // SDK dispatch rejects batches anyway).
+    if (Array.isArray(req.body)) {
+      res.status(400).json({ jsonrpc: "2.0", error: { code: -32600, message: "batch requests are not supported" }, id: null });
+      return;
+    }
     // FR-103.1: Bearer-Token in den Tool-Handler-Kontext propagieren.
       const token = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
       // FR-103.1: Session-Binding — Session nur mit dem Token ihres Keys.
