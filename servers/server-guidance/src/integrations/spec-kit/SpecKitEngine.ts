@@ -4,12 +4,12 @@
  * machine, dependency-aware scheduling, evidence-gated completion,
  * controlled plan changes, traceability, and completion invariants.
  */
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { GuidanceError } from "../../types/errors.js";
-import { parseTasks, hasSection, PARSER_VERSION, type ParsedTask } from "./parser.js";
+import { parseTasks, PARSER_VERSION, type ParsedTask } from "./parser.js";
 
 export type TaskStatus =
   | "pending" | "ready" | "in_progress" | "implemented" | "review_required"
@@ -74,6 +74,8 @@ export interface PlanChange {
 }
 
 export interface SpecKitState {
+  /** Reserved for snapshot chaining (2a): set by buildReconciledState, not
+   *  yet consumed by persist — will feed previousSnapshotId on snapshot rows. */
   previousSnapshotOverride?: string | null;
   featureId: string;
   featureDirectory: string;
@@ -90,9 +92,13 @@ export interface SpecKitState {
 export interface SpecKitConfig {
   featureRoot: string;
   strategy: "explicit" | "currentBranch" | "mostRecentlyModified" | "singleCandidate" | "configuredDefault";
+  /** Enforced by batch scheduling (task release slice). */
   requireUniqueMatch: boolean;
   artifactPatterns: Record<string, { required: boolean; patterns: string[] }>;
   maxTasks: number;
+  /** Reserved (not yet enforced): candidate/artifact count caps.
+   *  Enforcement is deferred — silently dropping criteria/entities would
+   *  corrupt coverage; wire together with validation warnings (2c/2a). */
   maxEntities: number;
   maxExcerptBytes: number;
 }
@@ -152,14 +158,9 @@ function readdirSafe(dir: string): string[] {
 }
 
 function readdirSyncSafe(dir: string): string[] {
-  // node:fs wrapper kept indirection-free for testability
-  const fs = requireFs();
-  return fs.readdirSync(dir);
-}
-
-function requireFs(): typeof import("node:fs") {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  return require("node:fs");
+  // 2d-Fix: war require("node:fs") — das wäre in ESM mit ReferenceError
+  // gecrasht, sobald die Kandidaten-Discovery lief. Jetzt statischer Import.
+  return readdirSync(dir);
 }
 
 export class SpecKitEngine {
@@ -469,7 +470,8 @@ export class SpecKitEngine {
   coverageSummary(state: SpecKitState): { id: string; coverage: string; linkedTaskIds: string[] }[] {
     return Object.values(state.criteria).map((c) => ({
       id: c.id,
-      coverage: c.waiver ? "waived" : c.linkedTaskIds.length === 0 ? "unmapped" : c.linkedTaskIds.every((t) => state.tasks[t]?.status === "completed") && state.tasks && Object.values(state.tasks).filter((t) => c.linkedTaskIds.includes(t.taskId)).every((t) => t.verification?.succeeded) ? "verified" : c.linkedTaskIds.some((t) => state.tasks[t]?.status === "implemented" || state.tasks[t]?.status === "verified" || state.tasks[t]?.status === "completed") ? "partially_verified" : "planned",
+      // 2d-Fix (F7): toter `&& state.tasks` Conjunct entfernt (immer truthy).
+      coverage: c.waiver ? "waived" : c.linkedTaskIds.length === 0 ? "unmapped" : c.linkedTaskIds.every((t) => state.tasks[t]?.status === "completed") && Object.values(state.tasks).filter((t) => c.linkedTaskIds.includes(t.taskId)).every((t) => t.verification?.succeeded) ? "verified" : c.linkedTaskIds.some((t) => state.tasks[t]?.status === "implemented" || state.tasks[t]?.status === "verified" || state.tasks[t]?.status === "completed") ? "partially_verified" : "planned",
       linkedTaskIds: c.linkedTaskIds,
     }));
   }
@@ -622,15 +624,12 @@ export class SpecKitEngine {
 
 function patternOf(p: string): string { return p; }
 
-import { readdirSync } from "node:fs";
-function readdirRecursive2(dir: string): string[] { return readdirSync(dir); }
-void readdirRecursive2;
-
 function parseCriteria(content: string): { id: string; text: string; linkedTasks: string[] }[] {
   const out: { id: string; text: string; linkedTasks: string[] }[] = [];
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   for (const line of lines) {
-    const m = line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i);
+    // 2d-Fix: Bold- UND Plain-Listenform (wie parser.ts parseTasks).
+    const m = line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i) ?? line.match(/- \*?\*?((?:AC|SC)-\d+)\*?\*?:?\s*(.*)/i);
     if (m) out.push({ id: m[1]!.toUpperCase(), text: m[2] ?? "", linkedTasks: [] });
   }
   return out;
