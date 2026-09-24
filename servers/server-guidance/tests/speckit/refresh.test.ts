@@ -60,11 +60,12 @@ describe("staleness + refresh + waivers (FR-064/071/073)", () => {
     expect(state.criteria[criterion]!.waiver?.reason).toBe("accepted risk per user");
   });
 
-  it("plan-change lifecycle: approved → artifact_update_required → applied", () => {
+  it("plan-change lifecycle: propose → approved → applied (2b: korrekter Status)", () => {
     const { engine, state } = importState();
     const change = engine.proposePlanChange(state, { changeType: "add_task", reason: "r", affectedTasks: [], impact: { acceptanceCriteria: false, publicApi: false, dependencies: false } });
-    engine.approvePlanChange(state, change.changeId, "approved");
     expect(state.planChanges[change.changeId]!.status).toBe("artifact_update_required");
+    engine.approvePlanChange(state, change.changeId, "approved");
+    expect(state.planChanges[change.changeId]!.status).toBe("approved");
     engine.markPlanChangeApplied(state, change.changeId);
     expect(engine.hasPendingPlanChanges(state)).toBe(false);
   });
