@@ -215,14 +215,13 @@ export class RemoteSessionManager {
       createdAt: now,
       lastAccessAt: now,
     };
-    writeFileSync(this.metaPath(sessionId), JSON.stringify(meta, null, 2));
 
     const session: RemoteSession = { meta, composition, ledger };
     (session as unknown as { canonicalHash?: string }).canonicalHash = canonicalHash;
-    // canonicalHash persistent in meta.json (M2: Idempotenz überlebt Restarts).
-    const metaPath = this.metaPath(sessionId);
-    const metaWithHash = { ...meta, canonicalHash };
-    writeFileSync(metaPath, JSON.stringify(metaWithHash, null, 2));
+    // CB-10: single write INCLUDING canonicalHash — the former interim
+    // hashless write left a crash window where meta.json existed without the
+    // M2 rebuild key (canonicalHash), breaking restart idempotency.
+    writeFileSync(this.metaPath(sessionId), JSON.stringify({ ...meta, canonicalHash }, null, 2));
     this.canonicalIndex.set(canonicalId, sessionId);
     this.cache.set(sessionId, session);
     return session;
