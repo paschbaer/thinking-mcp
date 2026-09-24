@@ -143,3 +143,35 @@ describe("remote-mode hardening fixes (F1-F3)", () => {
     expect(body.error?.message).toMatch(/rate_limited/);
   });
 });
+
+describe("remote-mode hardening (CB-1/CB-2, Codebase-Review 2026-09-24)", () => {
+  it("CB-1: resolve über Workflow-Sid aktualisiert lastAccessAt der Remote-Session (TTL-Refresh)", async () => {
+    const stateDir = join(ws, ".guidance", "state");
+    const mgr = new RemoteSessionManager(stateDir, new PairStore([]));
+    const s = mgr.initSession({ config: MINIMAL_CONFIG });
+    const sid = s.meta.sessionId;
+    const wfSid = "wf-cb1-refresh-test";
+    mgr.registerWorkflowSession(sid, wfSid);
+    const metaPath = join(stateDir, "remote-sessions", sid, "meta.json");
+    const readLastAccess = () => (JSON.parse(readFileSync(metaPath, "utf-8")) as { lastAccessAt: string }).lastAccessAt;
+    const before = readLastAccess();
+    await new Promise((r) => setTimeout(r, 15)); // ms-Unterschied sicherstellen
+    const resolved = mgr.resolve(wfSid); // Cache-Pfad via Workflow-Sid
+    expect(resolved.meta.sessionId).toBe(sid);
+    expect(new Date(readLastAccess()).getTime()).toBeGreaterThan(new Date(before).getTime());
+  });
+
+  it("CB-2: Throw in configFiles-Validierung rollt Quota-Slot zurück und hinterlässt keine Orphans", () => {
+    const stateDir = join(ws, ".guidance", "state");
+    const mgr = new RemoteSessionManager(stateDir, new PairStore([]));
+    const bad = { ...MINIMAL_CONFIG, project: { name: "cb2" }, configFiles: { "guidance.json": 42 } };
+    const sessionsRoot = join(stateDir, "remote-sessions");
+    // 12 > MAX_SESSIONS_PER_KEY (10): mit Slot-Leck würde ab Versuch 11 quota_exceeded fliegen
+    for (let i = 0; i < 12; i++) {
+      expect(() => mgr.initSession({ config: bad })).toThrowError(/configuration_invalid/);
+    }
+    expect(readdirSync(sessionsRoot).length).toBe(0); // keine Orphan-Verzeichnisse
+    const ok = mgr.initSession({ config: MINIMAL_CONFIG }); // Slot nicht verbraucht
+    expect(ok.meta.sessionId).toBeTruthy();
+  });
+});

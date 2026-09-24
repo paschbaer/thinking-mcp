@@ -93,11 +93,9 @@ describe("remote mode (spec amendment 001)", () => {
   it("anonymous: init_session ohne key + start_workflow über die Session (FR-101.6)", async () => {
     await boot({ forceRemote: true });
     const init = await call("init_session", { config: MINIMAL_CONFIG });
-    if (!init.sessionId) console.log("[dbg] init resp:", JSON.stringify(init));
     expect(init.sessionId).toBeTruthy();
     const sid = init.sessionId as string;
     const start = await call("start_workflow", { sessionId: sid, request: "remote demo" });
-    if (!start.accepted) console.log("[dbg] start resp:", JSON.stringify(start));
     expect(start.accepted).toBe(true);
     expect(start.currentPhase).toBe("understand");
   });
@@ -171,7 +169,6 @@ describe("remote mode FR-104 (client-reported gates)", () => {
     const u = await call("submit_understanding", { sessionId: wfSid, summary: "s" });
     expect(u.accepted).toBe(true);
     const v = await call("submit_verification", { sessionId: wfSid, summary: "v", verificationSummary: ["tested"] });
-    if (!v.code) console.log("[dbg] v:", JSON.stringify(v));
     expect(v.code).toBe("client_operations_pending");
     expect((v.pendingOperations as { operationId: string }[])[0]!.operationId).toBe("gate-test");
     const rep = await call("report_operation_result", {
