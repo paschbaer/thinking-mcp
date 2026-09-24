@@ -88,6 +88,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
         operationId, status, exitCode, summary, logs,
         reportedAt: new Date().toISOString(),
       }); // requestId: im v1 Ledger über operationId je Transition addressiert
+      manager.persistSessionState(session); // L305(a): Report überlebt Restarts
       // FR-104.3: letzten blockierten Submit automatisch wiederholen.
       const attempt = session.lastAttempt;
       if (attempt) {
@@ -136,6 +137,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitUnderstanding(sid, payload, reqId)) as unknown as Record<string, unknown>;
       session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
   );
@@ -148,6 +150,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitPlan(sid, { tasks }, reqId)) as unknown as Record<string, unknown>;
       session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "plan", payload: { tasks }, requestId: reqId };
+      manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
   );
@@ -160,6 +163,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitPlanReview(sid, payload, reqId)) as unknown as Record<string, unknown>;
       session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
   );
@@ -172,6 +176,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitImplementation(sid, payload, reqId)) as unknown as Record<string, unknown>;
       session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
   );
@@ -184,6 +189,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       const session = manager.resolve(sid);
       const result = (await toolsOf(session).submitImplementationReview(sid, payload, reqId)) as unknown as Record<string, unknown>;
       session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
   );
@@ -197,6 +203,7 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       const payload = { summary, verificationSummary };
       const result = (await toolsOf(session).submitVerification(sid, payload, reqId)) as unknown as Record<string, unknown>;
       session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? "verify", payload, requestId: reqId };
+      manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
   );
