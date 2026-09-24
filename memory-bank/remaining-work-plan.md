@@ -443,3 +443,22 @@ Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
 - [x] CB-14 HIGH-Kandidat (entdeckt 2026-09-24, GELÖST 3fb48ba): yarn.lock auf Yarn-Berry-Format (v8) mit yarn 4.6.0 regeneriert (+ package.json-Normalisierung der Server committed). CI-Parität verifiziert: `yarn install --immutable` (exit 0, keine Änderungen), `yarn build` + `yarn test` über alle 4 Workspaces grün (166+162+105[4 skipped=Embeddings]+43).
 - [x] CB-15 LOW (entdeckt 2026-09-24, GELÖST 373ade5): `develop` zu den push-Branches in test.yml hinzugefügt — develop-Pushes triggern CI jetzt direkt.
 
+
+## Cluster 3 — Smithery-Discovery (2026-09-24 abgeschlossen, Entscheidung AUSSTEHEND)
+Befunde:
+- clear-thought: smithery.yaml = nur `runtime: typescript` (Legacy-Auto-Build,
+  kein startCommand); @smithery/sdk längst entfernt; stdio-Entry vorhanden
+  (dist/dev.js, bin-invocation.test.ts); Publish historisch via
+  scripts/publish-smithery.mjs (API), `deploy`-Script tot (v4-CLI, RB-7).
+- insight: dito (yaml nur runtime-Zeile, kein SDK, stdio-Entry vorhanden).
+- stochasticthinking: VOLLständige Smithery-Integration (yaml mit Dockerfile-
+  Build + stdio startCommand, @smithery/sdk im Code, Release b6e38872 auf
+  Smithery; RB-8: stdio/MCPB = install-only).
+- guidance: nie Smithery-published, sauber.
+Optionen:
+- A (bleiben): yamls modernisieren (stdio startCommand → dist/dev.js), tote
+  deploy/build:smithery-Scripts entfernen, publish-smithery.mjs behalten.
+  Aufwand ~1h inkl. Tests.
+- B (verlassen): yamls + Scripts in allen Servern entfernen, npm/Docker als
+  alleinige Distribution; bestehende Smithery-Installationen veralten.
+Entscheidung: User.
