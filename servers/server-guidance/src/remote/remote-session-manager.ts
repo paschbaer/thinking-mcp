@@ -104,8 +104,7 @@ export class RemoteSessionManager {
   /** FR-102/102.2/102.4/102.6: Config-Upload, Validierung, Session-Erzeugung. */
   initSession(opts: { key?: string; config: Record<string, unknown>; configFiles?: Record<string, string>; bearerToken?: string; clientIp?: string }): RemoteSession {
     const { key, config } = opts;
-    // Q4: Rate-Limit pro Quell-IP (Default 20/min).
-    this.rateLimiter.check(opts.clientIp ?? "unknown");
+    // Q4: Rate-Limit erfolgt auf der HTTP-Ebene (checkInitRateLimit, pro IP).
     // FR-102.1/FR-101.6: Key-Authentifizierung erfolgt auf der HTTP-Ebene
     // (Authorization-Header); hier nur die Form-Konsistenz:
     if (this.pairs.configured && key === undefined) {
@@ -130,6 +129,7 @@ export class RemoteSessionManager {
     const canonicalHash = createHash("sha256").update(canonical).digest("hex");
     const canonicalId = `${key ?? "__anonymous__"}:${canonicalHash}`;
     const existingId = this.canonicalIndex.get(canonicalId);
+    if (existingId) console.error("[dbg] idempotent hit:", existingId);
     if (existingId) {
       const cached = this.cache.get(existingId);
       if (cached) {
@@ -144,7 +144,11 @@ export class RemoteSessionManager {
       this.canonicalIndex.delete(canonicalId); // Stale-Index aufräumen
     }
 
-    const sessionId = `remote-${randomUUID()}`;
+    // F1-Fix: Quota VOR jedem Write — aber NUR für Neuanlagen; ein
+    // canonicalIndex-Treffer (Idempotenz, FR-102.4) verbraucht keinen Slot.
+    const isExistingSession = existingId !== undefined;
+    if (!isExistingSession) this.enforcePerKeyLimit(key ?? null);
+    const sessionId = isExistingSession ? existingId : `remote-${randomUUID()}`;
     const dir = this.sessionDir(sessionId);
     const cfgDir = this.configDir(sessionId);
     mkdirSync(cfgDir, { recursive: true });
@@ -206,7 +210,6 @@ export class RemoteSessionManager {
     const metaWithHash = { ...meta, canonicalHash };
     writeFileSync(metaPath, JSON.stringify(metaWithHash, null, 2));
     this.canonicalIndex.set(canonicalId, sessionId);
-    this.enforcePerKeyLimit(key ?? null);
     this.cache.set(sessionId, session);
     return session;
   }
@@ -313,8 +316,8 @@ export class RemoteSessionManager {
   }
 
   private restore(meta: RemoteSessionMeta): RemoteSession {
-    const bucket = meta.key ?? "__anonymous__";
-    this.diskSessionsByKey.set(bucket, (this.diskSessionsByKey.get(bucket) ?? 0) + 1);
+    // F2-Fix: kein Increment — der Count wurde beim Rebuild bereits von der
+    // Disk gezählt; Restore darf das Limit nicht künstlich verknapppen.
     const ledger = new ClientOpLedger();
     const dir = this.sessionDir(meta.sessionId);
     const composition = composeApplication(wsRootFor(meta.sessionId), this.configDir(meta.sessionId), join(dir, "state"), {
