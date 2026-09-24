@@ -21,8 +21,8 @@
         "publish:clear-thought": "cd servers/server-clear-thought && node scripts/publish-smithery.mjs",
         "npm:publish:stochastic": "cd servers/server-stochasticthinking && npm publish",
         "npm:publish:clear-thought": "cd servers/server-clear-thought && npm publish",
-        "publish:insight": "cd servers/insight && node scripts/publish-smithery.mjs",
-        "npm:publish:insight": "cd servers/insight && npm publish"
+        "publish:insight": "cd servers/server-insight && node scripts/publish-smithery.mjs",
+        "npm:publish:insight": "cd servers/server-insight && npm publish"
     },
     "author": "paschbaer",
     "license": "MIT",
@@ -31,7 +31,7 @@
         "url": "https://github.com/paschbaer/thinking-mcp.git"
     },
     "engines": {
-        "node": ">=18"
+        "node": ">=20"
     },
     "devDependencies": {
         "@types/node": "^22.13.4",

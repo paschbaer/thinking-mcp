@@ -118,15 +118,8 @@ yarn build        # build all workspaces
 yarn test         # run all tests
 ```
 
-Requires Node.js >= 20 (both server packages declare `engines.node` `>=20`).
-Yarn 4 is pinned via `packageManager` in `package.json`.
-
-```bash
-corepack enable   # activates the pinned Yarn version
-yarn install
-yarn build        # build all workspaces
-yarn test         # run all tests
-```
+Requires Node.js >= 20 (the root and all server packages declare `engines.node`
+`>=20`). Yarn 4 is pinned via `packageManager` in `package.json`.
 
 Build or test a single server:
 
