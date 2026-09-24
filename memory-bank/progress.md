@@ -310,9 +310,8 @@ alle 15 CB-Findings gelöst/geschlossen, memory-bank aktuell.
 lastAttempt über Restarts; Rebuild beim Boot; v1-Sessions tolerant. 164/164
 + tsc + yarn build grün.
 **What's left:** Push; Produktivsetzung jetzt ohne Binding-Verlust möglich.
-Offen: 1b Downstream-Spec (optional), Cluster 2a→2b, Cluster 3
-(Smithery-Discovery), CB-4-Option-A.
-**Current state:** develop@9bcc6c6 — 2c Security-Seams abgeschlossen
-(Egress-Content-Checks, Downstream-Redaction-Seam, Multi-line-Redaction;
-176/176 + tsc + build grün).
+Offen: 1b Downstream-Spec (optional), Cluster 2b (State-Machines, letztes
+großes Paket), Cluster 3 (Smithery-Discovery), CB-4-Option-A.
+**Current state:** develop@27df359 — 2a Snapshot-Chaining + Staleness
+abgeschlossen (181/181 + tsc + build grün).
 **Current state:** fix/repo-hygiene 5 Commits, FF-Merge nach develop folgt.
