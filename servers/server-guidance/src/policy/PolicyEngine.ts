@@ -5,6 +5,7 @@
  */
 import type { OperationConfig, RiskClass, TrustLevel } from "../types/index.js";
 import { GuidanceError } from "../types/errors.js";
+import { containsSecretPattern } from "./redaction.js";
 
 export interface EgressInput {
   serverId: string;
@@ -37,6 +38,12 @@ export class PolicyEngine {
       for (const value of Object.values(input.args)) {
         if (typeof value === "object" && value !== null) {
           throw new GuidanceError("data_egress_denied", `server ${input.serverId} may only receive scalar validated inputs`, { recoverable: false });
+        }
+        // 2c: content-level check — restricted servers must not receive
+        // high-confidence secret values even in scalar form (structured
+        // checks alone let literal credentials pass).
+        if (typeof value === "string" && containsSecretPattern(value)) {
+          throw new GuidanceError("data_egress_denied", `server ${input.serverId} arg looks like a credential and was blocked`, { recoverable: false });
         }
       }
     }
