@@ -344,7 +344,8 @@ Code-Verifikation aller offenen Zeilen. Ergebnisse:
 Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach
 Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
 
-## Cluster 2a (GELÖST 27df359, 2026-09-24)
+## Cluster 2a (GELÖST 27df359, 2026-09-24; Review APPROVED 0 HIGH/CRIT)
+- [ ] R-11..R-14 LOW/INFO (Post-Commit-Review 27df359 — akzeptierte Beobachtungen): (R-11) Snapshot-Chain wächst unbeschränkt (Refresh ohne Drift erzeugt trotzdem Snapshot + Dir) — Retention-Cap (z.B. max 20) oder Skip-wenn-!stale beim nächsten Touch. (R-12) Blocking-Refresh behält aktive Batches/PlanChanges des alten Stands bei invalid-Markierung (bewusst — Arbeit bewahren; Invarianten greifen). (R-13) Tool-Schema ohne snapshotCurrent: alte Clients kompatibel (Zod strippt). (R-14) 2b MUSS beim Wiring von buildReconciledState importArtifacts(feature, previous) verwenden, sonst chain-lose States. Trigger: nächste Spec-Kit-Engine-Änderung bzw. 2b.
 - [x] Snapshot-Chaining (Phase 7a M4): importArtifacts(feature, previous?)
   verkettet Snapshots (previousSnapshotId) und erhält die History; der
   Blocking-Fail-Pfad eines Refreshs überschreibt die Kette nicht mehr
