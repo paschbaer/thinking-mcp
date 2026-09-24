@@ -261,57 +261,35 @@ neueren Commits (a5c5c98) + Docker-Rebuild ausstehend (SSH-Agent je Terminal).
 **Current state:** develop = origin/develop + a5c5c98 (lokaler Commit);
 alle Server-Commits reviewed, 0 HIGH/CRITICAL.
 
-### 2026-09-24 — Full-Codebase-Review (abgeschlossen)
-**What works:** Voll-Review develop@2d580fa nach Review-Evidence-Protocol;
-4 Server + Root abgedeckt (guidance deep, insight storage+transport, clear-thought
-transport/session/bind, stochastic Eintritt+Deprecation-Status). 0 HIGH/CRITICAL;
-4 MEDIUM + 9 LOW + 4 INFO identifiziert und vollständig in remaining-work-plan.md
-persistiert (CB-1..CB-13). Positiv bestätigt: FTS5-Sanitization, Prepared
-Statements, atomare Writes, Session-ID-Pattern-Checks, timing-safe Auth,
-Loopback-Defaults/Reaper.
-**What's left:** CB-1..CB-13 abarbeiten (Trigger je Eintrag); Push der 4 Commits
-+ CI-Check; CB-9 (1-Zeiler) vor Push mitnehmen.
-**Current state:** develop@2d580fa clean, ahead 4; Review abgeschlossen, keine
-Merge-Blocker für die unpushten Guidance-Commits (CB-1/2 pre-existing bzw.
-Rollback-Lücke — kein Datenverlust-Risiko).
 
-### 2026-09-24 — Batch B (CB-3/CB-11/CB-12, abgeschlossen)
-**What works:** Session-Orphan-Hardening in insight + clear-thought: POST /mcp
-early-reject (400/-32600 für non-initialize ohne bekannte Session-Id),
-malformed JSON → 400/-32700 (schließt 1caa690(a)); CB-11 Hash-Validierung in
-evidence pathFor (inkl. Fix: pathFor VOR dem Read-Miss-Catch auflösen);
-CB-12 verifiziert + gefixt (FTS5-Tokens gequotet). Tests: insight 105/105,
-clear-thought 166/166 (je +6/+4 neue), tsc beider Server grün.
-**What's left:** Push von c416bba; CB-14 (yarn.lock v1-Format vs yarn@4.6.0-Pin,
-HIGH-Kandidat für PR nach main) + CB-15 (test.yml ohne develop-Trigger) neu
-getrackt; dann Batch C (CB-4 Option B: compose 127.0.0.1-Bind) + Batch D.
-**Current state:** develop@c416bba, ahead 1 (Batch B committet, FF-Merge,
-Feature-Branch gelöscht).
-
-### 2026-09-24 — Batch C + D (CB-4..CB-8, CB-10, CB-13; abgeschlossen)
-**What works:** CB-4 Option B (compose-Ports auf 127.0.0.1); CB-5
-(stochastic STOCHASTIC_BIND_HOST-Pattern, Dockerfile ENV 0.0.0.0); CB-6
-(publish-Script-Pfade); CB-7 (WAL aus dem Index); CB-13 (README-Duplikat +
-root engines >=20); CB-8 (Guidance-Array-Reject 400/-32600); CB-10
-(meta.json-Einzelwrite mit canonicalHash). Verifikation: stochastic 43/43,
-guidance 162/162 + tsc, yarn install --immutable grün (kein Lockfile-Drift
-durch engines-Änderung). Alle CB-Findings damit GELÖST; offen nur noch
-CB-4-Option-A (Auth, Future-Work) + INFO-Beobachtungen.
-**What's left:** Docker-Compose-Neustart verifizieren (Binding greift erst bei
-`docker compose up` neu); CB-4-Option-A bei Fernzugriffs-Bedarf; übrige
-getrackte Follow-ups je Trigger.
-**Current state:** CI GRÜN auf develop (nach CB-15-Trigger + CB-14-Lockfile-
-Fix + 25ca34e PORT-Fix). Codebase-Review 2026-09-24 vollständig abgeschlossen:
-alle 15 CB-Findings gelöst/geschlossen, memory-bank aktuell.
-
-### 2026-09-24 — Cluster 1a Restart-Persistenz (abgeschlossen)
-**What works:** L305(a) gelöst (7dbfa92): state.json je Remote-Session
-(formatVersion 2) hält workflowToRemote-Bindings, ClientOpLedger-Reports und
-lastAttempt über Restarts; Rebuild beim Boot; v1-Sessions tolerant. 164/164
-+ tsc + yarn build grün.
-**What's left:** Push; Produktivsetzung jetzt ohne Binding-Verlust möglich.
-Offen: 1b Downstream-Spec (optional), Cluster 2b (State-Machines, letztes
-großes Paket), Cluster 3 (Smithery-Discovery), CB-4-Option-A.
-**Current state:** develop@27df359 — 2a Snapshot-Chaining + Staleness
-abgeschlossen (181/181 + tsc + build grün).
-**Current state:** fix/repo-hygiene 5 Commits, FF-Merge nach develop folgt.
+### 2026-09-24 — Bestandsplan-Abarbeitung (1a + 2d + 2e + 2c + 2a + 2b, abgeschlossen)
+**What works:** Sämtliche Code-Pakete des Bestandsplans umgesetzt, je eigene
+Feature-Branches mit Tests + tsc + build + Review-Protocol:
+- 1a (7dbfa92): Remote-Restart-Persistenz — workflowToRemote-Bindings,
+  ClientOpLedger, lastAttempt in state.json je Session (formatVersion 2),
+  Rebuild beim Boot; v1-Sessions tolerant. Review APPROVED (R-1..R-3 getrackt).
+- 2d (18b27cf): Spec-Kit-Hygiene — Parser-Dead-Code, hasSection, Debris-Import;
+  require-in-ESM-Crash in readdirSyncSafe behoben; criteria bold-only gefixt;
+  F7 toter Conjunct; Caps als reserved dokumentiert.
+- 2e (ffdf393): Capability-Hash-Pins persistent (capability-hashes.json,
+  merge-on-save) — Drift nach Restart wird erkannt statt neu gepinnt; F8-
+  Testlücken (contracts/removed-task/terminality/waiver-fields).
+- 2c (9bcc6c6): Egress-Content-Checks (restricted blockt Credential-Werte),
+  Downstream-Redaction-Seam (content + structuredContent via redactUnknown),
+  Multi-line-Redaction. Review APPROVED (R-6..R-8 getrackt).
+- 2a (27df359): Snapshot-Chaining (importArtifacts mit previous, History-
+  Erhalt, Blocking-Refresh wipet Kette nicht mehr) + interne Staleness-
+  Berechnung (Hash statt Caller-Flag). Review APPROVED (R-11..R-14 getrackt).
+- 2b (29b22c2): F6 Lifecycle-Guards (approve/reject terminal, apply nur nach
+  Approval, GuidanceError bei unbekannter Id, Status "approved"); F5
+  spec_kit_criterion_waived; M3 cancelled+Audit für entfernte unfertige
+  Tasks; M1 relative Contracts-Pfade (Relocation-safe); refresh wendet
+  buildReconciledState an (Task-Fortschritt überlebt); 2 neue Tools
+  approve_plan_change/apply_plan_change. Inventur: SpecKitState-Persistence
+  war bereits realisiert (stale Eintrag).
+**What's left:** Push (29b22c2 + Docs); docker compose up --build (CB-4-Binding);
+Entscheidungen: Smithery (Cluster 3-Discovery vorab), 1b Downstream-Spec,
+CB-4-Option-A; Kleinkitems L253/256/257.
+**Current state:** develop@29b22c2 — Bestandsplan Code-Pakete vollständig
+abgeschlossen (189/189 Tests guidance gesamt, tsc + yarn build grün, CI auf
+develop etabliert).
