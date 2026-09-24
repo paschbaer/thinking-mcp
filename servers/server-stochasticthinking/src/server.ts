@@ -35,8 +35,12 @@ function startServer(): void {
   // overrides PORT to 3000 internally)
   const PORT = process.env.PORT || 3001;
 
-  const server = app.listen(PORT, () => {
-    console.log(`Stochastic Thinking MCP server running on port ${PORT}`);
+  // Host default loopback; the Docker image sets STOCHASTIC_BIND_HOST=0.0.0.0
+  // so the port mapping stays reachable (same pattern as the other servers).
+  const HOST = process.env.STOCHASTIC_BIND_HOST || '127.0.0.1';
+
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`Stochastic Thinking MCP server running on ${HOST}:${PORT}`);
     console.log(`Health check available at http://localhost:${PORT}/health`);
     console.log(`MCP endpoint available at http://localhost:${PORT}/mcp`);
   });

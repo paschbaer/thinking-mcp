@@ -32,6 +32,9 @@ RUN chmod +x dist/server.js
 # clear-thought); inside the container it listens on 3000 to match
 # EXPOSE and the health check.
 ENV PORT=3000
+# Container must listen on all interfaces for the port mapping; the host
+# default is loopback (127.0.0.1) like the other servers.
+ENV STOCHASTIC_BIND_HOST=0.0.0.0
 
 # Expose port
 EXPOSE 3000
