@@ -33,7 +33,10 @@ function startServer(): void {
   // Get port from environment or use default
   // (host default 3001 keeps clear-thought on 3000 free; the Docker image
   // overrides PORT to 3000 internally)
-  const PORT = process.env.PORT || 3001;
+  // Number(): env vars are strings; listen(port, host) requires a numeric
+  // port (TS2769 under the 2-arg overload — masked before the host arg was
+  // added, same fix as insight).
+  const PORT = Number(process.env.PORT) || 3001;
 
   // Host default loopback; the Docker image sets STOCHASTIC_BIND_HOST=0.0.0.0
   // so the port mapping stays reachable (same pattern as the other servers).
