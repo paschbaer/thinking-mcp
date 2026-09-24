@@ -35,4 +35,16 @@ describe("tasks.md parser (FR-063, T058 golden)", () => {
     // injected prose simply is not a task line — no tasks beyond the standard set
     expect(parsed.tasks.every((t) => /^T\d+$/.test(t.taskId))).toBe(true);
   });
+
+  it("2d: criteria match in plain list form, not only bold (AC/SC)", () => {
+    const content = [
+      "## Acceptance Criteria",
+      "- **AC-001**: bold form",
+      "- AC-002: plain list form",
+      "- SC-001: plain scenario",
+    ].join("\n");
+    const parsed = parseTasks(content);
+    expect(parsed.criteria.map((c) => c.id)).toEqual(["AC-001", "AC-002", "SC-001"]);
+    expect(parsed.criteria[1]!.text).toContain("AC-002: plain list form");
+  });
 });

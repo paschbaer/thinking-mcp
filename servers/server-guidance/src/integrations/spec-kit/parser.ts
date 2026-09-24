@@ -26,13 +26,11 @@ export interface ParsedArtifact {
   warnings: string[];
 }
 
-const TASK_LINE = /^- \[( |x)\] (T\d+):\s*(.*)$|^-\[( |x)\]\s*(T\d+)\s*(.*)$/i;
 const CHECKBOX = /^- \[( |x)\]\s*(?:\*\*)?(T\d+)(?:\*\*)?\s*:?\s*(.*)$/i;
 const SECTION = /^#{2,3}\s+(?:\*\*)?([^*]+)(?:\*\*)?\s*$/;
 const PARALLEL = /\[P\]/i;
 const DEP_BACKTICK = /`depends:\s*([^`]+)`/i;
 const DEP_PAREN = /\(depends:\s*([^)]+)\)/i;
-const ID_TOKEN = /\b((?:FR|AC|SC|US|T)-?\d{3,}|T\d+)\b/g;
 const REQ_TOKEN = /\bFR-\d+\b/g;
 const CRIT_TOKEN = /\b(?:AC|SC)-\d+\b/g;
 
@@ -100,7 +98,9 @@ export function parseTasks(content: string): ParsedArtifact {
       requirements.push({ id: req[1]!.toUpperCase(), text: line.replace(/^\s*-\s*/, ""), line: lineNo });
       return;
     }
-    const crit = line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i);
+    // Bold form (**AC-001**) and plain list form (- AC-001:) both match —
+    // mirroring the requirement pattern below (was bold-only, 2d-hygiene).
+    const crit = line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i) ?? line.match(/- \*?\*?((?:AC|SC)-\d+)\*?\*?:?\s*(.*)/i);
     if (crit) {
       criteria.push({ id: crit[1]!.toUpperCase(), text: line.replace(/^\s*-\s*/, ""), line: lineNo });
       return;
@@ -110,10 +110,4 @@ export function parseTasks(content: string): ParsedArtifact {
     }
   });
   return { tasks, requirements, criteria, warnings };
-}
-
-/** Extracts required section presence for validation (FR-063). */
-export function hasSection(content: string, section: string): boolean {
-  const re = new RegExp(`^#{1,3}\\s+.*${section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "mi");
-  return re.test(content.replace(/\r\n/g, "\n"));
 }
