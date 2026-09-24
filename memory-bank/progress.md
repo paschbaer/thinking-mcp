@@ -260,3 +260,17 @@ mit detail:'full' Legacy-Modus und section:'recipes' On-Demand-Abruf.
 neueren Commits (a5c5c98) + Docker-Rebuild ausstehend (SSH-Agent je Terminal).
 **Current state:** develop = origin/develop + a5c5c98 (lokaler Commit);
 alle Server-Commits reviewed, 0 HIGH/CRITICAL.
+
+### 2026-09-24 — Full-Codebase-Review (abgeschlossen)
+**What works:** Voll-Review develop@2d580fa nach Review-Evidence-Protocol;
+4 Server + Root abgedeckt (guidance deep, insight storage+transport, clear-thought
+transport/session/bind, stochastic Eintritt+Deprecation-Status). 0 HIGH/CRITICAL;
+4 MEDIUM + 9 LOW + 4 INFO identifiziert und vollständig in remaining-work-plan.md
+persistiert (CB-1..CB-13). Positiv bestätigt: FTS5-Sanitization, Prepared
+Statements, atomare Writes, Session-ID-Pattern-Checks, timing-safe Auth,
+Loopback-Defaults/Reaper.
+**What's left:** CB-1..CB-13 abarbeiten (Trigger je Eintrag); Push der 4 Commits
++ CI-Check; CB-9 (1-Zeiler) vor Push mitnehmen.
+**Current state:** develop@2d580fa clean, ahead 4; Review abgeschlossen, keine
+Merge-Blocker für die unpushten Guidance-Commits (CB-1/2 pre-existing bzw.
+Rollback-Lücke — kein Datenverlust-Risiko).

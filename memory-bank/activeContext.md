@@ -349,3 +349,10 @@
   composeApplication-Optionen). Post-Implementation-Review nach Merge Pflicht
   (Trigger in remaining-work-plan.md eingetragen).
 - 2026-09-23 — Remote-Mode (spec amendment 001) implementiert: init_session-Config-Upload, Pair-Auth (optional, anonymer Fallback), sessiongebundene Tools, ClientOpEngine (1a), report_operation_result mit Auto-Retry, TTL 30d, configured-aware /health. Review: 2 CRITICAL (ClientOpEngine nie verdrahtet — Patch-Verlust; lastAttempt nur bei accepted) + 2 HIGH behoben. 155/155 Tests. Branch feature/remote-mode-session-binding, Merge nach develop offen.
+
+## 2026-09-24: Full-Codebase-Review (develop @ 2d580fa)
+- Basis: Snapshot develop@2d580fa, clean, ahead 4 (fb0a350..2d580fa = Remote-Mode-Hardening + memory-bank). Merge nach develop ERFOLGT — „Merge nach develop offen" oben ist stale.
+- Ergebnis: 0 HIGH/CRITICAL offen; 4 MEDIUM (CB-1 guidance touch()-TTL-Bug; CB-2 guidance Quota-Rollback-Lücke configFiles; CB-3 Session-Orphan-Pattern insight+clear-thought — Re-Evaluation der akzeptierten LOW aus Review 1caa690; CB-4 Compose-Exposure 0.0.0.0 ohne insight-Auth); 9 LOW + 4 INFO — alle persistiert unter „Getrackte Follow-ups (2026-09-24...)" in remaining-work-plan.md.
+- Positiv verifiziert: insight FTS5-Sanitization + Prepared Statements + atomare tmp+rename-Writes + Read-Hash-Verifikation; guidance SESSION_ID_PATTERN, separator-bewusster Pfadschutz, timing-safe Pair-Auth, 401/404-Kanaltrennung, Loopback-fail-closed-Binding; Reaper+MAX_SESSIONS in beiden HTTP-Servern.
+- Tests NICHT ausgeführt (keine Node-Toolchain in der Session; drei Shells geprüft) — CI test.yml autoritativ.
+- Review-Qualität: c22585a-Commitmsg „dbg-Logs entfernt" traf nicht zu (1 [dbg] in src L132 verblieben) → als CB-9 getrackt.
