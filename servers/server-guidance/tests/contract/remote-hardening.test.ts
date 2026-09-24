@@ -127,7 +127,6 @@ describe("remote-mode hardening fixes (F1-F3)", () => {
     expect(readdirSync(sessionsRoot).length).toBe(before);
     // Idempotent re-init nach Reject: identische Config wid die bestehende
     // Session via canonicalIndex wieder aufgenommen ( quota_quota_neutral).
-    console.error("[dbg] idem config project:", JSON.stringify(firstConfig.project));
     const idem = mgr.initSession({ config: firstConfig });
     expect(idem.meta.sessionId).toBe(firstSessionId);
   });

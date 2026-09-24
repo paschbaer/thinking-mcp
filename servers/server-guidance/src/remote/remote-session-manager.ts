@@ -5,7 +5,7 @@
  * - resolve: sessionId + Bearer-Token → sessiongebundene Komposition (Cache)
  * - TTL 30 Tage Inaktivität (FR-102.8, GUIDANCE_SESSION_TTL_DAYS)
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { composeApplication, type Composition } from "../main.js";
@@ -187,11 +187,22 @@ export class RemoteSessionManager {
     }
 
     // FR-102.2: In-memory-Validierung durch Komposition (wirft bei invalid).
+    // N1-Fix: bei Fehler wird der verbrauchte Quota-Slot zurückgerollt.
     const ledger = new ClientOpLedger();
-    const composition = composeApplication(wsRootFor(sessionId), cfgDir, join(dir, "state"), {
-      operationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
-      skipScaffold: true,
-    });
+    let composition;
+    try {
+      composition = composeApplication(wsRootFor(sessionId), cfgDir, join(dir, "state"), {
+        operationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
+        skipScaffold: true,
+      });
+    } catch (err) {
+      // Rollback: Slot freigeben + Orphan-Verzeichnis entfernen (N4).
+      const bucket = key ?? "__anonymous__";
+      const c = this.diskSessionsByKey.get(bucket) ?? 0;
+      if (c > 0) this.diskSessionsByKey.set(bucket, c - 1);
+      try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+      throw err;
+    }
 
     const now = new Date().toISOString();
     const meta: RemoteSessionMeta = {
