@@ -287,3 +287,16 @@ HIGH-Kandidat für PR nach main) + CB-15 (test.yml ohne develop-Trigger) neu
 getrackt; dann Batch C (CB-4 Option B: compose 127.0.0.1-Bind) + Batch D.
 **Current state:** develop@c416bba, ahead 1 (Batch B committet, FF-Merge,
 Feature-Branch gelöscht).
+
+### 2026-09-24 — Batch C + D (CB-4..CB-8, CB-10, CB-13; abgeschlossen)
+**What works:** CB-4 Option B (compose-Ports auf 127.0.0.1); CB-5
+(stochastic STOCHASTIC_BIND_HOST-Pattern, Dockerfile ENV 0.0.0.0); CB-6
+(publish-Script-Pfade); CB-7 (WAL aus dem Index); CB-13 (README-Duplikat +
+root engines >=20); CB-8 (Guidance-Array-Reject 400/-32600); CB-10
+(meta.json-Einzelwrite mit canonicalHash). Verifikation: stochastic 43/43,
+guidance 162/162 + tsc, yarn install --immutable grün (kein Lockfile-Drift
+durch engines-Änderung). Alle CB-Findings damit GELÖST; offen nur noch
+CB-4-Option-A (Auth, Future-Work) + INFO-Beobachtungen.
+**What's left:** Push; Docker-Compose-Neustart verifizieren (Binding greift
+erst bei `docker compose up` neu); CB-4-Option-A bei Fernzugriffs-Bedarf.
+**Current state:** fix/repo-hygiene 5 Commits, FF-Merge nach develop folgt.
