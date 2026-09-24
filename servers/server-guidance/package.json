@@ -1,7 +1,7 @@
 {
   "name": "@paschbaer/guidance",
   "version": "0.1.0",
-  "description": "Guidance MCP Server \u2014 configurable workflow orchestrator with Spec-Kit integration profile. Functionality defined by specs/002-guidance-workflow-server/spec.md",
+  "description": "Guidance MCP Server — configurable workflow orchestrator with Spec-Kit integration profile. Functionality defined by specs/002-guidance-workflow-server/spec.md",
   "license": "MIT",
   "author": "Paschbaer",
   "homepage": "https://github.com/paschbaer/thinking-mcp/tree/main/servers/server-guidance",
