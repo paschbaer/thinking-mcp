@@ -24,7 +24,8 @@ export const WORKFLOW_TOOL_NAMES = [
 export const SPEC_KIT_TOOL_NAMES = [
   "discover_spec_kit_feature", "import_spec_kit_artifacts", "get_spec_kit_status",
   "get_next_task", "start_task", "submit_task_implementation", "submit_task_review",
-  "complete_task", "propose_plan_change", "refresh_spec_kit_artifacts",
+  "complete_task", "propose_plan_change", "approve_plan_change", "apply_plan_change",
+  "refresh_spec_kit_artifacts",
   "get_traceability_report", "validate_spec_kit_completion",
 ] as const;
 

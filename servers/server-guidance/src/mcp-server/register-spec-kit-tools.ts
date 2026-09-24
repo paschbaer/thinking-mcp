@@ -266,10 +266,29 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
       const previous = resolver.store.load(sid);
       const feature = engine.discoverFeature(previous.featureId);
       // 2a: previous state => snapshot chain (previousSnapshotId) + history.
-      const state = engine.importArtifacts(feature, previous);
+      const imported = engine.importArtifacts(feature, previous);
+      // 2b (7a M): Reconciliation anwenden statt State komplett zu ersetzen —
+      // Task-Fortschritt (completed/unchanged) überlebt den Refresh.
+      const state = engine.buildReconciledState(previous, imported);
       resolver.store.save(sid, state);
       return toJson({ activeSnapshotId: state.activeSnapshotId, previousSnapshotId: previous.activeSnapshotId, validation: state.validation });
     },
+  );
+
+  server.tool(
+    "approve_plan_change",
+    "Gibt einen Plan-Change frei oder lehnt ihn ab (terminal)",
+    { ...sessionId, changeId: z.string().min(1), decision: z.enum(["approved", "rejected"]) },
+    async ({ sessionId: sid, changeId, decision }) =>
+      toJson(await withState(sid, (engine, state) => { engine.approvePlanChange(state, changeId, decision); })),
+  );
+
+  server.tool(
+    "apply_plan_change",
+    "Markiert einen freigegebenen Plan-Change als angewendet",
+    { ...sessionId, changeId: z.string().min(1) },
+    async ({ sessionId: sid, changeId }) =>
+      toJson(await withState(sid, (engine, state) => { engine.markPlanChangeApplied(state, changeId); })),
   );
 
   server.tool(

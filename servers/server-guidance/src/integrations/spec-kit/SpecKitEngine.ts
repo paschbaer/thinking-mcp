@@ -6,7 +6,7 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { GuidanceError } from "../../types/errors.js";
 import { parseTasks, PARSER_VERSION, type ParsedTask } from "./parser.js";
@@ -240,7 +240,10 @@ export class SpecKitEngine {
     if (existsSync(contractsDir)) {
       for (const f of readdirRecursive(contractsDir)) {
         const content = readFileSync(f, "utf-8");
-        artifacts.push({ type: "contracts", relativePath: f, sha256: sha256(content), sizeBytes: statSync(f).size, mtimeAtImport: statSync(f).mtime.toISOString(), content });
+        // M1: Pfade relativ zum Feature-Verzeichnis — absolute Pfade liessen
+        // isSnapshotStale nach einem Umzug garantiert "stale" melden.
+        const relPath = relative(feature.directory, f);
+        artifacts.push({ type: "contracts", relativePath: relPath, sha256: sha256(content), sizeBytes: statSync(f).size, mtimeAtImport: statSync(f).mtime.toISOString(), content });
       }
     }
 
@@ -569,20 +572,31 @@ export class SpecKitEngine {
     if (!criterion) throw new GuidanceError("spec_kit_task_not_found", `unknown criterion ${criterionId}`, { recoverable: true });
     const at = new Date().toISOString();
     criterion.waiver = { reason, approvedBy: "user", at };
-    // F8: Audit-Entry trägt jetzt die vollen Waiver-Felder (approvedBy/at).
-    // (F5: dedizierter Event-Typ spec_kit_criterion_waived bleibt 2b.)
-    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_plan_change_approved", data: { criterionId, waiver: reason, approvedBy: "user", at } });
+    // F5: dedizierter Event-Typ statt plan_change_approved (F8-Felder von 2e).
+    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_criterion_waived", data: { criterionId, waiver: reason, approvedBy: "user", at } });
   }
 
   approvePlanChange(state: SpecKitState, changeId: string, decision: "approved" | "rejected"): void {
     const change = state.planChanges[changeId];
     if (!change) throw new GuidanceError("spec_kit_plan_change_required", `unknown change ${changeId}`, { recoverable: true });
-    change.status = decision === "approved" ? "artifact_update_required" : "rejected";
+    // F6: Terminalität — angewendete/abgelehnte Changes sind unveränderlich.
+    if (change.status === "applied" || change.status === "rejected") {
+      throw new GuidanceError("spec_kit_plan_change_required", `change ${changeId} is already ${change.status}`, { recoverable: true });
+    }
+    change.status = decision === "approved" ? "approved" : "rejected";
     this.audit({ sessionId: this.sessionId, eventType: decision === "approved" ? "spec_kit_plan_change_approved" : "spec_kit_plan_change_rejected", data: { changeId } });
   }
 
   markPlanChangeApplied(state: SpecKitState, changeId: string): void {
-    state.planChanges[changeId]!.status = "applied";
+    const change = state.planChanges[changeId];
+    if (!change) throw new GuidanceError("spec_kit_plan_change_required", `unknown change ${changeId}`, { recoverable: true });
+    // F6: nur freigegebene Changes dürfen applied werden (kein TypeError bei
+    // unbekannter Id, keine Umgehung des Approval-Gates).
+    if (change.status !== "approved") {
+      throw new GuidanceError("spec_kit_plan_change_required", `change ${changeId} must be approved before it can be applied (current: ${change.status})`, { recoverable: true });
+    }
+    change.status = "applied";
+    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_plan_change_applied", data: { changeId } });
   }
 
   /** FR-064 staleness: recompute artifact hashes vs the active snapshot. */
@@ -606,11 +620,10 @@ export class SpecKitEngine {
     for (const [id, prev] of Object.entries(previous.tasks)) {
       const next = nextImport.tasks[id];
       if (!next) {
-        const superseded = { ...prev };
-        void superseded;
-        if (prev.status === "completed") {
-          tasks[id] = { ...prev, status: "completed" }; // retained; flagged by diff
-        }
+        // M3: entfernte Tasks bleiben auditable — completed werden unverändert
+        // retained, unfertige als cancelled (superseded durch Re-Import).
+        tasks[id] = { ...prev, status: prev.status === "completed" ? "completed" : "cancelled" };
+        this.audit({ sessionId: this.sessionId, eventType: "spec_kit_task_superseded", data: { taskId: id, previousStatus: prev.status } });
         continue;
       }
       const changed = diff.changed.includes(id);
