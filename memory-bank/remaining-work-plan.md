@@ -322,6 +322,7 @@ Quelle: Review-Evidence-Protocol-Durchlauf; Snapshot develop@2d580fa (clean, ahe
 - [x] CB-11 LOW (GELÖST c416bba): `pathFor()` validiert `^[a-f0-9]{64}$` vor `join()`; `read()` resolved den Pfad VOR dem Read-Miss-Catch, damit der Malformed-Error nicht verschluckt wird. Test: traversal/malformed/non-hex-64 → ARTIFACT_REJECTED „Malformed artifact hash".
 - [x] CB-12 LOW (GELÖST c416bba): verifiziert UND gefixt — Bare-Operatoren (NOT/AND/OR/NEAR) überlebten die Sanitization und warfen rohe FTS5-Syntaxfehler. Fix: Tokens werden als FTS5-Stringliterale gequotet (nach Sanitization nur noch \w-Zeichen → eindeutig). Test: searchFullText('NOT'|'AND OR NEAR'|'install not dependencies') → [].
 - [x] CB-13 LOW (GELÖST 04c6b13): README-Duplikat entfernt; Root-`engines.node` auf `>=20` angehoben (Align mit Servern + README; yarn-Immutable-Check grün).
+- [x] L305(a) Restart-Persistenz (GELÖST 7dbfa92): workflowToRemote-Bindings + ClientOpLedger + lastAttempt überleben Restarts via state.json je Session (formatVersion 2, geschrieben bei Registrierung/Reports/Submits, Rebuild beim Boot neben canonicalIndex). v1-Sessions ohne state.json migrieren tolerant. Tests: Restart-zwischen-start_workflow-und-Folgetool + v1-Toleranz (164/164, tsc, yarn build grün). REST: L305(d) awaiting_client-Downstream-Spec (optional für Produktivsetzung) + FR-104.5 (akzeptiert).
 
 ## Inventur Bestands-Follow-ups (2026-09-24, Phase 0.1)
 Code-Verifikation aller offenen Zeilen. Ergebnisse:
