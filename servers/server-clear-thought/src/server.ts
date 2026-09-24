@@ -12,6 +12,7 @@ import { pathToFileURL } from 'node:url';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import createClearThoughtServer from './index.js';
 import { ServerConfigSchema, type ServerConfig } from './config.js';
@@ -92,12 +93,23 @@ export const app = express();
 app.post('/mcp', express.json({ limit: '10mb' }), async (req: Request, res: Response) => {
   try {
     const sessionId = req.headers['mcp-session-id'];
-    let session = typeof sessionId === 'string' ? sessions.get(sessionId) : undefined;
-    if (session) session.lastSeen = Date.now();
-    if (!session) {
-      // Covers initialize (no session id yet) and clients that never reuse a
-      // session id: each gets a fresh server instance with its own SessionState.
-      session = createSession();
+    const known = typeof sessionId === 'string' ? sessions.get(sessionId) : undefined;
+    if (known) known.lastSeen = Date.now();
+    // CB-3 hardening: without a known session id, only a genuine initialize
+    // request may create a server+transport. Garbage/batch/non-initialize POSTs
+    // previously created reaper-invisible orphan instances per request.
+    if (!known && !isInitializeRequest(req.body)) {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: { code: -32600, message: 'Invalid Request: initialize required (no valid mcp-session-id header)' },
+        id: null,
+      });
+      return;
+    }
+    const session = known ?? createSession();
+    if (!known) {
+      // Covers initialize (no session id yet): a fresh server instance with
+      // its own SessionState, registered via onsessioninitialized.
       await session.server.connect(session.transport);
     }
     await session.transport.handleRequest(req, res, req.body);
@@ -143,6 +155,15 @@ app.get('/health', (_req: Request, res: Response) => {
 // Error handling middleware
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (res.headersSent) return _next(err);
+  // 1caa690(a): body-parser failures are client errors — 400/-32700 instead of 500.
+  if (typeof err === 'object' && err !== null && (err as { type?: string }).type === 'entity.parse.failed') {
+    res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32700, message: 'Parse error' },
+      id: null,
+    });
+    return;
+  }
   console.error('Server error:', err);
   res.status(500).json({
     error: 'Internal server error',

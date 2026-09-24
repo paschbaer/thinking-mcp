@@ -11,7 +11,13 @@ export class EvidenceStore {
   constructor(private readonly artifactsDir: string) {}
 
   private pathFor(hash: string): string {
-    return join(this.artifactsDir, hash.replace(/^sha256:/, '') + '.bin');
+    const hex = hash.replace(/^sha256:/, '');
+    // CB-11: caller-supplied hashes must be plain sha256 hex before they reach
+    // join() — rejects traversal strings and malformed hashes early.
+    if (!/^[a-f0-9]{64}$/.test(hex)) {
+      throw new EmmsError('ARTIFACT_REJECTED', 'Malformed artifact hash', false, { content_hash: hash });
+    }
+    return join(this.artifactsDir, hex + '.bin');
   }
 
   async store(content: Buffer): Promise<{ content_hash: string; byte_size: number }> {
@@ -25,9 +31,12 @@ export class EvidenceStore {
   }
 
   async read(content_hash: string): Promise<Buffer> {
+    // CB-11: resolve/validate FIRST — a malformed hash must surface as its own
+    // error, not be swallowed by the read-miss catch below.
+    const p = this.pathFor(content_hash);
     let buf: Buffer;
     try {
-      buf = await readFile(this.pathFor(content_hash));
+      buf = await readFile(p);
     } catch {
       throw new EmmsError('ARTIFACT_REJECTED', 'Artifact content not found', false, { content_hash });
     }

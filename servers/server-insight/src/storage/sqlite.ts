@@ -393,9 +393,13 @@ export class SqliteAdapter implements StorageAdapter {
     const ftsScopeFilter = scope_id === '' ? '' : 'AND scope_id = ?';
     const safe = terms.replace(/[^\w\s]/g, ' ').trim();
     if (!safe) return [];
+    // CB-12: each token is quoted as an FTS5 string literal — bare operators
+    // surviving sanitization (NOT/AND/OR/NEAR) would otherwise throw a raw
+    // FTS5 syntax error. Only \w chars remain, so quoting is unambiguous.
+    const matchArg = safe.split(/\s+/).map((t) => `"${t}"`).join(' ');
     const ids = this.db
       .prepare(`SELECT episode_id FROM episodes_fts WHERE episodes_fts MATCH ? ${ftsScopeFilter}`)
-      .all(...(scope_id === '' ? [safe.split(/\s+/).join(' ')] : [safe.split(/\s+/).join(' '), scope_id])) as { episode_id: string }[];
+      .all(...(scope_id === '' ? [matchArg] : [matchArg, scope_id])) as { episode_id: string }[];
     if (!ids.length) return [];
     const placeholders = ids.map(() => '?').join(',');
     return this.db
