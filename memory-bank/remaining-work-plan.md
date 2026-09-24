@@ -376,6 +376,28 @@ Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
   Bekannte Restschwäche: Default-Patterns matchen snake_case-Keys
   (api_token) nicht (\\b-Grenze) — Enhancement-Kandidat.
 
+## Cluster 2b (GELÖST 29b22c2, 2026-09-24)
+- [x] F6: Plan-Change-Lifecycle guarded — approve/reject terminal, apply nur
+  nach Approval, unbekannte Ids werfen GuidanceError; approved Changes
+  führen jetzt den Status "approved" (statt artifact_update_required zu
+  wiederverwenden). refresh-Test auf korrigierten Flow angepasst.
+- [x] F5: waiveCriterion emittiert spec_kit_criterion_waived.
+- [x] M3: entfernte unfertige Tasks werden als cancelled retained +
+  spec_kit_task_superseded-Audit; toter superseded-Debris entfernt.
+- [x] M1: Contracts-Artefakte speichern relative Pfade (Relocation bricht
+  Staleness nicht mehr — Test: Umzug in neues Root → nicht stale).
+- [x] 7a M applyReconciliation: refresh_spec_kit_artifacts wendet
+  buildReconciledState an — Task-Fortschritt überlebt Refresh.
+- [x] 2 neue Tools: approve_plan_change + apply_plan_change (waren
+  Engine-only, remote nie erreichbar — permanent-pending-Gap geschlossen);
+  SPEC_KIT_TOOL_NAMES + Registrationstest aktualisiert.
+- [x] Inventur-Befund: "SpecKitState-Persistence über Restarts" (7a) war
+  bereits realisiert (SpecKitStateStore, disk-backed, atomic tmp+rename) —
+  stale Eintrag, keine Action.
+  189/189 Tests + tsc + yarn build grün. Offen im Bestand: nur noch
+  Cluster 3 (Smithery-Decision + Discovery), 1b (Downstream-Spec),
+  CB-4-Option-A, L253/256/257 (Kleinkitems) + INFO-Positionen.
+
 ## Cluster 2e (GELÖST ffdf393, 2026-09-24)
 - [x] Capability-Hashes über Restarts: capability-hashes.json im stateDir
   (merge-on-save, tolerant load); Drift nach Restart wird jetzt ERKANNT
