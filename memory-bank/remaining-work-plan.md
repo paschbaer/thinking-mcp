@@ -344,6 +344,22 @@ Code-Verifikation aller offenen Zeilen. Ergebnisse:
 Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach
 Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
 
+## Cluster 2c (GELÖST 9bcc6c6, 2026-09-24)
+- [x] Egress Content-Checks (Phase 6 MEDIUM): evaluateEgress (restricted/
+  validated_inputs_only) verwirft Scalar-Args mit High-Confidence-Credential-
+  Werten (Private-Keys, AKIA/ghp_/github_pat_/sk-/JWT/xox-Pattern) via
+  data_egress_denied. Trusted/privileged bleiben strukturell (dokumentiert).
+- [x] protocolMetadata-Rotung (Phase 6 MEDIUM): mcpTool-Ergebnisse laufen
+  durch redactUnknown — Content UND structuredContent werden vor der
+  agent-facing Rückgabe redigiert (zuvor verbatim).
+- [x] Multi-line-Redaction (Phase 5 LOW): Value-Alternation matcht jetzt
+  mehrzeilige Quoted-Values ([\\s\\S]*?, non-greedy).
+- [x] Sanitization-Seam: redactUnknown (Deep-Walk + Key-Based-Redaction) in
+  redaction.ts als dokumentierter Extension-Point; 7 neue Tests
+  (tests/policy/redaction-seams.test.ts). 176/176 + tsc + build grün.
+  Bekannte Restschwäche: Default-Patterns matchen snake_case-Keys
+  (api_token) nicht (\\b-Grenze) — Enhancement-Kandidat.
+
 ## Cluster 2e (GELÖST ffdf393, 2026-09-24)
 - [x] Capability-Hashes über Restarts: capability-hashes.json im stateDir
   (merge-on-save, tolerant load); Drift nach Restart wird jetzt ERKANNT
