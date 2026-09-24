@@ -622,7 +622,13 @@ export class SpecKitEngine {
       if (!next) {
         // M3: entfernte Tasks bleiben auditable — completed werden unverändert
         // retained, unfertige als cancelled (superseded durch Re-Import).
-        tasks[id] = { ...prev, status: prev.status === "completed" ? "completed" : "cancelled" };
+        // R-15: required wird gelöscht — sonst blockt der superseded Task die
+        // Completion-Invarianten für immer (required_tasks_incomplete).
+        tasks[id] = {
+          ...prev,
+          status: prev.status === "completed" ? "completed" : "cancelled",
+          required: prev.status === "completed" ? prev.required : false,
+        };
         this.audit({ sessionId: this.sessionId, eventType: "spec_kit_task_superseded", data: { taskId: id, previousStatus: prev.status } });
         continue;
       }
@@ -645,6 +651,9 @@ export class SpecKitEngine {
       ...nextImport,
       tasks,
       criteria: { ...nextImport.criteria },
+      // R-16: offene Plan Changes überleben den Refresh (nextImport startet
+      // mit leerer Map — ohne Merge würden sie stillschweigend verworfen).
+      planChanges: { ...previous.planChanges, ...nextImport.planChanges },
     } as SpecKitState;
   }}
 
