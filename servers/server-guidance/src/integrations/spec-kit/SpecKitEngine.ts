@@ -555,8 +555,11 @@ export class SpecKitEngine {
   waiveCriterion(state: SpecKitState, criterionId: string, reason: string): void {
     const criterion = state.criteria[criterionId];
     if (!criterion) throw new GuidanceError("spec_kit_task_not_found", `unknown criterion ${criterionId}`, { recoverable: true });
-    criterion.waiver = { reason, approvedBy: "user", at: new Date().toISOString() };
-    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_plan_change_approved", data: { criterionId, waiver: reason } });
+    const at = new Date().toISOString();
+    criterion.waiver = { reason, approvedBy: "user", at };
+    // F8: Audit-Entry trägt jetzt die vollen Waiver-Felder (approvedBy/at).
+    // (F5: dedizierter Event-Typ spec_kit_criterion_waived bleibt 2b.)
+    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_plan_change_approved", data: { criterionId, waiver: reason, approvedBy: "user", at } });
   }
 
   approvePlanChange(state: SpecKitState, changeId: string, decision: "approved" | "rejected"): void {
