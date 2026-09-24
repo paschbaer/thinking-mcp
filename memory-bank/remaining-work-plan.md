@@ -343,6 +343,23 @@ Code-Verifikation aller offenen Zeilen. Ergebnisse:
   abgedeckt — Restverifikation in Paket 2b (State-Machines).
 Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach
 Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
+
+## Cluster 2d (GELÖST 18b27cf, 2026-09-24)
+- [x] Parser-Dead-Code: TASK_LINE/ID_TOKEN entfernt; hasSection (Export ohne
+  einen einzigen Aufruf) entfernt; toter Doppel-Import readdirSync +
+  readdirRecursive2-Debris am Dateiende entfernt.
+- [x] Latenter ESM-Crash: readdirSyncSafe nutzte require("node:fs") —
+  ReferenceError sobald Kandidaten-Discovery (mostRecentlyModified/
+  singleCandidate-Strategien) läuft. Jetzt statischer readdirSync-Import.
+- [x] Criteria-Parsing bold-only (parseTasks UND parseCriteria): jetzt auch
+  Plain-Listenform (- AC-002: …), gespiegelt vom Requirement-Muster.
+  Regressionstest in parser.test.ts.
+- [x] F7: toter `&& state.tasks`-Conjunct in coverageSummary entfernt.
+- [x] requireUniqueMatch/maxEntities/maxExcerptBytes: als „reserved" im
+  Interface dokumentiert (Enforcement wäre silentes Droppen von Criteria =
+  Coverage-Korruption — gehört mit Validation-Warnings zusammen in 2c/2a);
+  previousSnapshotOverride als „reserved für 2a Snapshot-Chaining"
+  dokumentiert (nicht entfernt — 2a konsumiert es).
 - INFO (akzeptiert, keine Action): Root-tsconfig deckt nur 2/4 Server; gemischte Package-Manager (yarn@4 root + server-lokale npm-Lockfiles) ist beabsichtigt (Docker/Publish-Determinismus); ClientOpLedger nur per operationId (v1-Doku, FR-104.5-Vertrauensmodell); cache-only workflowToRemote/ledger/lastAttempt bereits getrackt im Remote-Mode-Follow-up (a) bei L305.
 - [x] CB-14 HIGH-Kandidat (entdeckt 2026-09-24, GELÖST 3fb48ba): yarn.lock auf Yarn-Berry-Format (v8) mit yarn 4.6.0 regeneriert (+ package.json-Normalisierung der Server committed). CI-Parität verifiziert: `yarn install --immutable` (exit 0, keine Änderungen), `yarn build` + `yarn test` über alle 4 Workspaces grün (166+162+105[4 skipped=Embeddings]+43).
 - [x] CB-15 LOW (entdeckt 2026-09-24, GELÖST 373ade5): `develop` zu den push-Branches in test.yml hinzugefügt — develop-Pushes triggern CI jetzt direkt.

@@ -310,7 +310,9 @@ alle 15 CB-Findings gelöst/geschlossen, memory-bank aktuell.
 lastAttempt über Restarts; Rebuild beim Boot; v1-Sessions tolerant. 164/164
 + tsc + yarn build grün.
 **What's left:** Push; Produktivsetzung jetzt ohne Binding-Verlust möglich.
-Offen: 1b Downstream-Spec (optional), Cluster 2d→2e→2c→2a→2b, Cluster 3
+Offen: 1b Downstream-Spec (optional), Cluster 2e→2c→2a→2b, Cluster 3
 (Smithery-Discovery), CB-4-Option-A.
-**Current state:** develop@7dbfa92, ahead 2.
+**Current state:** develop@18b27cf — 2d Spec-Kit-Hygiene abgeschlossen
+(toter Code, require-in-ESM-Crash, bold-only-Criteria, F7-Conjunkt;
+165/165 + tsc + build grün).
 **Current state:** fix/repo-hygiene 5 Commits, FF-Merge nach develop folgt.
