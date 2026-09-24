@@ -287,3 +287,18 @@
 - **create_file auf /mnt/d**: diesmal sofort per grep verifiziert — okay.
   Aber Heredoc-Anhaenge an Testdateien koennen bei abgebrochenen Terminals
   Dateien duplizieren: vor Commit immer grep -c auf Helfer-Symbole.
+
+### Avoid These Mistakes (2026-09-24, Codebase-Review)
+- **Session-Registry-Muster**: create-on-unknown-POST + Registry-Eintrag nur in
+  `onsessioninitialized` erzeugt reaper-blinde Orphans (in insight UND
+  clear-thought identisch vorhanden). Praevention: non-initialize-Requests ohne
+  Session-Header early-rejecten (body.method-Pruefung) oder Session sofort mit
+  pending-State registrieren. Beim Review nach `onsessioninitialized` +
+  `sessions.set` greppen.
+- **Commit-/Memory-bank-Behauptungen grep-verifizieren**: „dbg-Logs entfernt"
+  (c22585a) war unvollstaendig — 1 [dbg] verblieb in src L132. Behauptungen ueber
+  abgeschlossene Bereinigungen nie trauen, immer selbst zaehlen.
+- **Deprecation braucht npm deprecate**: README-Hinweis allein verhindert
+  Installation nicht (package.json hat kein deprecated-Feld). Zusatzfalle:
+  `app.listen(PORT)` ohne Host-Arg bindet 0.0.0.0 — Loopback-Default immer
+  explizit setzen.
