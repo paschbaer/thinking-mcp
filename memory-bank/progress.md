@@ -304,3 +304,14 @@ unset = offen, compose-Passthrough + README) — insight remote-fähig.
 L253/256/257.
 **Current state:** develop@3c4f36f — alle Code-Pakete + Smithery-Decision +
 Auth abgeschlossen; offen nur CB-21 (Spec) + CB-22 + Kleinkitems.
+
+### 2026-09-24 — Guidance Security-/Policy-Verifikation + Rest-Fixes
+**What works:** Phase 5/6-Security-Fixes verifiziert (Egress-Inhaltsprüfung,
+redactUnknown-Seam inkl. protocolMetadata, Multi-Line-Redaction,
+Pin-Persistenz über Restarts); Rest-Fixes umgesetzt (atomarer Pin-Write,
+Persistenz-Regressionstest). 197/197 Tests + tsc grün (Container-Verifikation).
+Memory-bank gesynct (L264/L266/CB-1/CB-2/CB-9 → [x] mit Evidence).
+**What's left:** Metrics-Tool (L260); awaiting_client-Downstream-Spec
+(L305d); Push der neuen Commits; danach Guidance produktivsetzbar.
+**Current state:** Security-/Policy-Lücken geschlossen — Guidance aus
+Sicherheits­sicht produktionsreif; Rest = Ops/Monitoring + Remote-Downstream-Spec.
