@@ -5,6 +5,7 @@
  */
 import { spawnSync } from "node:child_process";
 import type { NormalizedResult, OperationConfig } from "../types/index.js";
+import { redactUnknown } from "../policy/redaction.js";
 
 export interface OperationContext {
   workspaceRoot: string;
@@ -127,14 +128,21 @@ export class OperationEngine {
         return { ...base, errors: [{ code: "downstream_connection_failed", message: outcome.message }], summary: "transport failure" };
       }
       if (outcome.kind === "tool_reported") {
-        return { ...base, errors: [{ code: "operation_result_invalid", message: outcome.message }], summary: "tool reported an error", content: outcome.content };
+        return { ...base, errors: [{ code: "operation_result_invalid", message: outcome.message }], summary: "tool reported an error", content: redactUnknown(outcome.content) as typeof base.content };
       }
       return {
         ...base,
         status: "succeeded",
         summary: `${config.operationId} succeeded`,
-        content: outcome.content,
-        protocolMetadata: { structuredContent: outcome.structuredContent ?? null },
+        // 2c sanitization seam: downstream payloads are redacted BEFORE they
+        // become part of any agent-facing result (structuredContent was
+        // previously returned verbatim via protocolMetadata).
+        content: redactUnknown(outcome.content) as typeof base.content,
+        protocolMetadata: {
+          structuredContent: outcome.structuredContent !== undefined && outcome.structuredContent !== null
+            ? redactUnknown(outcome.structuredContent)
+            : null,
+        },
       };
     }
 
