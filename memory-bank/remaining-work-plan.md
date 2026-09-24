@@ -344,6 +344,20 @@ Code-Verifikation aller offenen Zeilen. Ergebnisse:
 Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach
 Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
 
+## Cluster 2a (GELÖST 27df359, 2026-09-24)
+- [x] Snapshot-Chaining (Phase 7a M4): importArtifacts(feature, previous?)
+  verkettet Snapshots (previousSnapshotId) und erhält die History; der
+  Blocking-Fail-Pfad eines Refreshs überschreibt die Kette nicht mehr
+  (vorher: History-Wipe), sondern markiert nur invalid. refresh_spec_kit
+  reicht den previous State durch.
+- [x] Staleness-Maschinerie (Phase 7a M4): evaluateCompletionInvariants
+  berechnet snapshotCurrent intern (Hash-Vergleich via isSnapshotStale)
+  statt dem Caller-Supplied-Flag zu trauen; Tool-Schema (snapshotCurrent
+  entfernt) + Tests angepasst.
+- [x] previousSnapshotOverride dead field entfernt — Chaining wird jetzt
+  am Import konsumiert. 5 neue Tests (snapshot-chain.test.ts).
+  181/181 + tsc + build grün.
+
 ## Cluster 2c (GELÖST 9bcc6c6, 2026-09-24; Review APPROVED 0 HIGH/CRIT)
 - [ ] R-6..R-8 LOW/INFO (Post-Commit-Review 9bcc6c6 — akzeptierte Beobachtungen): (R-6) Downstream-Error-Message-Pfade (tool_reported/transport) tragen messages unverratzt durch errors[] — redact beim nächsten Touch der OperationEngine. (R-7) Secret-Value-Patterns ohne Word-Boundary → mögliche False-Positive-Blocks im restricted-Modus (fail-closed, akzeptiert); Boundary-Verfeinerung optional. (R-8) redactUnknown setzt azyklische (JSON-derived) Strukturen voraus — im Docstring dokumentieren. Trigger: nächste Änderung an OperationEngine/redaction.ts. Accepted observations mit rationale.
 - [x] Egress Content-Checks (Phase 6 MEDIUM): evaluateEgress (restricted/
