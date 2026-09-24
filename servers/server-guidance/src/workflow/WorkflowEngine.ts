@@ -3,7 +3,7 @@
  * Phase guidance and transitions come exclusively from configuration.
  */
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
 import type {
@@ -46,7 +46,8 @@ function toTrustLevel(value: string | undefined, serverId?: string): TrustLevel 
  *  (Remote-Modus: eine Composition je Session). */
 const CAPABILITY_PIN_FILE = "capability-hashes.json";
 
-function loadCapabilityPins(stateDir: string): Record<string, string> {
+/** Exported for the persistence-contract tests (restart semantics). */
+export function loadCapabilityPins(stateDir: string): Record<string, string> {
   const file = join(stateDir, CAPABILITY_PIN_FILE);
   if (!existsSync(file)) return {};
   try {
@@ -56,7 +57,8 @@ function loadCapabilityPins(stateDir: string): Record<string, string> {
   }
 }
 
-function saveCapabilityPins(stateDir: string, pins: Map<string, string>): void {
+/** Exported for the persistence-contract tests (restart semantics). */
+export function saveCapabilityPins(stateDir: string, pins: Map<string, string>): void {
   const file = join(stateDir, CAPABILITY_PIN_FILE);
   let merged: Record<string, string> = {};
   try {
@@ -65,7 +67,11 @@ function saveCapabilityPins(stateDir: string, pins: Map<string, string>): void {
     merged = {}; // korrupte Datei ersetzen
   }
   for (const [key, hash] of pins) merged[key] = hash;
-  writeFileSync(file, JSON.stringify(merged, null, 2));
+  // Atomic write (tmp+rename, wie Audit-/Session-Writes): ein Crash zwischen
+  // Truncate und Flush darf keine korrupte/leere Pin-Datei hinterlassen.
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(merged, null, 2));
+  renameSync(tmp, file);
 }
 
 export interface StartResult {
