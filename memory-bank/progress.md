@@ -303,4 +303,14 @@ getrackte Follow-ups je Trigger.
 **Current state:** CI GRÜN auf develop (nach CB-15-Trigger + CB-14-Lockfile-
 Fix + 25ca34e PORT-Fix). Codebase-Review 2026-09-24 vollständig abgeschlossen:
 alle 15 CB-Findings gelöst/geschlossen, memory-bank aktuell.
+
+### 2026-09-24 — Cluster 1a Restart-Persistenz (abgeschlossen)
+**What works:** L305(a) gelöst (7dbfa92): state.json je Remote-Session
+(formatVersion 2) hält workflowToRemote-Bindings, ClientOpLedger-Reports und
+lastAttempt über Restarts; Rebuild beim Boot; v1-Sessions tolerant. 164/164
++ tsc + yarn build grün.
+**What's left:** Push; Produktivsetzung jetzt ohne Binding-Verlust möglich.
+Offen: 1b Downstream-Spec (optional), Cluster 2d→2e→2c→2a→2b, Cluster 3
+(Smithery-Discovery), CB-4-Option-A.
+**Current state:** develop@7dbfa92, ahead 2.
 **Current state:** fix/repo-hygiene 5 Commits, FF-Merge nach develop folgt.
