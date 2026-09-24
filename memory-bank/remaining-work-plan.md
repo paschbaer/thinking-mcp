@@ -376,7 +376,19 @@ Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
   Bekannte Restschwäche: Default-Patterns matchen snake_case-Keys
   (api_token) nicht (\\b-Grenze) — Enhancement-Kandidat.
 
-## Cluster 2b (GELÖST 29b22c2, 2026-09-24)
+## Cluster 2b (GELÖST 29b22c2 + Review-Fixes f8d91b6, 2026-09-24; Review APPROVED 0 HIGH/CRIT)
+- [x] R-15 MEDIUM (im Review gefunden + SOFORT gefixt f8d91b6): superseded
+  Tasks behalten required=false (blockten required_tasks_incomplete für
+  immer); Test: Violation-Set identisch mit/ohne superseded Task.
+- [x] R-16 LOW (gefixt f8d91b6): buildReconciledState merged
+  previous.planChanges — offene Changes überleben den Refresh.
+- [x] R-17 LOW (dokumentiert + Test): Re-Entscheidung vor Apply
+  (approved→rejected) ist intendiert; ab Apply terminal (F6-Guard).
+- [x] R-18 INFO: remote approve/apply unterliegt dem FR-104.5-
+  Session-Vertrauensmodell (konsistent mit allen Tools).
+- [x] R-19 INFO: Migration — unter altem Code im Status
+  artifact_update_required festhängende Changes brauchen nach dem Upgrade
+  ein Re-Approve (setzt "approved"), dann Apply.
 - [x] F6: Plan-Change-Lifecycle guarded — approve/reject terminal, apply nur
   nach Approval, unbekannte Ids werfen GuidanceError; approved Changes
   führen jetzt den Status "approved" (statt artifact_update_required zu
