@@ -265,7 +265,8 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
       const engine = resolver.resolve(sid);
       const previous = resolver.store.load(sid);
       const feature = engine.discoverFeature(previous.featureId);
-      const state = engine.importArtifacts(feature);
+      // 2a: previous state => snapshot chain (previousSnapshotId) + history.
+      const state = engine.importArtifacts(feature, previous);
       resolver.store.save(sid, state);
       return toJson({ activeSnapshotId: state.activeSnapshotId, previousSnapshotId: previous.activeSnapshotId, validation: state.validation });
     },
@@ -284,12 +285,11 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Prüft die Completion-Invarianten des Features",
     {
       ...sessionId,
-      snapshotCurrent: z.boolean(),
       requiredVerificationSucceeded: z.boolean(),
       completionOpsSucceeded: z.boolean(),
     },
-    async ({ sessionId: sid, snapshotCurrent, requiredVerificationSucceeded, completionOpsSucceeded }) =>
-      toJson(resolver.resolve(sid).evaluateCompletionInvariants(resolver.store.load(sid), { snapshotCurrent, requiredVerificationSucceeded, completionOpsSucceeded })),
+    async ({ sessionId: sid, requiredVerificationSucceeded, completionOpsSucceeded }) =>
+      toJson(resolver.resolve(sid).evaluateCompletionInvariants(resolver.store.load(sid), { requiredVerificationSucceeded, completionOpsSucceeded })),
   );
 }
 

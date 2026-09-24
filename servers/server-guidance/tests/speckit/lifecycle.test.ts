@@ -109,7 +109,7 @@ describe("completion invariants (FR-074, SC-013)", () => {
   it("violations listed while tasks incomplete or criteria unverified", () => {
     const { state } = importState();
     const engine = makeEngine();
-    const result = engine.evaluateCompletionInvariants(state, { snapshotCurrent: true, requiredVerificationSucceeded: false, completionOpsSucceeded: false });
+    const result = engine.evaluateCompletionInvariants(state, { requiredVerificationSucceeded: false, completionOpsSucceeded: false });
     expect(result.satisfied).toBe(false);
     expect(result.violations).toContain("required_tasks_incomplete");
     expect(result.violations).toContain("acceptance_criteria_unverified");
@@ -118,7 +118,7 @@ describe("completion invariants (FR-074, SC-013)", () => {
   it("pending plan changes block completion", () => {
     const { engine, state } = importState();
     engine.proposePlanChange(state, { changeType: "add_task", reason: "r", affectedTasks: [], impact: { acceptanceCriteria: false, publicApi: false, dependencies: false } });
-    const result = engine.evaluateCompletionInvariants(state, { snapshotCurrent: true, requiredVerificationSucceeded: true, completionOpsSucceeded: true });
+    const result = engine.evaluateCompletionInvariants(state, { requiredVerificationSucceeded: true, completionOpsSucceeded: true });
     expect(result.satisfied).toBe(false);
   });
 });

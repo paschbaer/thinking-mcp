@@ -74,9 +74,6 @@ export interface PlanChange {
 }
 
 export interface SpecKitState {
-  /** Reserved for snapshot chaining (2a): set by buildReconciledState, not
-   *  yet consumed by persist — will feed previousSnapshotId on snapshot rows. */
-  previousSnapshotOverride?: string | null;
   featureId: string;
   featureDirectory: string;
   activeSnapshotId: string | null;
@@ -204,8 +201,10 @@ export class SpecKitEngine {
     }
   }
 
-  /** FR-062/063: deterministic import with structural validation + normalization. */
-  importArtifacts(feature: { featureId: string; directory: string }): SpecKitState {
+  /** FR-062/063: deterministic import with structural validation + normalization.
+   *  2a: pass the previous state to chain snapshots (previousSnapshotId) and
+   *  preserve snapshot history; omitted ⇒ first import (previousSnapshotId null). */
+  importArtifacts(feature: { featureId: string; directory: string }, previous?: SpecKitState): SpecKitState {
     const findings: { severity: string; message: string }[] = [];
     const artifacts: Snapshot["artifacts"] = [];
     const patterns = { ...DEFAULT_ARTIFACTS, ...this.config.artifactPatterns };
@@ -282,6 +281,14 @@ export class SpecKitEngine {
       for (const f of findings.filter((x) => x.severity === "blocking")) {
         this.audit({ sessionId: this.sessionId, eventType: "spec_kit_artifact_rejected", data: { message: f.message } });
       }
+      // 2a: a failed refresh must NOT wipe the previous snapshot chain —
+      // keep history and mark invalid instead of returning a bare state.
+      if (previous) {
+        return {
+          ...previous,
+          validation: { valid: false, findings },
+        };
+      }
       return {
         featureId: feature.featureId, featureDirectory: feature.directory, activeSnapshotId: null, snapshots: [],
         tasks: {}, criteria: {}, batches: {}, planChanges: {}, validation: { valid: false, findings },
@@ -321,9 +328,11 @@ export class SpecKitEngine {
     }
 
     const snapshotId = `snapshot-${randomUUID()}`;
+    // 2a: chain onto the previous active snapshot and keep full history.
+    const history = previous?.activeSnapshotId ? [...previous.snapshots] : [];
     const snapshot: Snapshot = {
       snapshotId,
-      previousSnapshotId: null,
+      previousSnapshotId: previous?.activeSnapshotId ?? null,
       createdAt: new Date().toISOString(),
       configVersion: this.configVersion,
       parserVersion: PARSER_VERSION,
@@ -339,7 +348,7 @@ export class SpecKitEngine {
 
     return {
       featureId: feature.featureId, featureDirectory: feature.directory, activeSnapshotId: snapshotId,
-      snapshots: [snapshot], tasks, criteria, batches: {}, planChanges: {},
+      snapshots: [...history, snapshot], tasks, criteria, batches: {}, planChanges: {},
       validation: { valid: true, findings }, activeBatchId: null,
     };
   }
@@ -532,11 +541,14 @@ export class SpecKitEngine {
     return { added, removed, changed, evidencePreserved, flaggedForReview };
   }
 
-  /** FR-074: Spec-Kit completion invariants evaluation. */
-  evaluateCompletionInvariants(state: SpecKitState, opts: { snapshotCurrent: boolean; requiredVerificationSucceeded: boolean; completionOpsSucceeded: boolean }): { satisfied: boolean; violations: string[] } {
+  /** FR-074: completion invariants evaluation.
+   *  2a: snapshot freshness is RECOMPUTED internally (hash comparison via
+   *  isSnapshotStale) instead of trusting a caller-supplied flag. */
+  evaluateCompletionInvariants(state: SpecKitState, opts: { requiredVerificationSucceeded: boolean; completionOpsSucceeded: boolean }): { satisfied: boolean; violations: string[] } {
     const violations: string[] = [];
     if (!state.validation.valid) violations.push("artifacts_invalid");
-    if (!state.activeSnapshotId || !opts.snapshotCurrent) violations.push("snapshot_stale");
+    const snapshotCurrent = state.activeSnapshotId !== null && !this.isSnapshotStale(state, state.featureDirectory);
+    if (!state.activeSnapshotId || !snapshotCurrent) violations.push("snapshot_stale");
     const required = Object.values(state.tasks).filter((t) => t.required);
     if (required.some((t) => t.status !== "completed")) violations.push("required_tasks_incomplete");
     if (required.some((t) => t.status === "blocked")) violations.push("required_tasks_blocked");
@@ -618,7 +630,6 @@ export class SpecKitEngine {
     }
     return {
       ...nextImport,
-      previousSnapshotOverride: previous.activeSnapshotId,
       tasks,
       criteria: { ...nextImport.criteria },
     } as SpecKitState;
