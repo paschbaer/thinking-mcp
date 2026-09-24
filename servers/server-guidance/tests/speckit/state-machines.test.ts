@@ -87,9 +87,48 @@ describe("2b: removed-task superseded marker + audit (M3)", () => {
     const next = engine.buildReconciledState(previous, nextImport);
 
     expect(next.tasks["T999"]?.status).toBe("cancelled"); // superseded, auditable
+    expect(next.tasks["T999"]?.required).toBe(false); // R-15: blockt keine Invarianten
     expect(next.tasks["T998"]?.status).toBe("completed"); // completed: retained as-is
     expect(auditEvents.filter((e) => e.eventType === "spec_kit_task_superseded").map((e) => e.data?.taskId).sort())
       .toEqual(["T998", "T999"]);
+  });
+
+  it("R-15: superseded required tasks block completion invariants nicht mehr", () => {
+    const { engine, state } = importState();
+    const previous: SpecKitState = structuredClone(state);
+    previous.tasks["T999"] = { ...state.tasks["T001"]!, taskId: "T999", title: "later removed", status: "in_progress" };
+    const nextImport = engine.importArtifacts(engine.discoverFeature("valid-full"));
+    const next = engine.buildReconciledState(previous, nextImport);
+    // Der entfernte Task darf zu den Violationen NICHTS beitragen —
+    // Entfernen darf das Violation-Set nicht verändern.
+    const opts = { requiredVerificationSucceeded: true, completionOpsSucceeded: true };
+    const withSuperseded = engine.evaluateCompletionInvariants(next, opts).violations;
+    delete next.tasks["T999"];
+    const without = engine.evaluateCompletionInvariants(next, opts).violations;
+    expect(withSuperseded).toEqual(without);
+    expect(next.tasks["T999"]).toBeUndefined(); // gelöscht zum Vergleich
+  });
+
+  it("R-16: offene Plan Changes überleben den Refresh", () => {
+    const { engine, state } = importState();
+    const change = engine.proposePlanChange(state, {
+      changeType: "add_task", reason: "r", affectedTasks: [],
+      impact: { acceptanceCriteria: false, publicApi: false, dependencies: false },
+    });
+    const nextImport = engine.importArtifacts(engine.discoverFeature("valid-full"));
+    const next = engine.buildReconciledState(state, nextImport);
+    expect(next.planChanges[change.changeId]?.status).toBe("artifact_update_required");
+  });
+
+  it("R-17: Re-Entscheidung vor Apply ist erlaubt (approved → rejected)", () => {
+    const { engine, state } = importState();
+    const change = engine.proposePlanChange(state, {
+      changeType: "add_task", reason: "r", affectedTasks: [],
+      impact: { acceptanceCriteria: false, publicApi: false, dependencies: false },
+    });
+    engine.approvePlanChange(state, change.changeId, "approved");
+    engine.approvePlanChange(state, change.changeId, "rejected"); // Umschreibung vor Apply
+    expect(state.planChanges[change.changeId]!.status).toBe("rejected");
   });
 });
 
