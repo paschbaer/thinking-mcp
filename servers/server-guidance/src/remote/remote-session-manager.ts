@@ -129,7 +129,6 @@ export class RemoteSessionManager {
     const canonicalHash = createHash("sha256").update(canonical).digest("hex");
     const canonicalId = `${key ?? "__anonymous__"}:${canonicalHash}`;
     const existingId = this.canonicalIndex.get(canonicalId);
-    if (existingId) console.error("[dbg] idempotent hit:", existingId);
     if (existingId) {
       const cached = this.cache.get(existingId);
       if (cached) {
@@ -153,44 +152,48 @@ export class RemoteSessionManager {
     const cfgDir = this.configDir(sessionId);
     mkdirSync(cfgDir, { recursive: true });
 
-    // Config-Dateien in den Session-Config-Ordner schreiben (Dateireferenz-
-    // Form wird erwartet: guidance.json + referenzierte Dateien + schemas/).
-    const files = (config as { configFiles?: Record<string, string> }).configFiles;
-    if (files && typeof files === "object") {
-      for (const [rel, content] of Object.entries(files)) {
-        if (typeof content !== "string") throw new Error(`configuration_invalid: configFiles.${rel} must be a string`);
-        const target = resolve(join(cfgDir, rel));
-        const root = resolve(cfgDir);
-        // F2-Fix: relativ + separator-bewusst (kein Prefix-Only-Match).
-        const relPath = target.slice(root.length + 1);
-        if (target !== root && (relPath.startsWith("/") || relPath.startsWith("\\") || relPath.includes(".."))) {
-          throw new Error("configuration_invalid: configFiles path escapes session config directory");
-        }
-        mkdirSync(join(target, ".."), { recursive: true });
-        writeFileSync(target, content);
-      }
-    } else {
-      // Inline-Objekt-Form: alle Top-Level-Sektionen als Dateien schreiben.
-      for (const [name, value] of Object.entries(config)) {
-        if (name === "configFiles") continue;
-        const target = name.endsWith(".json") ? join(cfgDir, name) : join(cfgDir, `${name}.json`);
-        writeFileSync(target, JSON.stringify(value, null, 2) + "\n");
-      }
-      // schemas-Objekt: { "schemas": { "understand": {...} } } → schemas/*.schema.json
-      const schemas = (config as Record<string, Record<string, unknown>>).schemas;
-      if (schemas && typeof schemas === "object") {
-        mkdirSync(join(cfgDir, "schemas"), { recursive: true });
-        for (const [schemaName, schema] of Object.entries(schemas)) {
-          writeFileSync(join(cfgDir, "schemas", `${schemaName}.schema.json`), JSON.stringify(schema, null, 2) + "\n");
-        }
-      }
-    }
-
-    // FR-102.2: In-memory-Validierung durch Komposition (wirft bei invalid).
-    // N1-Fix: bei Fehler wird der verbrauchte Quota-Slot zurückgerollt.
+    // CB-2-Fix: Datei-Writes (configFiles) laufen INNERHALB des Rollback-try —
+    // ein Throw hier (invalid content, path escape, fs error) darf den
+    // verbrauchten Quota-Slot (enforcePerKeyLimit inkrementiert vorab) und das
+    // angelegte Session-Verzeichnis nicht lecken.
     const ledger = new ClientOpLedger();
     let composition;
     try {
+      // Config-Dateien in den Session-Config-Ordner schreiben (Dateireferenz-
+      // Form wird erwartet: guidance.json + referenzierte Dateien + schemas/).
+      const files = (config as { configFiles?: Record<string, string> }).configFiles;
+      if (files && typeof files === "object") {
+        for (const [rel, content] of Object.entries(files)) {
+          if (typeof content !== "string") throw new Error(`configuration_invalid: configFiles.${rel} must be a string`);
+          const target = resolve(join(cfgDir, rel));
+          const root = resolve(cfgDir);
+          // F2-Fix: relativ + separator-bewusst (kein Prefix-Only-Match).
+          const relPath = target.slice(root.length + 1);
+          if (target !== root && (relPath.startsWith("/") || relPath.startsWith("\\") || relPath.includes(".."))) {
+            throw new Error("configuration_invalid: configFiles path escapes session config directory");
+          }
+          mkdirSync(join(target, ".."), { recursive: true });
+          writeFileSync(target, content);
+        }
+      } else {
+        // Inline-Objekt-Form: alle Top-Level-Sektionen als Dateien schreiben.
+        for (const [name, value] of Object.entries(config)) {
+          if (name === "configFiles") continue;
+          const target = name.endsWith(".json") ? join(cfgDir, name) : join(cfgDir, `${name}.json`);
+          writeFileSync(target, JSON.stringify(value, null, 2) + "\n");
+        }
+        // schemas-Objekt: { "schemas": { "understand": {...} } } → schemas/*.schema.json
+        const schemas = (config as Record<string, Record<string, unknown>>).schemas;
+        if (schemas && typeof schemas === "object") {
+          mkdirSync(join(cfgDir, "schemas"), { recursive: true });
+          for (const [schemaName, schema] of Object.entries(schemas)) {
+            writeFileSync(join(cfgDir, "schemas", `${schemaName}.schema.json`), JSON.stringify(schema, null, 2) + "\n");
+          }
+        }
+      }
+
+      // FR-102.2: In-memory-Validierung durch Komposition (wirft bei invalid).
+      // N1-Fix: bei Fehler wird der verbrauchte Quota-Slot zurückgerollt.
       composition = composeApplication(wsRootFor(sessionId), cfgDir, join(dir, "state"), {
         operationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
         skipScaffold: true,
@@ -253,7 +256,10 @@ export class RemoteSessionManager {
     const effectiveId = this.workflowToRemote.get(sessionId) ?? sessionId;
     const cached = this.cache.get(effectiveId);
     if (cached) {
-      this.touch(sessionId);
+      // CB-1-Fix: touch über die EFFECTIVE Id — ein touch mit roher (ggf.
+      // Workflow-)Sid verfehlt die Remote-Meta (metaPath existiert nicht) und
+      // umgeht damit TTL-Prüfung + lastAccessAt-Refresh.
+      this.touch(effectiveId);
       return cached;
     }
     const metaPath = this.metaPath(effectiveId);
