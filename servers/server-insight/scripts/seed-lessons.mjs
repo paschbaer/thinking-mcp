@@ -36,6 +36,12 @@ if (!inputPath) {
 }
 
 const LESSONS = JSON.parse(readFileSync(inputPath, 'utf8'));
+// Empty input = nothing to seed = success (no-op). The MCP tool rejects
+// empty arrays (minItems 1), so guard here to keep gate semantics simple.
+if (Array.isArray(LESSONS) && LESSONS.length === 0) {
+  console.log('DONE: 0/0 seeded, 0 duplicates, 0 failed (empty lessons file)');
+  process.exit(0);
+}
 const SCOPE = process.env.EMMS_LESSON_SCOPE ?? 'thinking-mcp-lessons';
 
 const USE_STDIO = process.env.EMMS_SEED_TRANSPORT === 'stdio';
