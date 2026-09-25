@@ -7,6 +7,12 @@
 
 ## What Works
 
+- **README: Guidance-Working-Sample dokumentiert (2026-09-25, `98b9f3c`)**:
+  Workspace-Pfad-Caveat (`workspaceRoot: "/workspace"` bei Docker-Betrieb,
+  verweist auf AGENTS.md-Abschnitt), Zed-`context_servers`-Snippet, Detail-
+  Doku der live `.guidance/`-Konfiguration (alle 7 Dateien + Gate-JSON),
+  Betriebshinweise (Container-Deps, GitNexus-Index-Refresh host-seitig) und
+  Beispiel-Prompts zum Workflow-Start.
 - **Erster produktiver Guidance-Workflow-Lauf end-to-end grün (2026-09-25)**:
   Session `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` → **completed**.
   Alle Phasen (understand → plan → review → implement → review-fix →
