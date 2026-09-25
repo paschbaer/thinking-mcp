@@ -854,7 +854,7 @@ ends the run in the `cancelled` terminal state.
 |---|---|---|
 | Instruction | Final completion report — summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, next steps. **Before submitting:** (1) refresh the GitNexus index host-side (`gitnexus analyze --no-stats`, see AGENTS.md — the gate verifies availability, not freshness) and note it in the report; (2) write the session lessons file (contract below); (3) remaining-work impact review — update `memory-bank/remaining-work-plan.md` for follow-ups resolved, touched, or newly created by this run | `responses.json` → `complete` |
 | Submission | `complete_workflow` — required: `summary`; optional: `changedFiles`, `verificationSummary`, `knownLimitations`, `remainingRisks`, `deviations`, `deferredWork`, `nextSteps` | `schemas/complete.schema.json` |
-| Gates on exit (`beforeExit`) | `repository-analysis` (**required**, composite `firstAvailable`: MCP `check` against GitNexus HTTP, fallback local `gitnexus analyze --no-stats` CLI for stdio deployments — the HTTP server exposes no analyze tool) · `capture-session-lessons` (**required**, see contract below) — required failures block completion (`retry_operation` re-runs) | `workflow.json` → `phases.complete.lifecycle.beforeExit` · `operations.json` → `repository-analysis`/`capture-session-lessons` |
+| Gates on exit (`beforeExit`) | `index-freshness` (**required**: `.gitnexus/meta.json` must match git HEAD — deterministic freshness check, no git binary needed; refresh host-side via `gitnexus analyze --no-stats`), `repository-analysis` (**required**, composite `firstAvailable`: MCP `check` against GitNexus HTTP, fallback local `gitnexus analyze --no-stats` CLI for stdio deployments — the HTTP server exposes no analyze tool) · `capture-session-lessons` (**required**, see contract below) — required failures block completion (`retry_operation` to re-run) | `workflow.json` → `phases.complete.lifecycle.beforeExit` · `operations.json` → `index-freshness`/`repository-analysis`/`capture-session-lessons` |
 | Transition | `required_operations_succeeded` → `completed` (terminal) | `workflow.json` → `phases.complete.transitions` |
 | Impact review | Remaining-work impact review is part of the instruction (step 3): the agent assesses how this run affects tracked follow-ups and updates the plan — deliberately an instruction duty, not a gate (plan adjustments are judgment, not deterministically checkable) | `responses.json` → `complete.instruction` · `memory-bank/remaining-work-plan.md` |
 
@@ -890,10 +890,11 @@ recorded) or ends the run via `cancel_workflow`.
   the index refresh is the **agent's responsibility before calling
   `complete_workflow`**: run `gitnexus analyze --no-stats` host-side (WSL
   CLI, see the repo's `AGENTS.md`) and mention the refresh in the completion
-  report. The gate only verifies via `check` that the index exists and is
-  queryable — **it cannot detect staleness** (a `check` on an outdated index
-  still succeeds). The repo name is hardcoded in the gate until template
-  placeholder resolution is fixed.
+  report. Two gates cover the index deterministically: `index-freshness`
+  compares `.gitnexus/meta.json` (lastCommit + branch) against git HEAD — a
+  stale index fails the gate instead of passing silently (GUID-6) — and
+  `repository-analysis` verifies the index is queryable. The repo name in
+  the check op is hardcoded until template placeholder resolution is fixed.
 - **Clear-Thought duty in all four reasoning phases (`understand`, `plan`,
   both reviews):** each phase instructs the agent to use Clear-Thought
   reasoning tools via `requiredActions`, and submissions must reference the

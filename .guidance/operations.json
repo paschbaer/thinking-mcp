@@ -34,6 +34,17 @@
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
       "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
     },
+    "index-freshness": {
+      "description": "Verify the GitNexus index is FRESH: .gitnexus/meta.json (lastCommit + branch) must match git HEAD. Deterministic freshness check (GUID-6) — the git state is resolved by reading .git files, no git binary required. Refresh host-side via gitnexus analyze --no-stats.",
+      "type": "process",
+      "executable": "node",
+      "args": ["servers/server-guidance/scripts/check-index-freshness.mjs", "."],
+      "required": true,
+      "timeoutSeconds": 60,
+      "riskClass": "read_only",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
     "repository-analysis": {
       "description": "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh via analyze --no-stats). The index REFRESH itself stays a host-side pre-complete step (AGENTS.md): the HTTP server exposes no analyze tool.",
       "type": "composite",

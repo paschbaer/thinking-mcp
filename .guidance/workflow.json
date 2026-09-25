@@ -103,6 +103,7 @@
       "submissionSchema": "schemas/complete.schema.json",
       "lifecycle": {
         "beforeExit": [
+          "index-freshness",
           "repository-analysis",
           "capture-session-lessons"
         ]
