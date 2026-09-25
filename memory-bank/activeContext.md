@@ -5,6 +5,25 @@
 
 **Last updated:** 2026-09-25
 
+## 2026-09-25: GUID-1-Vorbereitung — GitNexus-Docker (:4747) an repo angebunden
+
+- `C:\Users\AlexanderPaschold\source\repos\GitNexus\docker-compose.override.yaml`
+  angelegt: Repo RO unter `/thinking-mcp`, nur `.gitnexus/` RW (geteilter Store
+  mit WSL-CLI, beide 1.6.8). Fallstricke: `/workspace`-Base-Mount ist RO →
+  kein Unter-Mount möglich; MCP-HTTP-Server expose't **kein analyze-Tool**
+  (nur Query-Tools); Indexierung läuft per CLI im Container
+  (`gitnexus analyze --no-stats`, einmalig + bei Bedarf host-seitig).
+- Erst-Indexierung erfolgreich: 4.506 Nodes / 10.117 Edges / 199 clusters.
+  `check {repo:"thinking-mcp"}` über HTTP verifiziert (Nebenbefund: 1
+  Import-Zyklus lesson-service.ts ↔ adapter.ts in server-insight, pre-existing).
+- Gate `repository-analysis` umgestellt: composite firstAvailable —
+  (1) mcpTool `check` {repo:${project.name}} (HTTP), (2) Prozess-Fallback
+  `gitnexus analyze --no-stats` (stdio-Deployments); riskClass jetzt
+  read_only; Allowlist auf existierende Tools gekürzt. Commit `5f8b2eb`.
+- **Verbleibend für GUID-1:** Nutzer startet echten Workflow-Lauf im Zed-Agent
+  (context_servers-Eintrag + kleine Aufgabe); Agent führt die Phasen,
+  `complete` feuert das Gate erstmals produktiv.
+
 ## 2026-09-25: Merge beider Guidance-Feature-Branches nach develop + Review
 
 - Fast-Forward-Merge `7b8e5d5 → 5ced680` (deckt `feature/guidance-workflow-setup`
