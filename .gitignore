@@ -24,6 +24,9 @@ servers/server-insight/emms-store.db*
 /emms-store.db*
 /emms-store.db-shm
 /emms-store.db-wal
+
+# Guidance workflow state (runtime, not config)
+/.guidance/state/
 servers/server-insight/emms-artifacts/
 servers/server-insight/emms-data/
 

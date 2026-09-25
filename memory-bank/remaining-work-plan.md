@@ -9,6 +9,21 @@
 
 ## Tracked Follow-ups
 
+- [GUID-1] MEDIUM | `repository-analysis`-Gate (gitnexus, `required:true`,
+  HTTP-Downstream :4747) ist noch nie produktiv durchlaufen — Connectivity und
+  ClientManager sind verifiziert, aber der Composite-Step (`analyze` mit
+  `{noStats:true}`) hatte keinen echten Lauf. | Trigger: erster echter
+  Workflow-Lauf im Zed-Agent bis Phase `complete` (Gate läuft automatisch
+  vor `complete`); bei Fehlschlag Gate-Ergebnis gegen
+  `.gitnexus`-Indexstand prüfen (Docker-MCP sieht evtl. nur Container-Mounts,
+  vgl. HD-4). | action required
+- [GUID-2] LOW | `store-completion-insight` nutzt `experience_record_observation`
+  mit Template `{kind, content}` — die Operation verlangt serverseitig zusätzlich
+  `workflow_id` + `client_context.scope_id`; Template-Platzhalter dafür fehlen
+  ggf. noch (Op ist `required:false`, Fehler toleriert). | Trigger: nächster
+  Touch des OperationEngine-Template-Engines oder erster `complete`-Lauf mit
+  störenden tool_reported-Noise. | action required (arg-Vollständigkeit
+  prüfen, ggf. Platzhalter ergänzen)
 - [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
   ist in README dokumentiert, aber im ClientManager nicht implementiert (betrifft
   stdio UND http; bei stateful HTTP-Downstreams wie insight/clear-thought stirbt

@@ -1,0 +1,64 @@
+{
+  "version": 2,
+  "servers": {
+    "gitnexus": {
+      "displayName": "GitNexus",
+      "enabled": true,
+      "required": true,
+      "trustLevel": "trusted",
+      "transport": {
+        "type": "http",
+        "http": { "url": "http://host.docker.internal:4747/api/mcp" }
+      },
+      "capabilities": {
+        "allow": { "tools": ["analyze", "status", "list_repos"], "resources": [], "prompts": [] }
+      },
+      "connection": {
+        "startupTimeoutSeconds": 30,
+        "requestTimeoutSeconds": 300,
+        "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+      }
+    },
+    "insight": {
+      "displayName": "Insight",
+      "enabled": true,
+      "required": false,
+      "trustLevel": "trusted",
+      "transport": {
+        "type": "http",
+        "http": { "url": "http://host.docker.internal:3002/mcp" }
+      },
+      "capabilities": {
+        "allow": {
+          "tools": ["experience_search", "experience_record_observation"],
+          "resources": ["insight://project/*"],
+          "prompts": []
+        }
+      },
+      "connection": {
+        "startupTimeoutSeconds": 30,
+        "requestTimeoutSeconds": 120,
+        "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+      }
+    },
+    "memory": {
+      "displayName": "Memory",
+      "enabled": false,
+      "required": false,
+      "trustLevel": "restricted",
+      "transport": {
+        "type": "stdio",
+        "command": { "executable": "memory-mcp", "args": ["serve"] }
+      },
+      "capabilities": {
+        "allow": { "tools": ["store_memory", "query_memory"], "resources": [], "prompts": [] }
+      },
+      "connection": {
+        "startupTimeoutSeconds": 30,
+        "requestTimeoutSeconds": 120,
+        "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+      },
+      "environment": { "inherit": false, "variables": { "PATH": { "fromHost": "PATH" } } }
+    }
+  }
+}
