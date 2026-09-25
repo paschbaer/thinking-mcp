@@ -664,107 +664,89 @@ Zed integration — add to `context_servers` in the Zed settings:
 
 ### The configured workflow, step by step
 
-The `standard-development` flow consists of seven phases. For every phase:
-what the agent is told (from `responses.json`), what it must submit (tool +
-schema), and how the state machine moves. `when` transitions fire on
-success, `reason` transitions only on failure.
+The `standard-development` flow consists of seven phases. The diagram is the
+map — each phase below has a compact table with the exact config location
+(file + key). `when` transitions fire on success, `reason` transitions only
+on failure.
+
+```mermaid
+flowchart TD
+    S(["start_workflow"]) --> P1["1 understand — analyze the request"]
+    P1 -->|"submission_valid"| P2["2 plan — task breakdown"]
+    P2 -->|"submission_valid"| P3["3 review_and_adjust_plan"]
+    P3 -->|"major_plan_revision_required"| P2
+    P3 -->|"submission_valid"| P4["4 implement — execute the plan"]
+    P4 -->|"submission_valid"| P5["5 review_and_fix_implementation"]
+    P4 -->|"significant_plan_deviation"| P2
+    P5 -->|"implementation_changes_required"| P4
+    P5 -->|"submission_valid (high/critical findings block)"| P6["6 verify — gates: lint opt · test opt · build REQ"]
+    P6 -->|"verification_failed"| P5
+    P6 -->|"required_operations_succeeded"| P7["7 complete — gates: repository-analysis REQ · capture-session-lessons REQ"]
+    P7 -->|"required_operations_succeeded"| DONE(["completed — terminal"])
+```
+
+Omitted for readability: any phase can `report_blocker` → `blocked` (system
+state); `resume_workflow` returns to the previous phase, `cancel_workflow`
+ends the run in the `cancelled` terminal state.
 
 #### 1. `understand` — analyze before proposing
 
-- **On entry (`afterEnter`):** operation `query-project-insights` runs —
-  calls Insight (`experience_search`) with the session request so existing
-  knowledge is surfaced before analysis. Optional (`required: false`); a
-  failure is tolerated.
-- **Agent instruction:** analyze the request before proposing an
-  implementation. Distinguish confirmed facts from assumptions, surface
-  blocking questions explicitly. Do **not** create a plan yet.
-- **Submission:** `submit_understanding` — schema requires `summary`;
-  optional `assumptions`, `openQuestions`, `risks`, `acceptanceCriteria`,
-  `affectedAreas`, `constraints`.
-- **Transition:** `submission_valid` → `plan`.
+| Aspect | Detail | Config |
+|---|---|---|
+| Hook on enter | `query-project-insights` — Insight `experience_search` with the session request; optional, failures tolerated | `workflow.json` → `phases.understand.lifecycle.afterEnter` · `operations.json` → `query-project-insights` |
+| Instruction | Analyze before proposing; facts vs. assumptions; surface blocking questions; **no plan yet** | `responses.json` → `understand` |
+| Submission | `submit_understanding` — required: `summary`; optional: `assumptions`, `openQuestions`, `risks`, `acceptanceCriteria`, `affectedAreas`, `constraints` | `schemas/understand.schema.json` |
+| Transition | `submission_valid` → `plan` | `workflow.json` → `phases.understand.transitions` |
 
 #### 2. `plan` — concrete implementation plan
 
-- **Agent instruction:** produce a concrete plan with stable task IDs,
-  affected files, dependencies, planned tests and verification. Do **not**
-  start implementing.
-- **Submission:** `submit_plan` — schema requires `tasks` (array of objects;
-  validation policy enforces unique task IDs, known dependencies, no
-  dependency cycles); optional `dependencies`, `publicApiChanges`,
-  `configurationChanges`, `documentationChanges` (impact flags also drive
-  validation requirements).
-- **Transition:** `submission_valid` → `review_and_adjust_plan`.
+| Aspect | Detail | Config |
+|---|---|---|
+| Instruction | Concrete plan with stable task IDs, affected files, dependencies, planned tests, verification; **no implementation yet** | `responses.json` → `plan` |
+| Submission | `submit_plan` — required: `tasks` (policy: unique IDs, known dependencies, no cycles); optional: `dependencies`, `publicApiChanges`, `configurationChanges`, `documentationChanges` | `schemas/plan.schema.json` · `policies.json` → `validation` |
+| Transition | `submission_valid` → `review_and_adjust_plan` | `workflow.json` → `phases.plan.transitions` |
 
 #### 3. `review_and_adjust_plan` — self-review of the plan
 
-- **Agent instruction:** review the plan critically (architecture,
-  correctness, maintainability, testability, security, backward
-  compatibility, performance, operations) and submit the adjusted plan.
-- **Submission:** `submit_plan_review` — schema requires `findings`; optional
-  `adjustments`, `approvedPlan`, `remainingConcerns`.
-- **Transitions:** `major_plan_revision_required` → back to `plan` (loop);
-  `submission_valid` → `implement`.
+| Aspect | Detail | Config |
+|---|---|---|
+| Instruction | Critical self-review (architecture, correctness, maintainability, testability, security, backward compatibility, performance, operations); submit the adjusted plan | `responses.json` → `review_and_adjust_plan` |
+| Submission | `submit_plan_review` — required: `findings`; optional: `adjustments`, `approvedPlan`, `remainingConcerns` | `schemas/review-plan.schema.json` |
+| Transitions | `major_plan_revision_required` → back to `plan` (loop); `submission_valid` → `implement` | `workflow.json` → `phases.review_and_adjust_plan.transitions` |
 
 #### 4. `implement` — execute the approved plan
 
-- **Agent instruction:** implement strictly along the approved task IDs, no
-  unrelated changes, report every changed/created/deleted file and any
-  deviation from the plan.
-- **Submission:** `submit_implementation` — schema requires
-  `implementedTasks`; optional `changedFiles`, `createdFiles`,
-  `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`,
-  `unresolvedIssues`.
-- **Transitions:** `submission_valid` → `review_and_fix_implementation`;
-  `significant_plan_deviation` → back to `plan` (the deviation must be
-  planned, not silently absorbed).
+| Aspect | Detail | Config |
+|---|---|---|
+| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation | `responses.json` → `implement` |
+| Submission | `submit_implementation` — required: `implementedTasks`; optional: `changedFiles`, `createdFiles`, `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`, `unresolvedIssues` | `schemas/implement.schema.json` |
+| Transitions | `submission_valid` → `review_and_fix_implementation`; `significant_plan_deviation` → back to `plan` (deviations must be planned, not silently absorbed) | `workflow.json` → `phases.implement.transitions` |
 
 #### 5. `review_and_fix_implementation` — self-review of the code
 
-- **Agent instruction:** review the implementation for correctness, edge
-  cases, error handling, security, maintainability, duplication, dead code,
-  performance, compatibility, test coverage and plan conformity — and apply
-  fixes before submitting.
-- **Submission:** `submit_implementation_review` — schema requires
-  `findings`; optional `filesChangedDuringReview`, `testsAddedOrUpdated`,
-  `unresolvedFindings`.
-- **Transitions:** `implementation_changes_required` → back to `implement`;
-  `submission_valid` → `verify`. Policy: findings with severity `high` or
-  `critical` block the transition (see `policies.json`).
+| Aspect | Detail | Config |
+|---|---|---|
+| Instruction | Self-review: correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, plan conformity — apply fixes before submitting | `responses.json` → `review_and_fix_implementation` |
+| Submission | `submit_implementation_review` — required: `findings`; optional: `filesChangedDuringReview`, `testsAddedOrUpdated`, `unresolvedFindings` | `schemas/review-implementation.schema.json` |
+| Transitions | `implementation_changes_required` → back to `implement`; `submission_valid` → `verify` — findings with severity `high`\|`critical` block (see `policies.json` → `reviewFindings.blockingSeverities`) | `workflow.json` → `phases.review_and_fix_implementation.transitions` |
 
 #### 6. `verify` — gates run server-side
 
-- **Agent instruction:** Guidance executes the configured verification
-  operations; analyze failures and return to implementation review when code
-  changes are needed. Never claim success while a mandatory operation is
-  failing.
-- **Submission:** `submit_verification` — schema requires
-  `verificationSummary`; optional `skippedChecks`,
-  `acceptedCriteriaEvidence`.
-- **On exit (`beforeExit` gates, blocking):** `lint` (prettier `--check`,
-  optional), `test` (`npm test`, optional) and `build` (`npm run build`,
-  **required**) run as child processes in the workspace. Required failures
-  keep the session in the phase (`retry_operation` re-runs them after
-  fixing).
-- **Transitions:** `verification_failed` → back to
-  `review_and_fix_implementation`; `required_operations_succeeded` →
-  `complete`.
+| Aspect | Detail | Config |
+|---|---|---|
+| Instruction | Guidance executes the configured verification operations; analyze failures and return to implementation review when code changes are needed; never claim success while a mandatory operation is failing | `responses.json` → `verify` |
+| Submission | `submit_verification` — required: `verificationSummary`; optional: `skippedChecks`, `acceptedCriteriaEvidence` | `schemas/verify.schema.json` |
+| Gates on exit (`beforeExit`, blocking) | `lint` (prettier `--check`, optional), `test` (`npm test`, optional), `build` (`npm run build`, **required**) — child processes in the workspace; required failures keep the session in the phase (`retry_operation` re-runs) | `workflow.json` → `phases.verify.lifecycle.beforeExit` · `operations.json` → `lint`/`test`/`build` |
+| Transitions | `verification_failed` → back to `review_and_fix_implementation`; `required_operations_succeeded` → `complete` | `workflow.json` → `phases.verify.transitions` |
 
 #### 7. `complete` — final report under completion gates
 
-- **Agent instruction:** produce the final completion report — summary,
-  changed files, verification results, known limitations, remaining risks,
-  deviations, deferred work, next steps.
-- **Submission:** `complete_workflow` — schema requires `summary`; optional
-  `changedFiles`, `verificationSummary`, `knownLimitations`,
-  `remainingRisks`, `deviations`, `deferredWork`, `nextSteps`.
-- **On exit (`beforeExit` gates):** `repository-analysis` (**required**,
-  composite `firstAvailable`: MCP tool `check` against the GitNexus HTTP
-  server, falling back to a local `gitnexus analyze --no-stats` CLI run for
-  stdio deployments — the HTTP server exposes no analyze tool, so the index
-  refresh itself remains a host-side pre-completion step) and
-  `capture-session-lessons` (**required** — see the contract below). Required
-  failures block completion (`retry_operation` to re-run).
-- **Transition:** `required_operations_succeeded` → `completed` (terminal).
+| Aspect | Detail | Config |
+|---|---|---|
+| Instruction | Final completion report — summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, next steps. **Before submitting:** (1) refresh the GitNexus index host-side (`gitnexus analyze --no-stats`, see AGENTS.md — the gate verifies availability, not freshness) and note it in the report; (2) write the session lessons file (contract below) | `responses.json` → `complete` |
+| Submission | `complete_workflow` — required: `summary`; optional: `changedFiles`, `verificationSummary`, `knownLimitations`, `remainingRisks`, `deviations`, `deferredWork`, `nextSteps` | `schemas/complete.schema.json` |
+| Gates on exit (`beforeExit`) | `repository-analysis` (**required**, composite `firstAvailable`: MCP `check` against GitNexus HTTP, fallback local `gitnexus analyze --no-stats` CLI for stdio deployments — the HTTP server exposes no analyze tool) · `capture-session-lessons` (**required**, see contract below) — required failures block completion (`retry_operation` re-runs) | `workflow.json` → `phases.complete.lifecycle.beforeExit` · `operations.json` → `repository-analysis`/`capture-session-lessons` |
+| Transition | `required_operations_succeeded` → `completed` (terminal) | `workflow.json` → `phases.complete.transitions` |
 
 **Session lessons contract (`capture-session-lessons`):** before calling
 `complete_workflow`, the agent reviews the session for recurring bugs, traps,
