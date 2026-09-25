@@ -80,6 +80,15 @@
   inkl. Negativ-Nachweis ohne env). eigene operations.json auf env umgestellt
   (sh -c-Wrapper entfallen). Rest: umschaltbares workspaceRoot → GUID-7.
   | — | resolved
+- [HD-3] CLOSED 2026-09-25 | Stateful-Downstream-Regression automatisiert:
+  tests/orchestration/client-manager-http-stateful.test.ts — in-process
+  stateful MCP-HTTP-Server (echtes StreamableHTTPServerTransport mit
+  sessionIdGenerator + mcp-session-id); ClientManager über die HTTP-Branch
+  von transportFor. Gedeckt: ensureReady/Discovery in Session, invokeTool
+  success + Server-seitiger Session-Header-Nachweis, verlorene Session →
+  deterministische transport-Klassifikation (Server-404-Zähler). 3/3 Tests
+  grün. Dokumentierte Grenze: Stub antwortet JSON statt SSE
+  (Live-Server-Antwortformat) — Rest als Coverage-Notiz im Eintrag. | — | resolved
 - [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
   war dokumentiert, aber nicht implementiert. GELÖST (Commit „feat(guidance):
   reconnect downstream after transport failures"): ClientManager merkt sich
