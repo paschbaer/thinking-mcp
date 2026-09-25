@@ -90,6 +90,103 @@ node dist/index.js        # workspace = cwd, config from ./.guidance/
 cd servers/server-guidance && docker compose up -d   # http://localhost:3003/mcp
 ```
 
+> ### ⚠️ Wichtiger Hinweis: Workspace-Pfad bei HTTP/Docker-Betrieb
+>
+> Läuft Guidance als HTTP-Server im Docker-Container, ist der Workspace der
+> **Container-Pfad** (`GUIDANCE_WORKSPACE_ROOT`, hier: `/workspace` — das Repo
+> ist per Bind-Mount eingebunden). **`start_workflow` muss zwingend mit
+> `workspaceRoot: "/workspace"` aufgerufen werden.** Host-Pfade
+> (`D:\repos\…`, `D:/repos/…`), Relative-Pfade (`.`) und WSL-Notation
+> (`/mnt/d/…`) werden mit `escapes the configured workspace` abgelehnt.
+> Diese Regel ist in der [`AGENTS.md`](./AGENTS.md) (Abschnitt „Guidance MCP
+> Server (Docker-Deployment)") festgehalten — Agents, die die AGENTS.md
+> laden, setzen den Pfad automatisch richtig. Zwei weitere Fallstricke aus
+> dem produktiven Betrieb:
+>
+> - **Downstream-Server verbinden lazy:** `get_downstream_status` zeigt
+>   `disconnected`, bis eine Operation den Server das erste Mal nutzt —
+>   das ist normal, kein Fehler.
+> - **Config-Snapshot pro Session:** Änderungen an `.guidance/*.json`
+>   wirken erst nach Container-Restart bzw. in neuen Sessions
+>   (die `configurationVersion`-SHA wird im Session-State festgehalten).
+>
+> Die Zed-Anbindung erfolgt über `context_servers` in den Zed-Settings:
+>
+> ```json
+> {
+>   "context_servers": {
+>     "guidance": { "source": "custom", "url": "http://localhost:3003/mcp" }
+>   }
+> }
+> ```
+
+### Working sample: die `.guidance/` dieses Repos
+
+Dieses Repo betreibt sich selbst mit Guidance — das Verzeichnis
+[`.guidance/`](./.guidance/) ist ein getestetes, produktives Beispiel
+(erster End-to-End-Lauf grün, inkl. GitNexus-Gate). Aufbau:
+
+| Datei | Zweck (Auszug der relevanten Einstellungen) |
+|---|---|
+| `guidance.json` | Einstiegspunkt: `project.name: "thinking-mcp"`, Profil `plain`, `state.persistAfterEveryOperation: true`, Security fail-closed (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`) |
+| `workflow.json` | Standard-Flow `understand → plan → review_and_adjust_plan → implement → review_and_fix_implementation → verify → complete`; Lifecycle-Hooks: `query-project-insights` beim Betreten von `understand`, Gates `lint/test/build` vor Verlassen von `verify`, `repository-analysis` + `store-completion-insight` vor Verlassen von `complete` |
+| `operations.json` | Die Gates. `build` (blocking, `npm run build`), `lint` (prettier `--check`, optional), `test` (`npm test`, optional — im Container scheitern insight-Tests an fehlenden Native-Bindings), `repository-analysis` (blocking, siehe unten), `store-completion-insight` (optional) |
+| `downstream-servers.json` | GitNexus (blocking, `http://host.docker.internal:4747/api/mcp`) und Insight (`http://host.docker.internal:3002/mcp`) als **HTTP-Downstreams**; Capability-Allowlists pro Server |
+| `policies.json` | Trust-Levels (untrusted → privileged), `egress.httpHostAllowlist` (**Pflicht**, fail-closed, sobald ein enabled-Server HTTP nutzt: `host.docker.internal:3002`, `host.docker.internal:4747`), Redaction-Patterns, Review-Blocking-Severity `high|critical` |
+| `responses.json` | Agent-Instruction pro Phase (Titel, Instruction, `requiredActions`) |
+| `schemas/*.schema.json` | Ein striktes JSON-Schema je Phasen-Submission (understand, plan, review-plan, implement, review-implementation, verify, complete) |
+
+Das `repository-analysis`-Gate zeigt die Composite-Fallback-Strategie
+(`firstAvailable`):
+
+```json
+"repository-analysis": {
+  "description": "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh via analyze --no-stats). The index REFRESH itself stays a host-side pre-complete step (AGENTS.md): the HTTP server exposes no analyze tool.",
+  "type": "composite",
+  "strategy": "firstAvailable",
+  "required": true,
+  "steps": [
+    { "type": "mcpTool",   "server": "gitnexus", "capability": "check",
+      "arguments": { "mode": "template", "value": { "repo": "thinking-mcp" } } },
+    { "type": "process",   "executable": "gitnexus", "args": ["analyze", "--no-stats"] }
+  ]
+}
+```
+
+Betriebshinweise zu diesem Setup:
+
+- **Docker-Deployment:** `servers/server-guidance/docker-compose.override.yml`
+  mountet dieses Repo als `/workspace` und schattiert `node_modules` mit einem
+  isolierten Volume (Container-Dependencies via
+  `npm install --include=dev --ignore-scripts --script-shell=/bin/true`;
+  corepack-yarn crasht auf alpine, Workspace-`prepare`-Scripts laufen trotz
+  `--ignore-scripts`).
+- **GitNexus-Index:** der HTTP-Server (:4747) expose't kein `analyze`-Tool —
+  das Index-Refresh bleibt host-seitiger Vorschriftenschritt vor `complete`
+  (WSL-CLI, siehe AGENTS.md); das Gate verifiziert per `check`, dass der
+  Index existiert und queryable ist. Der Repo-Name ist im Gate hartcodiert,
+  solange der Template-Platzhalter-Fix (GUID-3) aussteht.
+
+### Beispiel-Prompt
+
+Zum Starten eines Runs einfach dem Agent (Zed Agent Panel, mit geladener
+Guidance) geben:
+
+> Starte einen Guidance-Workflow für: **⟨kurze Aufgabenbeschreibung⟩**.
+> Folge den Phasen-Instructions aus dem Guidance-Envelope, bestätige jede
+> Phase mit dem passenden `submit_*`-Tool und blockiere bei unklaren
+> Voraussetzungen über `report_blocker`, statt zu raten.
+
+Beispiel aus dem produktiven Ersteinsatz:
+
+> Starte einen Guidance-Workflow für: Verbessere den Quick-Start-Abschnitt
+> in der README. Verify-Hinweis ergänzen, Docker-Satz präzisieren.
+
+Der Agent soll dann `start_workflow` mit `workspaceRoot: "/workspace"`
+aufrufen und den Loop understand → … → complete durchlaufen; die Gates
+`lint/test/build` (vor `verify`) und `repository-analysis` (vor `complete`)
+laufen dabei automatisch serverseitig.
+
 Intro, configuration reference and agent-usage examples:
 [Guidance README](./servers/server-guidance/README.md).
 
