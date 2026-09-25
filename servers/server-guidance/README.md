@@ -12,8 +12,59 @@ Dual-role:
 - **MCP client** toward configured downstream servers (GitNexus, Insight, …)
   for workflow-critical operations (lint/test/build gates, insight storage, …)
 
+Why this design? See [Why Guidance?](#why-guidance).
+
 Defined by `specs/002-guidance-workflow-server/spec.md`
 (v1 workflow control, v2 downstream orchestration, v2.1 Spec-Kit profile).
+
+## Why Guidance?
+
+Coding agents lose long-lived behavioral rules: a large instructions file
+(`AGENTS.md`, `CLAUDE.md`) is read at session start, but by step twelve of a
+task the details are far outside the attention window — the agent still
+*knows* rule 47 exists, it just no longer *applies* it. Guidance attacks that
+problem structurally instead of with longer files:
+
+- **Just-in-time rules.** The agent receives only the instruction and
+  required actions for the phase it is currently in — rule salience stays at
+  100% because nothing else competes for attention. Phases are small, so
+  instructions are short by construction.
+- **`AGENTS.md` shrinks and stabilizes.** Process rules move into
+  `.guidance/` responses and policies; the instructions file keeps only
+  general principles and deployment notes. Fewer, stable rules mean fewer
+  edits — and the file stops growing with every lesson learned.
+- **Gates instead of self-reporting.** Verification (`lint`/`test`/`build`),
+  repository analysis and lessons capture run server-side on the transition
+  out of a phase. A required failure blocks completion — "done" is not
+  something the agent can merely claim (see
+  [Working sample](#working-sample-this-repositorys-own-guidance)).
+- **Schema-validated submissions.** Every phase has a strict JSON-Schema;
+  required fields force completeness (acceptance criteria, deviations,
+  unresolved issues) instead of trusting prose.
+- **Persistent session state.** Sessions survive restarts; blockers, user
+  decisions and operation results are recorded and auditable — a long task
+  can pause and resume instead of being re-explained.
+- **Experience-based refinement.** The `capture-session-lessons` gate seeds
+  validated lessons into the experience-memory server, so the process gets
+  better with every run. In this repository's first three production runs
+  the gates surfaced four real bugs (an ESM crash, unresolved template
+  placeholders, a missing environment contract, and an index-freshness gap).
+
+| | Static instructions file | Guidance |
+|---|---|---|
+| Rule delivery | all at once, at session start | just-in-time, per phase |
+| Rule adherence | fades with context distance | enforced per phase (`requiredActions`, review-checked) |
+| Verification | agent self-reporting | server-enforced gates; blocking |
+| Completeness | prose, easy to skip | schema-validated submissions |
+| State | in the model's context | persisted, restart-safe, auditable |
+| Improvement | manual file edits | automatic lesson capture (idempotent) |
+
+Static instruction files still do valuable work — general principles, repo
+conventions, tool availability — and Guidance is designed to complement
+them, not replace them: keep principles in `AGENTS.md`, put process in
+`.guidance/`. One honest boundary: duties that live on the agent side
+(e.g. the Clear-Thought reasoning passes) are instruction-enforced and
+review-checked — Guidance can only gate deterministic, observable checks.
 
 ## Features
 
