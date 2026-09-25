@@ -71,20 +71,36 @@ export class ClientManager {
     return new StdioClientTransport({ command: config.executable, args: config.args, cwd: config.cwd });
   }
 
-  /** Connects, discovers and pins capabilities. Idempotent when already ready. */
-  async ensureReady(serverId: string, config?: DownstreamTransportConfig): Promise<DownstreamServerStatus> {
+  /**
+   * Connects, discovers and pins capabilities. Idempotent when already ready.
+   * `connection.handshakeTimeoutSeconds` (from `connection.startupTimeoutSeconds`)
+   * overrides the instance default for this server; invalid values yield a
+   * failed status (config validation rejects them earlier anyway).
+   */
+  async ensureReady(
+    serverId: string,
+    config?: DownstreamTransportConfig,
+    connection?: { handshakeTimeoutSeconds?: number },
+  ): Promise<DownstreamServerStatus> {
     const existing = this.statuses.get(serverId);
     if (existing?.status === "ready") return existing;
     const status: DownstreamServerStatus = { status: "failed", required: this.required.has(serverId), tools: [] };
     this.statuses.set(serverId, status);
     try {
+      const s = connection?.handshakeTimeoutSeconds;
+      const timeoutMs = s === undefined
+        ? this.handshakeTimeoutMs
+        : (Number.isFinite(s) && s > 0 ? s * 1000 : NaN);
+      if (Number.isNaN(timeoutMs)) {
+        throw new GuidanceError("downstream_server_not_configured", `invalid handshakeTimeoutSeconds: ${s}`, { recoverable: false });
+      }
       const client = new Client({ name: "guidance", version: "0.1.0" });
       const transport = await this.transportFor(serverId, config);
       let timer: NodeJS.Timeout | undefined;
       const readyOrTimeout = Promise.race([
         client.connect(transport),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("handshake timeout")), this.handshakeTimeoutMs);
+          timer = setTimeout(() => reject(new Error("handshake timeout")), timeoutMs);
         }),
       ]);
       try {

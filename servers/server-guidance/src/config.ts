@@ -305,10 +305,12 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
     throw new ConfigurationError("configuration_invalid", "downstreamServers.servers must be an object");
   }
   for (const [id, raw] of Object.entries(servers as Record<string, Record<string, unknown>>)) {
-    const connection = raw["connection"] as { requestTimeoutSeconds?: unknown } | undefined;
-    const t = connection?.requestTimeoutSeconds;
-    if (t !== undefined && (typeof t !== "number" || !Number.isFinite(t) || t <= 0)) {
-      throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.requestTimeoutSeconds must be a positive finite number`);
+    const connection = raw["connection"] as { requestTimeoutSeconds?: unknown; startupTimeoutSeconds?: unknown } | undefined;
+    for (const key of ["requestTimeoutSeconds", "startupTimeoutSeconds"] as const) {
+      const t = connection?.[key];
+      if (t !== undefined && (typeof t !== "number" || !Number.isFinite(t) || t <= 0)) {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.${key} must be a positive finite number`);
+      }
     }
     const transport = raw["transport"];
     if (transport === undefined) continue;

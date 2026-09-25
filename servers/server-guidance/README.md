@@ -420,7 +420,7 @@ Phase keys must match the phase names in `workflow.json`.
 | `servers.<id>.trustLevel` | string | One of `policies.trustLevels` — drives egress policy |
 | `servers.<id>.transport` | object | `type: "stdio"` + `command.executable/args/cwd`, **or** `type: "http"` + `http.url` + `http.headers` |
 | `servers.<id>.transport.http.headers.<NAME>` | string | HTTP request headers; `${ENV_VAR}` references are resolved at config load (unset variable ⇒ configuration error) |
-| `servers.<id>.connection.startupTimeoutSeconds` | number | Handshake timeout |
+| `servers.<id>.connection.startupTimeoutSeconds` | number | Handshake timeout (positive finite; overrides the 10 s default per server) |
 | `servers.<id>.connection.requestTimeoutSeconds` | number | Per-request timeout (positive finite; enforced as transport failure) |
 | `servers.<id>.connection.reconnect` | object | `enabled`, `maximumAttempts`, `delayMilliseconds` |
 | `servers.<id>.capabilities.allow.tools` | string[] | **Allowlist**: only these tools may be invoked on this server |

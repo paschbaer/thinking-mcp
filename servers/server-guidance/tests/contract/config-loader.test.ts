@@ -253,4 +253,28 @@ describe("downstream http transports (fail-closed egress + secret resolution)", 
     write("guidance.json", { ...minimalGuidance, downstreamServers: { file: "downstream-servers.json" } });
     expect(() => loadConfig(dir)).not.toThrow();
   });
+
+  it("validates connection.startupTimeoutSeconds (HD-2 wiring)", () => {
+    const cfgWithStartup = (startup: unknown): void => {
+      write("downstream-servers.json", {
+        version: 2,
+        servers: {
+          gitnexus: {
+            enabled: true,
+            transport: { type: "stdio", command: { executable: "gitnexus", args: ["mcp"] } },
+            connection: { startupTimeoutSeconds: startup },
+          },
+        },
+      });
+      write("guidance.json", { ...minimalGuidance, downstreamServers: { file: "downstream-servers.json" } });
+    };
+    cfgWithStartup(30);
+    expect(() => loadConfig(dir)).not.toThrow();
+    cfgWithStartup(0);
+    expect(() => loadConfig(dir)).toThrowError(/startupTimeoutSeconds/);
+    cfgWithStartup(-5);
+    expect(() => loadConfig(dir)).toThrowError(/startupTimeoutSeconds/);
+    cfgWithStartup("fast");
+    expect(() => loadConfig(dir)).toThrowError(/startupTimeoutSeconds/);
+  });
 });

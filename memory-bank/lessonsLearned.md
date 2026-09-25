@@ -344,3 +344,9 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
   `export PATH=$HOME/.nvm/versions/node/v24.16.0/bin:$PATH` mit `\$`-Escaping —
   das Windows-seitige sh interpoliert `$VAR` sonst VOR wsl.exe. Workspaces
   hoisten vitest/tsc ins Repo-Root (`node_modules/.bin/vitest` dort aufrufen).
+- **ECONNREFUSED beweist kein Timeout-Wiring**: Ein Test gegen einen
+  Verbindung-verwerfenden Port (z.B. 127.0.0.1:9) schlägt sofort mit
+  ECONNREFUSED fehl — nie über den Timeout-Pfad. Um Handshake-/Request-Timeouts
+  zu verdrahten, braucht es einen HANGING Transport (im Test über den
+  useTransport-Seam: start() never resolves). Erst dann zeigt elapsed<5s bei
+  Default 10s, dass der per-Call-Timeout wirklich greift.

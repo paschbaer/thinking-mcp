@@ -24,6 +24,14 @@
   Touch des OperationEngine-Template-Engines oder erster `complete`-Lauf mit
   störenden tool_reported-Noise. | action required (arg-Vollständigkeit
   prüfen, ggf. Platzhalter ergänzen)
+- [x] HD-2 | LOW | `connection.startupTimeoutSeconds` war nicht verdrahtet —
+  `ClientManager.handshakeTimeoutMs` hardcoded 10 s. GELÖST (Commit „wire
+  per-server handshake timeout"): `ensureReady` nimmt
+  `connection.handshakeTimeoutSeconds` (aus `startupTimeoutSeconds`) pro Server;
+  Config-Validierung positiv-finit; invalid value ⇒ failed status (kein Crash);
+  Test mit hängendem Transport beweist die Verdrahtung (fail ~200 ms bei
+  Default 10 s). detect-changes: risk MEDIUM, nur erwartete Symbole. | — |
+  resolved
 - [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
   ist in README dokumentiert, aber im ClientManager nicht implementiert (betrifft
   stdio UND http; bei stateful HTTP-Downstreams wie insight/clear-thought stirbt
