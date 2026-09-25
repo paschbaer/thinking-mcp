@@ -93,32 +93,38 @@ review-checked — Guidance can only gate deterministic, observable checks.
 
 ## Configuration assistant
 
-Statt `.guidance/` von Hand zusammenzustellen, führt der eingebaute
-Konfigurations-Assistent Schritt für Schritt durch den Entwurf — Frage für
-Frage, mit Optionen, Begründung und Config-Verweisen. Der Assistent ist
-**stateless**: der Agent akkumuliert die Antworten und übergibt sie bei jedem
-Aufruf erneut. Ablauf (welches Tool wann):
+Instead of assembling `.guidance/` by hand, the built-in configuration
+assistant walks you through the design step by step — question by question,
+with options, rationale, and config references. The assistant is
+**stateless**: the agent accumulates the answers and passes them on every
+call. Flow (which tool when):
 
-| Schritt | Tool | Zweck |
+| Step | Tool | Purpose |
 |---|---|---|
-| 1 | `setup_guidance_start` | Liefert den Frage-Katalog (7 Fragen) und die erste Frage mit Hilfe-Text und Optionen |
-| 2 | `setup_guidance_answer` `{answers}` | Nimmt die akkumulierten Antworten entgegen, validiert sie und liefert die nächste offene Frage |
-| 3 | … `setup_guidance_answer` wiederholen | Bis `done: true` — dann verweist `nextTool` auf `setup_guidance_generate` |
-| 4 | `setup_guidance_generate` `{answers}` | Prüft die Vollständigkeit und gibt die komplette `.guidance/`-Dateimenge als Payload zurück |
-| 5 | Agent schreibt die Dateien | Der Server schreibt bewusst nichts — der Agent legt die Dateien mit seinen File-Tools im Projekt-Root ab |
-| 6 | Server neu starten bzw. neue Session | Config wird pro Session gesnapshottet (`configurationVersion`) |
+| 1 | `setup_guidance_start` | Returns the question catalog (7 questions) and the first question with help text and options |
+| 2 | `setup_guidance_answer` `{answers}` | Takes the accumulated answers, validates them, and returns the next open question |
+| 3 | … repeat `setup_guidance_answer` | Until `done: true` — then `nextTool` points to `setup_guidance_generate` |
+| 4 | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload |
+| 5 | Agent writes the files | The server deliberately writes nothing — the agent places the files in the project root with its file tools |
+| 6 | Restart the server / new session | Config is snapshotted per session (`configurationVersion`) |
 
-Frage-Katalog v1: `projectName`, `transport` (stdio / http-docker — steuert
-`localhost` vs. `host.docker.internal`-URLs und die Egress-Allowlist),
-`profile` (plain / spec-kit), `shell` (optional, agent-facing — landet in der
-understand-Instruction, da die strikte Config-Validierung ein
-`guidance.json`-Feld ablehnen würde), `insight` und `gitnexus` (je on/off —
-steuern Downstream-Entries und die zugehörigen Gates) und das Gates-Preset
-(`standard`: lint opt + test opt + build REQ · `minimal`: nur build REQ).
-Die Generierung liefert alle sechs Config-Dateien plus die sieben
-Submission-Schemas (aus `examples/default-guidance/schemas`; ist das
-Verzeichnis in der Installation nicht vorhanden, erhält der Agent einen
-copy-Hinweis statt eines Fehlers).
+Question catalog v1: `projectName`, `transport` (stdio / http-docker —
+controls `localhost` vs. `host.docker.internal` URLs and the egress
+allowlist), `profile` (plain / spec-kit), `shell` (optional, agent-facing —
+embedded in the understand instruction, because strict config validation
+would reject a `guidance.json` field), `insight` and `gitnexus` (on/off —
+control the downstream entries and their gates) and the gates preset
+(`standard`: lint opt + test opt + build REQ · `minimal`: build REQ only).
+Generation returns all six config files plus the seven submission schemas
+(from `examples/default-guidance/schemas`; if the directory is missing from
+the installation, the agent receives a copy hint instead of an error).
+
+Example prompt:
+
+> Use the configuration assistant to create a `.guidance/` configuration for
+> this project: run `setup_guidance_start`, walk me through every question
+> with its options, and once complete generate the files and write them to
+> the project root.
 
 ## Installation
 
@@ -803,7 +809,7 @@ ends the run in the `cancelled` terminal state.
 
 | Aspect | Detail | Config |
 |---|---|---|
-| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — no worktree (container gates verify `/workspace` = main checkout). **Last step:** update `README.md` and the memory-bank files | `responses.json` → `implement` |
+| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — no worktree (container gates verify `/workspace` = main checkout). **Last step:** update `README.md` (always in English) and the memory-bank files | `responses.json` → `implement` |
 | Submission | `submit_implementation` — required: `implementedTasks`; optional: `changedFiles`, `createdFiles`, `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`, `unresolvedIssues` | `schemas/implement.schema.json` |
 | Transitions | `submission_valid` → `review_and_fix_implementation`; `significant_plan_deviation` → back to `plan` (deviations must be planned, not silently absorbed) | `workflow.json` → `phases.implement.transitions` |
 
