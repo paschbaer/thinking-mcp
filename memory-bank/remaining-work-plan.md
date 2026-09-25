@@ -9,11 +9,30 @@
 
 ## Tracked Follow-ups
 
+- [GUID-3] MEDIUM | **Template-Platzhalter in mcpTool-Operations werden nie
+  aufgelöst** — `check` lief mit literalem `repo="${project.name}"` (Gate-Fail
+  im ersten produktiven complete-Lauf, 2026-09-25); betrifft vermutlich ALLE
+  Platzhalter (`${session.request}` in query-project-insights „erfolgreich",
+  aber vermutlich nur als Literal-Suche). Workaround: Repo-Name in
+  `.guidance/operations.json` hartcodiert (Backup: operations.json.bak).
+  WIRKT erst nach Container-Restart/Config-Reload (configurationVersion-SHA
+  im Session-State). | Trigger: nächster Touch der OperationEngine-
+  Template-/Argument-Auflösung; Fix = Placeholder-Engine implementieren oder
+  dokumentieren + Regressionstest (Literal-Passthrough ist kein Success).
+  | action required
+- [GUID-4] LOW | ESM-`require`-Fix (WorkflowEngine `createRequireShim`,
+  Commit `5316c88`) hat **keine Regression-Coverage** — die 215er-Suite griff
+  den Live-Pfad nicht. | Trigger: nächster Touch der Submission-Schema-
+  Validierung oder WorkflowEngine-Tests. | action required (Test, der
+  `validatorFor` über den echten Schema-Load-Pfad ausführt)
 - [GUID-1] MEDIUM | `repository-analysis`-Gate (gitnexus, `required:true`,
-  HTTP-Downstream :4747) ist noch nie produktiv durchlaufen — Connectivity und
+  HTTP-Downstream :4747) ist noch nie produktiv durchgelaufen — connectivity und
   ClientManager sind verifiziert, aber der Composite-Step (`analyze` mit
-  `{noStats:true}`) hatte keinen echten Lauf. | Trigger: erster echter
-  Workflow-Lauf im Zed-Agent bis Phase `complete` (Gate läuft automatisch
+  `{noStats:true}`) hatte keinen echten Lauf. **Update 2026-09-25:** Gate
+  feuerte produktiv (complete-Phase) und legte GUID-3 offen; `build`-Gate
+  grün nach Container-Deps-Install. Offen: finaler grüner complete-Lauf
+  nach GUID-3-Workaround + Container-Restart. | Trigger: erster echter
+  Workflow-Lauf im Zed-Agent bis `complete` (Gate läuft automatisch
   vor `complete`); bei Fehlschlag Gate-Ergebnis gegen
   `.gitnexus`-Indexstand prüfen (Docker-MCP sieht evtl. nur Container-Mounts,
   vgl. HD-4). | action required
