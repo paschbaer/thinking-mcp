@@ -3,17 +3,20 @@
   "responses": {
     "understand": {
       "title": "Understand the Request",
-      "instruction": "Analyze the development request before proposing an implementation. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. Do not create an implementation plan yet.",
+      "instruction": "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least one sequential_thinking pass to structure the analysis and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. Do not create an implementation plan yet.",
       "requiredActions": [
         "Inspect the relevant repository context.",
+        "Run at least one Clear-Thought sequential_thinking pass and reference its conclusions in the submission.",
         "Distinguish confirmed facts from assumptions.",
         "Identify blocking questions explicitly."
       ]
     },
     "plan": {
       "title": "Create the Implementation Plan",
-      "instruction": "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification. Do not start implementation yet.",
-      "requiredActions": []
+      "instruction": "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. Do not start implementation yet.",
+      "requiredActions": [
+        "Run at least one Clear-Thought sequential_thinking or decision_framework pass for decomposition/prioritization and reference its results in the plan submission."
+      ]
     },
     "review_and_adjust_plan": {
       "title": "Review and Adjust the Plan",

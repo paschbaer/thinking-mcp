@@ -694,17 +694,19 @@ ends the run in the `cancelled` terminal state.
 | Aspect | Detail | Config |
 |---|---|---|
 | Hook on enter | `query-project-insights` — Insight `experience_search` with the session request; optional, failures tolerated | `workflow.json` → `phases.understand.lifecycle.afterEnter` · `operations.json` → `query-project-insights` |
-| Instruction | Analyze before proposing; facts vs. assumptions; surface blocking questions; **no plan yet** | `responses.json` → `understand` |
+| Instruction | Analyze before proposing; facts vs. assumptions; surface blocking questions; **no plan yet**. Uses Clear-Thought: at least one `sequential_thinking` pass, referenced in the submission | `responses.json` → `understand` |
 | Submission | `submit_understanding` — required: `summary`; optional: `assumptions`, `openQuestions`, `risks`, `acceptanceCriteria`, `affectedAreas`, `constraints` | `schemas/understand.schema.json` |
 | Transition | `submission_valid` → `plan` | `workflow.json` → `phases.understand.transitions` |
+| Clear-Thought duty | `sequential_thinking` pass is a `requiredAction` — the submission must reference its conclusions | `responses.json` → `understand.requiredActions` |
 
 #### 2. `plan` — concrete implementation plan
 
 | Aspect | Detail | Config |
 |---|---|---|
-| Instruction | Concrete plan with stable task IDs, affected files, dependencies, planned tests, verification; **no implementation yet** | `responses.json` → `plan` |
+| Instruction | Concrete plan with stable task IDs, affected files, dependencies, planned tests, verification; **no implementation yet**. Uses Clear-Thought: decompose/prioritize via `sequential_thinking` or `decision_framework` | `responses.json` → `plan` |
 | Submission | `submit_plan` — required: `tasks` (policy: unique IDs, known dependencies, no cycles); optional: `dependencies`, `publicApiChanges`, `configurationChanges`, `documentationChanges` | `schemas/plan.schema.json` · `policies.json` → `validation` |
 | Transition | `submission_valid` → `review_and_adjust_plan` | `workflow.json` → `phases.plan.transitions` |
+| Clear-Thought duty | `sequential_thinking`/`decision_framework` pass is a `requiredAction` — the plan submission must reference its results | `responses.json` → `plan.requiredActions` |
 
 #### 3. `review_and_adjust_plan` — self-review of the plan
 
@@ -784,6 +786,16 @@ recorded) or ends the run via `cancel_workflow`.
   queryable — **it cannot detect staleness** (a `check` on an outdated index
   still succeeds). The repo name is hardcoded in the gate until template
   placeholder resolution is fixed.
+- **Clear-Thought duty in `understand`/`plan`:** both phases instruct the
+  agent to use Clear-Thought reasoning tools (`sequential_thinking`,
+  `decision_framework`) via `requiredActions`, and submissions must
+  reference the reasoning results (checked in the following phase's review).
+  Honest boundary: Clear-Thought is a **client-side** context server of the
+  agent — Guidance cannot see or gate its usage server-side (a downstream
+  `sequential_thinking` call would run in the Guidance process, not the
+  agent's context, and would not influence agent reasoning). The duty is
+  therefore instruction-enforced and review-checked, and assumes the agent
+  has Clear-Thought loaded (guaranteed in this repo via `AGENTS.md`).
 - **Optional failing gates are tolerated by design:** in this sample `lint`
   and `test` are `required: false` (pre-existing prettier findings; native
   modules not buildable on alpine). Tighten them once your environment
