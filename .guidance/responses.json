@@ -20,8 +20,10 @@
     },
     "review_and_adjust_plan": {
       "title": "Review and Adjust the Plan",
-      "instruction": "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives. Submit the complete adjusted plan.",
-      "requiredActions": []
+      "instruction": "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives, using the Clear-Thought tools: stress-test the plan's assumptions with assumption_xray, socratic_method, or argument_map, and reference the reasoning results in the findings. Submit the complete adjusted plan.",
+      "requiredActions": [
+        "Run at least one Clear-Thought stress-test pass (assumption_xray, socratic_method, or argument_map) and reference its results in the findings."
+      ]
     },
     "implement": {
       "title": "Implement the Approved Plan",
@@ -30,8 +32,10 @@
     },
     "review_and_fix_implementation": {
       "title": "Review and Fix the Implementation",
-      "instruction": "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting.",
-      "requiredActions": []
+      "instruction": "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting, using the Clear-Thought tools: run metacognitive_monitoring as a final confidence check before submitting, and debugging_approach for non-trivial findings — reference the results in the findings.",
+      "requiredActions": [
+        "Run Clear-Thought metacognitive_monitoring as a final confidence check before submitting; when findings are non-trivial, additionally apply debugging_approach and reference its results in the findings."
+      ]
     },
     "verify": {
       "title": "Verify the Implementation",
