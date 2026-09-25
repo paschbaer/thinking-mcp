@@ -161,7 +161,7 @@ export class WorkflowEngine {
       Object.entries(opsRaw).map(([id, cfg]) => [id, { ...cfg, operationId: id }]),
     );
     const downstream = this.config.downstreamServers as {
-      servers?: Record<string, { enabled?: boolean; required?: boolean; trustLevel?: string; transport?: { type?: string; command?: { executable: string; args: string[]; cwd?: string }; http?: { url: string; headers?: Record<string, string> } }; connection?: { requestTimeoutSeconds?: number }; capabilities?: { allow?: { tools?: string[] } } }>;
+      servers?: Record<string, { enabled?: boolean; required?: boolean; trustLevel?: string; transport?: { type?: string; command?: { executable: string; args: string[]; cwd?: string }; http?: { url: string; headers?: Record<string, string> } }; connection?: { requestTimeoutSeconds?: number; startupTimeoutSeconds?: number }; capabilities?: { allow?: { tools?: string[] } } }>;
     } | undefined;
     const servers = downstream?.servers ?? {};
     const enabled = Object.entries(servers).filter(([, v]) => v.enabled !== false);
@@ -188,6 +188,7 @@ export class WorkflowEngine {
           });
           const serverCfg = servers[serverId];
           const transportCfg = serverCfg?.transport;
+          const startup = serverCfg?.connection?.startupTimeoutSeconds;
           const status = await this.clientManager!.ensureReady(
             serverId,
             serverCfg && transportCfg?.type === "http" && transportCfg.http
@@ -195,6 +196,7 @@ export class WorkflowEngine {
               : serverCfg && transportCfg?.command
                 ? { type: "stdio", executable: transportCfg.command.executable ?? "", args: transportCfg.command.args ?? [], cwd: transportCfg.command.cwd }
                 : undefined,
+            startup === undefined ? undefined : { handshakeTimeoutSeconds: startup },
           );
           const tool = status.tools.find((t) => t.name === toolName);
           const pinnedHash = this.pinnedHashes.get(`${serverId}:${toolName}`);

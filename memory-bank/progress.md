@@ -329,9 +329,10 @@ Header mit `${ENV_VAR}`, fail-closed beim Config-Load); Egress-Host-Allowlist
 ClientManager `DownstreamTransportConfig` + StreamableHTTPClientTransport;
 WorkflowEngine-Durchreichung; README-Doku (Config-Beispiel insight via
 host.docker.internal). 206/206 Guidance-Tests + tsc grün.
-**What's left:** HD-1 (Reconnect), HD-2 (startupTimeoutSeconds-Wiring),
-HD-3-Rest (stateful-Session als automatisierter Test); Merge nach develop
-(Rebase). GitNexus: Docker-MCP sieht D:\repos nicht (HD-4-Rest, akzeptiert).
-**Current state:** COMMITTED als 897c342 (feature/guidance-http-downstream);
-Live-Access-Check gegen insight/gitnexus bestanden (ClientManager-Stack,
-inkl. aus dem guidance-Container via host.docker.internal).
+**What's left:** HD-1 (Reconnect, MEDIUM — bleibt getrackt, vom Merge
+unberührt), HD-3-Rest (stateful-Session als automatisierter Test); Merge nach
+develop (Rebase). GitNexus: Docker-MCP sieht D:\repos nicht (HD-4-Rest,
+akzeptiert).
+**Current state:** HTTP-Downstream committed (e601515); HD-2 verdrahtet
+(per-Server-Handshake-Timeout, Config-Validierung, Tests) — 209/209 + tsc
+grün, detect-changes risk MEDIUM (nur erwartete Symbole).

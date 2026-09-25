@@ -116,6 +116,34 @@ describe("ClientManager http transport (FR-031 HTTP extension)", () => {
     expect(status.status).toBe("failed");
     expect(status.error).toBeDefined();
   });
+
+  it("applies per-call handshakeTimeoutSeconds (HD-2: connection.startupTimeoutSeconds wiring)", async () => {
+    // Hanging transport: connect never resolves — only the timeout can end it.
+    const hanging = {
+      start: () => new Promise<never>(() => {}),
+      send: () => new Promise<never>(() => {}),
+      close: async () => {},
+      onclose: undefined as unknown as (() => void) | undefined,
+      onerror: undefined as unknown as (() => void) | undefined,
+      onmessage: undefined as unknown as (() => void) | undefined,
+    };
+    const mgr = new ClientManager();
+    mgr.useTransport("hang", () => hanging as never);
+    // Instance default stays high (10s); the per-call override must end it fast.
+    const start = Date.now();
+    const status = await mgr.ensureReady("hang", undefined, { handshakeTimeoutSeconds: 0.2 });
+    const elapsed = Date.now() - start;
+    expect(status.status).toBe("failed");
+    expect(status.error).toMatch(/handshake timeout/);
+    expect(elapsed).toBeLessThan(5_000);
+  });
+
+  it("invalid handshakeTimeoutSeconds yields failed status, not a crash", async () => {
+    const mgr = new ClientManager();
+    const status = await mgr.ensureReady("bad", { type: "http", url: "http://127.0.0.1:9/mcp" }, { handshakeTimeoutSeconds: -1 });
+    expect(status.status).toBe("failed");
+    expect(status.error).toMatch(/invalid handshakeTimeoutSeconds/);
+  });
 });
 
 describe("counting invoker (SC-005 evidence helper)", () => {
