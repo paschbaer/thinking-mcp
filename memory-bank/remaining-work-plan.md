@@ -32,12 +32,19 @@
   Test mit hängendem Transport beweist die Verdrahtung (fail ~200 ms bei
   Default 10 s). detect-changes: risk MEDIUM, nur erwartete Symbole. | — |
   resolved
-- [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
-  ist in README dokumentiert, aber im ClientManager nicht implementiert (betrifft
-  stdio UND http; bei stateful HTTP-Downstreams wie insight/clear-thought stirbt
-  die MCP-Session bei Server-Restart ⇒ transport failures bis Neustart von
-  guidance). | Trigger: erstes produktives HTTP-Downstream-Deployment oder
-  ClientManager-Umbruch. | action required
+- [x] HD-1 | MEDIUM | HTTP-Downstream-Reconnect fehlte: `connection.reconnect`
+  war dokumentiert, aber nicht implementiert. GELÖST (Commit „feat(guidance):
+  reconnect downstream after transport failures"): ClientManager merkt sich
+  Transport-/Handshake-Parameter pro Server; nach transport failure werden
+  toter Client verworfen, Handshake bis zu `maximumAttempts`-mal wiederholt
+  (`delayMilliseconds` dazwischen) und der Call erneut ausgeführt. Invalid
+  config (z.B. requestTimeoutSeconds) wird NIE retryt. Validierung: reconnect
+  = Objekt mit enabled:boolean, maximumAttempts: positive int,
+  delayMilliseconds: non-negative int (fail-closed). Tests: Reconnect-After-
+  Death, Exhausted-Attempts („reconnect attempt 2/2"), Disabled/Unconfigured,
+  Invalid-Timeout-Kein-Retry. 214/214 + tsc grün; detect-changes risk MEDIUM
+  (nur erwartete Symbole). Rest: Backoff-Strategie (exponentiell/Jitter)
+  bewusst nicht implementiert — fixed delay, dokumentiert. | — | resolved
 - [HD-2] LOW | `connection.startupTimeoutSeconds` ist nicht verdrahtet —
   `ClientManager.handshakeTimeoutMs` ist hardcoded 10 s (pre-existing, für kalt
   startende HTTP-Downstreams relevanter). | Trigger: nächster Touch von

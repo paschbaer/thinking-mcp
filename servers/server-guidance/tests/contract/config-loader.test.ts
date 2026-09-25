@@ -277,4 +277,30 @@ describe("downstream http transports (fail-closed egress + secret resolution)", 
     cfgWithStartup("fast");
     expect(() => loadConfig(dir)).toThrowError(/startupTimeoutSeconds/);
   });
+
+  it("validates connection.reconnect shape (HD-1 wiring)", () => {
+    const cfgWithReconnect = (reconnect: unknown): void => {
+      write("downstream-servers.json", {
+        version: 2,
+        servers: {
+          gitnexus: {
+            enabled: true,
+            transport: { type: "stdio", command: { executable: "gitnexus", args: ["mcp"] } },
+            connection: { reconnect },
+          },
+        },
+      });
+      write("guidance.json", { ...minimalGuidance, downstreamServers: { file: "downstream-servers.json" } });
+    };
+    cfgWithReconnect({ enabled: true, maximumAttempts: 3, delayMilliseconds: 500 });
+    expect(() => loadConfig(dir)).not.toThrow();
+    cfgWithReconnect("yes");
+    expect(() => loadConfig(dir)).toThrowError(/reconnect must be an object/);
+    cfgWithReconnect({ maximumAttempts: 0 });
+    expect(() => loadConfig(dir)).toThrowError(/maximumAttempts/);
+    cfgWithReconnect({ delayMilliseconds: -1 });
+    expect(() => loadConfig(dir)).toThrowError(/delayMilliseconds/);
+    cfgWithReconnect({ enabled: "true" });
+    expect(() => loadConfig(dir)).toThrowError(/enabled must be a boolean/);
+  });
 });

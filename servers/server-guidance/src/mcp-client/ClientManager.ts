@@ -25,6 +25,18 @@ export interface DownstreamServerStatus {
 
 type FetchTransport = (serverId: string) => Transport | Promise<Transport>;
 
+/** `connection.reconnect` semantics (HD-1): retry cycles after transport failures. */
+export interface ReconnectPolicy {
+  enabled?: boolean;
+  maximumAttempts?: number;
+  delayMilliseconds?: number;
+}
+
+export interface ConnectionOptions {
+  handshakeTimeoutSeconds?: number;
+  reconnect?: ReconnectPolicy;
+}
+
 /**
  * Transport selection per downstream server. `type: "http"` targets a
  * streamable-HTTP endpoint (URL must be allowlisted via egress policy; header
@@ -41,10 +53,17 @@ export interface ClientManagerOptions {
   requiredServers?: string[];
 }
 
+interface ConnectionRecord {
+  config?: DownstreamTransportConfig;
+  handshakeTimeoutSeconds?: number;
+  reconnect?: ReconnectPolicy;
+}
+
 export class ClientManager {
   private readonly clients = new Map<string, Client>();
   private readonly statuses = new Map<string, DownstreamServerStatus>();
   private readonly customTransports = new Map<string, FetchTransport>();
+  private readonly connections = new Map<string, ConnectionRecord>();
   private readonly required: Set<string>;
   /** Tests may inject a timeout (ms) used for readiness handshake. */
   handshakeTimeoutMs = 10_000;
@@ -80,10 +99,17 @@ export class ClientManager {
   async ensureReady(
     serverId: string,
     config?: DownstreamTransportConfig,
-    connection?: { handshakeTimeoutSeconds?: number },
+    connection?: ConnectionOptions,
   ): Promise<DownstreamServerStatus> {
     const existing = this.statuses.get(serverId);
     if (existing?.status === "ready") return existing;
+    // Remember how this server was reached so reconnect cycles can re-run
+    // the handshake with identical parameters (HD-1).
+    this.connections.set(serverId, {
+      config,
+      handshakeTimeoutSeconds: connection?.handshakeTimeoutSeconds,
+      reconnect: connection?.reconnect,
+    });
     const status: DownstreamServerStatus = { status: "failed", required: this.required.has(serverId), tools: [] };
     this.statuses.set(serverId, status);
     try {
@@ -177,8 +203,65 @@ export class ClientManager {
   > {
     if (requestTimeoutSeconds !== undefined && (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)) {
       // Vor clientFor: invalid config beats connection errors in reporting.
+      // Not a connectivity problem — reconnect must NOT retry this.
       return { kind: "transport", message: `invalid requestTimeoutSeconds: ${requestTimeoutSeconds}` };
     }
+    const out = await this.invokeOnce(serverId, toolName, args, requestTimeoutSeconds);
+    if (out.kind !== "transport") return out;
+    return await this.reconnectAndRetry(serverId, toolName, args, requestTimeoutSeconds, out);
+  }
+
+  /**
+   * HD-1: after a transport failure, drop the dead client and re-run the
+   * handshake (with the original transport/handshake parameters) up to
+   * `maximumAttempts` times, retrying the invocation after each successful
+   * reconnect. Disabled or unconfigured ⇒ the failure is returned as-is.
+   */
+  private async reconnectAndRetry(
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    requestTimeoutSeconds: number | undefined,
+    firstFailure: { kind: "transport"; message: string },
+  ): Promise<{ kind: "success"; content: unknown[]; structuredContent?: unknown } | { kind: "tool_reported"; message: string; content: unknown[] } | { kind: "transport"; message: string }> {
+    const conn = this.connections.get(serverId);
+    const rc = conn?.reconnect;
+    const maximumAttempts = rc?.enabled === true && Number.isInteger(rc.maximumAttempts) && rc.maximumAttempts! > 0
+      ? rc.maximumAttempts!
+      : 0;
+    let last: { kind: "transport"; message: string } = firstFailure;
+    for (let attempt = 1; attempt <= maximumAttempts; attempt++) {
+      const delayMs = rc?.delayMilliseconds;
+      if (typeof delayMs === "number" && delayMs > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs).unref?.());
+      }
+      const old = this.clients.get(serverId);
+      if (old) {
+        try { await old.close(); } catch { /* isolate */ }
+        this.clients.delete(serverId);
+      }
+      const st = this.statuses.get(serverId);
+      if (st) st.status = "disconnected";
+      const ready = await this.ensureReady(serverId, conn!.config, {
+        handshakeTimeoutSeconds: conn!.handshakeTimeoutSeconds,
+        reconnect: rc,
+      });
+      if (ready.status !== "ready") {
+        last = { kind: "transport", message: `reconnect attempt ${attempt}/${maximumAttempts} failed: ${ready.error ?? "unknown"}` };
+        continue;
+      }
+      const out = await this.invokeOnce(serverId, toolName, args, requestTimeoutSeconds);
+      if (out.kind !== "transport") return out;
+      last = out;
+    }
+    return last;
+  }
+
+  private async invokeOnce(serverId: string, toolName: string, args: Record<string, unknown>, requestTimeoutSeconds?: number): Promise<
+    | { kind: "success"; content: unknown[]; structuredContent?: unknown }
+    | { kind: "tool_reported"; message: string; content: unknown[] }
+    | { kind: "transport"; message: string }
+  > {
     let client: Client;
     try {
       client = this.clientFor(serverId);
