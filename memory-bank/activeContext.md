@@ -5,6 +5,24 @@
 
 **Last updated:** 2026-09-25
 
+## 2026-09-25: Capture-lessons-Integration (2. Guidance-Workflow, completed)
+
+- Session `session-1bb1d9c2…` → **completed**; `repository-analysis`-Gate
+  zum zweiten Mal produktiv grün.
+- `store-completion-insight` entfernt (GUID-2 → subsumed); neu:
+  **`capture-session-lessons`** (blocking Prozess-Gate, sh -c +
+  seed-lessons.mjs gegen Insight, idempotent) — Lessons-File-Vertrag:
+  Agent schreibt `.guidance/state/session-lessons.json` VOR complete_workflow
+  (leeres Array = No-Op; Redaction beim Agent).
+- Plan-Abweichung dokumentiert: OperationEngine spawnSync hat keine env-
+  Option → sh -c-Inline-ENV; als GUID-5 getrackt (env-Feld + Test).
+- Verifiziert: Live-Seed 2/2 + Idempotenz (2 duplicate, 1 seeded, exit 0),
+  experience_search-Round-Trip, 4× JSON-Validierung, build-Gate grün
+  (lint/test optional-failing aus bekannten Ursachen).
+- Commits: `2e72c9a` (Config + README). Neue EMMS-Episoden:
+  guidance-config-snapshot-per-session, guidance-template-placeholders-
+  unresolved, guidance-process-operations-no-env-support.
+
 ## 2026-09-25: GUID-1-Lauf — Gates produktiv, 2 echte Bugs aufgedeckt
 
 - Erster echter Workflow-Lauf (Zed-Agent, Docs-Change): **build-Gate grün**

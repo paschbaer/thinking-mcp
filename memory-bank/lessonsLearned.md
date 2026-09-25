@@ -163,6 +163,11 @@
 - **FTS5 MATCH-Injection**: Nutzertext mit Satzzeichen bricht MATCH-Syntax (`syntax error near ","`) — Query-Tokens vor MATCH auf `[\w\s]` sanitizen.
 - **SC-009-Demotion-Test**: Ranking-Demotion braucht >=2 Kandidaten mit GLEICHER Signatur-Hash (sonst kein echter Ranking-Vergleich) und der Peer muss voll kompatibel sein (sonst dominiert Applicability-first ohnehin).
 
+## 2026-09-25 — Guidance-Capture-Gate (2. produktiver End-to-End-Lauf, grün)
+- **spawnSync ohne env-Support**: Prozess-Operationen erben nur das Container-Environment (`OperationEngine.ts:188`) — ENV-Variablen für Gate-Scripts müssen heute per `sh -c`-Inline-Assignment gesetzt werden (siehe `capture-session-lessons`); saubere Lösung wäre ein `env`-Feld in der Operation-Config (→ GUID-5).
+- **Lessons-File-Vertrag**: Der Agent schreibt `.guidance/state/session-lessons.json` VOR dem `complete_workflow`-Call (Gates laufen on-transition); IMMER Datei anlegen (leeres Array = No-Op-Erfolg), sonst blockiert das required-Gate docs-only-Läufe. Redaction-Pflicht beim Agent — `seed-lessons.mjs` spricht Insight direkt an und umgeht Guidances Pattern-Redaction.
+- **Idempotenz live bestätigt**: erneuter Seed-Lauf meldet dieselben Slugs als `duplicate` (Exit 0) — Doppel-Episoden ausgeschlossen; Verifikation via `experience_search` mit exaktem Slug (Full-Text-Arm, semantischer Arm MVP-deaktiviert).
+
 ## 2026-09-25 — bare `require` in ESM-Quellcode (Rezidiv, 2. Fall)
 - **Issue**: `createRequireShim()` in `WorkflowEngine.ts` nutzte `require("node:module")` per Bare-`require` — in ESM ist `require` nicht definiert ⇒ ReferenceError: require is not defined bei JEDEM `submit_*`-Call (Schemavalidierung lädt über den Shim). Traf erst im Live-Docker-Betrieb auf, die vitest-Suite griff den Pfad nicht.
 - **Root Cause**: Wiederholung des SpecKitEngine-„2d-Fix"-Musters — dynmische `require()`-Aufrufe überleben den CJS→ESM-Wechsel im tests nicht abgedeckten Lazy-Load-Pfad.
