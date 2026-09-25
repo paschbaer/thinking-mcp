@@ -613,6 +613,201 @@ validate_spec_kit_completion { "sessionId": "…", … }      → completion inv
 Plan deviations go through `propose_plan_change` (deterministic minor/major
 classification, approval + artifact-update lifecycle instead of silent edits).
 
+## Working sample: this repository's own `.guidance/`
+
+This repository runs on Guidance itself. The [`.guidance/`](./.guidance/)
+directory at the repo root is a **tested, production-grade working sample**
+(first end-to-end run completed green, including the GitNexus gate). Use it
+as a blueprint: copy it to your project root and adapt the operations.
+
+### Config file map
+
+| File | Purpose (key settings in this sample) |
+|---|---|
+| `guidance.json` | Entry point: `project.name: "thinking-mcp"`, profile `plain`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`) |
+| `workflow.json` | The state machine — see the phase walkthrough below |
+| `responses.json` | Per-phase agent instruction: title, instruction, `requiredActions` |
+| `operations.json` | The gates: `build` (blocking), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `store-completion-insight` (optional) |
+| `downstream-servers.json` | GitNexus (blocking, `http://host.docker.internal:4747/api/mcp`) and Insight (`http://host.docker.internal:3002/mcp`) as **HTTP downstreams** with per-server capability allowlists |
+| `policies.json` | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3002`, `host.docker.internal:4747`), redaction patterns, review-blocking severities `high\|critical` |
+| `schemas/*.schema.json` | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission |
+
+### ⚠️ Important: workspace path under HTTP/Docker
+
+When Guidance runs as a Docker HTTP server, the workspace is the
+**container path** (`GUIDANCE_WORKSPACE_ROOT`, here `/workspace` — the repo
+is bind-mounted). **`start_workflow` MUST be called with
+`workspaceRoot: "/workspace"`.** Host paths (`D:\repos\…`, `D:/repos/…`),
+relative paths (`.`) and WSL notation (`/mnt/d/…`) are rejected with
+`escapes the configured workspace`. This rule is recorded in the repo's
+`AGENTS.md` (section "Guidance MCP Server (Docker-Deployment)") so agents
+that load it pass the correct path automatically.
+
+Two more operating caveats learned in production:
+
+- **Downstream servers connect lazily:** `get_downstream_status` shows
+  `disconnected` until an operation uses a server for the first time — that
+  is normal, not an error.
+- **Config snapshot per session:** edits to `.guidance/*.json` only take
+  effect after a container restart or in new sessions (the
+  `configurationVersion` SHA is pinned in the session state).
+
+Zed integration — add to `context_servers` in the Zed settings:
+
+```json
+{
+  "context_servers": {
+    "guidance": { "source": "custom", "url": "http://localhost:3003/mcp" }
+  }
+}
+```
+
+### The configured workflow, step by step
+
+The `standard-development` flow consists of seven phases. For every phase:
+what the agent is told (from `responses.json`), what it must submit (tool +
+schema), and how the state machine moves. `when` transitions fire on
+success, `reason` transitions only on failure.
+
+#### 1. `understand` — analyze before proposing
+
+- **On entry (`afterEnter`):** operation `query-project-insights` runs —
+  calls Insight (`experience_search`) with the session request so existing
+  knowledge is surfaced before analysis. Optional (`required: false`); a
+  failure is tolerated.
+- **Agent instruction:** analyze the request before proposing an
+  implementation. Distinguish confirmed facts from assumptions, surface
+  blocking questions explicitly. Do **not** create a plan yet.
+- **Submission:** `submit_understanding` — schema requires `summary`;
+  optional `assumptions`, `openQuestions`, `risks`, `acceptanceCriteria`,
+  `affectedAreas`, `constraints`.
+- **Transition:** `submission_valid` → `plan`.
+
+#### 2. `plan` — concrete implementation plan
+
+- **Agent instruction:** produce a concrete plan with stable task IDs,
+  affected files, dependencies, planned tests and verification. Do **not**
+  start implementing.
+- **Submission:** `submit_plan` — schema requires `tasks` (array of objects;
+  validation policy enforces unique task IDs, known dependencies, no
+  dependency cycles); optional `dependencies`, `publicApiChanges`,
+  `configurationChanges`, `documentationChanges` (impact flags also drive
+  validation requirements).
+- **Transition:** `submission_valid` → `review_and_adjust_plan`.
+
+#### 3. `review_and_adjust_plan` — self-review of the plan
+
+- **Agent instruction:** review the plan critically (architecture,
+  correctness, maintainability, testability, security, backward
+  compatibility, performance, operations) and submit the adjusted plan.
+- **Submission:** `submit_plan_review` — schema requires `findings`; optional
+  `adjustments`, `approvedPlan`, `remainingConcerns`.
+- **Transitions:** `major_plan_revision_required` → back to `plan` (loop);
+  `submission_valid` → `implement`.
+
+#### 4. `implement` — execute the approved plan
+
+- **Agent instruction:** implement strictly along the approved task IDs, no
+  unrelated changes, report every changed/created/deleted file and any
+  deviation from the plan.
+- **Submission:** `submit_implementation` — schema requires
+  `implementedTasks`; optional `changedFiles`, `createdFiles`,
+  `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`,
+  `unresolvedIssues`.
+- **Transitions:** `submission_valid` → `review_and_fix_implementation`;
+  `significant_plan_deviation` → back to `plan` (the deviation must be
+  planned, not silently absorbed).
+
+#### 5. `review_and_fix_implementation` — self-review of the code
+
+- **Agent instruction:** review the implementation for correctness, edge
+  cases, error handling, security, maintainability, duplication, dead code,
+  performance, compatibility, test coverage and plan conformity — and apply
+  fixes before submitting.
+- **Submission:** `submit_implementation_review` — schema requires
+  `findings`; optional `filesChangedDuringReview`, `testsAddedOrUpdated`,
+  `unresolvedFindings`.
+- **Transitions:** `implementation_changes_required` → back to `implement`;
+  `submission_valid` → `verify`. Policy: findings with severity `high` or
+  `critical` block the transition (see `policies.json`).
+
+#### 6. `verify` — gates run server-side
+
+- **Agent instruction:** Guidance executes the configured verification
+  operations; analyze failures and return to implementation review when code
+  changes are needed. Never claim success while a mandatory operation is
+  failing.
+- **Submission:** `submit_verification` — schema requires
+  `verificationSummary`; optional `skippedChecks`,
+  `acceptedCriteriaEvidence`.
+- **On exit (`beforeExit` gates, blocking):** `lint` (prettier `--check`,
+  optional), `test` (`npm test`, optional) and `build` (`npm run build`,
+  **required**) run as child processes in the workspace. Required failures
+  keep the session in the phase (`retry_operation` re-runs them after
+  fixing).
+- **Transitions:** `verification_failed` → back to
+  `review_and_fix_implementation`; `required_operations_succeeded` →
+  `complete`.
+
+#### 7. `complete` — final report under completion gates
+
+- **Agent instruction:** produce the final completion report — summary,
+  changed files, verification results, known limitations, remaining risks,
+  deviations, deferred work, next steps.
+- **Submission:** `complete_workflow` — schema requires `summary`; optional
+  `changedFiles`, `verificationSummary`, `knownLimitations`,
+  `remainingRisks`, `deviations`, `deferredWork`, `nextSteps`.
+- **On exit (`beforeExit` gates):** `repository-analysis` (**required**,
+  composite `firstAvailable`: MCP tool `check` against the GitNexus HTTP
+  server, falling back to a local `gitnexus analyze --no-stats` CLI run for
+  stdio deployments — the HTTP server exposes no analyze tool, so the index
+  refresh itself remains a host-side pre-completion step) and
+  `store-completion-insight` (optional, records a completion observation via
+  Insight). Required failures block completion (`retry_operation` to re-run).
+- **Transition:** `required_operations_succeeded` → `completed` (terminal).
+
+**Escape hatch at any point:** `report_blocker` moves the session to the
+system state `blocked`; the user decides via `resume_workflow` (decision is
+recorded) or ends the run via `cancel_workflow`.
+
+### Operating notes for this sample
+
+- **Docker deployment:** `docker-compose.override.yml` mounts this repo as
+  `/workspace` and shadows `node_modules` with an isolated named volume
+  (container deps installed via
+  `npm install --include=dev --ignore-scripts --script-shell=/bin/true` —
+  corepack-yarn crashes on alpine, `NODE_ENV=production` skips dev
+  dependencies, and workspace `prepare` scripts run despite
+  `--ignore-scripts`).
+- **GitNexus index:** the HTTP server (:4747) exposes no `analyze` tool —
+  the index refresh stays a host-side pre-completion step (see the repo's
+  `AGENTS.md`); the gate verifies via `check` that the index exists and is
+  queryable. The repo name is hardcoded in the gate until template
+  placeholder resolution is fixed.
+- **Optional failing gates are tolerated by design:** in this sample `lint`
+  and `test` are `required: false` (pre-existing prettier findings; native
+  modules not buildable on alpine). Tighten them once your environment
+  supports it.
+
+### Example prompt
+
+To start a run, give the agent (Zed agent panel with Guidance loaded):
+
+> Start a Guidance workflow for: **⟨short task description⟩**. Follow the
+> phase instructions from the guidance envelope, submit each phase with the
+> matching `submit_*` tool, and report blockers via `report_blocker`
+> instead of guessing.
+
+Real first production run (docs-only change):
+
+> Start a Guidance workflow for: Improve the README quick-start section.
+> Add a verification hint and make the Docker sentence precise.
+
+The agent then calls `start_workflow` with `workspaceRoot: "/workspace"`
+and walks understand → … → complete; the `lint/test/build` gates (before
+`verify`) and `repository-analysis` (before `complete`) run server-side
+automatically.
+
 ## Tool reference
 
 Common conventions: every tool returns a JSON text payload. `sessionId` refers
