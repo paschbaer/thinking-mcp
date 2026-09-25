@@ -32,10 +32,17 @@
   valid + invalid durch den echten validatorFor-Pfad), (b) Source-Scan-Test
   gegen bare-`require("…")`-Rezidiv in WorkflowEngine.ts
   (tests/workflow/schema-load-regression.test.ts). | — | resolved
-- [GUID-7] LOW | Umschaltbares `workspaceRoot` pro Session (Voraussetzung für
-  Worktree-Workflows mit korrekten Gates — aktuell prüfen die Container-Gates
-  immer `/workspace` = Haupt-Checkout). | Trigger: wenn Worktree-Workflows
-  mit Guidance-Gates produktiv gewünscht werden. | action required (backlog)
+- [GUID-7] CLOSED 2026-09-25 | Umschaltbares `workspaceRoot` pro Session —
+  als Server-Feature nicht nötig: `start_workflow` nimmt `workspaceRoot`
+  bereits pro Session entgegen (`assertWorkspaceInside` akzeptiert alles
+  unter `/workspace`), und `docker-compose.override.yml` mountet seit heute
+  `D:/repos/Thinking-MCP-worktrees` nach `/workspace/worktrees`. Muster:
+  `git worktree add` auf dem Host unter Thinking-MCP-worktrees, dann
+  `start_workflow` mit `workspaceRoot: /workspace/worktrees/<name>` — alle
+  Gates (inkl. index-freshness via Worktree-eigenem .gitnexus) laufen im
+  Worktree; einmal `npm install` im Worktree für build/test-Gates. Live
+  verifiziert: start_workflow mit Worktree-Root → accepted.
+  | — | resolved (Deployment-Muster statt Server-Feature)
 - [GUID-1] CLOSED 2026-09-25 | Gate feuerte produktiv im complete-Lauf und
   ging grün: `repository-analysis` succeeded (check `{repo:"thinking-mcp"}`
   nach GUID-3-Workaround + Container-Restart). Session
