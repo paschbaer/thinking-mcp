@@ -78,10 +78,14 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": false }
     },
     "capture-session-lessons": {
-      "description": "Seed validated session lessons (see .github/prompts/capture-lessons.prompt.md) into the experience-memory server. The agent MUST write .guidance/state/session-lessons.json ([{slug, observation, cause, fix}]; empty array = no-op success; redact secrets — the script bypasses Guidance pattern redaction) BEFORE calling complete_workflow. Idempotent per slug.",
+      "description": "Seed validated session lessons (see .github/prompts/capture-lessons.prompt.md pattern). The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow (empty array = no-op success; redact secrets). Idempotent per slug.",
       "type": "process",
-      "executable": "sh",
-      "args": ["-c", "EMMS_HTTP_URL=http://host.docker.internal:3002/mcp EMMS_LESSON_SCOPE=thinking-mcp-lessons node servers/server-insight/scripts/seed-lessons.mjs .guidance/state/session-lessons.json"],
+      "executable": "node",
+      "args": ["servers/server-insight/scripts/seed-lessons.mjs", ".guidance/state/session-lessons.json"],
+      "env": {
+        "EMMS_HTTP_URL": "http://host.docker.internal:3002/mcp",
+        "EMMS_LESSON_SCOPE": "thinking-mcp-lessons"
+      },
       "required": true,
       "timeoutSeconds": 120,
       "riskClass": "external_write",

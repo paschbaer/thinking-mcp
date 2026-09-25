@@ -19,22 +19,22 @@
   Erkennung anbietet (z. B. indexed-commit vs. HEAD in `check`/`list_repos`)
   → Gate auf Frische-Prüfung erweitern. | accepted with rationale (technisch
   heute nicht ausdrückbar; Prozessregel als Kompensation dokumentiert)
-- [GUID-3] MEDIUM | **Template-Platzhalter in mcpTool-Operations werden nie
-  aufgelöst** — `check` lief mit literalem `repo="${project.name}"` (Gate-Fail
-  im ersten produktiven complete-Lauf, 2026-09-25); betrifft vermutlich ALLE
-  Platzhalter (`${session.request}` in query-project-insights „erfolgreich",
-  aber vermutlich nur als Literal-Suche). Workaround: Repo-Name in
-  `.guidance/operations.json` hartcodiert (Backup: operations.json.bak).
-  WIRKT erst nach Container-Restart/Config-Reload (configurationVersion-SHA
-  im Session-State). | Trigger: nächster Touch der OperationEngine-
-  Template-/Argument-Auflösung; Fix = Placeholder-Engine implementieren oder
-  dokumentieren + Regressionstest (Literal-Passthrough ist kein Success).
-  | action required
-- [GUID-4] LOW | ESM-`require`-Fix (WorkflowEngine `createRequireShim`,
-  Commit `5316c88`) hat **keine Regression-Coverage** — die 215er-Suite griff
-  den Live-Pfad nicht. | Trigger: nächster Touch der Submission-Schema-
-  Validierung oder WorkflowEngine-Tests. | action required (Test, der
-  `validatorFor` über den echten Schema-Load-Pfad ausführt)
+- [GUID-3] CLOSED 2026-09-25 | Template-Platzhalter werden jetzt aufgelöst:
+  `OperationContext.templateVars` (befüllt von `WorkflowEngine.ctxFor` mit
+  `session.request` + `project.name`), tiefe `${token}`-Resolution für
+  `mode: "template"` in OperationEngine (Fail-fast `operation_arguments_invalid`
+  bei unbekannten Tokens — Literal-Passthrough ausgeschlossen); `mode: "fixed"`
+  bleibt literal. Regressionstests in
+  tests/orchestration/operation-engine-env-template.test.ts. | — | resolved
+- [GUID-4] CLOSED 2026-09-25 | Regression-Coverage für den ESM-createRequire-
+  Fix nachgereicht: (a) Schema-Load über public API (`submit` understand→plan,
+  valid + invalid durch den echten validatorFor-Pfad), (b) Source-Scan-Test
+  gegen bare-`require("…")`-Rezidiv in WorkflowEngine.ts
+  (tests/workflow/schema-load-regression.test.ts). | — | resolved
+- [GUID-7] LOW | Umschaltbares `workspaceRoot` pro Session (Voraussetzung für
+  Worktree-Workflows mit korrekten Gates — aktuell prüfen die Container-Gates
+  immer `/workspace` = Haupt-Checkout). | Trigger: wenn Worktree-Workflows
+  mit Guidance-Gates produktiv gewünscht werden. | action required (backlog)
 - [GUID-1] CLOSED 2026-09-25 | Gate feuerte produktiv im complete-Lauf und
   ging grün: `repository-analysis` succeeded (check `{repo:"thinking-mcp"}`
   nach GUID-3-Workaround + Container-Restart). Session
@@ -61,20 +61,18 @@
   **komplett entfernt** und durch `capture-session-lessons` ersetzt
   (Prozess-Gate, seed-lessons.mjs, idempotent, blocking; Commit `2e72c9a`).
   Ursprünglicher Trigger existiert nicht mehr. | — | resolved (subsumed)
-- [GUID-5] LOW | OperationEngine `spawnSync` unterstützt **keine env-Option**
-  für Prozess-Operationen — ENV muss heute über `sh -c`-Inline-Assignments
-  laufen (siehe capture-session-lessons). | Trigger: nächster Touch von
-  OperationEngine/OperationConfig; Fix = optionales `env`-Feld in der
-  Operation-Config + Regressionstest. | action required
-- [GUID-5] LOW | OperationEngine `spawnSync` unterstützt **keine env-Option**
-  für Prozess-Operationen — ENV muss heute über `sh -c`-Inline-Assignments
-  laufen (siehe capture-session-lessons). **Familie erweitert 2026-09-25:**
-  (a) `shell`-Option für process-Operations (Repo-Shell wsl.exe -e bash
-  aktuell nur agent-facing via Instruction — guidance.json-Feld wird von der
-  strikten Validierung abgelehnt), (b) pro Session umschaltbares
-  `workspaceRoot` (Voraussetzung für Worktree-Workflows mit korrekten Gates).
-  | Trigger: nächster Touch von OperationEngine/OperationConfig; Fix = env/
-  shell/workspaceRoot-Felder + Regressionstests. | action required
+- [GUID-5] CLOSED 2026-09-25 | `env`- und `shell`-Optionen für Prozess-
+  Operationen implementiert (OperationConfig + spawnSync: env-Merge über
+  process.env, shell boolean|string; Validierung in config.ts; Unit-Tests
+  inkl. Negativ-Nachweis ohne env). eigene operations.json auf env umgestellt
+  (sh -c-Wrapper entfallen). Rest: umschaltbares workspaceRoot → GUID-7.
+  | — | resolved
+- [GUID-5] CLOSED 2026-09-25 | `env`- und `shell`-Optionen für Prozess-
+  Operationen implementiert (OperationConfig + spawnSync: env-Merge über
+  process.env, shell boolean|string; Validierung in config.ts; Unit-Tests
+  inkl. Negativ-Nachweis ohne env). eigene operations.json auf env umgestellt
+  (sh -c-Wrapper entfallen). Rest: umschaltbares workspaceRoot → GUID-7.
+  | — | resolved
 - [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
   war dokumentiert, aber nicht implementiert. GELÖST (Commit „feat(guidance):
   reconnect downstream after transport failures"): ClientManager merkt sich
