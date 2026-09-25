@@ -5,6 +5,23 @@
 
 **Last updated:** 2026-09-25
 
+## 2026-09-25: Nachfragen-Kultur (3. Guidance-Workflow, completed — volle Duty-Compliance)
+
+- Session `session-58872e83…` → **completed**; erster Lauf mit ALLEN vier
+  Clear-Thought-Duties envelope-pflichtig und erfüllt (sequential_thinking,
+  issue_tree + decision_framework, assumption_xray + Probing,
+  metacognitive_monitoring 0.85).
+- responses.json: Kern-Satz (Chat-Fragen vor Absenden + Feld-Referenz +
+  Blocker-Faustregel) in allen 6 Nicht-verify-Instructions; Feld-Mapping:
+  understand/plan→openQuestions, review_plan→remainingConcerns,
+  implement→unresolvedIssues+deviations, review_impl→unresolvedFindings,
+  complete→deferredWork/nextSteps. verify bewusst ausgenommen.
+- plan.schema.json: openQuestions ergänzt. README: Operating-Note 'Asking
+  questions' (Commit 0b3fd42).
+- Neue EMMS-Episoden (via Capture-Gate geseedet):
+  gitnexus-detect-changes-misses-fresh-edits (detect_changes-Anomalie
+  beobachtet, kompensiert), guidance-schema-validator-caches-per-session.
+
 ## 2026-09-25: Capture-lessons-Integration (2. Guidance-Workflow, completed)
 
 - Session `session-1bb1d9c2…` → **completed**; `repository-analysis`-Gate
