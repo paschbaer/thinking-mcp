@@ -17,8 +17,8 @@
   `type` bleibt kompatibel, WorkflowEngine-Transportauswahl korrekt.
 - Tests (WSL, nvm node): guidance typecheck grün + **206/206**; Full Suite
   **521/521** (clear-thought 166, guidance 206, insight 106, stochastic 43).
-- Branches gelöscht (beide gemerged). Offen: push auf origin/develop (nicht
-  Teil des Auftrags); GUID-1/GUID-2 bleiben getrackt.
+- Branches gelöscht (beide gemerged). Push auf origin/develop erfolgt
+  (2026-09-25). GUID-1/GUID-2 bleiben getrackt.
 
 ## 2026-09-24: Guidance für Zed-Agent eingerichtet (feature/guidance-workflow-setup)
 
