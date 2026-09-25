@@ -470,3 +470,18 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   (HTTP, or `EMMS_SEED_TRANSPORT=stdio`) is a CI convenience only; a stdio
   store written this way must be merged back via
   `servers/server-insight/scripts/migrate-stdio-store.mjs`.
+
+## Guidance MCP Server (Docker-Deployment)
+
+- Guidance läuft als HTTP-Server in Docker: `http://localhost:3003/mcp`
+  (kein Bearer-Token, loopback). Das Repo `D:\repos\Thinking-MCP` ist als
+  `/workspace` in den Container gemountet.
+- **`start_workflow` zwingend mit `workspaceRoot: "/workspace"` aufrufen**
+  (Container-Pfad!). Host-Pfade wie `D:\repos\Thinking-MCP` oder WSL-Notation
+  werden mit „escapes the configured workspace" abgelehnt.
+- Downstream-Server (gitnexus :4747, insight :3002) verbinden **lazy**:
+  `get_downstream_status` zeigt `disconnected`, bis eine Operation sie das
+  erste Mal nutzt — das ist normal und kein Fehler.
+- Das `repository-analysis`-Gate (Phase complete) verifiziert den GitNexus-
+  Index via `check`; das Index-Refresh (`gitnexus analyze --no-stats`) bleibt
+  host-seitiger Vorschriftenschritt vor `complete` (WSL-CLI).
