@@ -482,6 +482,9 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
 - Downstream-Server (gitnexus :4747, insight :3002) verbinden **lazy**:
   `get_downstream_status` zeigt `disconnected`, bis eine Operation sie das
   erste Mal nutzt — das ist normal und kein Fehler.
-- Das `repository-analysis`-Gate (Phase complete) verifiziert den GitNexus-
-  Index via `check`; das Index-Refresh (`gitnexus analyze --no-stats`) bleibt
-  host-seitiger Vorschriftenschritt vor `complete` (WSL-CLI).
+- Das `repository-analysis`-Gate (Phase complete) verifiziert nur, dass der
+  GitNexus-Index existiert und queryable ist (`check`) — er **erkennt keine
+  Staleness und aktualisiert nichts**. Der Agent MUSS daher VOR
+  `complete_workflow` den Index selbst aktualisieren: im Terminal
+  `gitnexus analyze --no-stats` (WSL-CLI, siehe Architecture Map) und das
+  Ergebnis im Abschlussbericht nennen.
