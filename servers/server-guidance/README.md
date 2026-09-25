@@ -91,41 +91,6 @@ review-checked — Guidance can only gate deterministic, observable checks.
   task completion (checkboxes are hints, never proof), plan-change
   classification, traceability report, completion invariants.
 
-## Configuration assistant
-
-Instead of assembling `.guidance/` by hand, the built-in configuration
-assistant walks you through the design step by step — question by question,
-with options, rationale, and config references. The assistant is
-**stateless**: the agent accumulates the answers and passes them on every
-call. Flow (which tool when):
-
-| Step | Tool | Purpose |
-|---|---|---|
-| 1 | `setup_guidance_start` | Returns the question catalog (7 questions) and the first question with help text and options |
-| 2 | `setup_guidance_answer` `{answers}` | Takes the accumulated answers, validates them, and returns the next open question |
-| 3 | … repeat `setup_guidance_answer` | Until `done: true` — then `nextTool` points to `setup_guidance_generate` |
-| 4 | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload |
-| 5 | Agent writes the files | The server deliberately writes nothing — the agent places the files in the project root with its file tools |
-| 6 | Restart the server / new session | Config is snapshotted per session (`configurationVersion`) |
-
-Question catalog v1: `projectName`, `transport` (stdio / http-docker —
-controls `localhost` vs. `host.docker.internal` URLs and the egress
-allowlist), `profile` (plain / spec-kit), `shell` (optional, agent-facing —
-embedded in the understand instruction, because strict config validation
-would reject a `guidance.json` field), `insight` and `gitnexus` (on/off —
-control the downstream entries and their gates) and the gates preset
-(`standard`: lint opt + test opt + build REQ · `minimal`: build REQ only).
-Generation returns all six config files plus the seven submission schemas
-(from `examples/default-guidance/schemas`; if the directory is missing from
-the installation, the agent receives a copy hint instead of an error).
-
-Example prompt:
-
-> Use the configuration assistant to create a `.guidance/` configuration for
-> this project: run `setup_guidance_start`, walk me through every question
-> with its options, and once complete generate the files and write them to
-> the project root.
-
 ## Installation
 
 Requires Node ≥ 18.
@@ -242,6 +207,174 @@ Status codes on `/mcp`:
 - `GET /health` is deliberately unauthenticated (no sensitive data) so that
   Docker healthchecks and load balancers work without secrets.
 - stdio transport needs no token (the agent process IS the trust boundary).
+
+## Configuration assistant
+
+Instead of assembling `.guidance/` by hand, the built-in configuration
+assistant walks you through the design step by step — question by question,
+with options, rationale, and config references. The assistant is
+**stateless**: the agent accumulates the answers and passes them on every
+call. Flow (which tool when) — the full configuration reference follows in
+[Configuration](#configuration-guidance) below:
+
+| Step | Tool | Purpose |
+|---|---|---|
+| 1 | `setup_guidance_start` | Returns the question catalog (7 questions) and the first question with help text and options |
+| 2 | `setup_guidance_answer` `{answers}` | Takes the accumulated answers, validates them, and returns the next open question |
+| 3 | … repeat `setup_guidance_answer` | Until `done: true` — then `nextTool` points to `setup_guidance_generate` |
+| 4 | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload |
+| 5 | Agent writes the files | The server deliberately writes nothing — the agent places the files in the project root with its file tools |
+| 6 | Restart the server / new session | Config is snapshotted per session (`configurationVersion`) |
+
+Question catalog v1: `projectName`, `transport` (stdio / http-docker —
+controls `localhost` vs. `host.docker.internal` URLs and the egress
+allowlist), `profile` (plain / spec-kit), `shell` (optional, agent-facing —
+embedded in the understand instruction, because strict config validation
+would reject a `guidance.json` field), `insight` and `gitnexus` (on/off —
+control the downstream entries and their gates) and the gates preset
+(`standard`: lint opt + test opt + build REQ · `minimal`: build REQ only).
+Generation returns all six config files plus the seven submission schemas
+(from `examples/default-guidance/schemas`; if the directory is missing from
+the installation, the agent receives a copy hint instead of an error).
+
+Example prompt:
+
+> Use the configuration assistant to create a `.guidance/` configuration for
+> this project: run `setup_guidance_start`, walk me through every question
+> with its options, and once complete generate the files and write them to
+> the project root.
+
+## Using Guidance inside an agent (chat)
+
+Register the server in your MCP client:
+
+**stdio (Claude Code, VS Code, …):**
+
+```json
+{
+  "mcpServers": {
+    "guidance": {
+      "command": "node",
+      "args": ["/path/to/thinking-mcp/servers/server-guidance/dist/index.js"]
+    }
+  }
+}
+```
+
+**HTTP (Docker):**
+
+```json
+{
+  "mcpServers": {
+    "guidance": {
+      "type": "http",
+      "url": "http://localhost:3003/mcp",
+      "headers": { "Authorization": "Bearer <your-token>" }
+    }
+  }
+}
+```
+
+### The agent loop
+
+Guidance drives the agent through your configured phases. The protocol is
+always: **start → read guidance → do the work → submit → repeat**.
+
+1. **`start_workflow`** — starts a session and returns the instruction for the
+   initial phase (from `responses.json`).
+2. **`get_current_guidance`** — re-reads the current phase instruction at any
+   time (idempotent, read-only).
+3. **`submit_<phase>`** — submits the phase work; strict JSON-Schema validation;
+   on acceptance you get the *next* phase instruction plus the results of any
+   lifecycle operations.
+4. **`report_blocker` / `resume_workflow`** — blocked sessions are paused until
+   the user decides.
+5. **`complete_workflow`** — final report; required completion gates run.
+
+### Example: one full pass (plain profile)
+
+**Agent:** `start_workflow { "workspaceRoot": "/repo", "request": "Add rate limiting to the API" }`
+
+```json
+{
+  "accepted": true, "sessionId": "session-…", "currentPhase": "understand",
+  "guidance": {
+    "title": "Understand the Request",
+    "instruction": "Analyze the development request … Do not create an implementation plan yet.",
+    "requiredActions": ["Inspect the relevant repository context.", "…"]
+  }
+}
+```
+
+**Agent** (explores the repo, then):
+`submit_understanding { "sessionId": "session-…", "summary": "…", "assumptions": ["…"], "acceptanceCriteria": ["429 responses after 100 req/min per key"] }`
+
+```json
+{ "accepted": true, "currentPhase": "plan", "guidance": { "title": "Create the Implementation Plan", … } }
+```
+
+**Agent:** `submit_plan { "sessionId": "…", "tasks": [ { "id": "T001", … }, … ] }`
+→ phase `review_and_adjust_plan` → `submit_plan_review` → … → `implement` →
+`submit_implementation` (changed files, tests) → review-fix loop → `verify`.
+
+**At `verify`** the configured gates run automatically (`beforeExit`:
+lint, test, build). All succeed → transition to `complete`.
+
+**Agent:** `complete_workflow { "sessionId": "…", "summary": "…" }` — required
+completion operations (e.g. the configured GitNexus repository analysis) run;
+success closes the workflow, failures record blockers.
+
+### Example: blocked session + user decision
+
+If a required lifecycle operation fails (e.g. the test gate), the session stays
+in its phase and records a blocker:
+
+```json
+{ "accepted": false, "error": { "code": "required_hook_failed",
+  "message": "required lifecycle operations failed; remaining in phase" },
+  "currentPhase": "verify", "operations": [ { "id": "test", "status": "failed", "summary": "…" } ] }
+```
+
+The agent reports the failure to the user, fixes the code, re-submits. For
+decisions the agent cannot make (risk-class approvals, ambiguous blockers):
+
+**Agent:** `report_blocker { "sessionId": "…", "category": "user_decision_required", "description": "…" }`
+→ session `blocked` → after the user decides:
+`resume_workflow { "sessionId": "…" }`.
+
+### Example: Spec-Kit profile
+
+With `profile: "spec-kit"` the agent orchestrates an existing feature folder:
+
+```
+discover_spec_kit_feature { "sessionId": "…" }            → { "featureId": "001-rate-limit", "directory": "…" }
+import_spec_kit_artifacts { "sessionId": "…" }            → snapshot + validated task entities
+get_next_task { "sessionId": "…" }                        → { "nextTaskId": "T001" }
+start_task { "sessionId": "…", "taskIds": ["T001"] }      → batch state machine
+submit_task_implementation { "sessionId": "…", "evidence": [ { "taskId": "T001", "summary": "…", "changedFiles": [...], "testsAddedOrUpdated": [...] } ] }
+complete_task { "sessionId": "…", "taskId": "T001" }      → evidence-gated (checkbox ≠ proof)
+get_traceability_report { "sessionId": "…" }              → criteria ↔ task coverage
+validate_spec_kit_completion { "sessionId": "…", … }      → completion invariants
+```
+
+Plan deviations go through `propose_plan_change` (deterministic minor/major
+classification, approval + artifact-update lifecycle instead of silent edits).
+
+### Example prompts for starting a workflow
+
+Everything above is triggered by a single chat message to the agent. Two
+variants:
+
+> Start a Guidance workflow for: **(detailed description of the task)**
+
+The more detail the `understand` phase gets, the sharper the plan — name the
+affected files, the expected behavior, and any constraints.
+
+> Start a Guidance workflow for: **(short description of the task)**. Ask
+> concrete follow-up questions if anything is unclear.
+
+The short variant delegates scoping to the agent: it will ask targeted
+questions in the `understand` phase before committing to a plan.
 
 ## Configuration (`.guidance/`)
 
@@ -583,122 +716,6 @@ flowchart LR
   review — `summary_and_errors` + redaction is the safe default.
 - In Docker: put `.guidance/` into the mounted `workspace/` volume; scaffold
   creates a default there automatically on first start.
-
-## Using Guidance inside an agent (chat)
-
-Register the server in your MCP client:
-
-**stdio (Claude Code, VS Code, …):**
-
-```json
-{
-  "mcpServers": {
-    "guidance": {
-      "command": "node",
-      "args": ["/path/to/thinking-mcp/servers/server-guidance/dist/index.js"]
-    }
-  }
-}
-```
-
-**HTTP (Docker):**
-
-```json
-{
-  "mcpServers": {
-    "guidance": {
-      "type": "http",
-      "url": "http://localhost:3003/mcp",
-      "headers": { "Authorization": "Bearer <your-token>" }
-    }
-  }
-}
-```
-
-### The agent loop
-
-Guidance drives the agent through your configured phases. The protocol is
-always: **start → read guidance → do the work → submit → repeat**.
-
-1. **`start_workflow`** — starts a session and returns the instruction for the
-   initial phase (from `responses.json`).
-2. **`get_current_guidance`** — re-reads the current phase instruction at any
-   time (idempotent, read-only).
-3. **`submit_<phase>`** — submits the phase work; strict JSON-Schema validation;
-   on acceptance you get the *next* phase instruction plus the results of any
-   lifecycle operations.
-4. **`report_blocker` / `resume_workflow`** — blocked sessions are paused until
-   the user decides.
-5. **`complete_workflow`** — final report; required completion gates run.
-
-### Example: one full pass (plain profile)
-
-**Agent:** `start_workflow { "workspaceRoot": "/repo", "request": "Add rate limiting to the API" }`
-
-```json
-{
-  "accepted": true, "sessionId": "session-…", "currentPhase": "understand",
-  "guidance": {
-    "title": "Understand the Request",
-    "instruction": "Analyze the development request … Do not create an implementation plan yet.",
-    "requiredActions": ["Inspect the relevant repository context.", "…"]
-  }
-}
-```
-
-**Agent** (explores the repo, then):
-`submit_understanding { "sessionId": "session-…", "summary": "…", "assumptions": ["…"], "acceptanceCriteria": ["429 responses after 100 req/min per key"] }`
-
-```json
-{ "accepted": true, "currentPhase": "plan", "guidance": { "title": "Create the Implementation Plan", … } }
-```
-
-**Agent:** `submit_plan { "sessionId": "…", "tasks": [ { "id": "T001", … }, … ] }`
-→ phase `review_and_adjust_plan` → `submit_plan_review` → … → `implement` →
-`submit_implementation` (changed files, tests) → review-fix loop → `verify`.
-
-**At `verify`** the configured gates run automatically (`beforeExit`:
-lint, test, build). All succeed → transition to `complete`.
-
-**Agent:** `complete_workflow { "sessionId": "…", "summary": "…" }` — required
-completion operations (e.g. the configured GitNexus repository analysis) run;
-success closes the workflow, failures record blockers.
-
-### Example: blocked session + user decision
-
-If a required lifecycle operation fails (e.g. the test gate), the session stays
-in its phase and records a blocker:
-
-```json
-{ "accepted": false, "error": { "code": "required_hook_failed",
-  "message": "required lifecycle operations failed; remaining in phase" },
-  "currentPhase": "verify", "operations": [ { "id": "test", "status": "failed", "summary": "…" } ] }
-```
-
-The agent reports the failure to the user, fixes the code, re-submits. For
-decisions the agent cannot make (risk-class approvals, ambiguous blockers):
-
-**Agent:** `report_blocker { "sessionId": "…", "category": "user_decision_required", "description": "…" }`
-→ session `blocked` → after the user decides:
-`resume_workflow { "sessionId": "…" }`.
-
-### Example: Spec-Kit profile
-
-With `profile: "spec-kit"` the agent orchestrates an existing feature folder:
-
-```
-discover_spec_kit_feature { "sessionId": "…" }            → { "featureId": "001-rate-limit", "directory": "…" }
-import_spec_kit_artifacts { "sessionId": "…" }            → snapshot + validated task entities
-get_next_task { "sessionId": "…" }                        → { "nextTaskId": "T001" }
-start_task { "sessionId": "…", "taskIds": ["T001"] }      → batch state machine
-submit_task_implementation { "sessionId": "…", "evidence": [ { "taskId": "T001", "summary": "…", "changedFiles": [...], "testsAddedOrUpdated": [...] } ] }
-complete_task { "sessionId": "…", "taskId": "T001" }      → evidence-gated (checkbox ≠ proof)
-get_traceability_report { "sessionId": "…" }              → criteria ↔ task coverage
-validate_spec_kit_completion { "sessionId": "…", … }      → completion invariants
-```
-
-Plan deviations go through `propose_plan_change` (deterministic minor/major
-classification, approval + artifact-update lifecycle instead of silent edits).
 
 ## Working sample: this repository's own `.guidance/`
 
