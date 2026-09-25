@@ -3,7 +3,22 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
+
+## 2026-09-25: Merge beider Guidance-Feature-Branches nach develop + Review
+
+- Fast-Forward-Merge `7b8e5d5 → 5ced680` (deckt `feature/guidance-workflow-setup`
+  und `feature/guidance-http-downstream` ab, lineare History); develop ahead 3
+  gegenüber origin/develop.
+- Post-Merge-Review von `e601515` (einziger Code-Touch) gegen aktuellen Stand:
+  Config-Validierung (stdio/http-Union, URL-Check), fail-closed Allowlist
+  (Pflicht sobald ein enabled http-Server existiert), `${ENV}`-Resolution **nach**
+  configVersion-Hashing (Secrets im Hash-freien Bereich), Legacy-stdio ohne
+  `type` bleibt kompatibel, WorkflowEngine-Transportauswahl korrekt.
+- Tests (WSL, nvm node): guidance typecheck grün + **206/206**; Full Suite
+  **521/521** (clear-thought 166, guidance 206, insight 106, stochastic 43).
+- Branches gelöscht (beide gemerged). Offen: push auf origin/develop (nicht
+  Teil des Auftrags); GUID-1/GUID-2 bleiben getrackt.
 
 ## 2026-09-24: Guidance für Zed-Agent eingerichtet (feature/guidance-workflow-setup)
 
