@@ -826,7 +826,7 @@ ends the run in the `cancelled` terminal state.
 
 | Aspect | Detail | Config |
 |---|---|---|
-| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — no worktree (container gates verify `/workspace` = main checkout). **Last step:** update `README.md` (always in English) and the memory-bank files | `responses.json` → `implement` |
+| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — as a plain branch in the main checkout, or as a worktree under `/workspace/worktrees/<name>` for parallel work (see **Branch workflow + worktree support** below). **Last step:** update `README.md` (always in English) and the memory-bank files | `responses.json` → `implement` |
 | Submission | `submit_implementation` — required: `implementedTasks`; optional: `changedFiles`, `createdFiles`, `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`, `unresolvedIssues` | `schemas/implement.schema.json` |
 | Transitions | `submission_valid` → `review_and_fix_implementation`; `significant_plan_deviation` → back to `plan` (deviations must be planned, not silently absorbed) | `workflow.json` → `phases.implement.transitions` |
 
