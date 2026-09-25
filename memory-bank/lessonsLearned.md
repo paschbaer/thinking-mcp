@@ -153,6 +153,10 @@
 - **Tool-vs.-Contract-Lücke**: `experience_seed_lessons` validiert `minItems 1` — der dokumentierte „leeres Array = No-Op"-Vertrag des `capture-session-lessons`-Gates scheiterte im ersten produktiven Lauf (`required_hook_failed`, complete blockiert). Fix: Guard im Thin-Client `seed-lessons.mjs` (leeres Array → Exit 0 vor MCP-Transport). Lehre: Gate-Verträge am Tool-Verhalten verifizieren, nicht nur an der Doku — der erste produktive Lauf eines neuen Gates IST der eigentliche Test.
 - **Clear-Thought-Duty live erfüllt**: understand (first_principles mental_model), plan (issue_tree-Zerlegung) — die Referenzierungs-Pflicht wurde in beiden Submissions umgesetzt.
 
+- **gitnexus detect-changes Index-Lag**: detect-changes meldete 'No changes detected' trotz frischer Edits — Ursache ungeklärt; Kompensation: analyze vor detect-changes in derselben Session neu ausführen, bei Widerspruch explizite Checks (JSON-Validierung, Full-Read) nutzen. (Auch als EMMS-Episode geseedet.)
+- **Guidance-Validator-Cache**: workflow.json-Äderungen wirken nicht in laufenden Sessions — 
+  `WorkflowEngine.validatorFor` cached kompilierte Schemas per schemaRef für die Session-Lifetime; Schema-Edits sind wie aller .guidance-Config erst nach Restart/Neuer Session wirksam.
+
 ## 2026-09-25 — Guidance-Gates: Config-Snapshot + Template-Platzhalter (GUID-1/3 abgeschlossen)
 - **Config-Snapshot pro Session**: Der Guidance-Server lädt `.guidance/` beim Session-Start (configurationVersion-SHA im Session-State). Operation-Config-Änderungen auf Disk wirken NICHT in laufenden Sessions — Fix + Container-Restart + resume nötig. Prevention: Operations-Config vor `start_workflow` verifizieren, nicht mid-session patchen.
 - **`${project.name}`-Platzhalter wird nie aufgelöst**: mcpTool-Arguments liefen mit Literal-String ("Repository \"${project.name}\" not found") — Literal-Passthrough ist kein Gate-Success. Workaround: konkrete Werte hartcodieren; echter Fix (Placeholder-Engine) = GUID-3.
