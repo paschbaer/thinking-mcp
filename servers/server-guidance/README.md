@@ -803,6 +803,19 @@ recorded) or ends the run via `cancel_workflow`.
   reasoning). The duty is therefore instruction-enforced and review-checked,
   and assumes the agent has Clear-Thought loaded (guaranteed in this repo
   via `AGENTS.md`).
+- **Asking questions — channels per phase:** every non-`verify` phase
+  instructs the agent to ask open questions in the chat **before** submitting
+  and to reference them in the phase's schema field — `understand` →
+  `openQuestions`, `plan` → `openQuestions` (added to
+  `schemas/plan.schema.json`), `review_and_adjust_plan` →
+  `remainingConcerns`, `implement` → `unresolvedIssues` (+`deviations`),
+  `review_and_fix_implementation` → `unresolvedFindings`, `complete` →
+  `deferredWork`/`nextSteps`. **Blocker rule** (in every instruction):
+  `report_blocker` ONLY when the answer would materially change the
+  submission (a different plan or different code); otherwise document the
+  question, state the working assumption, and proceed — `report_blocker`
+  stops the session, so soft questions must not use it. `verify` is
+  deliberately excluded: deterministic gates have no question domain.
 - **Optional failing gates are tolerated by design:** in this sample `lint`
   and `test` are `required: false` (pre-existing prettier findings; native
   modules not buildable on alpine). Tighten them once your environment

@@ -19,6 +19,12 @@
         "type": "string"
       }
     },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "publicApiChanges": {
       "type": "boolean"
     },

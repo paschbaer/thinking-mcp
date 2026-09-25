@@ -3,7 +3,7 @@
   "responses": {
     "understand": {
       "title": "Understand the Request",
-      "instruction": "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least one sequential_thinking pass to structure the analysis and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. Do not create an implementation plan yet.",
+      "instruction": "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least one sequential_thinking pass to structure the analysis and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. Do not create an implementation plan yet. Ask open questions in the chat before submitting and reference them in `openQuestions`; escalate via `report_blocker` ONLY when the answer would materially change this submission (a different plan or different code) — otherwise document the question, state your working assumption explicitly, and proceed.",
       "requiredActions": [
         "Inspect the relevant repository context.",
         "Run at least one Clear-Thought sequential_thinking pass and reference its conclusions in the submission.",
@@ -13,26 +13,26 @@
     },
     "plan": {
       "title": "Create the Implementation Plan",
-      "instruction": "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. Do not start implementation yet.",
+      "instruction": "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. Do not start implementation yet. Ask open questions in the chat before submitting and reference them in `openQuestions`; escalate via `report_blocker` ONLY when the answer would materially change this submission (a different plan or different code) — otherwise document the question, state your working assumption explicitly, and proceed.",
       "requiredActions": [
         "Run at least one Clear-Thought sequential_thinking or decision_framework pass for decomposition/prioritization and reference its results in the plan submission."
       ]
     },
     "review_and_adjust_plan": {
       "title": "Review and Adjust the Plan",
-      "instruction": "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives, using the Clear-Thought tools: stress-test the plan's assumptions with assumption_xray, socratic_method, or argument_map, and reference the reasoning results in the findings. Submit the complete adjusted plan.",
+      "instruction": "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives, using the Clear-Thought tools: stress-test the plan's assumptions with assumption_xray, socratic_method, or argument_map, and reference the reasoning results in the findings. Submit the complete adjusted plan. Ask open questions in the chat before submitting and reference them in `remainingConcerns`; escalate via `report_blocker` ONLY when the answer would materially change this submission (a different plan or different code) — otherwise document the question, state your working assumption explicitly, and proceed.",
       "requiredActions": [
         "Run at least one Clear-Thought stress-test pass (assumption_xray, socratic_method, or argument_map) and reference its results in the findings."
       ]
     },
     "implement": {
       "title": "Implement the Approved Plan",
-      "instruction": "Implement the approved plan. Follow the approved task identifiers, avoid unrelated changes, and report all changed, created, and deleted files plus deviations.",
+      "instruction": "Implement the approved plan. Follow the approved task identifiers, avoid unrelated changes, and report all changed, created, and deleted files plus deviations. Ask open questions in the chat before submitting and reference them in `unresolvedIssues` (together with `deviations`); escalate via `report_blocker` ONLY when the answer would materially change this submission (a different plan or different code) — otherwise document the question, state your working assumption explicitly, and proceed.",
       "requiredActions": []
     },
     "review_and_fix_implementation": {
       "title": "Review and Fix the Implementation",
-      "instruction": "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting, using the Clear-Thought tools: run metacognitive_monitoring as a final confidence check before submitting, and debugging_approach for non-trivial findings — reference the results in the findings.",
+      "instruction": "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting, using the Clear-Thought tools: run metacognitive_monitoring as a final confidence check before submitting, and debugging_approach for non-trivial findings — reference the results in the findings. Ask open questions in the chat before submitting and reference them in `unresolvedFindings`; escalate via `report_blocker` ONLY when the answer would materially change this submission (a different plan or different code) — otherwise document the question, state your working assumption explicitly, and proceed.",
       "requiredActions": [
         "Run Clear-Thought metacognitive_monitoring as a final confidence check before submitting; when findings are non-trivial, additionally apply debugging_approach and reference its results in the findings."
       ]
@@ -44,7 +44,7 @@
     },
     "complete": {
       "title": "Complete the Workflow",
-      "instruction": "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (per AGENTS.md — the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes per .github/prompts/capture-lessons.prompt.md, and write validated lessons (redacted, [{slug, observation, cause, fix}]) to .guidance/state/session-lessons.json — ALWAYS create the file, using an empty array if there are no validated lessons. Guidance then seeds this file into the experience-memory server (capture-session-lessons gate) and runs all mandatory completion operations before completion.",
+      "instruction": "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (per AGENTS.md — the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes per .github/prompts/capture-lessons.prompt.md, and write validated lessons (redacted, [{slug, observation, cause, fix}]) to .guidance/state/session-lessons.json — ALWAYS create the file, using an empty array if there are no validated lessons. Guidance then seeds this file into the experience-memory server (capture-session-lessons gate) and runs all mandatory completion operations before completion. Ask open questions in the chat before submitting and reference them in `deferredWork`/`nextSteps`; escalate via `report_blocker` ONLY when the answer would materially change this submission (a different plan or different code) — otherwise document the question, state your working assumption explicitly, and proceed.",
       "requiredActions": []
     }
   }
