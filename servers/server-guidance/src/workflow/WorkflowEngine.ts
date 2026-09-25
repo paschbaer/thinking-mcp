@@ -282,6 +282,16 @@ export class WorkflowEngine {
     return out;
   }
 
+  private ctxFor(session: { workspaceRoot: string; request: string }): OperationContext {
+    return {
+      workspaceRoot: session.workspaceRoot,
+      templateVars: {
+        "session.request": session.request,
+        "project.name": this.config.project.name,
+      },
+    };
+  }
+
   async startWorkflow(input: { workspaceRoot: string; request: string; workflowId?: string; metadata?: Record<string, unknown> }): Promise<StartResult> {
     const sessionId = `session-${randomUUID()}`;
     const now = new Date().toISOString();
@@ -313,7 +323,7 @@ export class WorkflowEngine {
     for (const id of this.definition.phases[session.currentPhase]?.lifecycle?.beforeEnter ?? []) {
       const op = this.operations[id];
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
-      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      const run = await this.operationEngine.executeRequired([op], this.ctxFor(session));
       for (const r of run.results) {
         opResultsStart.push(this.exposeOpResult(r, op));
         this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
@@ -375,7 +385,7 @@ export class WorkflowEngine {
     for (const id of ids) {
       const op = this.operations[id];
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
-      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      const run = await this.operationEngine.executeRequired([op], this.ctxFor(session));
       for (const r of run.results) {
         out.push(this.exposeOpResult(r, op));
         if (op.required && r.status !== "succeeded") {
@@ -502,7 +512,7 @@ export class WorkflowEngine {
     let opResults: { id: string; status: string; summary: string }[] = [];
     let opsSucceeded = true;
     if (ops.length > 0) {
-      const ctx: OperationContext = { workspaceRoot: session.workspaceRoot };
+      const ctx: OperationContext = this.ctxFor(session);
       for (const op of ops) {
         this.recordDownstreamState(sessionId, op.operationId, "running", "");
       }
@@ -533,7 +543,7 @@ export class WorkflowEngine {
     for (const id of beforeEnterIds) {
       const op = this.operations[id];
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
-      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      const run = await this.operationEngine.executeRequired([op], this.ctxFor(session));
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));
         this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
@@ -562,7 +572,7 @@ export class WorkflowEngine {
     for (const id of afterExitIds) {
       const op = this.operations[id];
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
-      const run = await this.operationEngine.executeRequired([op], { workspaceRoot: session.workspaceRoot });
+      const run = await this.operationEngine.executeRequired([op], this.ctxFor(session));
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));
         this.recordDownstreamState(sessionId, r.operationId, r.status, r.summary);
@@ -631,7 +641,7 @@ export class WorkflowEngine {
       if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
       return op;
     });
-    const run = await this.operationEngine.executeRequired(ops, { workspaceRoot: session.workspaceRoot });
+    const run = await this.operationEngine.executeRequired(ops, this.ctxFor(session));
     const opById = new Map(ops.map((op) => [op.operationId, op]));
     const opResults = run.results.map((r) => this.exposeOpResult(r, opById.get(r.operationId)));
 
@@ -684,7 +694,7 @@ export class WorkflowEngine {
         if (!op) throw new GuidanceError("operation_not_configured", `operation ${id} is not configured`, { recoverable: false });
         return op;
       });
-      const run = await this.operationEngine.executeRequired(ops, { workspaceRoot: session.workspaceRoot });
+      const run = await this.operationEngine.executeRequired(ops, this.ctxFor(session));
       const opById = new Map(ops.map((op) => [op.operationId, op]));
       const opResults = run.results.map((r) => this.exposeOpResult(r, opById.get(r.operationId)));
       if (!run.allSucceeded) {

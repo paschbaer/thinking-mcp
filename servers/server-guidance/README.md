@@ -953,9 +953,26 @@ container via `host.docker.internal` (see `downstream-servers.json`).
 | Insight (`:3002/mcp`) | downstream MCP, `required: false` | `query-project-insights` (entering `understand`) and `capture-session-lessons` (before `complete`) | insight query fails as a tolerated failure; the capture gate is **two-stage**: an empty lessons file succeeds without ever contacting Insight, while non-empty lessons make Insight a **hard dependency** (blocking failure, `complete` unreachable) |
 | GitNexus (`:4747/api/mcp`) | downstream MCP, `required: true` | `repository-analysis` gate before `complete` (see its composite fallback) | gate fails and blocks completion |
 
-Config locations: transport and capabilities in `downstream-servers.json`,
-gate wiring in `operations.json` and `workflow.json`, agent duties in
-`responses.json`.
+Config locations: transport and capabilities in `downstream-servers.json`, gate wiring in `operations.json` and `workflow.json`, agent duties in `responses.json`.
+
+#### Template arguments and per-operation environment
+
+`mcpTool` operations support two argument modes:
+
+- `mode: "fixed"` — the value is passed to the downstream tool verbatim.
+- `mode: "template"` — `${token}` placeholders are resolved before invocation.
+  Supported tokens: `${session.request}` (the workflow request text) and
+  `${project.name}` (from `guidance.json`). **Unknown tokens fail fast** with
+  `operation_arguments_invalid` — a literal passthrough is never sent
+  (GUID-3).
+
+`process` operations support two optional attributes (GUID-5):
+
+- `env` — object of string variables merged over the inherited environment
+  (e.g. `EMMS_HTTP_URL` for the capture-session-lessons seed script).
+- `shell` — `true` runs the command through the default shell, a string
+  names the shell executable. Default: off (argv execution, no shell
+  interpretation).
 
 ### Example prompt
 

@@ -452,6 +452,22 @@ function validateOperations(operationsFile: Record<string, unknown>): void {
     if (typeof type !== "string" || !OPERATION_TYPES.includes(type)) {
       throw new ConfigurationError("configuration_invalid", `operations.${id}: unknown type ${String(type)}`);
     }
+    // GUID-5: per-operation environment and shell for process operations.
+    const env = raw["env"];
+    if (env !== undefined) {
+      if (typeof env !== "object" || env === null || Array.isArray(env)) {
+        throw new ConfigurationError("configuration_invalid", `operations.${id}: env must be an object of strings`);
+      }
+      for (const [k, v] of Object.entries(env as Record<string, unknown>)) {
+        if (typeof v !== "string") {
+          throw new ConfigurationError("configuration_invalid", `operations.${id}: env.${k} must be a string`);
+        }
+      }
+    }
+    const shell = raw["shell"];
+    if (shell !== undefined && typeof shell !== "boolean" && typeof shell !== "string") {
+      throw new ConfigurationError("configuration_invalid", `operations.${id}: shell must be a boolean or a string`);
+    }
     const sampling = raw["sampling"] as { purpose?: unknown; maxOutputTokens?: unknown; maximumAttempts?: unknown } | undefined;
     if (type === "sampling") {
       if (typeof sampling?.purpose !== "string" || sampling.purpose.length === 0) {
