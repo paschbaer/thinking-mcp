@@ -9,6 +9,43 @@
 
 ## Tracked Follow-ups
 
+- [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
+  ist in README dokumentiert, aber im ClientManager nicht implementiert (betrifft
+  stdio UND http; bei stateful HTTP-Downstreams wie insight/clear-thought stirbt
+  die MCP-Session bei Server-Restart ⇒ transport failures bis Neustart von
+  guidance). | Trigger: erstes produktives HTTP-Downstream-Deployment oder
+  ClientManager-Umbruch. | action required
+- [HD-2] LOW | `connection.startupTimeoutSeconds` ist nicht verdrahtet —
+  `ClientManager.handshakeTimeoutMs` ist hardcoded 10 s (pre-existing, für kalt
+  startende HTTP-Downstreams relevanter). | Trigger: nächster Touch von
+  ClientManager.ensureReady. | accepted with rationale (klein, bewusst
+  zurückgestellt)
+- [HD-3] LOW | HTTP-E2E-Test deckt nur stateless Downstream (guidance
+  createHttpApp) ab; stateful-Session-Verhalten des
+  StreamableHTTPClientTransport gegen insight (sessionIdGenerator) ist nicht
+  automatisiert getestet. | Trigger: insight als Downstream in einer
+  guidance-Config produktiv gesetzt wird. | GELÖST (2026-09-25, manuell
+  verifiziert): Live-Check mit echtem ClientManager gegen die statefulen
+  Server — insight: ready, 20 Tools, invoke → tool_reported (korrekte
+  Fehlerklassifikation ohne Args); gitnexus :4747/api/mcp: ready, 17 Tools,
+  invoke list_repos → success. Session-Handling (mcp-session-id) vom SDK-Client
+  bestätigt. Regressionsschutz als automatisierter Test bleibt offen — das
+  Live-System ist von CI aus nicht adressierbar; Ersatz über einen statefulen
+  In-Process-HTTP-Stub beim nächsten Touch des Tests. | action required
+  (nur der automatisierte Test)
+- [x] HD-4 | INFO | MCP-Toolzugriff 2026-09-25: (a) Clear-Thought/GitNexus
+  Context-Server-Timeouts (Impact grep-substituiert). (b) Docker-MCP (:4747)
+  hat eigenen leeren Registry (sieht nur …\\GitNexus\\workspace) — WSL-CLI ist
+  separater Wahrheitsraum. (c) WSL-Index war inkonsistent (quarantined WAL,
+  /mnt/c-Duplikat). GELÖST: gitnexus remove /mnt/c-Duplikat + clean +
+  analyze --no-stats → detect-changes läuft vollständig (11 files, 41 symbols,
+  risk HIGH — erwartbar: loadConfig/WorkflowEngine sind Startup-kritisch;
+  Änderungen additiv/rückwärtskompatibel, 206/206 Tests + tsc grün als
+  Kompensation). Offen (akzeptiert): Docker-MCP sieht D:\repos nicht — für
+  MCP-seitige Tools wäre ein zusätzlicher Container-Mount nötig; bis dahin
+  CLI (WSL) als Quelle. | Trigger: Nutzung der GitNexus-MCP-Tools für dieses
+  Repo. | resolved (Rest: accepted with rationale)
+
 - [RB-10] LOW (pending rescan) | clear-thought published to Smithery:
   paschbaer/clear-thought created (PUT /servers 201), release 954d7892
   (202/SUCCESS), record PATCHed; registry lists 33/33 tools with

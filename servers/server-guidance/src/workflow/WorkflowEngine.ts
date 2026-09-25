@@ -161,7 +161,7 @@ export class WorkflowEngine {
       Object.entries(opsRaw).map(([id, cfg]) => [id, { ...cfg, operationId: id }]),
     );
     const downstream = this.config.downstreamServers as {
-      servers?: Record<string, { enabled?: boolean; required?: boolean; trustLevel?: string; transport?: { type: string; command?: { executable: string; args: string[]; cwd?: string } }; connection?: { requestTimeoutSeconds?: number }; capabilities?: { allow?: { tools?: string[] } } }>;
+      servers?: Record<string, { enabled?: boolean; required?: boolean; trustLevel?: string; transport?: { type?: string; command?: { executable: string; args: string[]; cwd?: string }; http?: { url: string; headers?: Record<string, string> } }; connection?: { requestTimeoutSeconds?: number }; capabilities?: { allow?: { tools?: string[] } } }>;
     } | undefined;
     const servers = downstream?.servers ?? {};
     const enabled = Object.entries(servers).filter(([, v]) => v.enabled !== false);
@@ -187,7 +187,15 @@ export class WorkflowEngine {
             approved: opForEgress?.approved === true,
           });
           const serverCfg = servers[serverId];
-          const status = await this.clientManager!.ensureReady(serverId, serverCfg ? { executable: serverCfg.transport?.command?.executable ?? "", args: serverCfg.transport?.command?.args ?? [], cwd: serverCfg.transport?.command?.cwd } : undefined);
+          const transportCfg = serverCfg?.transport;
+          const status = await this.clientManager!.ensureReady(
+            serverId,
+            serverCfg && transportCfg?.type === "http" && transportCfg.http
+              ? { type: "http", url: transportCfg.http.url, headers: transportCfg.http.headers }
+              : serverCfg && transportCfg?.command
+                ? { type: "stdio", executable: transportCfg.command.executable ?? "", args: transportCfg.command.args ?? [], cwd: transportCfg.command.cwd }
+                : undefined,
+          );
           const tool = status.tools.find((t) => t.name === toolName);
           const pinnedHash = this.pinnedHashes.get(`${serverId}:${toolName}`);
           if (pinnedHash && tool && tool.inputSchemaHash !== pinnedHash) {

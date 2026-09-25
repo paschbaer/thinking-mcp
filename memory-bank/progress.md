@@ -3,9 +3,15 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-16
+**Last updated:** 2026-09-24
 
 ## What Works
+
+- **Guidance-Zed-Setup (2026-09-24, `feature/guidance-workflow-setup`)**:
+  `.guidance/` im Repo-Root (plain, Standard-Flow), Compose-Override mit
+  Repo-Mount + isoliertem node_modules-Volume, Gates konfiguriert (lint/test/
+  repository-analysis `required:false` mit dokumentierten Container-Caveats).
+  Container-Verifizierung: `/health` configured:true, `/mcp` 200.
 
 - **Root-README user-first (2026-09-16, `6ddba51` + `dd2e00d`)**: Quick Start,
   Toolset-Übersicht, Agent-Guide/Skill-Generator-Doku, Docker-MCP-HTTP-Config
@@ -315,3 +321,17 @@ Memory-bank gesynct (L264/L266/CB-1/CB-2/CB-9 → [x] mit Evidence).
 (L305d); Push der neuen Commits; danach Guidance produktivsetzbar.
 **Current state:** Security-/Policy-Lücken geschlossen — Guidance aus
 Sicherheits­sicht produktionsreif; Rest = Ops/Monitoring + Remote-Downstream-Spec.
+
+### 2026-09-25 — Guidance HTTP-Downstream (gitnexus/insight via HTTP/Docker)
+**What works:** `transport.type "http"` für downstream-servers.json (URL +
+Header mit `${ENV_VAR}`, fail-closed beim Config-Load); Egress-Host-Allowlist
+`policies.egress.httpHostAllowlist` (Pflicht bei http, exakter Match);
+ClientManager `DownstreamTransportConfig` + StreamableHTTPClientTransport;
+WorkflowEngine-Durchreichung; README-Doku (Config-Beispiel insight via
+host.docker.internal). 206/206 Guidance-Tests + tsc grün.
+**What's left:** HD-1 (Reconnect), HD-2 (startupTimeoutSeconds-Wiring),
+HD-3-Rest (stateful-Session als automatisierter Test); Merge nach develop
+(Rebase). GitNexus: Docker-MCP sieht D:\repos nicht (HD-4-Rest, akzeptiert).
+**Current state:** COMMITTED als 897c342 (feature/guidance-http-downstream);
+Live-Access-Check gegen insight/gitnexus bestanden (ClientManager-Stack,
+inkl. aus dem guidance-Container via host.docker.internal).

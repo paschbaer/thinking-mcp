@@ -139,3 +139,118 @@ describe("config loader (FR-009, FR-026, R15)", () => {
     expect(() => loadConfig(dir)).toThrowError(/configuration_invalid/);
   });
 });
+
+describe("downstream http transports (fail-closed egress + secret resolution)", () => {
+  let savedToken: string | undefined;
+  beforeEach(() => { savedToken = process.env.INSIGHT_TEST_TOKEN; });
+  afterEach(() => {
+    if (savedToken === undefined) delete process.env.INSIGHT_TEST_TOKEN;
+    else process.env.INSIGHT_TEST_TOKEN = savedToken;
+  });
+
+  function writeConfig(opts: {
+    transport?: object;
+    allowlist?: unknown;
+    omitAllowlist?: boolean;
+    policiesFile?: boolean;
+  } = {}): void {
+    write("downstream-servers.json", {
+      version: 2,
+      servers: {
+        insight: { enabled: true, required: false, trustLevel: "trusted", transport: opts.transport },
+      },
+    });
+    const guidance: Record<string, unknown> = {
+      ...minimalGuidance,
+      downstreamServers: { file: "downstream-servers.json" },
+    };
+    if (opts.policiesFile !== false) {
+      const policies: Record<string, unknown> = {
+        version: 2,
+        trustLevels: { trusted: { dataEgress: "project_data" } },
+      };
+      if (!opts.omitAllowlist) policies.egress = { httpHostAllowlist: opts.allowlist ?? ["localhost:3002"] };
+      write("policies.json", policies);
+      guidance.policies = { file: "policies.json" };
+    }
+    write("guidance.json", guidance);
+  }
+
+  const httpTransport = (url = "http://localhost:3002/mcp", withAuth = true): object => ({
+    type: "http",
+    http: {
+      url,
+      ...(withAuth ? { headers: { Authorization: "Bearer ${INSIGHT_TEST_TOKEN}" } } : {}),
+    },
+  });
+
+  it("resolves env-var headers at load time and keeps secrets out of configVersion", () => {
+    process.env.INSIGHT_TEST_TOKEN = "secret-token-value";
+    writeConfig({ transport: httpTransport(), allowlist: ["localhost:3002"] });
+    const cfg = loadConfig(dir);
+    const servers = cfg.downstreamServers as { servers: Record<string, { transport: { http: { headers: Record<string, string> } } }> };
+    expect(servers.servers.insight!.transport.http.headers.Authorization).toBe("Bearer secret-token-value");
+    // Hash stability: rotating the token must not change configVersion.
+    process.env.INSIGHT_TEST_TOKEN = "other-token-value";
+    const cfg2 = loadConfig(dir);
+    expect(cfg2.configVersion).toBe(cfg.configVersion);
+    expect(
+      (cfg2.downstreamServers as typeof servers).servers.insight!.transport.http.headers.Authorization,
+    ).toBe("Bearer other-token-value");
+  });
+
+  it("fails closed when the header env variable is unset", () => {
+    delete process.env.INSIGHT_TEST_TOKEN;
+    writeConfig({ transport: httpTransport(), allowlist: ["localhost:3002"] });
+    expect(() => loadConfig(dir)).toThrowError(/INSIGHT_TEST_TOKEN/);
+  });
+
+  it("denies http hosts outside the egress allowlist", () => {
+    process.env.INSIGHT_TEST_TOKEN = "t";
+    writeConfig({ transport: httpTransport("http://evil.example.com/mcp"), allowlist: ["localhost:3002"] });
+    expect(() => loadConfig(dir)).toThrowError(/not allowlisted/);
+  });
+
+  it("denies http transports entirely when no egress allowlist is configured", () => {
+    process.env.INSIGHT_TEST_TOKEN = "t";
+    writeConfig({ transport: httpTransport(), omitAllowlist: true });
+    expect(() => loadConfig(dir)).toThrowError(/httpHostAllowlist/);
+  });
+
+  it("skips resolution and egress checks for disabled servers", () => {
+    write("downstream-servers.json", {
+      version: 2,
+      servers: {
+        insight: { enabled: false, transport: httpTransport("http://evil.example.com/mcp") },
+      },
+    });
+    write("guidance.json", { ...minimalGuidance, downstreamServers: { file: "downstream-servers.json" } });
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+
+  it("rejects unknown transport types and bad http urls", () => {
+    process.env.INSIGHT_TEST_TOKEN = "t";
+    writeConfig({ transport: { type: "grpc", http: { url: "http://localhost:3002/mcp" } }, allowlist: ["localhost:3002"] });
+    expect(() => loadConfig(dir)).toThrowError(/transport.type/);
+    writeConfig({ transport: { type: "http", http: { url: "ftp://localhost:3002" } }, allowlist: ["localhost:3002"] });
+    expect(() => loadConfig(dir)).toThrowError(/http\(s\)/);
+    writeConfig({ transport: { type: "http" }, allowlist: ["localhost:3002"] });
+    expect(() => loadConfig(dir)).toThrowError(/transport.http.url/);
+    writeConfig({ transport: { type: "stdio", command: {} }, allowlist: ["localhost:3002"] });
+    expect(() => loadConfig(dir)).toThrowError(/command.executable/);
+  });
+
+  it("accepts stdio transports unchanged (backward compatibility)", () => {
+    write("downstream-servers.json", {
+      version: 2,
+      servers: {
+        gitnexus: {
+          enabled: true,
+          transport: { type: "stdio", command: { executable: "gitnexus", args: ["mcp"] } },
+        },
+      },
+    });
+    write("guidance.json", { ...minimalGuidance, downstreamServers: { file: "downstream-servers.json" } });
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+});

@@ -83,6 +83,41 @@ describe("ClientManager (FR-031/033/034/042, SC-008)", () => {
   });
 });
 
+describe("ClientManager http transport (FR-031 HTTP extension)", () => {
+  it("connects over streamable HTTP and discovers tools via the http config branch", async () => {
+    const { createHttpApp } = await import("../../src/server.js");
+    const app = createHttpApp({
+      workspaceRoot: dir,
+      configDir: join(dir, ".guidance"),
+      stateDir: join(dir, ".guidance", "state"),
+    });
+    const httpServer = app.listen(0, "127.0.0.1");
+    await new Promise<void>((r) => httpServer.once("listening", r));
+    const port = (httpServer.address() as { port: number }).port;
+    try {
+      const mgr = new ClientManager();
+      const status = await mgr.ensureReady("guidance-remote", {
+        type: "http",
+        url: `http://127.0.0.1:${port}/mcp`,
+        headers: { "x-guidance-test": "1" },
+      });
+      expect(status.status, status.error).toBe("ready");
+      expect(status.tools.length).toBeGreaterThan(0);
+      await mgr.shutdown();
+    } finally {
+      httpServer.close();
+    }
+  });
+
+  it("handshake timeout yields status failed for an unreachable http endpoint", async () => {
+    const mgr = new ClientManager();
+    mgr.handshakeTimeoutMs = 200;
+    const status = await mgr.ensureReady("dark", { type: "http", url: "http://127.0.0.1:9/mcp" });
+    expect(status.status).toBe("failed");
+    expect(status.error).toBeDefined();
+  });
+});
+
 describe("counting invoker (SC-005 evidence helper)", () => {
   it("counts invocations for idempotency assertions", async () => {
     const inv = createCountingInvoker();

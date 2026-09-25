@@ -295,7 +295,9 @@ const hash = createHash("sha256");
 
 const OPERATION_TYPES = ["process", "mcpTool", "mcpResource", "mcpPrompt", "sampling", "elicitation", "composite"];
 
-/** Deterministic validation of the operations file (T031, FR-039/041). */
+/** Deterministic validation of the downstream servers file (T031, FR-039/041). */
+const TRANSPORT_TYPES = ["stdio", "http"] as const;
+
 function validateDownstreamServers(data: Record<string, unknown>): void {
   const servers = data["servers"];
   if (servers === undefined || servers === null) return;
@@ -307,6 +309,116 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
     const t = connection?.requestTimeoutSeconds;
     if (t !== undefined && (typeof t !== "number" || !Number.isFinite(t) || t <= 0)) {
       throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.requestTimeoutSeconds must be a positive finite number`);
+    }
+    const transport = raw["transport"];
+    if (transport === undefined) continue;
+    if (typeof transport !== "object" || Array.isArray(transport)) {
+      throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport must be an object`);
+    }
+    const tr = transport as { type?: unknown; command?: unknown; http?: unknown };
+    if (tr.type !== undefined && !TRANSPORT_TYPES.includes(tr.type as (typeof TRANSPORT_TYPES)[number])) {
+      throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.type must be one of ${TRANSPORT_TYPES.join(" | ")}`);
+    }
+    if ((tr.type ?? "stdio") === "stdio") {
+      const command = tr.command as { executable?: unknown; args?: unknown } | undefined;
+      if (typeof command?.executable !== "string" || command.executable.length === 0) {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.command.executable is required for stdio transport`);
+      }
+      if (command.args !== undefined && (!Array.isArray(command.args) || command.args.some((a) => typeof a !== "string"))) {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.command.args must be an array of strings`);
+      }
+    } else {
+      const http = tr.http as { url?: unknown; headers?: unknown } | undefined;
+      if (typeof http?.url !== "string" || http.url.length === 0) {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.http.url is required for http transport`);
+      }
+      let parsed: URL;
+      try {
+        parsed = new URL(http.url);
+      } catch {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.http.url is not a valid URL`);
+      }
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.http.url must use http(s)`);
+      }
+      if (http.headers !== undefined) {
+        if (typeof http.headers !== "object" || Array.isArray(http.headers)) {
+          throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.http.headers must be an object of strings`);
+        }
+        for (const [k, v] of Object.entries(http.headers as Record<string, unknown>)) {
+          if (typeof v !== "string") {
+            throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.http.headers.${k} must be a string`);
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * HTTP-transport post-processing (fail-closed egress + secret resolution).
+ * For every *enabled* server with transport.type "http":
+ * 1. the URL host must appear in policies.egress.httpHostAllowlist (an absent
+ *    allowlist is a configuration error — HTTP egress is denied by default,
+ *    unlike stdio which has no network egress by itself);
+ * 2. `${ENV_VAR}` references in transport.http.headers are resolved from
+ *    process.env — unset variables fail the config load.
+ * Runs AFTER configVersion hashing, so resolved secrets never enter the
+ * configuration hash; enabled=false servers are skipped entirely.
+ */
+function applyHttpTransports(loaded: Record<string, Record<string, unknown>>): void {
+  const serversFile = loaded["downstreamServers"];
+  if (!serversFile) return;
+  const servers = serversFile["servers"] as Record<string, Record<string, unknown>> | undefined;
+  if (!servers) return;
+  const usesHttp = Object.entries(servers).some(
+    ([id, raw]) =>
+      raw["enabled"] !== false &&
+      (raw["transport"] as { type?: string } | undefined)?.type === "http",
+  );
+  if (!usesHttp) return;
+  const policies = loaded["policies"] as { egress?: { httpHostAllowlist?: unknown } } | undefined;
+  const allowlistRaw = policies?.egress?.httpHostAllowlist;
+  if (!Array.isArray(allowlistRaw) || allowlistRaw.some((e) => typeof e !== "string" || e.length === 0)) {
+    throw new ConfigurationError(
+      "configuration_invalid",
+      "policies.egress.httpHostAllowlist must be a non-empty array of strings when any enabled server uses transport.type http (fail-closed egress)",
+    );
+  }
+  const allowlist = allowlistRaw as string[];
+  for (const [id, raw] of Object.entries(servers)) {
+    if (raw["enabled"] === false) continue;
+    const transport = raw["transport"] as { type?: string; http?: { url?: string; headers?: Record<string, string> } } | undefined;
+    if (transport?.type !== "http") continue;
+    const url = transport.http?.url ?? "";
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: transport.http.url is not a valid URL`);
+    }
+    if (!allowlist.includes(parsed.host)) {
+      throw new ConfigurationError(
+        "configuration_invalid",
+        `downstreamServers.${id}: http host "${parsed.host}" is not allowlisted in policies.egress.httpHostAllowlist`,
+      );
+    }
+    const headers = transport.http?.headers;
+    if (headers) {
+      const resolved: Record<string, string> = {};
+      for (const [key, value] of Object.entries(headers)) {
+        resolved[key] = value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_match, name: string) => {
+          const env = process.env[name];
+          if (env === undefined || env === "") {
+            throw new ConfigurationError(
+              "configuration_invalid",
+              `downstreamServers.${id}: environment variable ${name} (transport.http.headers.${key}) is not set`,
+            );
+          }
+          return env;
+        });
+      }
+      transport.http!.headers = resolved;
     }
   }
 }
@@ -412,6 +524,8 @@ export function loadConfig(configDir: string): LoadedConfig {
   }
 
   const configVersion = `sha256:${hash.copy().update(hashable.join("\n")).digest("hex")}`;
+  // Resolution happens AFTER the hash: secrets stay out of configVersion.
+  applyHttpTransports(loaded);
   return {
     configDir,
     project: cfg.project,
