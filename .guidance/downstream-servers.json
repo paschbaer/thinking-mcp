@@ -11,7 +11,7 @@
         "http": { "url": "http://host.docker.internal:4747/api/mcp" }
       },
       "capabilities": {
-        "allow": { "tools": ["analyze", "status", "list_repos"], "resources": [], "prompts": [] }
+        "allow": { "tools": ["check", "query", "detect_changes", "list_repos"], "resources": [], "prompts": [] }
       },
       "connection": {
         "startupTimeoutSeconds": 30,

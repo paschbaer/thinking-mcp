@@ -35,18 +35,18 @@
       "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
     },
     "repository-analysis": {
-      "description": "Analyze the repository using GitNexus over HTTP (fallback: local CLI). Blocking gate per AGENTS.md: `gitnexus analyze --no-stats`.",
+      "description": "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh via analyze --no-stats). The index REFRESH itself stays a host-side pre-complete step (AGENTS.md): the HTTP server exposes no analyze tool.",
       "type": "composite",
       "strategy": "firstAvailable",
       "required": true,
       "timeoutSeconds": 900,
-      "riskClass": "workspace_write",
+      "riskClass": "read_only",
       "steps": [
         {
           "type": "mcpTool",
           "server": "gitnexus",
-          "capability": "analyze",
-          "arguments": { "mode": "fixed", "value": { "noStats": true } }
+          "capability": "check",
+          "arguments": { "mode": "template", "value": { "repo": "${project.name}" } }
         },
         {
           "type": "process",
