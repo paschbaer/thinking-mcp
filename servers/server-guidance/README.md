@@ -91,6 +91,35 @@ review-checked — Guidance can only gate deterministic, observable checks.
   task completion (checkboxes are hints, never proof), plan-change
   classification, traceability report, completion invariants.
 
+## Configuration assistant
+
+Statt `.guidance/` von Hand zusammenzustellen, führt der eingebaute
+Konfigurations-Assistent Schritt für Schritt durch den Entwurf — Frage für
+Frage, mit Optionen, Begründung und Config-Verweisen. Der Assistent ist
+**stateless**: der Agent akkumuliert die Antworten und übergibt sie bei jedem
+Aufruf erneut. Ablauf (welches Tool wann):
+
+| Schritt | Tool | Zweck |
+|---|---|---|
+| 1 | `setup_guidance_start` | Liefert den Frage-Katalog (7 Fragen) und die erste Frage mit Hilfe-Text und Optionen |
+| 2 | `setup_guidance_answer` `{answers}` | Nimmt die akkumulierten Antworten entgegen, validiert sie und liefert die nächste offene Frage |
+| 3 | … `setup_guidance_answer` wiederholen | Bis `done: true` — dann verweist `nextTool` auf `setup_guidance_generate` |
+| 4 | `setup_guidance_generate` `{answers}` | Prüft die Vollständigkeit und gibt die komplette `.guidance/`-Dateimenge als Payload zurück |
+| 5 | Agent schreibt die Dateien | Der Server schreibt bewusst nichts — der Agent legt die Dateien mit seinen File-Tools im Projekt-Root ab |
+| 6 | Server neu starten bzw. neue Session | Config wird pro Session gesnapshottet (`configurationVersion`) |
+
+Frage-Katalog v1: `projectName`, `transport` (stdio / http-docker — steuert
+`localhost` vs. `host.docker.internal`-URLs und die Egress-Allowlist),
+`profile` (plain / spec-kit), `shell` (optional, agent-facing — landet in der
+understand-Instruction, da die strikte Config-Validierung ein
+`guidance.json`-Feld ablehnen würde), `insight` und `gitnexus` (je on/off —
+steuern Downstream-Entries und die zugehörigen Gates) und das Gates-Preset
+(`standard`: lint opt + test opt + build REQ · `minimal`: nur build REQ).
+Die Generierung liefert alle sechs Config-Dateien plus die sieben
+Submission-Schemas (aus `examples/default-guidance/schemas`; ist das
+Verzeichnis in der Installation nicht vorhanden, erhält der Agent einen
+copy-Hinweis statt eines Fehlers).
+
 ## Installation
 
 Requires Node ≥ 18.
@@ -950,6 +979,17 @@ details.
 | `list_configured_operations` | — | Read-only: all operations defined in `operations.json` (no session needed) |
 | `retry_operation` | `sessionId` | Re-runs failed **required** operations of the current phase (transient downstream failures) |
 | `get_downstream_status` | — | Read-only: connection health of all configured downstream servers |
+
+### Configuration assistant tools (3)
+
+Stateless wizard for designing a `.guidance/` configuration — see
+[Configuration assistant](#configuration-assistant) for the full flow.
+
+| Tool | Parameters | Purpose |
+|---|---|---|
+| `setup_guidance_start` | — | Returns the question catalog and the first question (with help text and options) |
+| `setup_guidance_answer` | `answers` | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate` |
+| `setup_guidance_generate` | `answers` | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
 ### Spec-Kit tools (12, profile `spec-kit` only)
 

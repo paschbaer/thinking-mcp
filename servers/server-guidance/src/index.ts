@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createGuidanceServer } from "./mcp-server/GuidanceServer.js";
 import { registerWorkflowTools } from "./mcp-server/register-tools.js";
+import { registerSetupTools } from "./mcp-server/register-setup-tools.js";
 import { registerSpecKitTools } from "./mcp-server/register-spec-kit-tools.js";
 import { toEngineSpecKitConfig } from "./mcp-server/register-spec-kit-tools.js";
 import { composeApplication, ensureConfiguration } from "./main.js";
@@ -15,6 +16,7 @@ async function main(): Promise<void> {
   const app = composeApplication(workspaceRoot, join(workspaceRoot, ".guidance"), join(workspaceRoot, ".guidance", "state"));
   const server = createGuidanceServer();
   registerWorkflowTools(server, app.tools, workspaceRoot);
+  registerSetupTools(server);
   // Option C (Review Finding 7): Spec-Kit-Tools nur bei Profil "spec-kit".
   if (app.config.profile === "spec-kit") {
     if (!app.config.specKit) {
