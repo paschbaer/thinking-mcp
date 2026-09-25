@@ -795,9 +795,12 @@ recorded) or ends the run via `cancel_workflow`.
   dependencies, and workspace `prepare` scripts run despite
   `--ignore-scripts`).
 - **GitNexus index:** the HTTP server (:4747) exposes no `analyze` tool —
-  the index refresh stays a host-side pre-completion step (see the repo's
-  `AGENTS.md`); the gate verifies via `check` that the index exists and is
-  queryable. The repo name is hardcoded in the gate until template
+  the index refresh is the **agent's responsibility before calling
+  `complete_workflow`**: run `gitnexus analyze --no-stats` host-side (WSL
+  CLI, see the repo's `AGENTS.md`) and mention the refresh in the completion
+  report. The gate only verifies via `check` that the index exists and is
+  queryable — **it cannot detect staleness** (a `check` on an outdated index
+  still succeeds). The repo name is hardcoded in the gate until template
   placeholder resolution is fixed.
 - **Optional failing gates are tolerated by design:** in this sample `lint`
   and `test` are `required: false` (pre-existing prettier findings; native

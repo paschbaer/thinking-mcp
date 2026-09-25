@@ -9,6 +9,16 @@
 
 ## Tracked Follow-ups
 
+- [GUID-6] MEDIUM (accepted with rationale) | Das `repository-analysis`-Gate
+  erkennt **keine Index-Staleness**: `check` verifiziert nur Existenz +
+  Queryability — ein veralteter Index bleibt grün (produktiv beobachtet
+  2026-09-25: Index war hinter HEAD, Refresh erfolgte erst durch manuellen
+  CLI-Aufruf). Gegenmaßnahme aktuell prozessual: AGENTS.md + complete-Phase-
+  Instruction + README schreiben dem Agent den host-seitigen Refresh VOR
+  `complete_workflow` vor. | Trigger: sobald GitNexus per MCP eine Staleness-
+  Erkennung anbietet (z. B. indexed-commit vs. HEAD in `check`/`list_repos`)
+  → Gate auf Frische-Prüfung erweitern. | accepted with rationale (technisch
+  heute nicht ausdrückbar; Prozessregel als Kompensation dokumentiert)
 - [GUID-3] MEDIUM | **Template-Platzhalter in mcpTool-Operations werden nie
   aufgelöst** — `check` lief mit literalem `repo="${project.name}"` (Gate-Fail
   im ersten produktiven complete-Lauf, 2026-09-25); betrifft vermutlich ALLE
