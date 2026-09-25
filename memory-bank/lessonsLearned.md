@@ -176,6 +176,11 @@
 - **Lessons-File-Vertrag**: Der Agent schreibt `.guidance/state/session-lessons.json` VOR dem `complete_workflow`-Call (Gates laufen on-transition); IMMER Datei anlegen (leeres Array = No-Op-Erfolg), sonst blockiert das required-Gate docs-only-Läufe. Redaction-Pflicht beim Agent — `seed-lessons.mjs` spricht Insight direkt an und umgeht Guidances Pattern-Redaction.
 - **Idempotenz live bestätigt**: erneuter Seed-Lauf meldet dieselben Slugs als `duplicate` (Exit 0) — Doppel-Episoden ausgeschlossen; Verifikation via `experience_search` mit exaktem Slug (Full-Text-Arm, semantischer Arm MVP-deaktiviert).
 
+## 2026-09-25 — GUID-3/4/5 abgeschlossen (Template-Resolution, env/shell, Regression)
+- **Template-Resolution fail-fast**: `${token}` in `mode: "template"` wird jetzt tief aufgelöst (`session.request`, `project.name`); unbekannte Tokens werfen `operation_arguments_invalid` statt literal durchzugehen (GUID-3-Wurzel: maskierte Gate-Bugs). Behavior-Change in README dokumentiert.
+- **Prozess-Ops: `env` + `shell`** (GUID-5): `spawnSync` merged `config.env` über process.env und reicht `shell` (boolean|string) durch — der `sh -c`-Wrapper-Workaround entfällt aus der eigenen operations.json.
+- **Regression-Muster für „nur im Build sichtbar“-Bugs** (GUID-4): public-API-Test über den echten Schema-Load-Pfad (validatorFor) + Source-Scan-Test gegen bare-`require("…")` — vitest allein hatte den Crash nie reproduziert.
+
 ## 2026-09-25 — bare `require` in ESM-Quellcode (Rezidiv, 2. Fall)
 - **Issue**: `createRequireShim()` in `WorkflowEngine.ts` nutzte `require("node:module")` per Bare-`require` — in ESM ist `require` nicht definiert ⇒ ReferenceError: require is not defined bei JEDEM `submit_*`-Call (Schemavalidierung lädt über den Shim). Traf erst im Live-Docker-Betrieb auf, die vitest-Suite griff den Pfad nicht.
 - **Root Cause**: Wiederholung des SpecKitEngine-„2d-Fix"-Musters — dynmische `require()`-Aufrufe überleben den CJS→ESM-Wechsel im tests nicht abgedeckten Lazy-Load-Pfad.
