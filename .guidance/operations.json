@@ -1,0 +1,96 @@
+{
+  "version": 2,
+  "operations": {
+    "lint": {
+      "description": "Check formatting with Prettier. Non-blocking: CRLF checkouts on Windows can fail this in the Linux container until normalized (npm run format).",
+      "type": "process",
+      "executable": "npx",
+      "args": ["prettier", "--check", "servers/*/src/**/*.{ts,tsx}"],
+      "required": false,
+      "timeoutSeconds": 300,
+      "riskClass": "read_only",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
+    "test": {
+      "description": "Run the automated test suite. Non-blocking while the Docker workspace has no Linux-native node_modules (esbuild/vitest and better-sqlite3 are installed for Windows on the host); tighten to required:true after a one-time in-container install.",
+      "type": "process",
+      "executable": "npm",
+      "args": ["test"],
+      "required": false,
+      "timeoutSeconds": 900,
+      "riskClass": "read_only",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
+    "build": {
+      "description": "Build the project.",
+      "type": "process",
+      "executable": "npm",
+      "args": ["run", "build"],
+      "required": true,
+      "timeoutSeconds": 600,
+      "riskClass": "workspace_write",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
+    "repository-analysis": {
+      "description": "Analyze the repository using GitNexus over HTTP (fallback: local CLI). Blocking gate per AGENTS.md: `gitnexus analyze --no-stats`.",
+      "type": "composite",
+      "strategy": "firstAvailable",
+      "required": true,
+      "timeoutSeconds": 900,
+      "riskClass": "workspace_write",
+      "steps": [
+        {
+          "type": "mcpTool",
+          "server": "gitnexus",
+          "capability": "analyze",
+          "arguments": { "mode": "fixed", "value": { "noStats": true } }
+        },
+        {
+          "type": "process",
+          "executable": "gitnexus",
+          "args": ["analyze", "--no-stats"]
+        }
+      ],
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "toolResultMustNotBeError": true,
+        "requiredContent": true
+      },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true },
+      "failure": { "remainInPhase": true, "allowManualRetry": true, "reportToAgent": true }
+    },
+    "query-project-insights": {
+      "description": "Retrieve existing development insights (experience_search).",
+      "type": "mcpTool",
+      "server": "insight",
+      "capability": "experience_search",
+      "required": false,
+      "timeoutSeconds": 60,
+      "riskClass": "read_only",
+      "arguments": {
+        "mode": "template",
+        "value": { "query": "${session.request}", "scope_id": "${project.name}" }
+      },
+      "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+      "output": { "returnToAgent": "normalized", "retainRawResult": false }
+    },
+    "store-completion-insight": {
+      "description": "Record a completion observation (experience_record_observation). Follow-up: templated args may need workflow_id/client_context once the template engine supports it; non-required, failures are tolerated.",
+      "type": "mcpTool",
+      "server": "insight",
+      "capability": "experience_record_observation",
+      "required": false,
+      "timeoutSeconds": 60,
+      "riskClass": "external_write",
+      "arguments": {
+        "mode": "template",
+        "value": { "kind": "agent_reflection", "content": "${phase.completionReport.summary}" }
+      },
+      "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+      "output": { "returnToAgent": "status_only", "retainRawResult": false }
+    }
+  }
+}

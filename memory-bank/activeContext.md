@@ -20,6 +20,20 @@
 - `.gitignore`: `/.guidance/state/` ergänzt.
 - Verifiziert: `docker compose up -d --build` → `/health` `configured:true`,
   `/mcp` POST → 200, Startlog clean.
+- **Nachtrag — HTTP-Downstream aktiviert** (nach Retrofit von
+  `transport.type:"http"` im ClientManager): gitnexus (host.docker.internal:4747/api/mcp)
+  und insight (:3002/mcp) enabled, `policies.egress.httpHostAllowlist` gesetzt
+  (fail-closed-Pflicht), `repository-analysis` wieder `required:true` (AGENTS.md-Gate),
+  Insight-Ops auf echte Tool-Namen (`experience_search` + `scope_id`-Template /
+  `experience_record_observation`) umgestellt. Image-**Rebuild** war nötig (altes
+  Image kannte den http-Zweig nicht → „not connected“). End-to-End verifiziert:
+  `start_workflow` → `query-project-insights: succeeded`. Offen: erst echter
+  `complete`-Durchlauf exerziert `repository-analysis` (gitnexus); automatisierter
+  Regressionstest für stateful-Downstream-Sessions bleibt Follow-up (CI kann
+  Live-System nicht adressieren). **Getrackt:** GUID-1 (erster echter
+  `complete`-Lauf exerziert das gitnexus-Gate) und GUID-2
+  (`store-completion-insight`-Arg-Vollständigkeit) in
+  `memory-bank/remaining-work-plan.md`.
 - Ausstehend: Zed `context_servers`-Eintrag durch Nutzer setzen (siehe Chat);
   in-container test env optional (`yarn install` im Container); Downstream-Aktivierung
   nur im stdio-Modus möglich (Limitation dokumentiert).

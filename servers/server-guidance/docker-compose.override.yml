@@ -1,0 +1,22 @@
+# Local override: use the Thinking-MCP repository itself as Guidance workspace
+# so lifecycle gates (lint/test/build) run against the real project.
+# Host node_modules stays untouched: the named volume shadows /workspace/node_modules
+# with a container-internal install (needed only if you want in-container tests).
+#
+# Take effect / one-time container test env (optional):
+#   docker compose up -d
+#   docker compose exec guidance sh -c "cd /workspace && corepack enable && yarn install"
+#   (alpine lacks native build tools; better-sqlite3 for server-insight may need them)
+services:
+  guidance:
+    extra_hosts:
+      # resolves host.docker.internal on Linux hosts too (Docker Desktop has it built in)
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - D:/repos/Thinking-MCP:/workspace
+      - guidance_node_modules:/workspace/node_modules
+    environment:
+      - GUIDANCE_WORKSPACE_ROOT=/workspace
+
+volumes:
+  guidance_node_modules:
