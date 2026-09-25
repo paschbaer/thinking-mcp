@@ -5,6 +5,46 @@
 
 **Last updated:** 2026-09-25
 
+## 2026-09-25: GUID-3/4/5-Workflow (erster Lauf mit Feature-Branch-Policy, completed)
+
+- Erster Workflow-Lauf mit der neuen implement-Regel: Branch-Check +
+  Feature-Branch `feature/guid-345-template-env-shell` (ohne Worktree),
+  Commits je Task, Merge ff nach develop, Branch gelöscht — Commit-Policy
+  erstmals produktiv.
+- GUID-3 CLOSED: Template-Resolution in OperationEngine (`ctxFor` →
+  templateVars session.request/project.name, tiefe ${token}-Resolution,
+  fail-fast bei unbekannten Tokens; mode:fixed literal; Behavior-Change in
+  README dokumentiert).
+- GUID-5 CLOSED: env + shell für Prozess-Operationen (spawnSync, Validierung
+  in config.ts); eigene operations.json auf env umgestellt (sh -c entfällt).
+- GUID-4 CLOSED: Schema-Load-Regression über public API + Source-Scan gegen
+  bare-require (2 neue Testdateien). Verifikation: 230/230 + 9 neue = grün,
+  detect_changes critical klassifiziert (Startup-Pfade).
+- GUID-7 NEU: umschaltbares workspaceRoot (Worktree-Gates) getrackt.
+- Live-Erkenntnis: Image-Rebuild nötig nach Engine-Änderungen — alter Image
+  ignorierte env-Felder (capture-Gate localhost-Fail), nach Rebuild grün.
+
+## 2026-09-25: Workflow-Chaining-Spec (Amendment 002, APPROVED)
+
+- Design-Session „Chaining ohne Nutzerinput" abgeschlossen: Analyse ergab,
+  dass Phasen-Ketten im plain-Profil heute schon autark laufen, aber
+  Workflow-zu-Workflow-Ketten fehlen.
+- Entwurf als
+  `specs/002-guidance-workflow-server/amendments/002-workflow-chaining.md`
+  persistiert (Status APPROVED, FR-110…FR-116, Q1–Q3 durch Nutzer
+  entschieden).
+- Kern: `chain`-Manifest bei `start_workflow`, lazy Successor-Creation in
+  `completeWorkflowLocked`, Response-Felder `nextSessionId`/`chain`;
+  Kopf-Kopie der Restkette (Q2); Template-Fehler ⇒ keine Successor-Creation,
+  Vorgänger bleibt completed (Q1-Präzisierung).
+- **Q3 revidiert (Nutzer):** `spec-kit` lehnt `chain` NICHT ab — neue Form B
+  `chain.source: "spec_kit_tasks"` (FR-117/FR-118, §11): abhängigkeits-
+  geordnete Taskliste aus `speckit.tasks` als Chain-Quelle, ein voller
+  Workflow (mit Verify-Gates) pro Task; State-Brücke via optionaler
+  `specKitTasks`-EngineDeps-Callback.
+- Implementierung noch NICHT begonnen; Touchpoints in Spec §8 (WorkflowEngine,
+  types, config, template-resolver, register-tools, tests, Docs).
+
 ## 2026-09-25: Nachfragen-Kultur (3. Guidance-Workflow, completed — volle Duty-Compliance)
 
 - Session `session-58872e83…` → **completed**; erster Lauf mit ALLEN vier
