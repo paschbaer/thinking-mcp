@@ -3,10 +3,17 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 
 ## What Works
 
+- **Erster produktiver Guidance-Workflow-Lauf end-to-end grün (2026-09-25)**:
+  Session `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` → **completed**.
+  Alle Phasen (understand → plan → review → implement → review-fix →
+  verify → complete) durchlaufen; `build`-Gate grün (nach Container-Deps-
+  Install), `repository-analysis`-Gate grün (GUID-1 geschlossen). Scope:
+  README Quick-Start-Verbesserung (docs-only). Erkannte Bugs: ESM-`require`
+  (gefixt `5316c88`), Template-Platzhalter (Workaround aktiv, GUID-3 offen).
 - **Guidance-Zed-Setup (2026-09-24, `feature/guidance-workflow-setup`)**:
   `.guidance/` im Repo-Root (plain, Standard-Flow), Compose-Override mit
   Repo-Mount + isoliertem node_modules-Volume, Gates konfiguriert (lint/test/

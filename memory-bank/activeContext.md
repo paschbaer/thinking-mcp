@@ -21,8 +21,15 @@
   werden nie aufgelöst — Gate lief mit literalem Repo-Namen. Workaround:
   hartcodiert in operations.json (Backup .bak), wirkt erst nach Container-
   Restart (Config-Snapshot im Session-State). Restart erfolgt.
-- Status: Workflow blocked in complete; Nutzer-Agent führt resume + retry
-  complete nach Restart durch → finaler grüner Lauf schließt GUID-1.
+## 2026-09-25: WORKFLOW COMPLETED — GUID-1 geschlossen
+
+- Finaler grüner complete-Lauf: `repository-analysis` **succeeded**
+  (check `{repo:"thinking-mcp"}` nach GUID-3-Workaround + Container-Restart).
+  Session `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` → **completed**.
+- Scope: README.md Quick-Start-Abschnitt verbessert (docs-only, Zeilen 17–45).
+- `store-completion-insight` failed (nicht-required, toleriert) — siehe GUID-2.
+- Offen: GUID-3 (Template-Engine-Fix), GUID-4 (Regression-Test), GUID-2
+  (store-completion-insight-Args).
 
 ## 2026-09-25: GUID-1-Vorbereitung — GitNexus-Docker (:4747) an repo angebunden
 
