@@ -484,7 +484,10 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   erste Mal nutzt — das ist normal und kein Fehler.
 - Das `repository-analysis`-Gate (Phase complete) verifiziert nur, dass der
   GitNexus-Index existiert und queryable ist (`check`) — er **erkennt keine
-  Staleness und aktualisiert nichts**. Der Agent MUSS daher VOR
-  `complete_workflow` den Index selbst aktualisieren: im Terminal
-  `gitnexus analyze --no-stats` (WSL-CLI, siehe Architecture Map) und das
+  Staleness und aktualisiert nichts**. Deterministische Frische-Prüfung:
+  `node servers/server-guidance/scripts/check-index-freshness.mjs` (läuft im
+  Guidance-Container). Der Agent MUSS daher VOR `complete_workflow` den Index
+  selbst aktualisieren — im Terminal (gitnexus liegt in WSL hinter nvm):
+  `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd
+  /mnt/d/repos/Thinking-MCP && gitnexus analyze --no-stats'` — und das
   Ergebnis im Abschlussbericht nennen.
