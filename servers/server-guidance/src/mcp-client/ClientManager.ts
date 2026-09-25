@@ -5,6 +5,7 @@
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { createHash } from "node:crypto";
 import { GuidanceError } from "../types/errors.js";
@@ -23,6 +24,16 @@ export interface DownstreamServerStatus {
 }
 
 type FetchTransport = (serverId: string) => Transport | Promise<Transport>;
+
+/**
+ * Transport selection per downstream server. `type: "http"` targets a
+ * streamable-HTTP endpoint (URL must be allowlisted via egress policy; header
+ * secrets are resolved at config load, never persisted). Legacy shapes without
+ * `type` are treated as stdio for backward compatibility.
+ */
+export type DownstreamTransportConfig =
+  | { type?: "stdio"; executable: string; args: string[]; cwd?: string }
+  | { type: "http"; url: string; headers?: Record<string, string> };
 
 export interface ClientManagerOptions {
   /** Test seam: override transport creation (in-process stubs). */
@@ -48,15 +59,20 @@ export class ClientManager {
     this.customTransports.set(serverId, fetch);
   }
 
-  private async transportFor(serverId: string, config?: { executable: string; args: string[]; cwd?: string }): Promise<Transport> {
+  private async transportFor(serverId: string, config?: DownstreamTransportConfig): Promise<Transport> {
     const custom = this.customTransports.get(serverId) ?? this.customTransports.get("__default__");
     if (custom) return await custom(serverId);
     if (!config) throw new GuidanceError("downstream_server_not_configured", `no transport for ${serverId}`, { recoverable: false });
+    if (config.type === "http") {
+      return new StreamableHTTPClientTransport(new URL(config.url), {
+        requestInit: { headers: config.headers },
+      });
+    }
     return new StdioClientTransport({ command: config.executable, args: config.args, cwd: config.cwd });
   }
 
   /** Connects, discovers and pins capabilities. Idempotent when already ready. */
-  async ensureReady(serverId: string, config?: { executable: string; args: string[]; cwd?: string }): Promise<DownstreamServerStatus> {
+  async ensureReady(serverId: string, config?: DownstreamTransportConfig): Promise<DownstreamServerStatus> {
     const existing = this.statuses.get(serverId);
     if (existing?.status === "ready") return existing;
     const status: DownstreamServerStatus = { status: "failed", required: this.required.has(serverId), tools: [] };

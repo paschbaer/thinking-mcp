@@ -333,3 +333,14 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
   den identischen Bug (+ Fix-Kommentar dort). Regel: `Number(process.env.PORT)`
   von Anfang an; IMMER `tsc`/`yarn build` für jeden getouchten Server laufen
   lassen — vitest (esbuild) typecheckt NICHT und ist kein Build-Ersatz.
+- **MCP SDK Client-Transport heißt anders als das Server-Pendant**: Server:
+  `StreamableHTTPServerTransport` (server/streamableHttp.js) — Client:
+  `StreamableHTTPClientTransport` (client/streamableHttp.js), NICHT
+  `StreamableClientTransport`. Der Name ist erst zur Laufzeit weggebrochen
+  („is not a constructor"), weil vitest/esbuild nicht typecheckt. Regel: bei
+  neuen SDK-Importen Klassenname per Blick in die SDK-D.ts verifizieren.
+- **Node-Toolchain in WSL ist nur in interaktiven Shells auf PATH**: `wsl.exe
+  bash -c` lädt nvm nicht (nvm sitzt in .bashrc). Direkter Pfad:
+  `export PATH=$HOME/.nvm/versions/node/v24.16.0/bin:$PATH` mit `\$`-Escaping —
+  das Windows-seitige sh interpoliert `$VAR` sonst VOR wsl.exe. Workspaces
+  hoisten vitest/tsc ins Repo-Root (`node_modules/.bin/vitest` dort aufrufen).

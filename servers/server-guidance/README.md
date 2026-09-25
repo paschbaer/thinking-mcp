@@ -251,6 +251,16 @@ phase (a required failure at session start starts the session `blocked`).
       "transport": { "type": "stdio", "command": { "executable": "gitnexus", "args": ["mcp"] } },
       "connection": { "requestTimeoutSeconds": 300 },
       "capabilities": { "allow": { "tools": ["analyze", "status"] } }
+    },
+    "insight": {
+      "enabled": true, "required": false, "trustLevel": "trusted",
+      "transport": {
+        "type": "http",
+        "http": { "url": "http://host.docker.internal:3002/mcp",
+                  "headers": { "Authorization": "Bearer ${INSIGHT_AUTH_TOKEN}" } }
+      },
+      "connection": { "requestTimeoutSeconds": 120 },
+      "capabilities": { "allow": { "tools": ["experience_search"] } }
     }
   }
 }
@@ -408,7 +418,8 @@ Phase keys must match the phase names in `workflow.json`.
 | `servers.<id>.enabled` | boolean | `false` = server is skipped entirely |
 | `servers.<id>.required` | boolean | Required servers must become ready at startup (fail otherwise) |
 | `servers.<id>.trustLevel` | string | One of `policies.trustLevels` — drives egress policy |
-| `servers.<id>.transport` | object | `type: "stdio"` + `command.executable/args/cwd` |
+| `servers.<id>.transport` | object | `type: "stdio"` + `command.executable/args/cwd`, **or** `type: "http"` + `http.url` + `http.headers` |
+| `servers.<id>.transport.http.headers.<NAME>` | string | HTTP request headers; `${ENV_VAR}` references are resolved at config load (unset variable ⇒ configuration error) |
 | `servers.<id>.connection.startupTimeoutSeconds` | number | Handshake timeout |
 | `servers.<id>.connection.requestTimeoutSeconds` | number | Per-request timeout (positive finite; enforced as transport failure) |
 | `servers.<id>.connection.reconnect` | object | `enabled`, `maximumAttempts`, `delayMilliseconds` |
@@ -421,6 +432,7 @@ Phase keys must match the phase names in `workflow.json`.
 | Attribute | Type | Meaning |
 |---|---|---|
 | `trustLevels.<name>.dataEgress` | string | `none` \| `validated_inputs_only` \| `project_data` \| `project_data_with_approval` — what data may flow to a server with this trust level |
+| `egress.httpHostAllowlist` | string[] | Hosts (`host` or `host:port`, exact match) that http-transport downstream servers may connect to. **Required (fail-closed)** as soon as any enabled server uses `transport.type: "http"` |
 | `validation.requireAcceptanceCriteria` | boolean | Understanding submissions must contain acceptance criteria |
 | `validation.requireUniqueTaskIds` | boolean | Plan task IDs must be unique |
 | `validation.rejectUnknownDependencies` | boolean | Task dependencies must reference known tasks |

@@ -3,7 +3,26 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-**Last updated:** 2026-09-16
+**Last updated:** 2026-09-24
+
+## 2026-09-24: Guidance für Zed-Agent eingerichtet (feature/guidance-workflow-setup)
+
+- `.guidance/` im Repo-Root angelegt (aus `servers/server-guidance/examples/default-guidance/`,
+  Version 2, Profil `plain`, Standard-Flow understand → … → complete).
+- Anpassungen: `project.name=thinking-mcp`; Gates `lint` (prettier --check) und
+  `test` (npm test) auf `required:false` (Container/Windows-Caveats, siehe ops-Beschreibungen);
+  `repository-analysis` auf `required:false` — Downstream-MCP ist **stdio-only**
+  (ClientManager.ts), im Docker-Container sind gitnexus/insight nicht erreichbar;
+  Downstream-Server gitnexus/insight daher `enabled:false` dokumentiert.
+- `servers/server-guidance/docker-compose.override.yml`: Repo als `/workspace`
+  gemountet, isoliertes Volume `guidance_node_modules` schützt die Windows-
+  node_modules; kein Bearer-Token (loopback, Nutzer-Entscheid).
+- `.gitignore`: `/.guidance/state/` ergänzt.
+- Verifiziert: `docker compose up -d --build` → `/health` `configured:true`,
+  `/mcp` POST → 200, Startlog clean.
+- Ausstehend: Zed `context_servers`-Eintrag durch Nutzer setzen (siehe Chat);
+  in-container test env optional (`yarn install` im Container); Downstream-Aktivierung
+  nur im stdio-Modus möglich (Limitation dokumentiert).
 
 ## Current Focus
 
@@ -22,6 +41,25 @@
   pushed; RB-7 residual resolved via green CI run.)
 
 ## Recent Changes
+
+### 2026-09-25 — Guidance HTTP-Downstream-Transport (feature/guidance-http-downstream)
+- Plan reviewt (Clear-Thought-Server down ⇒ dokumentierter manueller Fallback
+  mit Findings-Tabelle), Plan v2 um Egress-Host-Allowlist + Load-Time-Secret-
+  Resolution + HTTP-Stub-E2E ergänzt.
+- Implementiert: `transport.type "http"` in downstream-servers.json
+  (`http.url` + `http.headers` mit `${ENV_VAR}`-Auflösung, fail-closed);
+  `policies.egress.httpHostAllowlist` (Pflicht, sobald ein enabled Server http
+  nutzt — exakter Host-Match); `validateDownstreamServers` validiert beide
+  Transport-Typen; Auflösung NACH configVersion-Hashing (Secrets nie im Hash);
+  ClientManager: `DownstreamTransportConfig`-Union +
+  `StreamableHTTPClientTransport`; WorkflowEngine reicht http/stdio korrekt
+  durch. Disabled Server werden komplett übersprungen.
+- Tests: 33/33 fokussiert, 206/206 volle Guidance-Suite, tsc grün. E2E: echter
+  Streamable-HTTP-Handshake gegen guidance-HTTP-App als Downstream.
+- insights/clear-thought sprechen stateful streamable HTTP (sessionIdGenerator)
+  — SDK-Client-Transport verwaltet `mcp-session-id` selbst; Reconnect = HD-1.
+- Node läuft in WSL via nvm, aber NICHT auf PATH in `bash -c`; Windows-seitiges
+  sh interpoliert `$VAR` vor wsl.exe (\$-Escaping nötig).
 
 ## Recent Changes
 
