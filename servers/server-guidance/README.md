@@ -627,7 +627,7 @@ as a blueprint: copy it to your project root and adapt the operations.
 | `guidance.json` | Entry point: `project.name: "thinking-mcp"`, profile `plain`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`) |
 | `workflow.json` | The state machine — see the phase walkthrough below |
 | `responses.json` | Per-phase agent instruction: title, instruction, `requiredActions` |
-| `operations.json` | The gates: `build` (blocking), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `store-completion-insight` (optional) |
+| `operations.json` | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
 | `downstream-servers.json` | GitNexus (blocking, `http://host.docker.internal:4747/api/mcp`) and Insight (`http://host.docker.internal:3002/mcp`) as **HTTP downstreams** with per-server capability allowlists |
 | `policies.json` | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3002`, `host.docker.internal:4747`), redaction patterns, review-blocking severities `high\|critical` |
 | `schemas/*.schema.json` | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission |
@@ -762,9 +762,24 @@ success, `reason` transitions only on failure.
   server, falling back to a local `gitnexus analyze --no-stats` CLI run for
   stdio deployments — the HTTP server exposes no analyze tool, so the index
   refresh itself remains a host-side pre-completion step) and
-  `store-completion-insight` (optional, records a completion observation via
-  Insight). Required failures block completion (`retry_operation` to re-run).
+  `capture-session-lessons` (**required** — see the contract below). Required
+  failures block completion (`retry_operation` to re-run).
 - **Transition:** `required_operations_succeeded` → `completed` (terminal).
+
+**Session lessons contract (`capture-session-lessons`):** before calling
+`complete_workflow`, the agent reviews the session for recurring bugs, traps,
+and validated fixes (procedure: `.github/prompts/capture-lessons.prompt.md`)
+and writes them to `.guidance/state/session-lessons.json` as
+`[{"slug", "observation", "cause", "fix"}]` — always create the file, an
+empty array is a no-op success. The gate runs
+`servers/server-insight/scripts/seed-lessons.mjs` against the
+experience-memory server (`EMMS_HTTP_URL=http://host.docker.internal:3002/mcp`,
+scope `thinking-mcp-lessons`); seeding is idempotent per slug (`duplicate`
+instead of a second episode). The script talks to Insight directly and
+bypasses Guidance pattern redaction — the agent MUST redact secrets before
+writing the file. Secrets/env are set inline via `sh -c` because process
+operations inherit the container environment (no per-operation env support
+yet).
 
 **Escape hatch at any point:** `report_blocker` moves the session to the
 system state `blocked`; the user decides via `resume_workflow` (decision is
