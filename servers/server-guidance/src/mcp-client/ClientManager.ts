@@ -199,7 +199,7 @@ export class ClientManager {
   async invokeTool(serverId: string, toolName: string, args: Record<string, unknown>, requestTimeoutSeconds?: number): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
-    | { kind: "transport"; message: string }
+    | { kind: "transport"; message: string; timedOut?: boolean }
   > {
     if (requestTimeoutSeconds !== undefined && (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)) {
       // Vor clientFor: invalid config beats connection errors in reporting.
@@ -208,6 +208,11 @@ export class ClientManager {
     }
     const out = await this.invokeOnce(serverId, toolName, args, requestTimeoutSeconds);
     if (out.kind !== "transport") return out;
+    // Request timeouts are NOT reconnected: the call already ran downstream and
+    // was not cancelled (no AbortSignal in MCP callTool) — an automatic retry
+    // could duplicate side effects on non-idempotent tools. Retry semantics
+    // stay upstream (FR-035).
+    if (out.timedOut) return out;
     return await this.reconnectAndRetry(serverId, toolName, args, requestTimeoutSeconds, out);
   }
 
@@ -222,8 +227,8 @@ export class ClientManager {
     toolName: string,
     args: Record<string, unknown>,
     requestTimeoutSeconds: number | undefined,
-    firstFailure: { kind: "transport"; message: string },
-  ): Promise<{ kind: "success"; content: unknown[]; structuredContent?: unknown } | { kind: "tool_reported"; message: string; content: unknown[] } | { kind: "transport"; message: string }> {
+    firstFailure: { kind: "transport"; message: string; timedOut?: boolean },
+  ): Promise<{ kind: "success"; content: unknown[]; structuredContent?: unknown } | { kind: "tool_reported"; message: string; content: unknown[] } | { kind: "transport"; message: string; timedOut?: boolean }> {
     const conn = this.connections.get(serverId);
     const rc = conn?.reconnect;
     const maximumAttempts = rc?.enabled === true && Number.isInteger(rc.maximumAttempts) && rc.maximumAttempts! > 0
@@ -252,6 +257,7 @@ export class ClientManager {
       }
       const out = await this.invokeOnce(serverId, toolName, args, requestTimeoutSeconds);
       if (out.kind !== "transport") return out;
+      if (out.timedOut) return out; // no auto-replay of timed-out calls
       last = out;
     }
     return last;
@@ -260,7 +266,7 @@ export class ClientManager {
   private async invokeOnce(serverId: string, toolName: string, args: Record<string, unknown>, requestTimeoutSeconds?: number): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
-    | { kind: "transport"; message: string }
+    | { kind: "transport"; message: string; timedOut?: boolean }
   > {
     let client: Client;
     try {
@@ -270,13 +276,15 @@ export class ClientManager {
     }
     let response: { isError?: boolean; content?: unknown[]; structuredContent?: unknown };
     let timer: NodeJS.Timeout | undefined;
+    let timedOut = false;
     try {
       const call = client.callTool({ name: toolName, arguments: args });
       // The raced call is intentionally abandoned on timeout; swallow its late
       // rejection so it cannot surface as an unhandled rejection. Note: the
       // downstream request is NOT cancelled (MCP callTool has no AbortSignal)
       // — retries after a timeout may duplicate side effects on non-idempotent
-      // tools (tracked follow-up).
+      // tools (tracked follow-up). The timedOut marker keeps reconnect from
+      // auto-retrying such calls.
       call.catch(() => {});
       response = requestTimeoutSeconds === undefined
         ? (await call) as typeof response
@@ -284,13 +292,18 @@ export class ClientManager {
             call,
             new Promise<never>((_, reject) => {
               timer = setTimeout(
-                () => reject(new Error(`request timed out after ${requestTimeoutSeconds}s`)),
+                () => {
+                  timedOut = true;
+                  reject(new Error(`request timed out after ${requestTimeoutSeconds}s`));
+                },
                 requestTimeoutSeconds * 1000,
               );
             }),
           ])) as typeof response;
     } catch (err) {
-      return { kind: "transport", message: String(err) };
+      return timedOut
+        ? { kind: "transport", message: String(err), timedOut: true }
+        : { kind: "transport", message: String(err) };
     } finally {
       clearTimeout(timer);
     }

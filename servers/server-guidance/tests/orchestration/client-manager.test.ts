@@ -225,6 +225,27 @@ describe("ClientManager http transport (FR-031 HTTP extension)", () => {
       expect(factoryCalls).toBe(1);
       await mgr.shutdown();
     });
+
+    it("does not reconnect after a request timeout — retry stays upstream (review F1)", async () => {
+      const slow = createStubServer("timeout");
+      let factoryCalls = 0;
+      const mgr = new ClientManager();
+      mgr.useTransport("slow", () => {
+        factoryCalls += 1;
+        return slow.clientTransport;
+      });
+      await mgr.ensureReady("slow", undefined, {
+        reconnect: { enabled: true, maximumAttempts: 2, delayMilliseconds: 1 },
+      });
+      const out = await mgr.invokeTool("slow", "analyze", {}, 0.05);
+      expect(out.kind).toBe("transport");
+      if (out.kind === "transport") {
+        expect(out.message).toMatch(/timed out/);
+        expect(out.timedOut).toBe(true);
+      }
+      expect(factoryCalls).toBe(1);
+      await mgr.shutdown();
+    });
   });
 });
 

@@ -422,7 +422,7 @@ Phase keys must match the phase names in `workflow.json`.
 | `servers.<id>.transport.http.headers.<NAME>` | string | HTTP request headers; `${ENV_VAR}` references are resolved at config load (unset variable ⇒ configuration error) |
 | `servers.<id>.connection.startupTimeoutSeconds` | number | Handshake timeout (positive finite; overrides the 10 s default per server) |
 | `servers.<id>.connection.requestTimeoutSeconds` | number | Per-request timeout (positive finite; enforced as transport failure) |
-| `servers.<id>.connection.reconnect` | object | `enabled`, `maximumAttempts` (positive integer), `delayMilliseconds` (non-negative integer). On a transport failure guidance drops the dead client and re-runs the handshake up to `maximumAttempts` times (delay between attempts), retrying the call after each successful reconnect. Config errors (e.g. invalid timeouts) are never retried |
+| `servers.<id>.connection.reconnect` | object | `enabled`, `maximumAttempts` (positive integer, required for effect), `delayMilliseconds` (non-negative integer). On a transport failure guidance drops the dead client and re-runs the handshake up to `maximumAttempts` times (delay between attempts), retrying the call after each successful reconnect. Never retried: config errors (invalid timeouts) and request-timeout failures — a timed-out call already ran downstream and is not automatically replayed (retry semantics stay upstream, FR-035) |
 | `servers.<id>.capabilities.allow.tools` | string[] | **Allowlist**: only these tools may be invoked on this server |
 | `servers.<id>.capabilities.allow.resources` / `.prompts` | string[] | Same for resources/prompts |
 | `servers.<id>.environment` | object | Env for the child process (`inherit`, `variables.<NAME>.fromHost`) |

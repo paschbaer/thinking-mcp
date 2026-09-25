@@ -42,9 +42,16 @@
   = Objekt mit enabled:boolean, maximumAttempts: positive int,
   delayMilliseconds: non-negative int (fail-closed). Tests: Reconnect-After-
   Death, Exhausted-Attempts („reconnect attempt 2/2"), Disabled/Unconfigured,
-  Invalid-Timeout-Kein-Retry. 214/214 + tsc grün; detect-changes risk MEDIUM
-  (nur erwartete Symbole). Rest: Backoff-Strategie (exponentiell/Jitter)
-  bewusst nicht implementiert — fixed delay, dokumentiert. | — | resolved
+  Invalid-Timeout-Kein-Retry. Rest: Backoff-Strategie (exponentiell/Jitter)
+  bewusst nicht implementiert — fixed delay, dokumentiert.
+  **Review-Nachschub (2026-09-25): F1 (MEDIUM, gefixt):** Reconnect griff
+  zunächst auch auf Request-Timeouts — der Call lief downstream bereits
+  (kein AbortSignal) und wäre automatisch wiederholt worden ⇒
+  Duplication-Risiko für nicht-idempotente Tools, Widerspruch zu FR-035.
+  Fix: Transport-Failures tragen jetzt `timedOut: true` und werden vom
+  Reconnect explizit ausgenommen (Regressionstest: Transport-Factory nach
+  Timeout genau 1× gerufen). **F2 (LOW, gefixt):** README klärt, dass
+  `maximumAttempts` für Wirkung erforderlich ist. | — | resolved
 - [HD-2] LOW | `connection.startupTimeoutSeconds` ist nicht verdrahtet —
   `ClientManager.handshakeTimeoutMs` ist hardcoded 10 s (pre-existing, für kalt
   startende HTTP-Downstreams relevanter). | Trigger: nächster Touch von
