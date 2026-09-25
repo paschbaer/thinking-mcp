@@ -890,11 +890,14 @@ recorded) or ends the run via `cancel_workflow`.
   branch, deliberately **no worktree**: the container gates verify `/workspace`
   (= the main checkout), so a worktree outside it would be verified stale
   (falsely green). Worktrees remain an opt-in for parallel work outside
-  gated runs. Related server follow-ups (tracked as GUID-5 family): a shell
-  option for process operations and a per-session switchable workspace root.
-  The shell (`wsl.exe -e bash`) is defined in the `understand` instruction —
-  a `shell` field in `guidance.json` is rejected by the server's strict
-  config validation.
+  gated runs. **Commit policy:** one commit per completed task, always on the
+  feature branch; after verification and review merge into `develop`
+  (fast-forward, rebase if needed) and delete the branch — **pushing stays
+  manual** (user decision). Related server follow-ups (tracked as GUID-5
+  family): a shell option for process operations and a per-session
+  switchable workspace root. The shell (`wsl.exe -e bash`) is defined in the
+  `understand` instruction — a `shell` field in `guidance.json` is rejected
+  by the server's strict config validation.
 - **Asking questions — channels per phase:** every non-`verify` phase
   instructs the agent to ask open questions in the chat **before** submitting
   and to reference them in the phase's schema field — `understand` →
