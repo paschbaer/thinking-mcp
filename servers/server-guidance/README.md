@@ -46,7 +46,8 @@ problem structurally instead of with longer files:
   can pause and resume instead of being re-explained.
 - **Experience-based refinement.** The `capture-session-lessons` gate seeds
   validated lessons into the experience-memory server, so the process gets
-  better with every run. In this repository's first three production runs
+  better with every run (requires a reachable Insight instance). In this
+  repository's first three production runs
   the gates surfaced four real bugs (an ESM crash, unresolved template
   placeholders, a missing environment contract, and an index-freshness gap).
 
@@ -871,6 +872,23 @@ recorded) or ends the run via `cancel_workflow`.
   and `test` are `required: false` (pre-existing prettier findings; native
   modules not buildable on alpine). Tighten them once your environment
   supports it.
+
+### Companion servers (full potential)
+
+Guidance works standalone, but this sample's full potential — reasoning
+helpers, insight capture, index gates — needs the companion servers of this
+repository. All downstream servers must be reachable from the Guidance
+container via `host.docker.internal` (see `downstream-servers.json`).
+
+| Server | Kind | Powers | Without it |
+|---|---|---|---|
+| Clear-Thought (`:3000/mcp`) | agent-side context server (not a downstream) | the Clear-Thought duties in all four reasoning phases (`understand`, `plan`, both reviews) | instructions cannot be fulfilled (instruction-enforced — technically tolerated, but the reasoning quality contract is broken) |
+| Insight (`:3002/mcp`) | downstream MCP, `required: false` | `query-project-insights` (entering `understand`) and `capture-session-lessons` (before `complete`) | insight query fails as a tolerated failure; the capture gate is **two-stage**: an empty lessons file succeeds without ever contacting Insight, while non-empty lessons make Insight a **hard dependency** (blocking failure, `complete` unreachable) |
+| GitNexus (`:4747/api/mcp`) | downstream MCP, `required: true` | `repository-analysis` gate before `complete` (see its composite fallback) | gate fails and blocks completion |
+
+Config locations: transport and capabilities in `downstream-servers.json`,
+gate wiring in `operations.json` and `workflow.json`, agent duties in
+`responses.json`.
 
 ### Example prompt
 
