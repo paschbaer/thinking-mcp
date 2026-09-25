@@ -158,6 +158,12 @@
 - **FTS5 MATCH-Injection**: Nutzertext mit Satzzeichen bricht MATCH-Syntax (`syntax error near ","`) — Query-Tokens vor MATCH auf `[\w\s]` sanitizen.
 - **SC-009-Demotion-Test**: Ranking-Demotion braucht >=2 Kandidaten mit GLEICHER Signatur-Hash (sonst kein echter Ranking-Vergleich) und der Peer muss voll kompatibel sein (sonst dominiert Applicability-first ohnehin).
 
+## 2026-09-25 — bare `require` in ESM-Quellcode (Rezidiv, 2. Fall)
+- **Issue**: `createRequireShim()` in `WorkflowEngine.ts` nutzte `require("node:module")` per Bare-`require` — in ESM ist `require` nicht definiert ⇒ ReferenceError: require is not defined bei JEDEM `submit_*`-Call (Schemavalidierung lädt über den Shim). Traf erst im Live-Docker-Betrieb auf, die vitest-Suite griff den Pfad nicht.
+- **Root Cause**: Wiederholung des SpecKitEngine-„2d-Fix"-Musters — dynmische `require()`-Aufrufe überleben den CJS→ESM-Wechsel im tests nicht abgedeckten Lazy-Load-Pfad.
+- **Fix**: statischer Import `import { createRequire } from "node:module"` + `createRequire(import.meta.url)` (Muster aus `schema-validator.ts`).
+- **Prävention**: Neue Regel für Code-Reviews: `grep -rn "require\(" servers/*/src` muss nur noch legale `createRequire`- Importe zeigen; jede neue `require(`-Stelle in `src/**` ist ein Blocker. Second-Occurrence → Muster gilt als rezidivierend.
+
 ## 2026-09-17 — better-sqlite3 boolean bind (recurred, second root cause)
 - **Issue**: `experience_record_reuse_feedback` threw "SQLite3 can only bind numbers, strings, bigints, buffers, and null" even after the earlier `?? null` fix.
 - **Root cause**: `?? null` only converts `undefined`, NOT `false`/`true`. better-sqlite3 rejects booleans outright — optional boolean fields need explicit 0/1 encoding for INTEGER columns.

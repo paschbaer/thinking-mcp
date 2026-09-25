@@ -3,6 +3,7 @@
  * Phase guidance and transitions come exclusively from configuration.
  */
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
@@ -812,8 +813,8 @@ export class WorkflowEngine {
 }
 
 function createRequireShim(): (id: string) => unknown {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { createRequire } = require("node:module") as typeof import("node:module");
+  // ESM-safe: bare `require` is undefined here (see SpecKitEngine 2d-fix);
+  // createRequire comes from a static import.
   return createRequire(import.meta.url);
 }
 
