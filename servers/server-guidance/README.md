@@ -715,6 +715,7 @@ ends the run in the `cancelled` terminal state.
 | Instruction | Critical self-review (architecture, correctness, maintainability, testability, security, backward compatibility, performance, operations); submit the adjusted plan | `responses.json` → `review_and_adjust_plan` |
 | Submission | `submit_plan_review` — required: `findings`; optional: `adjustments`, `approvedPlan`, `remainingConcerns` | `schemas/review-plan.schema.json` |
 | Transitions | `major_plan_revision_required` → back to `plan` (loop); `submission_valid` → `implement` | `workflow.json` → `phases.review_and_adjust_plan.transitions` |
+| Clear-Thought duty | `assumption_xray`/`socratic_method`/`argument_map` stress-test pass is a `requiredAction` — the findings must reference its results | `responses.json` → `review_and_adjust_plan.requiredActions` |
 
 #### 4. `implement` — execute the approved plan
 
@@ -731,6 +732,7 @@ ends the run in the `cancelled` terminal state.
 | Instruction | Self-review: correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, plan conformity — apply fixes before submitting | `responses.json` → `review_and_fix_implementation` |
 | Submission | `submit_implementation_review` — required: `findings`; optional: `filesChangedDuringReview`, `testsAddedOrUpdated`, `unresolvedFindings` | `schemas/review-implementation.schema.json` |
 | Transitions | `implementation_changes_required` → back to `implement`; `submission_valid` → `verify` — findings with severity `high`\|`critical` block (see `policies.json` → `reviewFindings.blockingSeverities`) | `workflow.json` → `phases.review_and_fix_implementation.transitions` |
+| Clear-Thought duty | `metacognitive_monitoring` final confidence check is a `requiredAction`; `debugging_approach` for non-trivial findings — results referenced in the findings | `responses.json` → `review_and_fix_implementation.requiredActions` |
 
 #### 6. `verify` — gates run server-side
 
@@ -786,16 +788,21 @@ recorded) or ends the run via `cancel_workflow`.
   queryable — **it cannot detect staleness** (a `check` on an outdated index
   still succeeds). The repo name is hardcoded in the gate until template
   placeholder resolution is fixed.
-- **Clear-Thought duty in `understand`/`plan`:** both phases instruct the
-  agent to use Clear-Thought reasoning tools (`sequential_thinking`,
-  `decision_framework`) via `requiredActions`, and submissions must
-  reference the reasoning results (checked in the following phase's review).
-  Honest boundary: Clear-Thought is a **client-side** context server of the
-  agent — Guidance cannot see or gate its usage server-side (a downstream
-  `sequential_thinking` call would run in the Guidance process, not the
-  agent's context, and would not influence agent reasoning). The duty is
-  therefore instruction-enforced and review-checked, and assumes the agent
-  has Clear-Thought loaded (guaranteed in this repo via `AGENTS.md`).
+- **Clear-Thought duty in all four reasoning phases (`understand`, `plan`,
+  both reviews):** each phase instructs the agent to use Clear-Thought
+  reasoning tools via `requiredActions`, and submissions must reference the
+  reasoning results (checked in the following phase's review). Per phase:
+  `understand` — `sequential_thinking`; `plan` — `sequential_thinking`/
+  `decision_framework`; `review_and_adjust_plan` — `assumption_xray`/
+  `socratic_method`/`argument_map` stress-test; `review_and_fix_implementation`
+  — `metacognitive_monitoring` (always) + `debugging_approach` (for
+  non-trivial findings). Honest boundary: Clear-Thought is a **client-side**
+  context server of the agent — Guidance cannot see or gate its usage
+  server-side (a downstream `sequential_thinking` call would run in the
+  Guidance process, not the agent's context, and would not influence agent
+  reasoning). The duty is therefore instruction-enforced and review-checked,
+  and assumes the agent has Clear-Thought loaded (guaranteed in this repo
+  via `AGENTS.md`).
 - **Optional failing gates are tolerated by design:** in this sample `lint`
   and `test` are `required: false` (pre-existing prettier findings; native
   modules not buildable on alpine). Tighten them once your environment
