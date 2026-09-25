@@ -47,6 +47,8 @@ export interface OperationConfig {
   capability?: string;
   executable?: string;
   args?: string[];
+  env?: Record<string, string>;
+  shell?: boolean | string;
   arguments?: { mode: "fixed" | "template" | "mapped"; value: unknown };
   required: boolean;
   timeoutSeconds?: number;

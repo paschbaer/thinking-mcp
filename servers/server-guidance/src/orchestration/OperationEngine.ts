@@ -6,9 +6,13 @@
 import { spawnSync } from "node:child_process";
 import type { NormalizedResult, OperationConfig } from "../types/index.js";
 import { redactUnknown } from "../policy/redaction.js";
+import { GuidanceError } from "../types/errors.js";
 
 export interface OperationContext {
   workspaceRoot: string;
+  /** Variables for template argument resolution (GUID-3): `${token}` tokens.
+   * Known tokens: `session.request`, `project.name`. Unknown tokens fail fast. */
+  templateVars?: Record<string, string>;
 }
 
 export interface CompositeStep {
@@ -26,6 +30,38 @@ interface CompositeConfig extends OperationConfig {
 }
 
 type ExecuteFn = (config: OperationConfig, ctx: OperationContext, attempt: number) => NormalizedResult;
+
+/**
+ * GUID-3: resolves `${token}` placeholders in template arguments against
+ * ctx.templateVars. Unknown tokens fail fast (operation_arguments_invalid) —
+ * literal passthrough previously masked broken gates (repo="${project.name}").
+ */
+function resolveTemplateValue(value: unknown, vars: Record<string, string> | undefined, operationId: string): unknown {
+  if (typeof value === "string") {
+    return value.replace(/\$\{([^}]+)\}/g, (_m, token: string) => {
+      const v = vars?.[token];
+      if (v === undefined) {
+        throw new GuidanceError(
+          "operation_arguments_invalid",
+          `operations.${operationId}: unresolved template token \${${token}} (known tokens: ${Object.keys(vars ?? {}).join(", ") || "none"})`,
+          { recoverable: false },
+        );
+      }
+      return v;
+    });
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => resolveTemplateValue(v, vars, operationId));
+  }
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = resolveTemplateValue(v, vars, operationId);
+    }
+    return out;
+  }
+  return value;
+}
 
 function baseResult(config: OperationConfig): NormalizedResult {
   return {
@@ -115,7 +151,15 @@ export class OperationEngine {
       if (!invoker) {
         return { ...base, errors: [{ code: "downstream_connection_failed", message: "downstream invoker not configured" }], summary: "downstream invoker not configured" };
       }
-      const args = (config.arguments?.mode === "fixed" ? config.arguments.value : config.arguments?.value ?? {}) as Record<string, unknown>;
+      const rawArgs = config.arguments?.value ?? {};
+      let args: Record<string, unknown>;
+      try {
+        args = (config.arguments?.mode === "template"
+          ? resolveTemplateValue(rawArgs, ctx.templateVars, config.operationId)
+          : rawArgs) as Record<string, unknown>;
+      } catch (err) {
+        return { ...base, errors: [{ code: "operation_arguments_invalid", message: String(err instanceof GuidanceError ? err.message : err) }], summary: "template arguments invalid" };
+      }
       let outcome: Awaited<ReturnType<typeof invoker.invokeTool>>;
       try {
         outcome = await invoker.invokeTool(config.server ?? "", config.capability ?? "", args);
@@ -185,12 +229,17 @@ export class OperationEngine {
 
     const timeoutMs = (config.timeoutSeconds ?? 120) * 1000;
     const maxBuffer = config.output?.maximumBytes ?? 1_048_576;
+    const procConfig = config as { env?: Record<string, string>; shell?: boolean | string };
     const run = spawnSync(config.executable ?? "", config.args ?? [], {
       cwd: ctx.workspaceRoot,
       timeout: timeoutMs,
       killSignal: "SIGTERM",
       encoding: "utf-8",
       maxBuffer,
+      // GUID-5: per-operation environment (merged over the inherited
+      // container/host environment) and optional shell execution.
+      env: procConfig.env ? { ...process.env, ...procConfig.env } : undefined,
+      shell: procConfig.shell,
     });
     if (run.error) {
       const timedOut = (run.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
