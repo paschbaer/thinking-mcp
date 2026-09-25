@@ -46,7 +46,7 @@
           "type": "mcpTool",
           "server": "gitnexus",
           "capability": "check",
-          "arguments": { "mode": "template", "value": { "repo": "${project.name}" } }
+          "arguments": { "mode": "template", "value": { "repo": "thinking-mcp" } }
         },
         {
           "type": "process",

@@ -5,6 +5,25 @@
 
 **Last updated:** 2026-09-25
 
+## 2026-09-25: GUID-1-Lauf — Gates produktiv, 2 echte Bugs aufgedeckt
+
+- Erster echter Workflow-Lauf (Zed-Agent, Docs-Change): **build-Gate grün**
+  nach Container-Deps-Install (`npm install --include=dev --ignore-scripts
+  --script-shell=/bin/true` im isolierten Volume; corepack-yarn crasht auf
+  alpine, NODE_ENV=production skippte devDeps, prepare-Scripts laufen trotz
+  ignore-scripts). lint/test (optional) failen bekannt/toleriert (prettier
+  pre-existing; @rollup/rollup-linux-x64-musl optional-deps-Bug).
+- **Bug 1 (gefixt, `5316c88`)**: bare `require` in `createRequireShim()`
+  (ESM) — ReferenceError bei jedem submit_*; statischer createRequire-Import;
+  215/215 Tests; Lesson rezidivierend dokumentiert; Regression-Coverage
+  offen → GUID-4.
+- **Bug 2 (getrackt, GUID-3)**: Template-Platzhalter (`${project.name}` u.a.)
+  werden nie aufgelöst — Gate lief mit literalem Repo-Namen. Workaround:
+  hartcodiert in operations.json (Backup .bak), wirkt erst nach Container-
+  Restart (Config-Snapshot im Session-State). Restart erfolgt.
+- Status: Workflow blocked in complete; Nutzer-Agent führt resume + retry
+  complete nach Restart durch → finaler grüner Lauf schließt GUID-1.
+
 ## 2026-09-25: GUID-1-Vorbereitung — GitNexus-Docker (:4747) an repo angebunden
 
 - `C:\Users\AlexanderPaschold\source\repos\GitNexus\docker-compose.override.yaml`
