@@ -9,16 +9,17 @@
 
 ## Tracked Follow-ups
 
-- [GUID-6] MEDIUM (accepted with rationale) | Das `repository-analysis`-Gate
-  erkennt **keine Index-Staleness**: `check` verifiziert nur Existenz +
-  Queryability — ein veralteter Index bleibt grün (produktiv beobachtet
-  2026-09-25: Index war hinter HEAD, Refresh erfolgte erst durch manuellen
-  CLI-Aufruf). Gegenmaßnahme aktuell prozessual: AGENTS.md + complete-Phase-
-  Instruction + README schreiben dem Agent den host-seitigen Refresh VOR
-  `complete_workflow` vor. | Trigger: sobald GitNexus per MCP eine Staleness-
-  Erkennung anbietet (z. B. indexed-commit vs. HEAD in `check`/`list_repos`)
-  → Gate auf Frische-Prüfung erweitern. | accepted with rationale (technisch
-  heute nicht ausdrückbar; Prozessregel als Kompensation dokumentiert)
+- [GUID-6] CLOSED 2026-09-25 | Frische-Prüfung deterministisch im Gate:
+  neue blocking-Operation `index-freshness` (Skript
+  `servers/server-guidance/scripts/check-index-freshness.mjs`, reiner Node
+  ohne git-Binary) vergleicht `.gitnexus/branches/*/meta.json` (lastCommit)
+  gegen git HEAD (loose ref + packed-refs-Fallback, detached-HEAD-tolerant)
+  und failt bei Staleness mit Differenzdetail — live demonstriert: Commit
+  `4ee166e` nach dem letzten Analyze → Gate-Fail „no index covers HEAD“,
+  nach `gitnexus analyze --no-stats` → grün. Root-meta.json ist KEIN
+  Frische-Indikator (Inkremental-Analyze aktualisiert nur branches/*).
+  Rest: gitnexus-native Staleness-API bleibt Nice-to-have (Skript macht sie
+  überflüssig, solange branches/* zuverlässig gepflegt wird). | — | resolved
 - [GUID-3] CLOSED 2026-09-25 | Template-Platzhalter werden jetzt aufgelöst:
   `OperationContext.templateVars` (befüllt von `WorkflowEngine.ctxFor` mit
   `session.request` + `project.name`), tiefe `${token}`-Resolution für
@@ -41,13 +42,12 @@
   `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` completed. Restrisiko
   dokumentiert in activeContext (Docker-Mounts vs. Indexstand, vgl. HD-4)
   bleibt Beobachtungspunkt für künftige Läufe. | resolved (grüner Lauf)
-- [GUID-2] LOW | `store-completion-insight` nutzt `experience_record_observation`
-  mit Template `{kind, content}` — die Operation verlangt serverseitig zusätzlich
-  `workflow_id` + `client_context.scope_id`; Template-Platzhalter dafür fehlen
-  ggf. noch (Op ist `required:false`, Fehler toleriert). | Trigger: nächster
-  Touch des OperationEngine-Template-Engines oder erster `complete`-Lauf mit
-  störenden tool_reported-Noise. | action required (arg-Vollständigkeit
-  prüfen, ggf. Platzhalter ergänzen)
+- [GUID-2] CLOSED 2026-09-25 (subsumed) | `store-completion-insight`-Args
+  unvollständig — die Operation wurde im Zuge der Capture-lessons-Integration
+  **komplett entfernt** und durch `capture-session-lessons` ersetzt
+  (Prozess-Gate, seed-lessons.mjs, idempotent, blocking; Commit `2e72c9a`).
+  Ursprünglicher Trigger existiert nicht mehr. Duplikat-Eintrag konsolidiert.
+  | — | resolved (subsumed)
 - [x] HD-2 | LOW | `connection.startupTimeoutSeconds` war nicht verdrahtet —
   `ClientManager.handshakeTimeoutMs` hardcoded 10 s. GELÖST (Commit „wire
   per-server handshake timeout"): `ensureReady` nimmt
