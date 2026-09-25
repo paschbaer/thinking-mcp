@@ -25,17 +25,12 @@
   den Live-Pfad nicht. | Trigger: nächster Touch der Submission-Schema-
   Validierung oder WorkflowEngine-Tests. | action required (Test, der
   `validatorFor` über den echten Schema-Load-Pfad ausführt)
-- [GUID-1] MEDIUM | `repository-analysis`-Gate (gitnexus, `required:true`,
-  HTTP-Downstream :4747) ist noch nie produktiv durchgelaufen — connectivity und
-  ClientManager sind verifiziert, aber der Composite-Step (`analyze` mit
-  `{noStats:true}`) hatte keinen echten Lauf. **Update 2026-09-25:** Gate
-  feuerte produktiv (complete-Phase) und legte GUID-3 offen; `build`-Gate
-  grün nach Container-Deps-Install. Offen: finaler grüner complete-Lauf
-  nach GUID-3-Workaround + Container-Restart. | Trigger: erster echter
-  Workflow-Lauf im Zed-Agent bis `complete` (Gate läuft automatisch
-  vor `complete`); bei Fehlschlag Gate-Ergebnis gegen
-  `.gitnexus`-Indexstand prüfen (Docker-MCP sieht evtl. nur Container-Mounts,
-  vgl. HD-4). | action required
+- [GUID-1] CLOSED 2026-09-25 | Gate feuerte produktiv im complete-Lauf und
+  ging grün: `repository-analysis` succeeded (check `{repo:"thinking-mcp"}`
+  nach GUID-3-Workaround + Container-Restart). Session
+  `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` completed. Restrisiko
+  dokumentiert in activeContext (Docker-Mounts vs. Indexstand, vgl. HD-4)
+  bleibt Beobachtungspunkt für künftige Läufe. | resolved (grüner Lauf)
 - [GUID-2] LOW | `store-completion-insight` nutzt `experience_record_observation`
   mit Template `{kind, content}` — die Operation verlangt serverseitig zusätzlich
   `workflow_id` + `client_context.scope_id`; Template-Platzhalter dafür fehlen

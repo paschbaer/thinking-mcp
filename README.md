@@ -16,7 +16,7 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 
 ## Quick Start
 
-No checkout needed — MCP clients run the server directly via npx:
+No checkout needed — MCP clients run the servers directly via npx:
 
 ```json
 {
@@ -29,8 +29,20 @@ No checkout needed — MCP clients run the server directly via npx:
 }
 ```
 
-Prefer HTTP instead of stdio? Run the Docker image (see [Docker](#docker)) and
-point your client at `http://localhost:3000`.
+**Verify it works:** restart your client and check that the Clear Thought tools
+appear (e.g. call `session_info` — it should echo session stats).
+
+**Other servers** (same `npx -y <package>` pattern, each with its own tools):
+
+- [Insight](./servers/server-insight/README.md) (`@paschbaer/insight`) —
+  experience memory; HTTP variant: `http://localhost:3002/mcp`
+- [Guidance](./servers/server-guidance/README.md) (`@paschbaer/guidance`) —
+  workflow orchestrator; needs a `.guidance/` config in your repo (see its
+  [README](./servers/server-guidance/README.md))
+
+Prefer HTTP instead of stdio? Run the prebuilt Docker image
+`ghcr.io/paschbaer/clear-thought` (no build required — see
+[Docker](#docker)) and point your client at `http://localhost:3000/mcp`.
 
 ## What you get
 

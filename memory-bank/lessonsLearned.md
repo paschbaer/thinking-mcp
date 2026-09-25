@@ -149,6 +149,11 @@
   closeAllEditors bzw. Terminal-Append/Patch; create_file überschreibt keine
   existierenden Dateien. Gefunden bei der Merge-Implementierung.
 
+## 2026-09-25 — Guidance-Gates: Config-Snapshot + Template-Platzhalter (GUID-1/3 abgeschlossen)
+- **Config-Snapshot pro Session**: Der Guidance-Server lädt `.guidance/` beim Session-Start (configurationVersion-SHA im Session-State). Operation-Config-Änderungen auf Disk wirken NICHT in laufenden Sessions — Fix + Container-Restart + resume nötig. Prevention: Operations-Config vor `start_workflow` verifizieren, nicht mid-session patchen.
+- **`${project.name}`-Platzhalter wird nie aufgelöst**: mcpTool-Arguments liefen mit Literal-String ("Repository \"${project.name}\" not found") — Literal-Passthrough ist kein Gate-Success. Workaround: konkrete Werte hartcodieren; echter Fix (Placeholder-Engine) = GUID-3.
+- **Gate-Debugging über retry_operation**: Der Retry führt die Phasen-Gates serverseitig erneut aus — Fehler Summaries dort sind die primäre Diagnosequelle; host-seitige Läufe (WSL `yarn build`, exit 0) sind gültige Gegenbeweise bei Container-Umgebungsproblemen.
+
 ## 2026-09-18: EMMS-Implementierung
 - **better-sqlite3 native build**: `--ignore-scripts`-Installation laesst die native Bindung fehlen ("Could not locate the bindings file"). Fix: `npm rebuild better-sqlite3`. Bei Workspace-Root-Installs: Bindung liegt am Root, nicht im Server-Ordner.
 - **better-sqlite3 named params**: alle benannten Parameter muessen uebergeben werden (auch `null` fuer optionale Spalten) — `...spread` mit `undefined`-Feldern wirft "Missing named parameter". Immer explizit mappen.
