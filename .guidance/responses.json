@@ -37,7 +37,7 @@
     },
     "complete": {
       "title": "Complete the Workflow",
-      "instruction": "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. Guidance executes all mandatory completion operations before completion.",
+      "instruction": "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: review this session for recurring bugs, traps, and validated fixes per .github/prompts/capture-lessons.prompt.md, and write validated lessons (redacted, [{slug, observation, cause, fix}]) to .guidance/state/session-lessons.json — ALWAYS create the file, using an empty array if there are no validated lessons. Guidance then seeds this file into the experience-memory server (capture-session-lessons gate) and runs all mandatory completion operations before completion.",
       "requiredActions": []
     }
   }
