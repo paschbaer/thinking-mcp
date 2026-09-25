@@ -305,11 +305,27 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
     throw new ConfigurationError("configuration_invalid", "downstreamServers.servers must be an object");
   }
   for (const [id, raw] of Object.entries(servers as Record<string, Record<string, unknown>>)) {
-    const connection = raw["connection"] as { requestTimeoutSeconds?: unknown; startupTimeoutSeconds?: unknown } | undefined;
+    const connection = raw["connection"] as { requestTimeoutSeconds?: unknown; startupTimeoutSeconds?: unknown; reconnect?: unknown } | undefined;
     for (const key of ["requestTimeoutSeconds", "startupTimeoutSeconds"] as const) {
       const t = connection?.[key];
       if (t !== undefined && (typeof t !== "number" || !Number.isFinite(t) || t <= 0)) {
         throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.${key} must be a positive finite number`);
+      }
+    }
+    const reconnect = connection?.reconnect;
+    if (reconnect !== undefined) {
+      if (typeof reconnect !== "object" || Array.isArray(reconnect)) {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.reconnect must be an object`);
+      }
+      const rc = reconnect as { enabled?: unknown; maximumAttempts?: unknown; delayMilliseconds?: unknown };
+      if (rc.enabled !== undefined && typeof rc.enabled !== "boolean") {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.reconnect.enabled must be a boolean`);
+      }
+      if (rc.maximumAttempts !== undefined && (typeof rc.maximumAttempts !== "number" || !Number.isInteger(rc.maximumAttempts) || rc.maximumAttempts < 1)) {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.reconnect.maximumAttempts must be a positive integer`);
+      }
+      if (rc.delayMilliseconds !== undefined && (typeof rc.delayMilliseconds !== "number" || !Number.isInteger(rc.delayMilliseconds) || rc.delayMilliseconds < 0)) {
+        throw new ConfigurationError("configuration_invalid", `downstreamServers.${id}: connection.reconnect.delayMilliseconds must be a non-negative integer`);
       }
     }
     const transport = raw["transport"];

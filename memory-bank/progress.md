@@ -336,3 +336,15 @@ akzeptiert).
 **Current state:** HTTP-Downstream committed (e601515); HD-2 verdrahtet
 (per-Server-Handshake-Timeout, Config-Validierung, Tests) — 209/209 + tsc
 grün, detect-changes risk MEDIUM (nur erwartete Symbole).
+
+### 2026-09-25 — HD-1 Reconnect implementiert
+**What works:** `connection.reconnect` {enabled, maximumAttempts,
+delayMilliseconds} verdrahtet: ClientManager speichert pro Server die
+Verbindungsparameter, verwirft nach transport failure den toten Client und
+wiederholt Handshake+Call bis maximumAttempts; Config-Errors werden nie
+retryt; Validierung fail-closed; 5 neue Tests. 214/214 + tsc grün;
+detect-changes MEDIUM (erwartete Symbole).
+**What's left:** Push von develop (2 Commits ahead); HD-3-Rest (stateful
+automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
+**Current state:** Alle reconnect-Funktionstests grün — Downstream-Restarts
+(insight/gitnexus) überlebt guidance nun ohne Neustart.

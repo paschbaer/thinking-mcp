@@ -144,6 +144,88 @@ describe("ClientManager http transport (FR-031 HTTP extension)", () => {
     expect(status.status).toBe("failed");
     expect(status.error).toMatch(/invalid handshakeTimeoutSeconds/);
   });
+
+  describe("reconnect (HD-1: connection.reconnect)", () => {
+    it("reconnects and retries the invocation after the downstream died", async () => {
+      const mgr = new ClientManager();
+      const stubs: ReturnType<typeof createStubServer>[] = [];
+      let factoryCalls = 0;
+      mgr.useTransport("r", () => {
+        factoryCalls += 1;
+        const stub = createStubServer("success");
+        stubs.push(stub);
+        return stub.clientTransport;
+      });
+      const status = await mgr.ensureReady("r", undefined, {
+        reconnect: { enabled: true, maximumAttempts: 2, delayMilliseconds: 1 },
+      });
+      expect(status.status).toBe("ready");
+      // Downstream dies: kill the first client-side transport.
+      await stubs[0]!.clientTransport.close();
+      const out = await mgr.invokeTool("r", "analyze", {});
+      expect(out.kind).toBe("success");
+      expect(factoryCalls).toBe(2);
+      await mgr.shutdown();
+    });
+
+    it("does not retry when reconnect is disabled or unconfigured", async () => {
+      const mgr = new ClientManager();
+      let factoryCalls = 0;
+      mgr.useTransport("plain", () => {
+        factoryCalls += 1;
+        return createStubServer("success").clientTransport;
+      });
+      await mgr.ensureReady("plain");
+      const out = await mgr.invokeTool("plain", "analyze", {});
+      expect(out.kind).not.toBe("transport");
+      // Force a transport failure without a reconnect policy: unknown server id.
+      const dead = await mgr.invokeTool("unknown-server", "analyze", {});
+      expect(dead.kind).toBe("transport");
+      expect(factoryCalls).toBe(1);
+      await mgr.shutdown();
+    });
+
+    it("reports the last reconnect failure when all attempts are exhausted", async () => {
+      const mgr = new ClientManager();
+      const stubs: ReturnType<typeof createStubServer>[] = [];
+      let factoryCalls = 0;
+      mgr.useTransport("flaky", () => {
+        factoryCalls += 1;
+        // First call connects fine; every reconnect gets a dead-end stub.
+        const stub = createStubServer(factoryCalls === 1 ? "success" : "transport_failure");
+        stubs.push(stub);
+        return stub.clientTransport;
+      });
+      const status = await mgr.ensureReady("flaky", undefined, {
+        reconnect: { enabled: true, maximumAttempts: 2, delayMilliseconds: 1 },
+        handshakeTimeoutSeconds: 0.2,
+      });
+      expect(status.status).toBe("ready");
+      // Downstream dies: kill the first client-side transport.
+      await stubs[0]!.clientTransport.close();
+      const out = await mgr.invokeTool("flaky", "analyze", {});
+      expect(out.kind).toBe("transport");
+      if (out.kind === "transport") expect(out.message).toMatch(/reconnect attempt 2\/2/);
+      expect(factoryCalls).toBe(3); // initial + 2 reconnect attempts
+      await mgr.shutdown();
+    });
+
+    it("does not reconnect on invalid requestTimeoutSeconds (config error, not connectivity)", async () => {
+      const mgr = new ClientManager();
+      let factoryCalls = 0;
+      mgr.useTransport("x", () => {
+        factoryCalls += 1;
+        return createStubServer("success").clientTransport;
+      });
+      await mgr.ensureReady("x", undefined, {
+        reconnect: { enabled: true, maximumAttempts: 3, delayMilliseconds: 1 },
+      });
+      const out = await mgr.invokeTool("x", "analyze", {}, -1);
+      expect(out.kind).toBe("transport");
+      expect(factoryCalls).toBe(1);
+      await mgr.shutdown();
+    });
+  });
 });
 
 describe("counting invoker (SC-005 evidence helper)", () => {
