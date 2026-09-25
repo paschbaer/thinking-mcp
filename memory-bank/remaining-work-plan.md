@@ -46,7 +46,17 @@
   Test mit hängendem Transport beweist die Verdrahtung (fail ~200 ms bei
   Default 10 s). detect-changes: risk MEDIUM, nur erwartete Symbole. | — |
   resolved
-- [x] HD-1 | MEDIUM | HTTP-Downstream-Reconnect fehlte: `connection.reconnect`
+- [GUID-2] CLOSED 2026-09-25 (subsumed) | `store-completion-insight`-Args
+  unvollständig — die Operation wurde im Zuge der Capture-lessons-Integration
+  **komplett entfernt** und durch `capture-session-lessons` ersetzt
+  (Prozess-Gate, seed-lessons.mjs, idempotent, blocking; Commit `2e72c9a`).
+  Ursprünglicher Trigger existiert nicht mehr. | — | resolved (subsumed)
+- [GUID-5] LOW | OperationEngine `spawnSync` unterstützt **keine env-Option**
+  für Prozess-Operationen — ENV muss heute über `sh -c`-Inline-Assignments
+  laufen (siehe capture-session-lessons). | Trigger: nächster Touch von
+  OperationEngine/OperationConfig; Fix = optionales `env`-Feld in der
+  Operation-Config + Regressionstest. | action required
+- [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
   war dokumentiert, aber nicht implementiert. GELÖST (Commit „feat(guidance):
   reconnect downstream after transport failures"): ClientManager merkt sich
   Transport-/Handshake-Parameter pro Server; nach transport failure werden
