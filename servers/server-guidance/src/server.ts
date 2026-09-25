@@ -15,6 +15,7 @@ import { GuidanceError } from "./types/errors.js";
 import { existsSync } from "node:fs";
 import { createGuidanceServer } from "./mcp-server/GuidanceServer.js";
 import { registerWorkflowTools } from "./mcp-server/register-tools.js";
+import { registerSetupTools } from "./mcp-server/register-setup-tools.js";
 import { registerSpecKitTools, toEngineSpecKitConfig } from "./mcp-server/register-spec-kit-tools.js";
 import { composeApplication, ensureConfiguration } from "./main.js";
 import { PairStore, loadPairsFromEnv } from "./remote/pair-store.js";
@@ -71,6 +72,7 @@ export function createConfiguredServer(opts: HttpAppOptions, composed: ComposedA
   const server = createGuidanceServer();
   if (!composed) return server; // Remote-Modus: Registrierung via registerRemoteTools
   registerWorkflowTools(server, composed.tools, opts.workspaceRoot);
+  registerSetupTools(server);
   if (composed.profile === "spec-kit") {
     if (!composed.specKit) {
       throw new GuidanceHttpError("profile spec-kit requires specKit integration config");
