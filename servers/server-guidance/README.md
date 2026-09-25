@@ -835,10 +835,11 @@ ends the run in the `cancelled` terminal state.
 
 | Aspect | Detail | Config |
 |---|---|---|
-| Instruction | Final completion report — summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, next steps. **Before submitting:** (1) refresh the GitNexus index host-side (`gitnexus analyze --no-stats`, see AGENTS.md — the gate verifies availability, not freshness) and note it in the report; (2) write the session lessons file (contract below) | `responses.json` → `complete` |
+| Instruction | Final completion report — summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, next steps. **Before submitting:** (1) refresh the GitNexus index host-side (`gitnexus analyze --no-stats`, see AGENTS.md — the gate verifies availability, not freshness) and note it in the report; (2) write the session lessons file (contract below); (3) remaining-work impact review — update `memory-bank/remaining-work-plan.md` for follow-ups resolved, touched, or newly created by this run | `responses.json` → `complete` |
 | Submission | `complete_workflow` — required: `summary`; optional: `changedFiles`, `verificationSummary`, `knownLimitations`, `remainingRisks`, `deviations`, `deferredWork`, `nextSteps` | `schemas/complete.schema.json` |
 | Gates on exit (`beforeExit`) | `repository-analysis` (**required**, composite `firstAvailable`: MCP `check` against GitNexus HTTP, fallback local `gitnexus analyze --no-stats` CLI for stdio deployments — the HTTP server exposes no analyze tool) · `capture-session-lessons` (**required**, see contract below) — required failures block completion (`retry_operation` re-runs) | `workflow.json` → `phases.complete.lifecycle.beforeExit` · `operations.json` → `repository-analysis`/`capture-session-lessons` |
 | Transition | `required_operations_succeeded` → `completed` (terminal) | `workflow.json` → `phases.complete.transitions` |
+| Impact review | Remaining-work impact review is part of the instruction (step 3): the agent assesses how this run affects tracked follow-ups and updates the plan — deliberately an instruction duty, not a gate (plan adjustments are judgment, not deterministically checkable) | `responses.json` → `complete.instruction` · `memory-bank/remaining-work-plan.md` |
 
 **Session lessons contract (`capture-session-lessons`):** before calling
 `complete_workflow`, the agent reviews the session for recurring bugs, traps,
