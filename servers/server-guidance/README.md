@@ -750,6 +750,7 @@ ends the run in the `cancelled` terminal state.
 | Submission | `submit_understanding` — required: `summary`; optional: `assumptions`, `openQuestions`, `risks`, `acceptanceCriteria`, `affectedAreas`, `constraints` | `schemas/understand.schema.json` |
 | Transition | `submission_valid` → `plan` | `workflow.json` → `phases.understand.transitions` |
 | Clear-Thought duty | `sequential_thinking` pass is a `requiredAction` — the submission must reference its conclusions | `responses.json` → `understand.requiredActions` |
+| Shell setup | Run all terminal commands through `wsl.exe -e bash` (this repo's shell) — set up before analysis; hardcoded in the instruction because the server's strict `guidance.json` validation rejects unknown fields | `responses.json` → `understand.instruction` |
 
 #### 2. `plan` — concrete implementation plan
 
@@ -773,7 +774,7 @@ ends the run in the `cancelled` terminal state.
 
 | Aspect | Detail | Config |
 |---|---|---|
-| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation | `responses.json` → `implement` |
+| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — no worktree (container gates verify `/workspace` = main checkout). **Last step:** update `README.md` and the memory-bank files | `responses.json` → `implement` |
 | Submission | `submit_implementation` — required: `implementedTasks`; optional: `changedFiles`, `createdFiles`, `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`, `unresolvedIssues` | `schemas/implement.schema.json` |
 | Transitions | `submission_valid` → `review_and_fix_implementation`; `significant_plan_deviation` → back to `plan` (deviations must be planned, not silently absorbed) | `workflow.json` → `phases.implement.transitions` |
 
@@ -855,6 +856,16 @@ recorded) or ends the run via `cancel_workflow`.
   reasoning). The duty is therefore instruction-enforced and review-checked,
   and assumes the agent has Clear-Thought loaded (guaranteed in this repo
   via `AGENTS.md`).
+- **Branch workflow + worktree limitation:** every implementation starts with
+  a branch check and a feature branch (`feature/<meaningful-name>`) — plain
+  branch, deliberately **no worktree**: the container gates verify `/workspace`
+  (= the main checkout), so a worktree outside it would be verified stale
+  (falsely green). Worktrees remain an opt-in for parallel work outside
+  gated runs. Related server follow-ups (tracked as GUID-5 family): a shell
+  option for process operations and a per-session switchable workspace root.
+  The shell (`wsl.exe -e bash`) is defined in the `understand` instruction —
+  a `shell` field in `guidance.json` is rejected by the server's strict
+  config validation.
 - **Asking questions — channels per phase:** every non-`verify` phase
   instructs the agent to ask open questions in the chat **before** submitting
   and to reference them in the phase's schema field — `understand` →

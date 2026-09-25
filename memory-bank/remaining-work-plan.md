@@ -66,6 +66,15 @@
   laufen (siehe capture-session-lessons). | Trigger: nächster Touch von
   OperationEngine/OperationConfig; Fix = optionales `env`-Feld in der
   Operation-Config + Regressionstest. | action required
+- [GUID-5] LOW | OperationEngine `spawnSync` unterstützt **keine env-Option**
+  für Prozess-Operationen — ENV muss heute über `sh -c`-Inline-Assignments
+  laufen (siehe capture-session-lessons). **Familie erweitert 2026-09-25:**
+  (a) `shell`-Option für process-Operations (Repo-Shell wsl.exe -e bash
+  aktuell nur agent-facing via Instruction — guidance.json-Feld wird von der
+  strikten Validierung abgelehnt), (b) pro Session umschaltbares
+  `workspaceRoot` (Voraussetzung für Worktree-Workflows mit korrekten Gates).
+  | Trigger: nächster Touch von OperationEngine/OperationConfig; Fix = env/
+  shell/workspaceRoot-Felder + Regressionstests. | action required
 - [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
   war dokumentiert, aber nicht implementiert. GELÖST (Commit „feat(guidance):
   reconnect downstream after transport failures"): ClientManager merkt sich
