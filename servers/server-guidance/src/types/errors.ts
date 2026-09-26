@@ -52,6 +52,7 @@ export const ERROR_CODES = [
   // spec 003: toolchain-bootstrap / run_operation
   "agent_invocation_denied",
   "operation_in_progress",
+  "workspace_lock_unavailable",
   // Spec-Kit profile
   "spec_kit_feature_in_use",
   "spec_kit_not_enabled",
