@@ -1547,6 +1547,50 @@ export class WorkflowEngine {
   /** Re-runs the current phase's required beforeExit operations (FR-040 retry). */
   async retryOperations(sessionId: string): Promise<SubmitResult> {
     return this.sessions.withLock(sessionId, async () => {
+      // CHN-1: a crash-orphaned 'activating' chain successor fails getSession
+      // (chain_activation_incomplete) — this is the documented recovery path.
+      // getSession would throw inside the lock, so load raw and re-activate.
+      const raw = this.sessions.load(sessionId);
+      if (raw.status === "activating") {
+        const activation = await this.activateSession(
+          sessionId,
+          raw.currentPhase,
+        );
+        this.sessions.update(sessionId, (s) => {
+          if (!activation.blocked) s.status = "active";
+        });
+        const status = activation.blocked ? "blocked" : "active";
+        this.audit.append({
+          sessionId,
+          eventType: "chain_activation_recovered",
+          phase: raw.currentPhase,
+          data: { status },
+        });
+        if (activation.blocked) {
+          const err = new GuidanceError(
+            "required_hook_failed",
+            "re-activation still failing; session stays blocked",
+            {
+              recoverable: true,
+              currentPhase: raw.currentPhase,
+              workflowStatus: "blocked",
+            },
+          );
+          return {
+            ...err.toResponse(),
+            sessionId,
+            status,
+            operations: activation.operations,
+          } as SubmitResult;
+        }
+        return {
+          accepted: true,
+          sessionId,
+          currentPhase: raw.currentPhase,
+          status,
+          operations: activation.operations,
+        };
+      }
       const session = this.getSession(sessionId);
       if (session.status !== "active") {
         const err = new GuidanceError(

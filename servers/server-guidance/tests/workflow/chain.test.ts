@@ -440,6 +440,107 @@ describe("Amendment 002: workflow chaining", () => {
     expect(s1.request).toContain("001-from-tasks");
   });
 
+  it("§10.11b CHN-1 recovery happy path: retry_operation re-activates an 'activating' session", async () => {
+    chainOn();
+    engine = makeEngine();
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: { steps: [{ request: "step-1" }] },
+    });
+    await walkToVerify(head.sessionId);
+    const c = await engine.completeWorkflow(head.sessionId, { summary: "s" });
+    // simulate crash between persistence and activation completion
+    engine.sessions.update(c.nextSessionId!, (s) => {
+      s.status = "activating";
+    });
+    await expect(engine.getWorkflowState(c.nextSessionId!)).rejects.toThrow();
+    // documented recovery path now works
+    const retry = await engine.retryOperations(c.nextSessionId!);
+    expect(retry.accepted).toBe(true);
+    expect(retry.status).toBe("active");
+    expect(engine.getSession(c.nextSessionId!).status).toBe("active");
+    const audit = readFileSync(
+      join(ws, "state", "history", `${c.nextSessionId!}.jsonl`),
+      "utf-8",
+    );
+    expect(audit).toContain("chain_activation_recovered");
+  });
+
+  it("§10.11c CHN-1 recovery fail path: failing activation leaves the session blocked with recoverable error", async () => {
+    // probe op succeeds on probe calls 1-2 (head start, successor auto-activation)
+    // and fails from call 3 on — so the manual retry (recovery) hits the failure
+    const cfgDir = join(ws, "cfg");
+    cpSync(join(import.meta.dirname, "fixtures/guidance"), cfgDir, {
+      recursive: true,
+    });
+    const ops = JSON.parse(
+      readFileSync(join(cfgDir, "operations.json"), "utf-8"),
+    );
+    ops.operations["fail-from-third"] = {
+      description: "d",
+      type: "mcpTool",
+      server: "stub",
+      capability: "probe",
+      required: true,
+      timeoutSeconds: 10,
+      riskClass: "read_only",
+      validation: {
+        protocolRequestMustSucceed: true,
+        toolResultMustNotBeError: true,
+      },
+      output: { returnToAgent: "summary_and_errors" },
+    };
+    writeFileSync(
+      join(cfgDir, "operations.json"),
+      JSON.stringify(ops, null, 2),
+    );
+    const wf = JSON.parse(readFileSync(join(cfgDir, "workflow.json"), "utf-8"));
+    wf.phases.understand.lifecycle = { beforeEnter: ["fail-from-third"] };
+    writeFileSync(join(cfgDir, "workflow.json"), JSON.stringify(wf, null, 2));
+    config = loadConfig(cfgDir);
+    chainOn();
+    let probeCalls = 0;
+    const opEngine = new OperationEngine();
+    opEngine.setDownstreamInvoker({
+      invokeTool: async (_serverId: string, toolName: string) => {
+        if (toolName !== "probe")
+          return { kind: "success" as const, content: [] };
+        probeCalls += 1;
+        if (probeCalls >= 3)
+          return { kind: "transport" as const, message: "activation down" };
+        return { kind: "success" as const, content: [] };
+      },
+    });
+    engine = new WorkflowEngine({
+      config,
+      stateDir: join(ws, "state"),
+      operationEngine: opEngine,
+    });
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: { steps: [{ request: "step-1" }] },
+    });
+    expect(head.status).toBe("active"); // probe call 1
+    await walkToVerify(head.sessionId);
+    const c = await engine.completeWorkflow(head.sessionId, { summary: "s" });
+    expect(c.chain?.[0]?.status).toBe("active"); // probe call 2
+    // crash-orphan the successor, then run the documented recovery → call 3 fails
+    engine.sessions.update(c.nextSessionId!, (s) => {
+      s.status = "activating";
+    });
+    const retry = await engine.retryOperations(c.nextSessionId!);
+    expect(retry.accepted).toBe(false);
+    expect(retry.status).toBe("blocked");
+    expect(retry.error?.code).toBe("required_hook_failed");
+    expect(retry.error?.recoverable).toBe(true);
+    expect(engine.getSession(c.nextSessionId!).status).toBe("blocked");
+    const failAudit = readFileSync(join(ws, "state", "history", `${c.nextSessionId!}.jsonl`), "utf-8");
+    expect(failAudit).toContain("chain_activation_recovered");
+    expect(failAudit).toContain("hook_failed");
+  });
+
   it("§10.9 backward compatibility: sessions without chain fields load and complete unchanged", async () => {
     // chain NOT enabled → legacy behavior
     engine = makeEngine();
