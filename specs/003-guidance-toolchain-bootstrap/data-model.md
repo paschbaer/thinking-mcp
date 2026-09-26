@@ -38,14 +38,16 @@ run_operation
 
 (`operation_not_configured`, `session_not_found` reuse existing codes.)
 
+(`operation_not_configured`, `session_not_found` reuse existing codes.)
+
 ## Audit Events
 
-```ts
-{ sessionId, eventType: "operation_invoked", phase: undefined,
-  data: { operationId, status, durationMs, via: "run_operation" } }
-```
-
 Append-only JSONL via existing `AuditRepository` (redaction hook applies).
+
+| eventType | when | data |
+|---|---|---|
+| `operation_invoked` | execution attempted via run_operation | `{ operationId, status, durationMs, via: "run_operation" }` (status: succeeded/failed/cancelled) |
+| `operation_invocation_denied` | guard rejection before execution (FR-102/107/109, inactive session) | `{ operationId, reason }` — no execution event is written for denied calls |
 
 ## Pilot Operation Set (examples/python-guidance/operations.json)
 
