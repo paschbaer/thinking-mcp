@@ -362,6 +362,19 @@ Memory-bank gesynct (L264/L266/CB-1/CB-2/CB-9 → [x] mit Evidence).
 **Current state:** Security-/Policy-Lücken geschlossen — Guidance aus
 Sicherheits­sicht produktionsreif; Rest = Ops/Monitoring + Remote-Downstream-Spec.
 
+### 2026-09-26 — Feature 003 Toolchain-Bootstrap (Chained Workflow abgeschlossen)
+**What works:** run_operation-Tool (fail-closed invocableByAgent),
+FR-107/109/110-Locking (inkl. Stale-Lock-Recovery), Dockerfile python3+uv
+0.12.19, Python-Beispielprofil (uv sync --locked fail-closed), E2E
+SC-001..004. 268/268 + tsc + build grün. Unabhängiger Review: HIGH gefixt,
+Rest getrackt. Commits 77fa854 + Review-Fix auf
+feature/guidance-toolchain-bootstrap; Merge nach develop erfolgt.
+**What's left:** R-006 (E2E-Lücken, braucht async-Op-Engine), R-008a
+(globaler Lock), R-010 (ERROR_CODES-Test), Scaffold-Spracherkennung,
+Named-Volume-Venv, FR-110-Hard-Kill — alle in remaining-work-plan getrackt.
+**Current state:** Feature 003 funktional komplett und gerettet; develop
+aktualisiert, Feature-Branch gelöscht (nach Merge).
+
 ### 2026-09-25 — Guidance HTTP-Downstream (gitnexus/insight via HTTP/Docker)
 **What works:** `transport.type "http"` für downstream-servers.json (URL +
 Header mit `${ENV_VAR}`, fail-closed beim Config-Load); Egress-Host-Allowlist
