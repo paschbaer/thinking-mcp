@@ -48,6 +48,12 @@ export class SqliteAdapter implements StorageAdapter {
         INSERT INTO episodes_fts (episode_id, summary, scope_id)
         VALUES (new.experience_id, new.goal_summary, new.scope_id);
       END;
+      CREATE TRIGGER IF NOT EXISTS observations_fts_insert
+      AFTER INSERT ON observations BEGIN
+        INSERT INTO observations_fts (episode_id, content, scope_id)
+        SELECT new.episode_id, substr(new.content, 1, 500), e.scope_id
+        FROM episodes e WHERE e.experience_id = new.episode_id;
+      END;
     `);
     this.db.prepare(`
       INSERT INTO episodes_fts (episode_id, summary, scope_id)
@@ -55,6 +61,27 @@ export class SqliteAdapter implements StorageAdapter {
       LEFT JOIN episodes_fts f ON f.episode_id = e.experience_id
       WHERE f.episode_id IS NULL
     `).run();
+    // Backfill observation contents (first 500 chars) for stores created
+    // before observations_fts existed. Guarded by a count check so steady-
+    // state init() (every server start) skips the correlated-subquery scan
+    // entirely (review finding: O(N×M) on large stores); the count check is
+    // only bypassed when a divergence actually exists (pre-migration store).
+    const counts = this.db.prepare(
+      `SELECT (SELECT COUNT(*) FROM observations) AS obs,
+              (SELECT COUNT(*) FROM observations_fts) AS fts`
+    ).get() as { obs: number; fts: number };
+    if (counts.obs !== counts.fts) {
+      this.db.prepare(`
+        INSERT INTO observations_fts (episode_id, content, scope_id)
+        SELECT o.episode_id, substr(o.content, 1, 500), e.scope_id
+        FROM observations o
+        JOIN episodes e ON e.experience_id = o.episode_id
+        WHERE NOT EXISTS (
+          SELECT 1 FROM observations_fts f
+          WHERE f.episode_id = o.episode_id AND f.content = substr(o.content, 1, 500)
+        )
+      `).run();
+    }
     const row = this.db.prepare('SELECT COALESCE(MAX(seq),0) AS s FROM events').get() as { s: number };
     this.seq = row.s;
   }
@@ -397,11 +424,21 @@ export class SqliteAdapter implements StorageAdapter {
     // surviving sanitization (NOT/AND/OR/NEAR) would otherwise throw a raw
     // FTS5 syntax error. Only \w chars remain, so quoting is unambiguous.
     const matchArg = safe.split(/\s+/).map((t) => `"${t}"`).join(' ');
-    const ids = this.db
-      .prepare(`SELECT episode_id FROM episodes_fts WHERE episodes_fts MATCH ? ${ftsScopeFilter}`)
-      .all(...(scope_id === '' ? [matchArg] : [matchArg, scope_id])) as { episode_id: string }[];
+    // L256: match both the goal-summary index and the observation-contents
+    // index; a hit in either makes the episode findable via full text.
+    const ftsTables = ['episodes_fts', 'observations_fts'];
+    const ids: { episode_id: string }[] = [];
+    for (const table of ftsTables) {
+      const rows = this.db
+        .prepare(`SELECT episode_id FROM ${table} WHERE ${table} MATCH ? ${ftsScopeFilter}`)
+        .all(...(scope_id === '' ? [matchArg] : [matchArg, scope_id])) as { episode_id: string }[];
+      ids.push(...rows);
+    }
     if (!ids.length) return [];
-    const placeholders = ids.map(() => '?').join(',');
+    // an episode may match in BOTH indexes — dedupe so the follow-up SELECT
+    // returns each episode exactly once
+    const uniqueIds = [...new Set(ids.map((i) => i.episode_id))];
+    const placeholders = uniqueIds.map(() => '?').join(',');
     return this.db
       .prepare(
         `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
@@ -409,7 +446,7 @@ export class SqliteAdapter implements StorageAdapter {
          FROM episodes e LEFT JOIN signatures s ON s.episode_id = e.experience_id
          WHERE e.experience_id IN (${placeholders})`
       )
-      .all(...ids.map((i) => i.episode_id)) as SearchRow[];
+      .all(...uniqueIds) as SearchRow[];
   }
 
   async listInScope(scope_id: string): Promise<SearchRow[]> {

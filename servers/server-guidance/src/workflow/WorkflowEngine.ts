@@ -406,10 +406,17 @@ export class WorkflowEngine {
       const metrics = this.metrics;
       this.operationEngine.execute = (config, ctx, attempt, signal) => {
         const t0 = Date.now();
-        return Promise.resolve(rawExecute(config, ctx, attempt, signal)).then((res) => {
-          metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
-          return res;
-        });
+        return Promise.resolve(rawExecute(config, ctx, attempt, signal)).then(
+          (res) => {
+            metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
+            return res;
+          },
+          (err) => {
+            // final review F6: crash-style rejections count as failed runs
+            metrics.recordOperation(config.operationId, "failed", Date.now() - t0);
+            throw err;
+          },
+        );
       };
     }
   }

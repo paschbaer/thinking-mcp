@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MetricsRepository } from "../../src/metrics/MetricsRepository.js";
@@ -64,5 +64,44 @@ describe("metrics repository (spec 005 FR-402/403, L260)", () => {
     m.recordConnection("gitnexus", "disconnected");
     const snap = m.snapshot();
     expect(snap.connections).toEqual([{ serverId: "gitnexus", status: "disconnected" }]);
+  });
+
+  it("replay does NOT re-persist records (final review F1: no exponential growth)", () => {
+    const m = new MetricsRepository(file);
+    m.recordOperation("lint", "succeeded", 10);
+    m.recordOperation("lint", "failed", 20);
+    const sizeAfterFirst = readFileSync(file, "utf8").trim().split("\n").length;
+    void new MetricsRepository(file); // replay boot
+    const sizeAfterReplay = readFileSync(file, "utf8").trim().split("\n").length;
+    expect(sizeAfterReplay).toBe(sizeAfterFirst);
+  });
+
+  it("get_metrics counts match executed operations (SC-401)", async () => {
+    const { WorkflowEngine } = await import("../../src/workflow/WorkflowEngine.js");
+    const { loadConfig } = await import("../../src/config.js");
+    const FIXTURE = join(import.meta.dirname, "../workflow/fixtures/guidance");
+    const ws2 = mkdtempSync(join(tmpdir(), "guidance-metrics-engine-"));
+    const cfgDir2 = join(ws2, ".guidance");
+    mkdirSync(cfgDir2, { recursive: true });
+    for (const f of ["guidance.json", "workflow.json", "responses.json", "operations.json", "downstream-servers.json", "policies.json"]) {
+      writeFileSync(join(cfgDir2, f), readFileSync(join(FIXTURE, f)));
+    }
+    // invocable-echo in die Config (sonst operation_not_configured)
+    const opsPath = join(cfgDir2, "operations.json");
+    const ops = JSON.parse(readFileSync(opsPath, "utf8")) as { operations: Record<string, unknown> };
+    ops.operations["invocable-echo"] = { description: "d", type: "process", executable: "node", args: ["-e", "process.exit(0)"], required: false, invocableByAgent: true, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } };
+    writeFileSync(opsPath, JSON.stringify(ops));
+    writeFileSync(join(ws2, "package.json"), JSON.stringify({ name: "ws" }));
+    const config = loadConfig(cfgDir2);
+    const engine = new WorkflowEngine({ config, stateDir: join(ws2, "state") });
+    const start = await engine.startWorkflow({ workspaceRoot: ws2, request: "r" });
+    await engine.runOperation(start.sessionId, "invocable-echo");
+    await engine.runOperation(start.sessionId, "invocable-echo");
+    const snap = await engine.getMetrics();
+    const bucket = snap.operations["invocable-echo"]!;
+    expect(bucket.runs).toBe(2);
+    expect(bucket.succeeded).toBe(2);
+    expect(bucket.durationMs.count).toBe(2);
+    rmSync(ws2, { recursive: true, force: true });
   });
 });

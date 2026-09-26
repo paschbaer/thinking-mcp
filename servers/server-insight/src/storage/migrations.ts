@@ -170,6 +170,12 @@ export const MIGRATIONS: string[] = [
   `,
   `CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts5(
     episode_id UNINDEXED, summary, scope_id UNINDEXED)`,
+  // L256 FTS coverage: observation contents (truncated) are searchable.
+  // Observations are append-only (no update/delete path in the adapter),
+  // so this index needs an insert-side trigger/backfill only. scope_id is
+  // copied from the parent episode at write time.
+  `CREATE VIRTUAL TABLE IF NOT EXISTS observations_fts USING fts5(
+    episode_id UNINDEXED, content, scope_id UNINDEXED)`,
 ];
 
 export function runMigrations(db: Database.Database): void {
