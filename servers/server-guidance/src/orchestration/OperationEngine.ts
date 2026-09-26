@@ -3,9 +3,11 @@
  * firstAvailable fallback (FR-010–012, FR-040, FR-055). Downstream MCP
  * operation types fail transport until the Phase 5 client manager lands.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import type { NormalizedResult, OperationConfig } from "../types/index.js";
-import { redactUnknown } from "../policy/redaction.js";
+import { createRedactor, redactUnknown } from "../policy/redaction.js";
+
+const stderrRedactor = createRedactor();
 import { GuidanceError } from "../types/errors.js";
 
 export interface OperationContext {
@@ -29,7 +31,12 @@ interface CompositeConfig extends OperationConfig {
   strategy?: "sequential" | "parallel" | "dependencyGraph" | "firstSuccessful" | "firstAvailable";
 }
 
-type ExecuteFn = (config: OperationConfig, ctx: OperationContext, attempt: number) => NormalizedResult;
+type ExecuteFn = (
+  config: OperationConfig,
+  ctx: OperationContext,
+  attempt: number,
+  signal?: AbortSignal,
+) => Promise<NormalizedResult>;
 
 /**
  * GUID-3: resolves `${token}` placeholders in template arguments against
@@ -89,8 +96,10 @@ export interface DownstreamInvoker {
 }
 
 export class OperationEngine {
-  /** Overridable for tests. */
-  execute: ExecuteFn = (config, ctx, attempt) => this.executeOperation(config, ctx, attempt) as unknown as NormalizedResult;
+  /** Overridable for tests. The optional signal carries hard-cancellation
+   *  (spec 004 FR-202): aborting it kills the child (SIGTERM). */
+  execute: ExecuteFn = (config, ctx, attempt, signal) =>
+    this.executeOperation(config, ctx, attempt, signal) as unknown as Promise<NormalizedResult>;
 
   private downstreamInvoker: DownstreamInvoker | null = null;
 
@@ -112,13 +121,23 @@ export class OperationEngine {
     return { allSucceeded, results };
   }
 
-  private async executeOperation(config: OperationConfig, ctx: OperationContext, attempt: number): Promise<NormalizedResult> {
-    return await this.executeSync(config, ctx, attempt);
+  private async executeOperation(
+    config: OperationConfig,
+    ctx: OperationContext,
+    attempt: number,
+    signal?: AbortSignal,
+  ): Promise<NormalizedResult> {
+    return await this.executeSync(config, ctx, attempt, signal);
   }
 
   /** Runs a list of operations; required failures stop the run (FR-040). */
 
-  private async executeSync(config: OperationConfig, ctx: OperationContext, attempt: number): Promise<NormalizedResult> {
+  private async executeSync(
+    config: OperationConfig,
+    ctx: OperationContext,
+    attempt: number,
+    signal?: AbortSignal,
+  ): Promise<NormalizedResult> {
     const base = baseResult(config);
 
     if (config.type === "composite") {
@@ -230,24 +249,33 @@ export class OperationEngine {
     const timeoutMs = (config.timeoutSeconds ?? 120) * 1000;
     const maxBuffer = config.output?.maximumBytes ?? 1_048_576;
     const procConfig = config as { env?: Record<string, string>; shell?: boolean | string };
-    const run = spawnSync(config.executable ?? "", config.args ?? [], {
-      cwd: ctx.workspaceRoot,
-      timeout: timeoutMs,
-      killSignal: "SIGTERM",
-      encoding: "utf-8",
-      maxBuffer,
-      // GUID-5: per-operation environment (merged over the inherited
-      // container/host environment) and optional shell execution.
-      env: procConfig.env ? { ...process.env, ...procConfig.env } : undefined,
-      shell: procConfig.shell,
-    });
+    const run = await this.runProcessAsync(
+      config.executable ?? "",
+      config.args ?? [],
+      {
+        cwd: ctx.workspaceRoot,
+        timeoutMs,
+        maxBuffer,
+        // GUID-5: per-operation environment (merged over the inherited
+        // container/host environment) and optional shell execution.
+        env: procConfig.env ? ({ ...process.env, ...procConfig.env } as Record<string, string>) : undefined,
+        shell: procConfig.shell,
+        signal,
+      },
+    );
     if (run.error) {
+      const cancelled = run.cancelled === true;
       const timedOut = (run.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
       return {
         ...base,
-        status: timedOut ? "timed_out" : "failed",
-        errors: [{ code: timedOut ? "operation_timed_out" : "downstream_connection_failed", message: String(run.error) }],
-        summary: timedOut ? "operation timed out" : "process failed to start",
+        status: cancelled ? "failed" : timedOut ? "timed_out" : "failed",
+        errors: [
+          {
+            code: cancelled ? "operation_cancelled" : timedOut ? "operation_timed_out" : "downstream_connection_failed",
+            message: String(run.error),
+          },
+        ],
+        summary: cancelled ? "operation cancelled" : timedOut ? "operation timed out" : "process failed to start",
       };
     }
     const exitCode = run.status ?? -1;
@@ -257,8 +285,130 @@ export class OperationEngine {
       status: ok ? "succeeded" : "failed",
       validated: ok,
       summary: ok ? `${config.operationId} succeeded` : `${config.operationId} failed with exit code ${exitCode}`,
-      errors: ok ? [] : [{ message: ((run.stderr ?? "") || `exit code ${exitCode}`).slice(0, maxBuffer) }],
+      errors: ok ? [] : [{ message: (stderrRedactor.redact((run.stderr ?? "") || `exit code ${exitCode}`)).slice(0, maxBuffer) }],
       data: { exitCode },
     };
+  }
+
+  /** spec 004 FR-201: async child-process execution (replaces spawnSync —
+   *  the event loop stays responsive, enabling real concurrency and hard
+   *  cancellation). Kill escalation: SIGTERM, then SIGKILL after a 5 s
+   *  grace on both timeout and abort (FR-202). maxBuffer parity: exceeding
+   *  the cap kills the child and fails the operation. */
+  private runProcessAsync(
+    executable: string,
+    args: string[],
+    opts: {
+      cwd: string;
+      timeoutMs: number;
+      maxBuffer: number;
+      env?: Record<string, string>;
+      shell?: boolean | string;
+      signal?: AbortSignal;
+    },
+  ): Promise<{
+    status: number | null;
+    stdout: string;
+    stderr: string;
+    error?: Error;
+    cancelled?: boolean;
+  }> {
+    return new Promise((resolve) => {
+      let stdout = "";
+      let stderr = "";
+      let settled = false;
+      let exceeded = false;
+      let timedOut = false;
+      let child: ReturnType<typeof spawn>;
+      const settle = (result: {
+        status: number | null;
+        stdout: string;
+        stderr: string;
+        error?: Error;
+        cancelled?: boolean;
+      }): void => {
+        if (settled) return;
+        settled = true;
+        resolve(result);
+      };
+      try {
+        child = spawn(executable, args, {
+          cwd: opts.cwd,
+          env: opts.env,
+          shell: opts.shell,
+          signal: opts.signal,
+        });
+      } catch (err) {
+        resolve({ status: null, stdout: "", stderr: "", error: err as Error });
+        return;
+      }
+      const killWithEscalation = (signal: NodeJS.Signals): void => {
+        try {
+          child.kill(signal);
+        } catch {
+          /* already gone */
+        }
+        if (signal === "SIGTERM") {
+          const escalation = setTimeout(() => {
+            try {
+              child.kill("SIGKILL");
+            } catch {
+              /* already gone */
+            }
+          }, 5_000);
+          escalation.unref?.();
+        }
+      };
+      const onOutput = (buf: { toString(): string }, target: "stdout" | "stderr"): void => {
+        if (target === "stdout") stdout += buf.toString();
+        else stderr += buf.toString();
+        if (!exceeded && (stdout.length > opts.maxBuffer || stderr.length > opts.maxBuffer)) {
+          exceeded = true;
+          killWithEscalation("SIGKILL");
+        }
+      };
+      child.stdout?.on("data", (buf: { toString(): string }) => onOutput(buf, "stdout"));
+      child.stderr?.on("data", (buf: { toString(): string }) => onOutput(buf, "stderr"));
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        killWithEscalation("SIGTERM");
+      }, opts.timeoutMs);
+      timeout.unref?.();
+      child.once("close", (code) => {
+        clearTimeout(timeout);
+        if (timedOut) {
+          // Parity with spawnSync's ETIMEDOUT behaviour.
+          const err = new Error("operation timed out") as NodeJS.ErrnoException;
+          err.code = "ETIMEDOUT";
+          settle({ status: null, stdout: stdout.slice(0, opts.maxBuffer), stderr: stderr.slice(0, opts.maxBuffer), error: err });
+          return;
+        }
+        if (exceeded) {
+          settle({
+            status: null,
+            stdout: stdout.slice(0, opts.maxBuffer),
+            stderr: stderr.slice(0, opts.maxBuffer),
+            error: new Error(`maxBuffer exceeded (${opts.maxBuffer} bytes)`),
+          });
+          return;
+        }
+        settle({ status: code, stdout: stdout.slice(0, opts.maxBuffer), stderr: stderr.slice(0, opts.maxBuffer) });
+      });
+      child.once("error", (err: NodeJS.ErrnoException) => {
+        clearTimeout(timeout);
+        if (err.code === "ABORT_ERR" || opts.signal?.aborted) {
+          settle({ status: null, stdout, stderr, error: new Error("operation cancelled"), cancelled: true });
+          return;
+        }
+        settle({ status: null, stdout, stderr, error: err });
+      });
+      if (opts.signal) {
+        opts.signal.addEventListener(
+          "abort",
+          () => killWithEscalation("SIGTERM"),
+          { once: true },
+        );
+      }
+    });
   }
 }
