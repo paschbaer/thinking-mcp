@@ -47,11 +47,6 @@
   },
   "chain": {
     "enabled": true,
-    "maxChainDepth": 8,
-    "maxStepsPerManifest": 16
-  },
-  "chain": {
-    "enabled": true,
     "maxChainDepth": 16,
     "maxStepsPerManifest": 16
   },
