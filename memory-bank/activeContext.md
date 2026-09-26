@@ -654,6 +654,10 @@
 - check-final-review.mjs (strict Schema, HEAD-Match ohne git-Binary, computed HIGH/CRITICAL), Gate-Op required in scaffold/examples/root-Workspace (complete.beforeExit), 6 Contract-Tests. 274/274 + tsc + build grün.
 - Getrackt: FR-Nummern-Kollision specs/003 vs Amendments 001/002; Amendment-Status-Update DRAFT→APPROVED bei Nutzerbilligung.
 
+## 2026-09-26: Lock-Hardening (R-011/R-012/R-010, feature/guidance-lock-hardening → develop 61d7399)
+- WorkspaceOpLock (src/workflow/workspace-lock.ts): Acquire via link() (atomar, Doppel-Halt konstruktiv ausgeschlossen), Steal via rename-in-Quarantäne mit Verify+Restore. TTL = max(120s, 2× max Op-Timeout) ⇒ TTL-stale impliziert toten Halter (R-012a-Invariante). Neuer ErrorCode workspace_lock_unavailable (R-012b).
+- Tests: 6-Prozess-Race (exakt 1 Halter), Live-Owner-nicht-stehlen, ERROR_CODES-Exact-Snapshot (R-010). 279/279 + tsc grün. Residuales Mikro-Fenster (inspect→rename) dokumentiert: nie Doppel-Halt, schlimmstenfalls transiente Contention + Quarantäne-Orphan.
+
 ## 2026-09-24: Security-/Policy-Verifikation (Phase 5/6-Fixes) + Rest-Fixes
 - User-Anderungen verifiziert (Code + Container-Tests, node:22-alpine): Phase 6 Egress-Inhaltsprüfung (`containsSecretPattern` für restricted), `redactUnknown()`-Seam auf content + protocolMetadata.structuredContent, Multi-Line-Redaction, Capability-Pin-Persistenz über Restarts. 192/192 grün + tsc clean.
 - Rest-Fixes umgesetzt: saveCapabilityPins atomar (tmp+rename), Pin-Helfer exportiert, Regressionstest tests/workflow/capability-pins.test.ts (5 Tests: Roundtrip/Merge/Drift/Korrupt/Atomarität). Suite 197/197 grün, tsc clean.
