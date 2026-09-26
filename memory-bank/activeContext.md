@@ -649,6 +649,11 @@
 - Unabhängiger Review (Subagent): 1 HIGH (Stale-Lock) + MEDIUMs/LOWs — HIGH + Denial-Audit + EACCES + README sofort gefixt; Rest (R-006 E2E-Lücken, R-008a globaler Lock, R-010 ERROR_CODES-Test) in remaining-work-plan getrackt.
 - Testumgebung: kein Node auf Host — Suite im Container (Repo-Copy + @rollup/rollup-linux-x64-musl; für E2E das Guidance-Image selbst: node+uv vereint).
 
+## 2026-09-26: Amendment 003 Final-Review Evidence Gate implementiert
+- Anlass: verpasster frischer Gesamt-Review beim Feature-003-Completion (weicher Instruktionstext) → Gate machbar gemacht. Draft ff4fe31, Umsetzung 2983be3 (Q1–Q3-Defaults vom Nutzer gebilligt).
+- check-final-review.mjs (strict Schema, HEAD-Match ohne git-Binary, computed HIGH/CRITICAL), Gate-Op required in scaffold/examples/root-Workspace (complete.beforeExit), 6 Contract-Tests. 274/274 + tsc + build grün.
+- Getrackt: FR-Nummern-Kollision specs/003 vs Amendments 001/002; Amendment-Status-Update DRAFT→APPROVED bei Nutzerbilligung.
+
 ## 2026-09-24: Security-/Policy-Verifikation (Phase 5/6-Fixes) + Rest-Fixes
 - User-Anderungen verifiziert (Code + Container-Tests, node:22-alpine): Phase 6 Egress-Inhaltsprüfung (`containsSecretPattern` für restricted), `redactUnknown()`-Seam auf content + protocolMetadata.structuredContent, Multi-Line-Redaction, Capability-Pin-Persistenz über Restarts. 192/192 grün + tsc clean.
 - Rest-Fixes umgesetzt: saveCapabilityPins atomar (tmp+rename), Pin-Helfer exportiert, Regressionstest tests/workflow/capability-pins.test.ts (5 Tests: Roundtrip/Merge/Drift/Korrupt/Atomarität). Suite 197/197 grün, tsc clean.
