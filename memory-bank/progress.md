@@ -3,10 +3,19 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-26
 
 ## What Works
 
+- **CHN-Serie komplett (2026-09-26, 4 Guidance-Workflows + Gesamtreview,
+  develop @ `7cb55be`)**: CHN-1 activating-Recovery via retry_operation
+  (`17cdf15`), CHN-2 Dogfooding chain.enabled + Image-Lockstep (`49a18bc`),
+  CHN-3 Mixed-Manifeste Spec v1.1 §12/FR-119 inkl. HIGH-1-Fix (`52538c3`),
+  CHN-4/5/6 chain_end-Audit + Crash-Cache + frische Start-Guidance
+  (`bb37f6c`), CHN-R2-2-Testlücke (`7cb55be`). 251/251 Tests, Build grün;
+  Final Review: 0 HIGH/CRITICAL, merge-reif. Develop ahead 6 (Push durch
+  Nutzer). Getrackt offen: CHN-R2-1/3/4 (akzeptiert), CHN-7.
+- **Workflow-Chaining-Spec APPROVED (2026-09-25)**:
 - **Workflow-Chaining implementiert (2026-09-25, `feature/workflow-chaining`,
   Guidance-Session `session-802f2c91…` → completed)**: Amendment 002
   (Form A explizite Steps + Form B `spec_kit_tasks`) gemäß FR-110…FR-118 —
