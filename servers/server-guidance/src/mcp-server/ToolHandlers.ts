@@ -154,4 +154,8 @@ export class WorkflowTools {
   ): Promise<ReturnType<WorkflowEngine["runOperation"]>> {
     return this.engine.runOperation(sessionId, operationId);
   }
+
+  async getMetrics(): Promise<ReturnType<WorkflowEngine["getMetrics"]>> {
+    return this.engine.getMetrics();
+  }
 }
