@@ -10,6 +10,7 @@ import {
   writeFileSync,
   readFileSync,
   renameSync,
+  statSync,
   openSync,
   closeSync,
   writeSync,
@@ -495,8 +496,10 @@ export class WorkflowEngine {
   }
 
   /** spec 003 FR-109: cross-session serialization for venv-mutating ops.
-   *  File lock (O_CREATE-exclusiv) im stateDir — gilt auch über
-   *  Engine-Instanzen hinweg; der In-Memory-Flag ist Belt-and-Braces. */
+   *  File lock (O_CREAT-exclusiv) im stateDir — gilt auch über
+   *  Engine-Instanzen hinweg. Stale-Lock-Recovery (Review R-004): ein Lock
+   *  eines toten Prozesses oder älter als STALE_LOCK_TTL_MS wird gestohlen,
+   *  damit ein Crash den Bootstrap nicht dauerhaft blockiert. */
   private acquireWorkspaceOpLock(): void {
     if (this.workspaceOpLockHeld) {
       throw new GuidanceError("operation_in_progress", "workspace operation lock is held", { recoverable: true });
@@ -506,10 +509,46 @@ export class WorkflowEngine {
       const fd = openSync(file, "wx");
       writeSync(fd, String(process.pid));
       closeSync(fd);
-    } catch {
-      throw new GuidanceError("operation_in_progress", "workspace operation lock is held (or stale from a crashed process)", { recoverable: true });
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code !== "EEXIST") {
+        // Permission-/FS-Probleme sind KEINE Contention — nicht verschleiern.
+        throw new GuidanceError("operation_in_progress", `workspace operation lock cannot be created: ${code ?? String(err)}`, { recoverable: true });
+      }
+      if (!this.staleWorkspaceOpLock(file)) {
+        throw new GuidanceError("operation_in_progress", "workspace operation lock is held by another operation", { recoverable: true });
+      }
+      // Stale-Lock übernehmen (Review R-004): tote PID oder TTL überschritten.
+      try {
+        unlinkSync(file);
+        const fd = openSync(file, "wx");
+        writeSync(fd, String(process.pid));
+        closeSync(fd);
+      } catch {
+        throw new GuidanceError("operation_in_progress", "workspace lock is stale but could not be recovered; remove it manually", { recoverable: true });
+      }
     }
     this.workspaceOpLockHeld = true;
+  }
+
+  /** A lock is stale when its owner process is dead OR the file is older
+   *  than STALE_LOCK_TTL_MS (covers pids recycled across containers). */
+  private staleWorkspaceOpLock(file: string): boolean {
+    const STALE_LOCK_TTL_MS = 30 * 60 * 1000;
+    try {
+      const stat = statSync(file);
+      if (Date.now() - stat.mtimeMs > STALE_LOCK_TTL_MS) return true;
+      const pid = parseInt(readFileSync(file, "utf-8").trim(), 10);
+      if (Number.isNaN(pid)) return true;
+      try {
+        process.kill(pid, 0); // Liveness-Probe (kein Signal)
+        return false; // Owner lebt → echte Contention
+      } catch {
+        return true; // ESRCH: Owner tot
+      }
+    } catch {
+      return false; // im Zweifel NICHT stehlen (fail-safe)
+    }
   }
 
   private releaseWorkspaceOpLock(): void {
@@ -518,9 +557,8 @@ export class WorkflowEngine {
     try {
       unlinkSync(join(this.stateDir, "workspace-ops.lock"));
     } catch {
-      // best effort — ein verwaistes Lock-File stört den nächsten wx-Versuch
-      // nicht, wenn es vom selben Prozess stammt; Fremd-Prozesse steuern über
-      // den Timeout des ausführenden Ops (SIGTERM) ihre Freigabe selbst.
+      // Lock-File konnte nicht gelöscht werden (z.B. Windows-Dateisperre):
+      // die Stale-Erkennung (toter PID/TTL) räumt es beim nächsten Acquire weg.
     }
   }
 
@@ -533,14 +571,19 @@ export class WorkflowEngine {
     operationId: string,
   ): Promise<{ id: string; status: string; summary: string }> {
     const session = this.getSession(sessionId);
+    const auditDenial = (data: Record<string, unknown>): void =>
+      this.audit.append({ sessionId, eventType: "operation_invocation_denied", data });
     const op = this.operations[operationId];
     if (!op) {
+      auditDenial({ operationId, reason: "operation_not_configured" });
       throw new GuidanceError("operation_not_configured", `operation ${operationId} is not configured`, { recoverable: false });
     }
     if (op.invocableByAgent !== true) {
+      auditDenial({ operationId, reason: "agent_invocation_denied" });
       throw new GuidanceError("agent_invocation_denied", `operation ${operationId} is not marked invocableByAgent`, { recoverable: true });
     }
     if (this.runningOps.has(sessionId)) {
+      auditDenial({ operationId, reason: "operation_in_progress" });
       throw new GuidanceError("operation_in_progress", `an operation is already running for session ${sessionId}`, { recoverable: true });
     }
     this.acquireWorkspaceOpLock();
@@ -548,6 +591,7 @@ export class WorkflowEngine {
     const startedAt = Date.now();
     try {
       if (session.status !== "active") {
+        this.audit.append({ sessionId, eventType: "operation_invocation_denied", data: { operationId, reason: `session_${session.status}` } });
         return { id: operationId, status: "failed", summary: `session is ${session.status}` };
       }
       const run = await this.operationEngine.execute(op, this.ctxFor(session), 1);
