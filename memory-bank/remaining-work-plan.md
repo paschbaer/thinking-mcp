@@ -840,3 +840,11 @@ Umsetzung (Option A):
   exponiert leere configSchema (properties: {}) — Rescan könnte Config-UX-
   Punkte (historisch 25/25) verlieren; ggf. debug-Flag als Option exponieren.
   Evaluation zusammen mit CB-22-Rescan. Trigger: nächster Release/Publish.
+
+## Getrackte Follow-ups (2026-09-26, Feature 005 Final-Review — Reste)
+Final-Review (fresh subagent 35f63807) über f300cf9..98c4d62: 1 HIGH (F1 metrics.jsonl exponentielles Wachstum durch Replay-Re-Persist) — GEFIXT (replaying-Flag) + Replay-Größen-Regressionstest; F2 SC-401-Integrationstest nachgereicht; F6 catch-Recording; F9 defensive copies. 0 HIGH/CRITICAL offen nach Fixes (304/304 + tsc grün).
+- [ ] F3 LOW: ClientManager-Hook für Verbindungs-Historie zwischen get_metrics-Abrufen fehlt (Live-Merge deckt aktuellen Status); lastSuccessfulRequestAt nicht im Snapshot-Shape. Trigger: Metrics-Ausbau. Action required.
+- [ ] F5 LOW: FR-404-Wortlaut (HMAC bei Key-Auth) vs. Implementierung (Opak-Token, HMAC vertagt) — Spec-Wortlaut nachziehen. Trigger: nächste specs/005-Änderung. Action required.
+- [ ] F7 LOW: Token-Burn vor Persist — Crash-Fenster macht akzeptierten Report einmal replay-bar (128-bit Token, praxisnah). Akzeptiert/dokumentiert.
+- [ ] F8 LOW: Scaffold-Detection false positive (pyproject.toml in JS-Monorepo). Akzeptiert spec-konform; Trigger: Feedback aus Praxis.
+- [x] F4 MEDIUM: tasks.md-Checkboxen mit diesem Commit gesetzt (Hygiene-Regel).

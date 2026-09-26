@@ -45,6 +45,7 @@ function emptyBucket(): OperationMetrics {
 export class MetricsRepository {
   private readonly operations: Record<string, OperationMetrics> = {};
   private readonly connections: Record<string, ConnectionSnapshot> = {};
+  private replaying = false;
 
   constructor(private readonly file: string | null = null) {
     this.replay();
@@ -71,12 +72,14 @@ export class MetricsRepository {
   snapshot(): MetricsSnapshot {
     return {
       operations: Object.fromEntries(Object.entries(this.operations).map(([k, v]) => [k, { ...v, durationMs: { ...v.durationMs } }])),
-      connections: Object.values(this.connections),
+      connections: Object.values(this.connections).map((c) => ({ ...c })),
     };
   }
 
   private persist(record: MetricsRecord): void {
-    if (!this.file) return;
+    // Final review F1 (HIGH): replayed records must NOT be re-persisted —
+    // otherwise metrics.jsonl doubles on every boot.
+    if (!this.file || this.replaying) return;
     try {
       appendFileSync(this.file, JSON.stringify(record) + "\n");
     } catch {
@@ -86,6 +89,7 @@ export class MetricsRepository {
 
   private replay(): void {
     if (!this.file || !existsSync(this.file)) return;
+    this.replaying = true;
     try {
       for (const line of readFileSync(this.file, "utf8").split("\n")) {
         if (!line.trim()) continue;
@@ -102,6 +106,8 @@ export class MetricsRepository {
       }
     } catch {
       /* unreadable file: start empty */
+    } finally {
+      this.replaying = false;
     }
   }
 }

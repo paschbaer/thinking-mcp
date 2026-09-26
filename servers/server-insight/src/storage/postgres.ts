@@ -1,9 +1,11 @@
 /**
  * PostgreSQL + pgvector StorageAdapter (D-team-phase, research.md/Clarifications).
  *
- * Implements the same StorageAdapter contract as SqliteAdapter, but full-text
- * retrieval is NOT yet at SQLite parity (no FTS triggers/backfill/relevance
- * boost — see memory-bank/remaining-work-plan.md, tracked follow-up).
+ * Implements the same StorageAdapter contract as SqliteAdapter. Full-text
+ * retrieval is at SQLite parity (L257): sanitized AND-joined tsquery over
+ * goal_summary + first 500 chars of observations, LEFT JOIN signatures
+ * (signature-less episodes are never dropped), same ranking semantics at the
+ * service level (signature-exact 0.40 > FTS boost > 0.25 fallback floor).
  * Selected via EMMS_STORAGE_BACKEND=postgres;
  * the `pg` driver is imported lazily so local SQLite users never need it.
  *
@@ -204,6 +206,12 @@ export class PostgresAdapter implements StorageAdapter {
         result_json JSONB NOT NULL,
         PRIMARY KEY (key, actor_id, tool)
       );
+      -- L257 FTS parity: expression indexes backing searchFullText. The
+      -- expressions MUST match the query-side expressions exactly.
+      CREATE INDEX IF NOT EXISTS idx_episodes_fts ON episodes
+        USING GIN (to_tsvector('simple', goal_summary));
+      CREATE INDEX IF NOT EXISTS idx_observations_fts ON observations
+        USING GIN (to_tsvector('simple', substr(content, 1, 500)));
     `);
   }
 
@@ -395,14 +403,28 @@ export class PostgresAdapter implements StorageAdapter {
     return r.rows as SearchRow[];
   }
   async searchFullText(terms: string, scope_id: string): Promise<SearchRow[]> {
-    const params: unknown[] = [terms];
+    // L257 SQLite parity (mirrors SqliteAdapter.searchFullText):
+    // - sanitize terms to [\w\s]; bare operators cannot form tsquery syntax
+    // - AND-joined tokens (space-joined quoted tokens in SQLite FTS5)
+    // - coverage: goal_summary AND first 500 chars of observations
+    // - LEFT JOIN signatures: signature-less episodes (lessons) must not be
+    //   dropped by an INNER JOIN (2026-09-22 bug class)
+    const safe = terms.replace(/[^\w\s]/g, ' ').trim();
+    if (!safe) return [];
+    const tsquery = safe.split(/\s+/).join(' & ');
+    const params: unknown[] = [tsquery];
     const scopeFilter = scope_id === '' ? '' : 'AND e.scope_id = $2';
     if (scope_id !== '') params.push(scope_id);
     const r = await this.client!.query(
       `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
               e.last_verified_at, s.normalized_hash, s.exact_tokens
-       FROM episodes e JOIN signatures s ON s.episode_id = e.experience_id
-       WHERE e.goal_summary ILIKE '%' || $1 || '%' ${scopeFilter}`,
+       FROM episodes e LEFT JOIN signatures s ON s.episode_id = e.experience_id
+       WHERE (to_tsvector('simple', e.goal_summary) @@ to_tsquery('simple', $1)
+              OR EXISTS (
+                SELECT 1 FROM observations o
+                WHERE o.episode_id = e.experience_id
+                  AND to_tsvector('simple', substr(o.content, 1, 500)) @@ to_tsquery('simple', $1)
+              )) ${scopeFilter}`,
       params
     );
     return r.rows as SearchRow[];
