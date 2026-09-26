@@ -5,6 +5,17 @@
 
 **Last updated:** 2026-09-26
 
+## 2026-09-26: Workflow-Konfiguration — Final-Review-Pflicht in complete-Phase
+
+- `.guidance/responses.json` (complete): pflichtiger abschließender Review
+  über ALLE Tasks der Session in einem frischen, authorship-excluded
+  Subagenten (Evidenz-Table je Finding, explizite HIGH/CRITICAL-Zählung,
+  Fokus Cross-Task/Speckonformanz/Fail-Closed/Boundary/Coverage).
+  HIGH/CRITICAL → fixen vor Completion; Rest → Findings-Lifecycle-
+  Persistierung; Outcome im Completion-Report referenzieren. Backup:
+  `responses.json.bak`. Container neu gestartet (/health ok). Clear-Thought-
+  Server timeouts — Verträglichkeitscheck manuell dokumentiert (Deviation).
+
 ## 2026-09-26: Final Comprehensive Review CHN-1..6 (bb37f6c) — APPROVED, 0 HIGH/CRIT
 
 - Authorship-excluded Review über eb99873..bb37f6c (4 Commits, develop).
