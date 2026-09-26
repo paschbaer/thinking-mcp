@@ -69,7 +69,8 @@ are advisory; the authoritative verdict remains the verify-phase gate.
 `read_only` caveat: with a bootstrapped venv, verification touches
 nothing outside it; on a missing/empty venv `uv run --locked` installs
 from the lockfile (incl. network) — the bootstrap path is owned by
-`toolchain-sync`.
+`toolchain-sync`. stderr of failing operations is secret-redacted before
+agent-facing use (SC-004, feature 004).
 
 ## Locking (FR-107/109/110)
 
@@ -77,7 +78,7 @@ from the lockfile (incl. network) — the bootstrap path is owned by
 |---|---|---|
 | Per session | existing per-session mutex | `operation_in_progress` |
 | Cross session | workspace-level lock file around venv-mutating ops (atomic link-acquire, rename-based steal with verify+restore — see `src/workflow/workspace-lock.ts`) | `operation_in_progress` |
-| Interruption | kill child process on cancel/timeout, release locks | next `uv run --locked` self-heals the venv |
+| Interruption | **hard kill** since feature 004: cancel/timeout aborts the child (SIGTERM → SIGKILL after 5 s grace) and releases locks | next `uv run --locked` self-heals the venv |
 
 Residual limitation (accepted, LOW): the inspect→rename window of the steal
 path can move a freshly swapped lock into quarantine; the verify step then
