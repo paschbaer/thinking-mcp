@@ -12,7 +12,7 @@ No new subsystem. Three touch points on the existing Guidance server:
    rejects unknown fields fail-closed today.
 2. **MCP layer** (`src/mcp-server/register-tools.ts`, `ToolHandlers.ts`):
    new `run_operation` tool; handler resolves the session, enforces
-   FR-102 (allowlist) and FR-107 (per-session mutex), delegates to the
+   FR-302 (allowlist) and FR-307 (per-session mutex), delegates to the
    engine.
 3. **Engine layer** (`src/workflow/WorkflowEngine.ts`): expose a public
    `runOperation(sessionId, operationId)` method that reuses the exact
@@ -51,21 +51,21 @@ exposure, remote-mode components.
 See [data-model.md](./data-model.md). In short: one new optional flag on
 `OperationConfig`, one new audit event type, two new error codes
 (`agent_invocation_denied`, `operation_in_progress`), plus a
-workspace-level lock file for cross-session serialization (FR-109/110).
+workspace-level lock file for cross-session serialization (FR-309/110).
 
 ## Testing Strategy
 
 - Contract tests (vitest, test-first per repo constitution):
   - `run_operation` allowlist (marked/unmarked/unknown op), structured
     failure shapes, audit event, per-session mutex AND cross-session
-    workspace lock (FR-109), kill-on-cancel/timeout (FR-110).
+    workspace lock (FR-309), kill-on-cancel/timeout (FR-310).
   - Config loader accepts `invocableByAgent` and still rejects unknown
     fields.
-- Integration (container): SC-001 end-to-end — fresh container, Python
-  fixture workspace, sync + verify; SC-003 fail-closed without lockfile
+- Integration (container): SC-301 end-to-end — fresh container, Python
+  fixture workspace, sync + verify; SC-303 fail-closed without lockfile
   AND with a stale lockfile (pyproject changed after lock — repro:
   `uv sync --frozen` succeeds silently, `--locked` fails, verified in
-  uv:latest container); SC-004 redaction on pytest output.
+  uv:latest container); SC-304 redaction on pytest output.
 - Regression: full existing suite (197 tests) stays green.
 
 ## Risks
@@ -73,8 +73,8 @@ workspace-level lock file for cross-session serialization (FR-109/110).
 | Risk | Mitigation |
 |---|---|
 | PyPI outage / network restrictions in deployment | `toolchain-sync` is `required: false`; failures surface as structured op failures, workflow continues |
-| Agent floods PyPI with sync calls | per-session mutex + workspace-level cross-session lock (FR-109) + timeout; rate limiting deferred (ops are session-bound) |
-| Stale lockfile installs old deps silently | `--locked` everywhere (fail-closed, empirically verified); SC-003 covers the stale case |
-| Interrupted sync leaves broken venv / orphaned lock | FR-110 kill-on-cancel + lock release; venv self-heals on next `uv run --locked` |
+| Agent floods PyPI with sync calls | per-session mutex + workspace-level cross-session lock (FR-309) + timeout; rate limiting deferred (ops are session-bound) |
+| Stale lockfile installs old deps silently | `--locked` everywhere (fail-closed, empirically verified); SC-303 covers the stale case |
+| Interrupted sync leaves broken venv / orphaned lock | FR-310 kill-on-cancel + lock release; venv self-heals on next `uv run --locked` |
 | Schema strictness breaks existing configs | flag is optional with default `false`; loader tests cover old configs unchanged |
-| venv confusion on host | FR-108 documentation caveat; uv self-repair |
+| venv confusion on host | FR-308 documentation caveat; uv self-repair |

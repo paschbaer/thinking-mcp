@@ -7,7 +7,7 @@
 ```ts
 interface OperationConfig {
   // ... existing fields unchanged ...
-  /** FR-102: opt-in marker — the operation may be invoked on demand by the
+  /** FR-302: opt-in marker — the operation may be invoked on demand by the
    *  agent via run_operation. Default false (fail-closed). */
   invocableByAgent?: boolean;
 }
@@ -34,7 +34,7 @@ run_operation
 | Code | Meaning | Recoverable |
 |---|---|---|
 | `agent_invocation_denied` | Operation exists but is not marked `invocableByAgent` | yes |
-| `operation_in_progress` | An op is already running for this session (FR-107), or a venv-mutating op holds the workspace lock for another session (FR-109) | yes |
+| `operation_in_progress` | An op is already running for this session (FR-307), or a venv-mutating op holds the workspace lock for another session (FR-309) | yes |
 
 (`operation_not_configured`, `session_not_found` reuse existing codes.)
 
@@ -47,7 +47,7 @@ Append-only JSONL via existing `AuditRepository` (redaction hook applies).
 | eventType | when | data |
 |---|---|---|
 | `operation_invoked` | execution attempted via run_operation | `{ operationId, status, durationMs, via: "run_operation" }` (status: succeeded/failed/cancelled) |
-| `operation_invocation_denied` | guard rejection before execution (FR-102/107/109, inactive session) | `{ operationId, reason }` — no execution event is written for denied calls |
+| `operation_invocation_denied` | guard rejection before execution (FR-302/107/109, inactive session) | `{ operationId, reason }` — no execution event is written for denied calls |
 
 ## Pilot Operation Set (examples/python-guidance/operations.json)
 
@@ -70,9 +70,9 @@ are advisory; the authoritative verdict remains the verify-phase gate.
 nothing outside it; on a missing/empty venv `uv run --locked` installs
 from the lockfile (incl. network) — the bootstrap path is owned by
 `toolchain-sync`. stderr of failing operations is secret-redacted before
-agent-facing use (SC-004, feature 004).
+agent-facing use (SC-304, feature 004).
 
-## Locking (FR-107/109/110)
+## Locking (FR-307/109/110)
 
 | Scope | Mechanism | Contention result |
 |---|---|---|

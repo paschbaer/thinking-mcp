@@ -69,9 +69,9 @@ start_workflow { …, chain: { source: "spec_kit_tasks", featureId:
   (or by an interrupted sync), `uv` rebuilds it on the next
   `uv run --locked`.
 - **Concurrency:** one toolchain operation at a time per session; venv-
-  mutating ops serialize across sessions (workspace lock, FR-109); a
+  mutating ops serialize across sessions (workspace lock, FR-309); a
 cancelled/timed-out sync kills the child process and releases the lock
-(FR-110).
+(FR-310).
 - **Adding another language** = (1) bootstrap tooling in the image,
   (2) `process` operations in `.guidance/operations.json`, (3) mark the
   bootstrap op `invocableByAgent: true`. No engine changes.

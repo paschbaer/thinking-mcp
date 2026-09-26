@@ -79,45 +79,45 @@ tooling plus configuration — no engine changes.
 
 ## Functional Requirements
 
-- **FR-101** `run_operation` MCP tool: input `{ sessionId, operationId }`;
+- **FR-301** `run_operation` MCP tool: input `{ sessionId, operationId }`;
   session-bound execution; unknown session → existing session error
   contract; operation executed via `OperationEngine` with the operation's
   configured `workspaceRoot` context.
-- **FR-102** Agent-invocation allowlist: `invocableByAgent` (optional
+- **FR-302** Agent-invocation allowlist: `invocableByAgent` (optional
   boolean, default `false`) on operation configs; enforced fail-closed in
   the tool handler; rejection code `agent_invocation_denied` (recoverable).
-- **FR-103** Identical pipeline: policy/egress evaluation, validation rules
+- **FR-303** Identical pipeline: policy/egress evaluation, validation rules
   (`exitCodeMustBeZero`, `protocolRequestMustSucceed`, …), exposure modes,
   `redactUnknown()` seam, and audit events apply unchanged to
   `run_operation` executions; audit event `operation_invoked` records
   sessionId, operationId, outcome.
-- **FR-104** Pilot operations (example profile `python-guidance`):
+- **FR-304** Pilot operations (example profile `python-guidance`):
   `toolchain-sync` (`uv sync --locked`), `lint` (`uv run --locked ruff
   check .`), `test` (`uv run --locked pytest -q`), `check` (`uv run
   --locked mypy .`); venv location `/workspace/.venv`; `--locked`
   guarantees fail-closed behavior on missing AND stale `uv.lock`
   (empirically verified: `--frozen` installs a stale lock silently,
   `--locked` fails).
-- **FR-105** Base image: `python3` + a **version-pinned** `uv` binary in
+- **FR-305** Base image: `python3` + a **version-pinned** `uv` binary in
   the guidance image; no project dependencies baked; non-root user
   unchanged.
-- **FR-106** Example profile `examples/python-guidance/`: full
+- **FR-306** Example profile `examples/python-guidance/`: full
   `.guidance/` set (workflow, responses, operations, policies) wiring the
   pilot operations into the default 7-phase workflow.
-- **FR-107** Concurrency (per session): at most one `run_operation`
+- **FR-307** Concurrency (per session): at most one `run_operation`
   execution per session at a time (per-session mutex, reuse existing lock
   infrastructure); concurrent invocation returns `operation_in_progress`
   (recoverable).
-- **FR-108** Documentation: README section "Verification in other
+- **FR-308** Documentation: README section "Verification in other
   languages" covering the bootstrap pattern, the `invocableByAgent` flag,
   and the venv/host-incompatibility caveat (Linux binaries on a Windows
   host bind mount; `uv` rebuilds on next sync).
-- **FR-109** Concurrency (cross-session): toolchain operations that mutate
+- **FR-309** Concurrency (cross-session): toolchain operations that mutate
   the shared venv (`toolchain-sync`, and any `uv run --locked` op with
   sync side effects) serialize across sessions via a workspace-level lock
   file; invocation from a second session while the lock is held returns
   `operation_in_progress` (recoverable).
-- **FR-110** Interruption: when a session is cancelled or an operation
+- **FR-310** Interruption: when a session is cancelled or an operation
   times out, the server kills the child process and releases the
   workspace lock (no orphaned lock). A venv left inconsistent by an
   interrupted sync self-heals on the next `uv run --locked` (uv rebuilds
@@ -125,19 +125,19 @@ tooling plus configuration — no engine changes.
 
 ## Success Criteria
 
-- **SC-001**: Fresh container, workspace containing only
+- **SC-301**: Fresh container, workspace containing only
   `pyproject.toml` + `uv.lock` + source: `run_operation(toolchain-sync)` →
   succeeded; `run_operation(test)` → executed pytest with real exit-code
   verdict; no `npm` invocation involved.
-- **SC-002**: `run_operation` on an operation without `invocableByAgent`
+- **SC-302**: `run_operation` on an operation without `invocableByAgent`
   (including all downstream MCP ops) → `agent_invocation_denied`, no
   execution, audit event recorded.
-- **SC-003**: `toolchain-sync` without `uv.lock`, or with a **stale**
+- **SC-303**: `toolchain-sync` without `uv.lock`, or with a **stale**
   `uv.lock` (pyproject changed after lock) → operation failed with a clear
   message; nothing installed (fail-closed; `--locked` semantics).
-- **SC-004**: A secret appearing in pytest/ruff output (e.g. in a fixture)
+- **SC-304**: A secret appearing in pytest/ruff output (e.g. in a fixture)
   is redacted before the agent sees it (redaction seam, language-independent).
-- **SC-005**: Full existing suite stays green (regression: lifecycle ops,
+- **SC-305**: Full existing suite stays green (regression: lifecycle ops,
   policy, exposure unchanged).
 
 ## Assumptions
@@ -155,3 +155,23 @@ tooling plus configuration — no engine changes.
 - Persisting venvs outside the workspace (named volumes).
 - Remote-mode `awaiting_client` downstream execution (separate spec, L305d).
 - Baking project toolchains into the image.
+
+## Identifier Alias Table (TRACK-NS, spec 005)
+
+The FR/SC numbers of this spec were renumbered (spec 005, TRACK-NS) to
+resolve the collision with amendments 001/002 of spec 002:
+
+| Alt | Neu | | Alt | Neu |
+|---|---|---|---|---|
+| FR-101 | FR-301 | | SC-001 | SC-301 |
+| FR-102 | FR-302 | | SC-002 | SC-302 |
+| FR-103 | FR-303 | | SC-003 | SC-303 |
+| FR-104 | FR-304 | | SC-004 | SC-304 |
+| FR-105 | FR-305 | | SC-005 | SC-305 |
+| FR-106 | FR-306 | | | |
+| FR-107 | FR-307 | | | |
+| FR-108 | FR-308 | | | |
+| FR-109 | FR-309 | | | |
+| FR-110 | FR-310 | | | |
+
+Historical references in memory-bank and code comments keep the old ids.
