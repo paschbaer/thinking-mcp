@@ -608,6 +608,12 @@ Feature-Branch feature/guidance-lock-hardening, Suite 279/279 + tsc grün (Conta
 - [x] R-012c LOW GELÖST: Testabdeckung ergänzt (Live-Owner-nicht-stehlen, Dead-PID-Steal, Multi-Process-Race); EACCES-Pfad via Code-Differenzierung abgedeckt (implizit).
 - [x] R-010 LOW GELÖST: tests/contract/error-codes.test.ts mit exaktem ERROR_CODES-Snapshot (Equality), Duplikat-Check, isErrorCode-Roundtrip.
 
+## Getrackte Follow-ups (2026-09-26, Feature 004 Async Execution — R-006/FR-110 GELÖST)
+Branch feature/async-operation-execution (0c01c01 spec, d606ee2 docs, 8a8abc0 impl). Suite 290/290 + tsc + build grün (Container).
+- [x] R-006 GELÖST: OperationEngine executes process ops async (spawn, SIGTERM→SIGKILL-Eskalation, AbortSignal); echte Cross-Session-Contention-, Cancel-Kill-, Denial- und SC-004-Secret-E2Es in python-toolchain.e2e.test.ts. Zusätzlich: stderr failing-ops wird jetzt redigiert (bisherige Redaction-Lücke, SC-004-Seam).
+- [x] FR-110 Hard-Kill GELÖST: cancel_workflow/Timeout bricht aktive Ausführungen ab (AbortController-Registry je Session; SIGTERM→SIGKILL nach 5s Grace), Lock released, Ergebnis verworfen/auditiert als cancelled. Kooperative Limitation damit obsolet (README/Doku aktualisiert).
+- [ ] Residual LOW (dokumentiert): stdout/stderr-Interleaving kann sich sync→async minimal unterscheiden (Tests asserten Ergebnisform, nicht Byte-Reihenfolge); SIGKILL-Semantik nur im Container autoritativ (Windows-Dev ausgenommen).
+
 ## Getrackte Follow-ups (2026-09-26, Amendment 003 + Nummern-Kollision)
 - [x] Amendment 003 „Final-Review Evidence Gate" IMPLEMENTIERT (2026-09-26, Draft-Q1–Q3-Defaults vom Nutzer gebilligt): scripts/check-final-review.mjs (strict Schema, HEAD-Vergleich ohne git-Binary, computed openHighCritical), Gate-Op in scaffold + examples/default + examples/python + root .guidance (complete.beforeExit, required), 6 Contract-Tests. Suite 274/274 + tsc + build grün. Offen: Amendment-Status Draft → nach Resonanz auf APPROVED setzen; Nummern-Kollision-Follow-up unten bleibt.
 - [ ] FR-Nummern-Kollision: specs/003 (FR-101…110) kollidiert mit Amendments 001/002 im 002-Namespace (FR-101+, FR-110–119). Trigger: nächste specs/003-Änderung. Action required: Renummerierung FR-301…315 + Alias-Notiz oder dokumentierte Namespacetrennung je Feature-Spec.
