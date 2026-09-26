@@ -1,7 +1,29 @@
 {
   "version": 2,
+  "profile": "spec-kit",
   "project": {
     "name": "thinking-mcp"
+  },
+  "integrations": {
+    "specKit": {
+      "enabled": true,
+      "discovery": {
+        "featureRoot": "specs",
+        "strategy": "explicit",
+        "requireUniqueMatch": true
+      },
+      "taskExecution": {
+        "mode": "batch",
+        "batch": { "maximumTasks": 3, "respectDependencies": true, "groupParallelTasks": true }
+      },
+      "markdownCheckboxPolicy": "hint",
+      "completion": {
+        "requireAllRequiredTasksCompleted": true,
+        "requireAcceptanceCriteriaCoverage": true,
+        "requireNoUnresolvedPlanChanges": true,
+        "requireCurrentArtifactSnapshot": true
+      }
+    }
   },
   "workflow": {
     "file": "workflow.json"
@@ -26,6 +48,11 @@
   "chain": {
     "enabled": true,
     "maxChainDepth": 8,
+    "maxStepsPerManifest": 16
+  },
+  "chain": {
+    "enabled": true,
+    "maxChainDepth": 16,
     "maxStepsPerManifest": 16
   },
   "orchestration": {
