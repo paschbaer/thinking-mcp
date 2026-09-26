@@ -23,6 +23,11 @@
     "persistAfterEveryOperation": true,
     "retainRawMcpResponses": true
   },
+  "chain": {
+    "enabled": true,
+    "maxChainDepth": 8,
+    "maxStepsPerManifest": 16
+  },
   "orchestration": {
     "defaultTimeoutSeconds": 120,
     "defaultRetryCount": 0,

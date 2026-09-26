@@ -9,6 +9,14 @@
 
 ## Tracked Follow-ups
 
+- [CHN-2] RESOLVED 2026-09-26 | Dogfooding aktiviert: `chain: {enabled:
+  true, maxChainDepth: 8, maxStepsPerManifest: 16}` in
+  `.guidance/guidance.json` (plain-Profil ⇒ Form A). KRITISCHER Hinweis:
+  Aktivierung OHNE Image-Rebuild würde den nächsten Container-Restart
+  brechen (alte Boot-Validierung kennt 'chain' nicht,
+  additionalProperties:false) — Image wurde im selben Zug neu gebaut
+  (`docker compose build && up -d`, /health ok). loadConfig-Smoke +
+  247/247 Tests grün. | — | resolved
 - [CHN-1] RESOLVED 2026-09-26 | Re-Activation-Pfad implementiert:
   `retryOperations` fängt Status `activating` ab (vor dem
   `chain_activation_incomplete`-Wurf von getSession), führt
