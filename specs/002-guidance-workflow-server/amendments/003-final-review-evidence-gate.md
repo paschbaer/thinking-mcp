@@ -42,7 +42,9 @@ HEAD-Stand existiert.
   servers/server-guidance/scripts/check-final-review.mjs .` (cwd =
   workspaceRoot, kein git-Binary nötig — readGitHead-Pattern aus
   `check-index-freshness.mjs`). Validierung:
-  1. Datei existiert, strict-schema-valide (§4), `sessionId` matcht.
+  1. Datei existiert, strict-schema-valide (§4), `sessionId` nicht-leer
+     (Match gegen die Server-Session ist seitens einer Process-Op
+     technisch nicht prüfbar — dokumentierte Grenze, §5).
   2. `headCommit` == aktuell aufgelöste HEAD (loose ref, packed-refs,
      worktree-`.git`-Datei wie im Freshness-Script).
   3. `commits[]` enthält `headCommit` und `baseCommit`; `baseCommit` ist

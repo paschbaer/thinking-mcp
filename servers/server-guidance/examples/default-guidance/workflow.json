@@ -103,6 +103,7 @@
       "submissionSchema": "schemas/complete.schema.json",
       "lifecycle": {
         "beforeExit": [
+          "final-review-gate",
           "repository-analysis",
           "store-completion-insight"
         ]

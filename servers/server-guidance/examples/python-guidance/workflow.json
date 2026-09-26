@@ -101,6 +101,11 @@
     "complete": {
       "response": "complete",
       "submissionSchema": "schemas/complete.schema.json",
+      "lifecycle": {
+        "beforeExit": [
+          "final-review-gate"
+        ]
+      },
       "transitions": [
         {
           "to": "completed",

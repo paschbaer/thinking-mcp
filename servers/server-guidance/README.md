@@ -667,6 +667,25 @@ phase (a required failure at session start starts the session `blocked`).
 }
 ```
 
+## Completion final-review gate (amendment 003)
+
+The `complete` phase enforces the mandatory independent final review as a
+machine-checkable gate (`final-review-gate`, required). Before submitting
+the completion, write `.guidance/state/final-review.json`:
+
+- strict schema (see amendment 003 §4): `sessionId`, `reviewerRef`
+  (sub-agent/review-tool reference), `reviewScope`, `baseCommit`,
+  `headCommit`, `commits[]`, `reviewedAt`, `openHighCritical`, `findings[]`
+  with `id`/`severity`/`status`/`evidence` each;
+- `headCommit` must equal the current git HEAD — **any commit after the
+  review invalidates the gate** (re-review required);
+- HIGH/CRITICAL findings count as open unless `status: "fixed"`; open ones
+  block completion.
+
+The gate is read-only and fails with a precise reason on stderr. Trust
+limits (self-declared reviewer, no ancestry check) are documented in the
+amendment.
+
 ## Verification in other languages (toolchain bootstrap)
 
 The image ships bootstrap tooling — `node`/`npm` plus `python3` and a pinned
