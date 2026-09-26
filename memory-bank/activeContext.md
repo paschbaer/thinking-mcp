@@ -3,7 +3,30 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-26
+
+## 2026-09-26: Independent Review CHN-3 (Mixed-Manifeste) — 1 HIGH offen
+
+- Authorship-excluded Review-Pass über den uncommitteten Diff (Scope:
+  register-tools.ts chainManifest, WorkflowEngine.ts validateChainManifest /
+  resolveChainStep / completeWorkflowLocked, Spec §12/FR-119, README,
+  chain.test.ts). Snapshot: feature/chn-3-mixed-chains, HEAD == develop
+  49a18bc, Branch hat NULL Commits — alles uncommitted.
+- **1× HIGH (CHN-3-R1):** Form-B-Schritt setzt den Form-A-Cursor zurück
+  (`upNext: 0` → `chainUpNext = 1`): bei `steps.length >= 2` + `source`
+  wird `steps[1]` nach jedem Task erneut ausgeführt bis
+  `chain_depth_exceeded`. Reproduziert (temporärer Vitest, danach
+  entfernt); bestehender Mixed-Test nutzt nur 1 Step ⇒ Bug unsichtbar.
+  Details + Fix-Richtung: remaining-work-plan.md [CHN-3-R1].
+- **1× MEDIUM (CHN-3-R2):** Review-Scope-Abweichung — 25 weitere Dateien
+  mit substanziellen uncommitteten Änderungen außerhalb des deklarierten
+  Scopes (u. a. SpecKitEngine.ts +755). Getrackt in remaining-work-plan.md.
+- LOW (beobachtet, nicht getrackt als Blocker): Engine akzeptiert
+  `steps: []` (stillschweigend als reines Form B), während das Zod-Schema
+  via `.min(1)` ablehnt — nur per Engine-Direktaufruf erreichbar;
+  README-Guardrail-Zeile maxStepsPerManifest nennt nur Form A.
+- Verifikation: chain.test.ts 16/16 grün; Gesamtsuite 249 passed
+  (250 mit Review-Repro) — 249/249-Claim bestätigt; `npm run build` grün.
 
 ## 2026-09-25: Pre-Merge-Review Workflow-Chaining (0 HIGH/CRITICAL offen)
 

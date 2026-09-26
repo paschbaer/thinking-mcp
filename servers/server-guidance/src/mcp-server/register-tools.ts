@@ -12,9 +12,11 @@ import type { WorkflowTools } from "./ToolHandlers.js";
 const sessionId = { sessionId: z.string().min(1) };
 const requestId = { requestId: z.string().min(1).optional() };
 
-/** Amendment 002: chain manifest — Form A (explicit steps) XOR Form B (task-derived, spec-kit only). */
-const chainManifest = z.union([
-  z.object({
+/** Amendment 002 v1.1 (CHN-3): mixed chain manifest — optional explicit
+ *  steps (run first), optional Form B task-derivation (runs after); at least
+ *  one of both (engine gate raises configuration_invalid otherwise). */
+const chainManifest = z
+  .object({
     steps: z
       .array(
         z.object({
@@ -26,16 +28,16 @@ const chainManifest = z.union([
     // upper bound = chain.maxStepsPerManifest, enforced in the engine gate
     // (validateChainManifest) so the configured limit stays authoritative
     // and violations surface as recoverable configuration_invalid (LOW-5).
-  }),
-  z.object({
-    source: z.literal("spec_kit_tasks"),
-    requestTemplate: z.string().min(1),
+    source: z.literal("spec_kit_tasks").optional(),
+    requestTemplate: z.string().min(1).optional(),
     featureId: z.string().optional(),
     taskFilter: z
       .object({ statuses: z.array(z.string()).optional() })
       .optional(),
-  }),
-]);
+  })
+  .refine((m) => m.steps !== undefined || m.source !== undefined, {
+    message: "chain requires either steps or source",
+  });
 
 export const WORKFLOW_TOOL_NAMES = [
   "start_workflow",

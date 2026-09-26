@@ -569,8 +569,27 @@ export class WorkflowEngine {
         { recoverable: true },
       );
     }
-    const c = chain as { steps?: unknown; source?: unknown };
-    if (c.source !== undefined) {
+    // Amendment 002 v1.1 (CHN-3): mixed manifest — steps and source are both
+    // optional but at least one must be present; Form B parts stay gated to
+    // the spec-kit profile.
+    const c = chain as {
+      steps?: unknown;
+      source?: unknown;
+      requestTemplate?: unknown;
+      featureId?: string;
+      taskFilter?: { statuses?: string[] };
+    };
+    const hasSteps = Array.isArray(c.steps);
+    const hasSource = c.source !== undefined;
+    if (!hasSteps && !hasSource) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "chain requires either steps or source",
+        { recoverable: true },
+      );
+    }
+    const spec: NonNullable<WorkflowSession["chainSpec"]> = {};
+    if (hasSource) {
       if (this.config.profile !== "spec-kit") {
         throw new GuidanceError(
           "configuration_invalid",
@@ -578,10 +597,9 @@ export class WorkflowEngine {
           { recoverable: true },
         );
       }
-      const src = c as { requestTemplate?: unknown };
       if (
-        typeof src.requestTemplate !== "string" ||
-        src.requestTemplate.length === 0
+        typeof c.requestTemplate !== "string" ||
+        c.requestTemplate.length === 0
       ) {
         throw new GuidanceError(
           "configuration_invalid",
@@ -589,32 +607,23 @@ export class WorkflowEngine {
           { recoverable: true },
         );
       }
-      return {
-        source: "spec_kit_tasks",
-        requestTemplate: src.requestTemplate,
-        featureId: (c as { featureId?: string }).featureId,
-        taskFilter: (c as { taskFilter?: { statuses?: string[] } }).taskFilter,
-        chainedTaskIds: [],
-      };
+      spec.source = "spec_kit_tasks";
+      spec.requestTemplate = c.requestTemplate;
+      spec.featureId = c.featureId;
+      spec.taskFilter = c.taskFilter;
+      spec.chainedTaskIds = [];
     }
-    const steps = c.steps;
-    if (!Array.isArray(steps) || steps.length === 0) {
-      throw new GuidanceError(
-        "configuration_invalid",
-        "chain requires either steps or source",
-        { recoverable: true },
-      );
-    }
-    if (steps.length > this.chain.maxStepsPerManifest) {
-      throw new GuidanceError(
-        "configuration_invalid",
-        `chain.steps exceeds maxStepsPerManifest (${this.chain.maxStepsPerManifest})`,
-        { recoverable: true },
-      );
-    }
-    return {
-      steps: steps.map((s) => {
-        const st = s as { request?: unknown; workflowId?: unknown };
+    if (hasSteps) {
+      if ((c.steps as unknown[]).length > this.chain.maxStepsPerManifest) {
+        throw new GuidanceError(
+          "configuration_invalid",
+          `chain.steps exceeds maxStepsPerManifest (${this.chain.maxStepsPerManifest})`,
+          { recoverable: true },
+        );
+      }
+      spec.steps = (
+        c.steps as { request?: unknown; workflowId?: unknown }[]
+      ).map((st) => {
         if (typeof st.request !== "string" || st.request.length === 0) {
           throw new GuidanceError(
             "configuration_invalid",
@@ -627,8 +636,9 @@ export class WorkflowEngine {
           workflowId:
             typeof st.workflowId === "string" ? st.workflowId : undefined,
         };
-      }),
-    };
+      });
+    }
+    return spec;
   }
 
   /**
@@ -660,6 +670,44 @@ export class WorkflowEngine {
       project: { name: this.config.project.name },
       session: { request: session.request },
     };
+    // Amendment 002 v1.1 (CHN-3): mixed chains run explicit steps FIRST and
+    // fall through to Form B task derivation once steps are exhausted.
+    const steps = spec.steps ?? [];
+    const idx = session.chainUpNext ?? 0;
+    if (idx < steps.length) {
+      // Form A: exhaustion check BEFORE the depth gate (review LOW-4): a
+      // manifest with steps.length >= maxChainDepth must end SILENTLY after
+      // its last step (Spec §3.2), not with a chain_depth_exceeded failure.
+      if ((session.chainIndex ?? 0) >= this.chain.maxChainDepth) {
+        return {
+          failure: {
+            reason: "chain_depth_exceeded",
+            error: `chainIndex ${session.chainIndex} reached maxChainDepth (${this.chain.maxChainDepth})`,
+          },
+        };
+      }
+      try {
+        const request = resolveTemplate(
+          steps[idx]!.request,
+          templateCtx,
+        ) as string;
+        return {
+          step: { request, workflowId: steps[idx]!.workflowId },
+          spec,
+          upNext: idx,
+        };
+      } catch (err) {
+        if (err instanceof TemplateError) {
+          return {
+            failure: {
+              reason: "chain_template_unresolved",
+              error: err.message,
+            },
+          };
+        }
+        throw err;
+      }
+    }
     if (spec.source === "spec_kit_tasks") {
       // FR-111 (§11.4): the depth gate is the Form-B backstop (natural bound
       // = pending-task count), so it runs BEFORE candidate search here.
@@ -692,7 +740,10 @@ export class WorkflowEngine {
         return {
           step: { request },
           spec,
-          upNext: 0,
+          // HIGH-1 fix (CHN-3 review): report the EXHAUSTED index so the
+          // successor's chainUpNext stays >= steps.length — otherwise the
+          // successor re-enters Form A at steps[1] after every task step.
+          upNext: steps.length,
           taskId: candidate.id,
           featureId: candidate.featureId ?? spec.featureId ?? "",
         };
@@ -708,38 +759,7 @@ export class WorkflowEngine {
         throw err;
       }
     }
-    const idx = session.chainUpNext ?? 0;
-    const steps = spec.steps ?? [];
-    // Exhaustion check BEFORE the depth gate: a manifest with
-    // steps.length >= maxChainDepth must end SILENTLY after its last step
-    // (Spec §3.2), not with a chain_depth_exceeded failure (review LOW-4).
-    if (idx >= steps.length) return null;
-    if ((session.chainIndex ?? 0) >= this.chain.maxChainDepth) {
-      return {
-        failure: {
-          reason: "chain_depth_exceeded",
-          error: `chainIndex ${session.chainIndex} reached maxChainDepth (${this.chain.maxChainDepth})`,
-        },
-      };
-    }
-    try {
-      const request = resolveTemplate(
-        steps[idx]!.request,
-        templateCtx,
-      ) as string;
-      return {
-        step: { request, workflowId: steps[idx]!.workflowId },
-        spec,
-        upNext: idx,
-      };
-    } catch (err) {
-      if (err instanceof TemplateError) {
-        return {
-          failure: { reason: "chain_template_unresolved", error: err.message },
-        };
-      }
-      throw err;
-    }
+    return null; // steps exhausted (or absent) and no source → silent end
   }
 
   /** Changed files of the predecessor's implement submission (chain template context). */
@@ -1491,7 +1511,14 @@ export class WorkflowEngine {
     const succNow = new Date().toISOString();
     const successorSpec =
       spec.source === "spec_kit_tasks"
-        ? { ...spec, chainedTaskIds: [...(spec.chainedTaskIds ?? []), taskId!] }
+        ? {
+            ...spec,
+            // CHN-3: only task-derived steps append; a mixed manifest's
+            // Form-A step (taskId undefined) must not push a null entry.
+            chainedTaskIds: taskId
+              ? [...(spec.chainedTaskIds ?? []), taskId]
+              : [...(spec.chainedTaskIds ?? [])],
+          }
         : { ...spec };
     const successor: WorkflowSession = {
       sessionId: `session-${randomUUID()}`,
@@ -1514,7 +1541,9 @@ export class WorkflowEngine {
       chainFrom: sessionId,
       chainIndex,
       chainSpec: successorSpec,
-      chainUpNext: spec.source === "spec_kit_tasks" ? 0 : upNext + 1,
+      // CHN-3: always advance the Form-A marker — with a mixed manifest the
+      // successor skips exhausted steps and falls through to Form B.
+      chainUpNext: upNext + 1,
       ...(taskId
         ? { chainTaskScope: { taskId, featureId: featureId ?? "" } } // MEDIUM-1: per-task resolved featureId, not the manifest default
         : {}),
