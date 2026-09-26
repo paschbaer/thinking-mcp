@@ -701,8 +701,10 @@ SIGTERM at the operation timeout, it cannot hard-kill mid-run).
 **venv caveat:** the venv lives in the workspace (`/workspace/.venv`) and
 contains Linux binaries — do not use it from a Windows host bind mount.
 `uv` rebuilds a broken/mismatched venv on the next run. `toolchain-sync`
-accesses the network (PyPI); it is classified `workspace_write` and can be
-made approval-gated via `policies.json`.
+accesses the network (PyPI); it is classified `workspace_write` — network
+egress is governed at the deployment level (container network policy), not
+by the operation approval gate, which only covers
+`destructive`/`credential_sensitive` risk classes.
 
 ### `policies.json` — security (excerpt)
 

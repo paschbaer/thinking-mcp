@@ -90,9 +90,11 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     const engine = makeEngine();
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     await expect(engine.runOperation(start.sessionId, "unmarked-echo")).rejects.toThrowError(/agent_invocation_denied/);
-    // unmarked op was never executed: no audit 'operation_invoked' for it
     const history = rf(join(stateDir, "history", `${start.sessionId}.jsonl`), "utf-8");
-    expect(history).not.toContain("unmarked-echo");
+    // kein Execution-Event (operation_invoked), aber Denial wird auditiert (FR-103/SC-002)
+    expect(history).not.toContain("operation_invoked");
+    expect(history).toContain("operation_invocation_denied");
+    expect(history).toContain("unmarked-echo");
   });
 
   it("rejects unknown operations and unknown sessions with existing error contracts", async () => {
@@ -152,5 +154,14 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     await engine.runOperation(start.sessionId, "invocable-echo");
     expect(existsSync(join(stateDir, WORKSPACE_LOCK))).toBe(false);
+  });
+
+  it("stale lock recovery (Review R-004): dead-owner lock is stolen, operation proceeds", async () => {
+    const engine = makeEngine();
+    const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    const lock = join(stateDir, WORKSPACE_LOCK);
+    writeFileSync(lock, "999999999"); // pid existiert nicht → tot
+    await expect(engine.runOperation(start.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
+    expect(existsSync(lock)).toBe(false); // regulär released nach dem Run
   });
 });
