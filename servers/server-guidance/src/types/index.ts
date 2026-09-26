@@ -1,7 +1,8 @@
 /** Core domain types for Guidance (see specs/002-guidance-workflow-server/data-model.md). */
 
 export type PhaseId = string;
-export type SessionStatus = "active" | "blocked" | "completed" | "cancelled";
+export type SessionStatus =
+  "active" | "activating" | "blocked" | "completed" | "cancelled";
 export type ProfileId = "plain" | "spec-kit";
 
 export type OperationType =
@@ -33,11 +34,17 @@ export type OperationErrorKind =
   | "timeout"
   | "cancelled";
 
-export type RiskClass = "read_only" | "workspace_write" | "external_write" | "destructive" | "credential_sensitive";
+export type RiskClass =
+  | "read_only"
+  | "workspace_write"
+  | "external_write"
+  | "destructive"
+  | "credential_sensitive";
 
 export type TrustLevel = "untrusted" | "restricted" | "trusted" | "privileged";
 
-export type LifecyclePoint = "beforeEnter" | "afterEnter" | "beforeExit" | "afterExit";
+export type LifecyclePoint =
+  "beforeEnter" | "afterEnter" | "beforeExit" | "afterExit";
 
 export interface OperationConfig {
   operationId: string;
@@ -53,9 +60,24 @@ export interface OperationConfig {
   required: boolean;
   timeoutSeconds?: number;
   limits?: { maxBytes?: number; concurrency?: number };
-  retry?: { maximumAttempts: number; retryOn: string[]; initialDelayMilliseconds?: number; backoffMultiplier?: number };
+  retry?: {
+    maximumAttempts: number;
+    retryOn: string[];
+    initialDelayMilliseconds?: number;
+    backoffMultiplier?: number;
+  };
   validation?: import("./operation-validation.js").OperationValidationPolicy;
-  output?: { returnToAgent: "none" | "status_only" | "summary" | "summary_and_errors" | "normalized" | "raw"; retainRawResult?: boolean; maximumBytes?: number };
+  output?: {
+    returnToAgent:
+      | "none"
+      | "status_only"
+      | "summary"
+      | "summary_and_errors"
+      | "normalized"
+      | "raw";
+    retainRawResult?: boolean;
+    maximumBytes?: number;
+  };
   riskClass?: RiskClass;
   approved?: boolean;
   fallback?: OperationConfig[];
@@ -120,9 +142,37 @@ export interface WorkflowSession {
   submissions: Record<PhaseId, Submission>;
   blockers: Blocker[];
   requestIds: Record<string, unknown>;
+  /** Amendment 002 (Workflow-Chaining): optional — absent = legacy session. */
+  chainFrom?: string | null;
+  /** Position in the chain, 0-based (0 = chain head). */
+  chainIndex?: number;
+  /** Chain manifest — set on the head (Form A) or head+successors (Form A/B, copied per FR-114). */
+  chainSpec?: {
+    steps?: { request: string; workflowId?: string }[];
+    source?: "spec_kit_tasks";
+    requestTemplate?: string;
+    featureId?: string;
+    taskFilter?: { statuses?: string[] };
+    /** Form B: task IDs already turned into chain steps (progress carried in the copy). */
+    chainedTaskIds?: string[];
+  };
+  /** Index of the next chain step to execute (relative to chainSpec.steps). */
+  chainUpNext?: number;
+  /** Form B successor scope (FR-118): this workflow executes exactly this spec-kit task. */
+  chainTaskScope?: { taskId: string; featureId: string };
   downstream: {
-    servers: Record<string, { status: string; capabilitySnapshotHash?: string; lastSuccessfulRequestAt?: string }>;
-    operations: Record<string, { latestExecutionId?: string; status?: OperationStatus; attempts: number }>;
+    servers: Record<
+      string,
+      {
+        status: string;
+        capabilitySnapshotHash?: string;
+        lastSuccessfulRequestAt?: string;
+      }
+    >;
+    operations: Record<
+      string,
+      { latestExecutionId?: string; status?: OperationStatus; attempts: number }
+    >;
   };
   createdAt: string;
   updatedAt: string;

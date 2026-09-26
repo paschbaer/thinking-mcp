@@ -376,6 +376,113 @@ affected files, the expected behavior, and any constraints.
 The short variant delegates scoping to the agent: it will ask targeted
 questions in the `understand` phase before committing to a plan.
 
+## Workflow Chaining
+
+Chaining runs **multiple workflows back-to-back without user input**. The
+head workflow declares a chain manifest at `start_workflow`; when it
+completes, Guidance lazily creates the successor session and returns its
+`sessionId` in the completion response. Successors are created one step at a
+time — every session only decides about its *own* next step, so a chain
+cannot outlive its configuration.
+
+Enable it in `guidance.json` (default is **off**, fail-closed):
+
+```json
+{ "chain": { "enabled": true, "maxChainDepth": 8, "maxStepsPerManifest": 16 } }
+```
+
+### Client loop (both profiles)
+
+```
+start_workflow   { "request": "A", "chain": { … } }
+→ phase loop (get_current_guidance → submit_*), exactly as a single workflow
+complete_workflow { … }
+→ response carries "nextSessionId" (and "chain": [{ sessionId, request, status }])
+get_current_guidance { "sessionId": "<nextSessionId>" }
+→ next chain step runs as a normal workflow
+→ … until a completion response has NO nextSessionId (chain ended)
+```
+
+The chain ends deterministically (and silently) when all steps are consumed,
+when `maxChainDepth` is reached, or when a successor cannot be created. A
+successor that fails a mandatory `beforeEnter` gate starts `blocked` — the
+predecessor **stays `completed`** (no rollback), and the chain halts there.
+
+### Form A — explicit steps (plain and spec-kit profiles)
+
+Each step declares its own request text. Templates pull context from the
+finished predecessor: `${chain.parentRequest}`, `${chain.completionSummary}`
+(from the completion report), `${chain.changedFiles}` (from the
+`implement` submission). Unresolved template variables are **rejected** — no
+successor is created, the predecessor stays `completed`, and the response
+reports `chain: [{ "status": "failed", "error": "chain_template_unresolved: …" }]`.
+
+```jsonc
+// start_workflow — plain profile: fix-then-review pattern
+{
+  "workspaceRoot": "/workspace",
+  "request": "Add rate limiting to the API gateway",
+  "chain": {
+    "steps": [
+      { "request": "Fix the failing tests reported by the verification run for: ${chain.parentRequest}. Completion summary: ${chain.completionSummary}" },
+      { "request": "Run a full regression review after the fix covering: ${chain.changedFiles}" }
+    ]
+  }
+}
+// complete_workflow (head)   → { "status": "completed", "nextSessionId": "session-…",
+//                               "chain": [{ "sessionId": "session-…", "request": "Fix the failing tests … for: Add rate limiting …", "status": "active" }] }
+// complete_workflow (step 1) → nextSessionId = session for step 2
+// complete_workflow (step 2) → no nextSessionId — chain ended
+```
+
+### Form B — task-derived chain (`"source": "spec_kit_tasks"`, spec-kit only)
+
+Instead of declaring steps, let Guidance derive them from the feature's
+task list (`speckit.tasks`). The task list is already dependency-ordered —
+the chain inherits that order. At each completion the engine picks the first
+pending task (not yet chained) and starts **one full workflow per task**
+(understand → … → verify → complete, i.e. per-task lint/test/build gates).
+Use task batches for small tasks; use Form B when every task deserves its
+own verification pass.
+
+```jsonc
+// start_workflow — spec-kit profile, one workflow per task
+{
+  "workspaceRoot": "/workspace",
+  "request": "Execute the rate-limiting feature task by task",
+  "chain": {
+    "source": "spec_kit_tasks",
+    "requestTemplate": "Execute task ${chain.taskId} (${chain.taskTitle}) of feature ${chain.featureId} exactly as specified in the imported artifacts",
+    "featureId": "001-rate-limit",
+    "taskFilter": { "statuses": ["pending"] }
+  }
+}
+```
+
+Every Form-B successor carries a **task scope**
+(`chainTaskScope: { taskId, featureId }`). Guidance appends a scope annex to
+every phase instruction: *import the artifacts first
+(`import_spec_kit_artifacts`), then start/submit/complete exactly this task;
+do not touch other tasks.* When no pending tasks remain, the chain ends
+silently — that is the normal Form-B termination, not an error.
+
+### Guardrails
+
+| Rule | Behavior |
+|---|---|
+| `chain.enabled: false` (default) | `start_workflow` with `chain` → `configuration_invalid` |
+| `maxChainDepth` (default 8) | successor creation refused beyond the depth limit → `chain_depth_exceeded` |
+| `maxStepsPerManifest` (default 16) | Form A manifests with more steps rejected |
+| Form B in plain profile | rejected (`spec-kit` profile required) |
+| Unresolved template variable | no successor created; predecessor stays `completed` |
+| Successor gate failure (FR-040) | successor starts `blocked`; predecessor stays `completed`; chain halts |
+| User decision required | chain halts — chaining never bypasses `report_blocker` |
+
+Chained sessions are fully audited: `chain_successor_created`,
+`chain_failed` (with reason), plus the regular per-session event streams.
+The rest of the chain is **copied into each successor**, so chains survive
+pruning of the head session.
+
 ## Configuration (`.guidance/`)
 
 All configuration is JSON, version 2. Full contract:
