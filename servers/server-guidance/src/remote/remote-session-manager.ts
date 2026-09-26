@@ -42,6 +42,7 @@ interface PersistedSessionState {
   workflowSids: string[];
   lastAttempt?: RemoteSession["lastAttempt"];
   ledgerReports: OpReport[];
+  pendingReportTokens?: Record<string, string>;
 }
 
 const TTL_DAYS = Number(process.env.GUIDANCE_SESSION_TTL_DAYS || "30");
@@ -130,6 +131,7 @@ export class RemoteSessionManager {
       workflowSids: [...this.workflowToRemote.entries()].filter(([, remote]) => remote === sid).map(([wf]) => wf),
       lastAttempt: session.lastAttempt,
       ledgerReports: session.ledger.all(),
+      pendingReportTokens: session.ledger.pendingSnapshot(),
     };
     writeFileSync(this.statePath(sid), JSON.stringify(payload, null, 2));
   }
@@ -393,6 +395,7 @@ export class RemoteSessionManager {
         const st = JSON.parse(readFileSync(sp, "utf-8")) as PersistedSessionState;
         if (st.formatVersion === 2) {
           for (const report of st.ledgerReports ?? []) ledger.record(report);
+          ledger.restorePending(st.pendingReportTokens);
           if (st.lastAttempt) session.lastAttempt = st.lastAttempt;
           const wf = st.workflowSids?.[st.workflowSids.length - 1];
           if (wf) {

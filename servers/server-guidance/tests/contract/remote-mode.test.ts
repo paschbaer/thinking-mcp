@@ -171,8 +171,10 @@ describe("remote mode FR-104 (client-reported gates)", () => {
     const v = await call("submit_verification", { sessionId: wfSid, summary: "v", verificationSummary: ["tested"] });
     expect(v.code).toBe("client_operations_pending");
     expect((v.pendingOperations as { operationId: string }[])[0]!.operationId).toBe("gate-test");
+    const token = (v.pendingOperations as { operationId: string; opToken?: string }[])[0]!.opToken as string;
+    expect(token).toMatch(/^[0-9a-f]{32}$/);
     const rep = await call("report_operation_result", {
-      sessionId: wfSid, operationId: "gate-test", status: "succeeded", exitCode: 0, summary: "client ran it",
+      sessionId: wfSid, operationId: "gate-test", status: "succeeded", exitCode: 0, summary: "client ran it", reportToken: token,
     });
     expect(rep.accepted).toBe(true);
     expect(rep.currentPhase ?? (rep.workflowStatus as string)).toBeDefined();
@@ -186,8 +188,10 @@ describe("remote mode FR-104 (client-reported gates)", () => {
     const wfSid = start.sessionId as string;
     await call("submit_understanding", { sessionId: wfSid, summary: "s" });
     await call("submit_verification", { sessionId: wfSid, summary: "v", verificationSummary: ["tested"] });
+    const pend = await call("submit_verification", { sessionId: wfSid, summary: "v2", verificationSummary: ["tested"] });
+    const token2 = ((pend.pendingOperations as { opToken?: string }[] | undefined)?.[0])?.opToken as string;
     const rep = await call("report_operation_result", {
-      sessionId: wfSid, operationId: "gate-test", status: "failed", exitCode: 1, summary: "tests red",
+      sessionId: wfSid, operationId: "gate-test", status: "failed", exitCode: 1, summary: "tests red", reportToken: token2,
     });
     // Failed required report ⇒ Transition blockiert (Session bleibt in verify)
     expect(rep.accepted).toBe(false);

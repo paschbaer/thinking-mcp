@@ -525,14 +525,15 @@ Trigger: /speckit-plan fuer 001-experience-memory-server
 
 ## Tracked follow-ups (2026-09-22)
 - [x] Golden-Test-Flake: GEFIXT (2026-09-22) — Ursache war der vitest threads-Pool (napi-Instabilität mit better-sqlite3, auch als stilles FTS-Versagen) plus zu knappes 5s-Timeout. Fix: `pool: 'forks'` + `testTimeout: 30_000` in `servers/server-insight/vitest.config.ts`. Suite: 99/99. Action done.
-- [ ] Prompt-Kopien von `.github/prompts/capture-lessons.prompt.md` in anderen Repos aus dem Master syncen. Trigger: sobald der Docker-Container mit `experience_seed_lessons` deployed ist. Action required.
+- [x] Prompt-Kopien von `.github/prompts/capture-lessons.prompt.md` in anderen Repos aus dem Master syncen — GESCHLOSSEN ALS OBSOLET (2026-09-26, User-Entscheid Option 3): Verteilung läuft über Paket/Smithery bzw. den Master-Prompt; keine Repos-Kopien nötig. Verifiziert: kein anderes Repo unter D:/repos enthielt je eine Kopie/Referenz (grep 0 Treffer). Action done (obsolet).
 - [x] Docker-Image neu bauen + deployen (VERIFIZIERT 2026-09-24: HTTP-Server läuft auf :3002, experience_seed_lessons per HTTP erfolgreich genutzt — Werkzeug vorhanden). Action done.
 - [x] FTS-Retrieval wirkungslos (2026-09-22 entdeckt, direkt gefixt): fehlender `episodes_fts`-Writer (Trigger + Backfill in `sqlite.ts` init), INNER JOIN auf `signatures` in `searchFullText` → LEFT JOIN, FTS-Treffer-Bonus (+0.30) im Relevance-Scoring. Live verifiziert: Slug-Suche liefert Ziel-Episode auf Platz 1 (rel 0.55). Action done.
-- [ ] FTS-Index deckt nur `goal_summary` ab („Persist lesson: <slug>") — Observation-/Fix-Inhalte sind nicht durchsuchbar; Queries müssen Slug-/Goal-Wortlaute verwenden. Kandidat: Observation-Inhalte (oder Auszüge) in den FTS-Index bzw. das Ranking aufnehmen. Trigger: nächste Retrieval-Qualitäts-Runde oder sobald Slug-basierte Suche in der Praxis zu grob wird. Action required (Enhancement, kein Defekt).
-- [ ] Postgres-Adapter: FTS-Parität zu SQLite fehlt (keine Trigger/Backfill/Relevance-Boost) — Header in `src/storage/postgres.ts` weist darauf hin. Trigger: Aktivierung von `EMMS_STORAGE_BACKEND=postgres`. Action required.
+- [x] FTS-Index deckt nur `goal_summary` ab — GELÖST (2026-09-26, L256): neuer FTS-Index `observations_fts` (insert-Trigger + idempotenter Backfill in `SqliteAdapter.init()`, 500-Zeichen-Cap je Observation); `searchFullText` matcht beide Indizes. Regressionstests `tests/contracts/fts-observation-coverage.test.ts` (Trigger, Backfill, Scope-Filter, Cap, CB-12-Parität). Suite 116/116. Action done.
+- [x] Postgres-Adapter: FTS-Parität zu SQLite — GELÖST (2026-09-26, L257): `searchFullText` jetzt sanitized AND-joined `tsquery` über goal_summary + erste 500 Zeichen der Observations, **LEFT JOIN** signatures (INNER-Join-Bug-Klasse 2026-09-22 behoben), GIN-Expression-Indexe in Migration; Tests `tests/contracts/postgres-fts-parity.test.ts` (SQL-Contract gepinnt, gemockter pg-Client). Offen: Live-Smoke-Test bei erster Aktivierung von EMMS_STORAGE_BACKEND=postgres (siehe Trigger unten). Action done (Contract-Level); Live-Verifikation getrackt.
 - [x] Global `testTimeout: 30_000` (vitest.config.ts) kann Performance-Regressionen maskieren: AKZEPTIERT als Risiko (2026-09-22, Basis-Review). Trigger für Re-Evaluation: nächste Suite-Tuning-Runde (per-Test-Timeouts für Load/Golden, Global Richtung 10s). Accepted observation.
 - [x] Guidance (specs/002): Bearer-Token-AuthN RESOLVIERT (2026-09-24-Inventur): GUIDANCE_AUTH_TOKEN + timing-safe authHeader-Middleware implementiert (server.ts, getestet in http-transport.test.ts; siehe L280-Eintrag). Trigger entfällt.
-- [ ] Guidance (specs/002): Administratives Metrics-Tool implementieren (Operation-Counts/Durations/Error-Rates, Connection-Health über Zeit) — FR-059 scope-Team-Entscheid: nur Logs+Status-Tools in dieser Iteration. Trigger: erste Produktions-Nutzung von Guidance oder Betrieb-Monitoring-Runde. Action required. Quelle: /speckit-clarify 2026-09-22 (User: "B, but track C for later").
+- [ ] L256/257 Review-Follow-ups (Independent Review 2026-09-26, APPROVED 0 HIGH/CRIT): (F3-LOW) SQLite-Backfill-Idempotenz keyed auf (episode_id, content-prefix) — zwei Observationen mit identischen ersten 500 Zeichen → Zähl-Divergenz fts↔observations (kein Retrieval-Verlust). (F4-LOW) signatures ohne UNIQUE(episode_id) in beiden Adaptern → LEFT-Join-Zeilenvervielfachung bei Doppelt-Signierung; DISTINCT/UNIQUE beim nächsten Retrieval-Touch. (F5-INFO) observations_fts hat nur Insert-Trigger — bei künftiger scope_id-Mutabilität wird der Index stale (Trigger-Pflicht in jeden Scope-Update-Scope). (F6-INFO) Unicode-Sanitization ([\w\s] ist ASCII) — Unicode-only Queries liefern []; künftig \p{L}\p{N} in BEIDEN Adaptern gemeinsam. (MED-Backfill ist behoben via Count-Guard; Live-Postgres-Smoke-Test s. Trigger oben.) Trigger: siehe jeweilige Bemerkung; F4/F6 beim nächsten Retrieval-Quality-Scope. Action required.
+- [x] Guidance (specs/002): Administratives Metrics-Tool implementieren (Operation-Counts/Durations/Error-Rates, Connection-Health über Zeit) — FR-059 scope-Team-Entscheid: nur Logs+Status-Tools in dieser Iteration. Trigger: erste Produktions-Nutzung von Guidance oder Betrieb-Monitoring-Runde. Action required. Quelle: /speckit-clarify 2026-09-22 (User: "B, but track C for later").
 
 - [ ] Guidance (specs/002) Phase 3 review follow-ups (APPROVE, 0 HIGH/CRIT): F1 completeWorkflow requestId ledger check must move ABOVE status checks (replay-after-completion should return recorded result, not workflow_already_completed) — trigger: next engine-touching scope or Phase 5 wiring. F2 submission_received audit/accept-persist ordering on op failure — same trigger. F3 stale-copy reassignment pattern in submitLocked (partially fixed via targeted mutation) — audit remaining sites next scope. F4 GuidanceErrors thrown past public methods need structured-response shim at MCP dispatch — trigger: Phase 5 tool registration. F6 in-process-only mutex — trigger: any multi-process/CLI scope. F7 requestId replay test still to add — trigger: next engine-touching scope. Action required. Quelle: Phase 3 review 2026-09-22.
 
@@ -608,6 +609,18 @@ Feature-Branch feature/guidance-lock-hardening, Suite 279/279 + tsc grün (Conta
 - [x] R-012c LOW GELÖST: Testabdeckung ergänzt (Live-Owner-nicht-stehlen, Dead-PID-Steal, Multi-Process-Race); EACCES-Pfad via Code-Differenzierung abgedeckt (implizit).
 - [x] R-010 LOW GELÖST: tests/contract/error-codes.test.ts mit exaktem ERROR_CODES-Snapshot (Equality), Duplikat-Check, isErrorCode-Roundtrip.
 
+## Getrackte Follow-ups (2026-09-26, Feature 005 Production Hardening —Tracks GELÖST)
+Branch feature/production-hardening. Suite 302/302 + tsc + build grün (Container).
+- [x] PLAN-CLEANUP GELÖST (T001): stale Einträge [x], Duplikate identifiziert, Hygiene-Regel in systemPatterns.md.
+- [x] L260/FR-059 GELÖST (T003–T005): get_metrics + MetricsRepository (JSONL stateDir/metrics.jsonl, Replay) + Hooks in WorkflowEngine/ClientManager.
+- [x] FR-104.5 GELÖST (T006–T007): One-Time-opToken-Binding (client_report_invalid bei Mismatch/Replay), Burn-on-Accept, Persistenz der Pending-Tokens. Residual LOW: HMAC-Variante vertagt (Transport ist bereits key-authentifiziert) — dokumentiert.
+- [x] TRACK-Venv-C GELÖST (T008): UV_PROJECT_ENVIRONMENT + Named-Volume-Example (Compose/Dockerfile-Kommentare, README) + E2E relocated venv.
+- [x] TRACK-NS GELÖST (T002): specs/003 → FR-301…315/SC-301…305 + Alias-Tabelle (SC-403-grep clean).
+- [x] TRACK-Scaffold GELÖST (T009): pyproject.toml-Erkennung erzeugt uv-Op-Set, Tests beide Varianten.
+- [ ] R-006-Residual LOW (bleibt getrackt): SIGKILL-Eskalation wird von keinem Test direkt beobachtet (nur SIGTERM-Settle); pid-Liveness-Assertions fehlen. Trigger: nächster Executor-Touch.
+- [ ] R-008a LOW (bleibt getrackt): Lock global pro stateDir statt pro workspaceRoot.
+- [ ] FR-Nummern-Kollision GELÖST für specs/003 (TRACK-NS); systemübergreifende Konvention „neue Feature-Specs nummerieren FR-4xx/5xx+ fortlaufend" in systemPatterns.md dokumentieren. Trigger: nächste neue Feature-Spec. Action required (klein).
+
 ## Getrackte Follow-ups (2026-09-26, Feature 004 Async Execution — R-006/FR-110 GELÖST)
 Branch feature/async-operation-execution (0c01c01 spec, d606ee2 docs, 8a8abc0 impl). Suite 290/290 + tsc + build grün (Container).
 - [x] R-006 GELÖST: OperationEngine executes process ops async (spawn, SIGTERM→SIGKILL-Eskalation, AbortSignal); echte Cross-Session-Contention-, Cancel-Kill-, Denial- und SC-004-Secret-E2Es in python-toolchain.e2e.test.ts. Zusätzlich: stderr failing-ops wird jetzt redigiert (bisherige Redaction-Lücke, SC-004-Seam).
@@ -616,7 +629,7 @@ Branch feature/async-operation-execution (0c01c01 spec, d606ee2 docs, 8a8abc0 im
 
 ## Getrackte Follow-ups (2026-09-26, Amendment 003 + Nummern-Kollision)
 - [x] Amendment 003 „Final-Review Evidence Gate" IMPLEMENTIERT (2026-09-26, Draft-Q1–Q3-Defaults vom Nutzer gebilligt): scripts/check-final-review.mjs (strict Schema, HEAD-Vergleich ohne git-Binary, computed openHighCritical), Gate-Op in scaffold + examples/default + examples/python + root .guidance (complete.beforeExit, required), 6 Contract-Tests. Suite 274/274 + tsc + build grün. Offen: Amendment-Status Draft → nach Resonanz auf APPROVED setzen; Nummern-Kollision-Follow-up unten bleibt.
-- [ ] FR-Nummern-Kollision: specs/003 (FR-101…110) kollidiert mit Amendments 001/002 im 002-Namespace (FR-101+, FR-110–119). Trigger: nächste specs/003-Änderung. Action required: Renummerierung FR-301…315 + Alias-Notiz oder dokumentierte Namespacetrennung je Feature-Spec.
+- [x] FR-Nummern-Kollision GELÖST (Feature 005 T002): specs/003 → FR-301…315 + Alias-Tabelle; Konvention in systemPatterns.md.
 - [x] responses.json complete-Instruktion um Verweis auf Amendment-003-Gate ergänzt (2026-09-26, mit der Implementierung).
 - [ ] Amendment-Status-Update: 003 von DRAFT auf APPROVED, sobald Nutzer den Diff abnickt/billigt. Trigger: Nutzerreaktion. Action required.
 
@@ -670,10 +683,10 @@ Code-Verifikation aller offenen Zeilen. Ergebnisse:
   null — Snapshot-Chaining offen); L305(d) awaiting_client (Spec nötig);
   Phase 6 Egress-Checks prüfen nur Struktur, nicht Inhalte (PolicyEngine
   evaluateEgress) → L266 offen; Phase 5/7a/7b-Items (L264/L268/L270) unverändert
-  offen; Metrics-Tool (L260); FTS-Coverage (L256); Postgres-Parität (L257);
+  offen; Metrics-Tool (L260); ~~FTS-Coverage (L256)~~ GELÖST 2026-09-26;
+  ~~Postgres-Parität (L257)~~ GELÖST 2026-09-26 (Live-Smoke-Test offen);
   Smithery-Reste jetzt in VIER Servern (L284c → Cluster 3).
-- L253 (Prompt-Kopien-Sync): nur Master-Repo hier verfügbar — bleibt offen,
-  Sync bei Zugriff auf die anderen Repos.
+- L253 (Prompt-Kopien-Sync): GESCHLOSSEN ALS OBSOLET (2026-09-26, User-Entscheid — Verteilung über Paket/Smithery, keine Kopien nötig).
 - Phase-3-Zeile (L262) als STALE markiert: mehrere Items durch L272/278
   abgedeckt — Restverifikation in Paket 2b (State-Machines).
 Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach

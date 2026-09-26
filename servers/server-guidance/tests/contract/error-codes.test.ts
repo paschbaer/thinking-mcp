@@ -60,6 +60,7 @@ const EXPECTED_ERROR_CODES = [
   "agent_invocation_denied",
   "operation_in_progress",
   "workspace_lock_unavailable",
+  "client_report_invalid",
   // Spec-Kit profile
   "spec_kit_feature_in_use",
   "spec_kit_not_enabled",

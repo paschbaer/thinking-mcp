@@ -24,6 +24,7 @@ import type {
 } from "../types/index.js";
 import { WorkspaceOpLock } from "./workspace-lock.js";
 import { MetricsRepository, type MetricsSnapshot, type OperationOutcome } from "../metrics/MetricsRepository.js";
+import type { ExecuteFn } from "../orchestration/OperationEngine.js";
 import { SessionRepository } from "../state/SessionRepository.js";
 import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
@@ -398,16 +399,19 @@ export class WorkflowEngine {
     }
     // spec 005 FR-403: metrics recording wrapper — records every operation
     // execution (lifecycle + runOperation + composite steps) without touching
-    // any result semantics.
-    const rawExecute = this.operationEngine.execute.bind(this.operationEngine);
-    const metrics = this.metrics;
-    this.operationEngine.execute = (config, ctx, attempt, signal) => {
-      const t0 = Date.now();
-      return Promise.resolve(rawExecute(config, ctx, attempt, signal)).then((res) => {
-        metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
-        return res;
-      });
-    };
+    // any result semantics. Guard: der Remote-ClientOpEngine hat kein
+    // execute (nur executeRequired) — dort gibt es nichts aufzuzeichnen.
+    const rawExecute = (this.operationEngine as { execute?: ExecuteFn }).execute?.bind(this.operationEngine);
+    if (rawExecute) {
+      const metrics = this.metrics;
+      this.operationEngine.execute = (config, ctx, attempt, signal) => {
+        const t0 = Date.now();
+        return Promise.resolve(rawExecute(config, ctx, attempt, signal)).then((res) => {
+          metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
+          return res;
+        });
+      };
+    }
   }
 
   private clientManager?: ClientManager;
@@ -1170,10 +1174,14 @@ export class WorkflowEngine {
       (mode === "summary_and_errors" || mode === "normalized" || mode === "raw")
         ? `: ${errorMessages.join("; ").slice(0, 500)}`
         : "";
+    // spec 005 FR-404: awaiting_client-Resultate tragen den One-Time-Token,
+    // damit der Client beim report_operation_result das Binding erfüllen kann.
+    const opToken = (r.data as { opToken?: string } | undefined)?.opToken;
     return {
       id: r.operationId,
       status: r.status,
       summary: exposed.summary + suffix,
+      ...(opToken ? { opToken } : {}),
     };
   }
 
