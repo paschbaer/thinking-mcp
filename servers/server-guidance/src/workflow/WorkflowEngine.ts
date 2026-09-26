@@ -201,6 +201,8 @@ export class WorkflowEngine {
       "\\bpassword\\b",
       "\\bauthorization\\b",
     ];
+    this.redactionPatterns = redactionPatterns;
+    this.redactor = createRedactor(redactionPatterns);
     const redact = (serialized: string): string => {
       let out = serialized;
       for (const pattern of redactionPatterns) {
@@ -400,9 +402,11 @@ export class WorkflowEngine {
   private readonly workspaceLock: WorkspaceOpLock;
   private readonly runningOps = new Set<string>();
   private readonly activeOpControllers = new Map<string, Set<AbortController>>();
+  private readonly redactionPatterns: string[];
   private pinnedHashes = new Map<string, string>();
   private readonly policyEngine = new PolicyEngine();
   private readonly archiveDir: string;
+  private readonly redactor: ReturnType<typeof createRedactor>;
 
   /** Persists downstream op/server state into the session (FR-044). */
   recordDownstreamState(
@@ -570,12 +574,12 @@ export class WorkflowEngine {
         return { id: operationId, status: "failed", summary: `session is ${session.status}` };
       }
       const run = await this.operationEngine.execute(op, this.ctxFor(session), 1, controller.signal);
-      const cancelled = this.sessions.load(sessionId).status === "cancelled";
-      // FR-110 (kooperativ): Cancel/Timeout verwirft das Ergebnis; der
-      // Kindprozess selbst wird über den op-Timeout (SIGTERM) beendet —
-      // spawnSync erlaubt keinen harten Kill mid-run (dokumentierte
-      // Limitation, siehe README).
-      if (cancelled) {
+      // FR-202 (Hard-Kill seit Feature 004): Cancel/Timeout bricht den Child
+      // via Abort ab (SIGTERM→SIGKILL); das Ergebnis wird verworfen und als
+      // cancelled auditiert.
+      const wasCancelled =
+        this.sessions.load(sessionId).status === "cancelled" || run.status === "cancelled";
+      if (wasCancelled) {
         this.audit.append({
           sessionId,
           eventType: "operation_invoked",
@@ -612,6 +616,7 @@ export class WorkflowEngine {
   }): OperationContext {
     return {
       workspaceRoot: session.workspaceRoot,
+      redactionPatterns: this.redactionPatterns,
       templateVars: {
         "session.request": session.request,
         "project.name": this.config.project.name,
@@ -923,6 +928,7 @@ export class WorkflowEngine {
         );
       const run = await this.operationEngine.executeRequired([op], {
         workspaceRoot: this.sessions.load(sessionId).workspaceRoot,
+        redactionPatterns: this.redactionPatterns,
       });
       for (const r of run.results) {
         opResultsStart.push(this.exposeOpResult(r, op));
@@ -1133,7 +1139,7 @@ export class WorkflowEngine {
       mode,
     );
     const errorMessages: string[] =
-      (r as { errors?: { message: string }[] }).errors?.map((e) => e.message) ??
+      (r as { errors?: { message: string }[] }).errors?.map((e) => this.redactor.redact(e.message)) ??
       [];
     const suffix =
       errorMessages.length > 0 &&
