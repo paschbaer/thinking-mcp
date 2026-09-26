@@ -23,6 +23,7 @@ import type {
   WorkflowSession,
 } from "../types/index.js";
 import { WorkspaceOpLock } from "./workspace-lock.js";
+import { MetricsRepository, type MetricsSnapshot, type OperationOutcome } from "../metrics/MetricsRepository.js";
 import { SessionRepository } from "../state/SessionRepository.js";
 import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
@@ -191,6 +192,7 @@ export class WorkflowEngine {
     this.specKitTasks = deps.specKitTasks;
     this.sessions = new SessionRepository(join(deps.stateDir, "sessions"));
     this.archiveDir = join(deps.stateDir, "archive");
+    this.metrics = new MetricsRepository(join(deps.stateDir, "metrics.jsonl"));
     const redactionPatterns = (
       this.config.policies as
         { redaction?: { patterns?: string[] } } | undefined
@@ -394,6 +396,18 @@ export class WorkflowEngine {
           },
         });
     }
+    // spec 005 FR-403: metrics recording wrapper — records every operation
+    // execution (lifecycle + runOperation + composite steps) without touching
+    // any result semantics.
+    const rawExecute = this.operationEngine.execute.bind(this.operationEngine);
+    const metrics = this.metrics;
+    this.operationEngine.execute = (config, ctx, attempt, signal) => {
+      const t0 = Date.now();
+      return Promise.resolve(rawExecute(config, ctx, attempt, signal)).then((res) => {
+        metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
+        return res;
+      });
+    };
   }
 
   private clientManager?: ClientManager;
@@ -407,6 +421,7 @@ export class WorkflowEngine {
   private readonly policyEngine = new PolicyEngine();
   private readonly archiveDir: string;
   private readonly redactor: ReturnType<typeof createRedactor>;
+  private readonly metrics: MetricsRepository;
 
   /** Persists downstream op/server state into the session (FR-044). */
   recordDownstreamState(
@@ -508,12 +523,21 @@ export class WorkflowEngine {
     return out;
   }
 
-  /** spec 003 FR-109: cross-session serialization for venv-mutating ops.
-   *  File lock (O_CREAT-exclusiv) im stateDir — gilt auch über
-   *  Engine-Instanzen hinweg. Stale-Lock-Recovery (Review R-004): ein Lock
-   *  eines toten Prozesses oder älter als STALE_LOCK_TTL_MS wird gestohlen,
-   *  damit ein Crash den Bootstrap nicht dauerhaft blockiert. */
-  /** spec 003 FR-109: cross-session serialization for venv-mutating ops.
+  /** spec 005 FR-402: read-only metrics snapshot; live connection status
+   *  merged over persisted snapshots. */
+  async getMetrics(): Promise<MetricsSnapshot> {
+    const snap = this.metrics.snapshot();
+    const live = await this.getDownstreamStatus();
+    for (const c of live) {
+      this.metrics.recordConnection(c.id, c.status ?? "unknown");
+      const existing = snap.connections.find((x) => x.serverId === c.id);
+      if (existing) existing.status = c.status ?? existing.status;
+      else snap.connections.push({ serverId: c.id, status: c.status ?? "unknown" });
+    }
+    return snap;
+  }
+
+  /** spec 003 FR-309: cross-session serialization for venv-mutating ops.
    *  Race-safe Implementierung in workspace-lock.ts (atomarer link-Acquire,
    *  rename-basierter Steal mit verify+restore — Review R-011). */
   private acquireWorkspaceOpLock(): void {

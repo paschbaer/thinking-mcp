@@ -57,6 +57,7 @@ export const WORKFLOW_TOOL_NAMES = [
   "list_configured_operations",
   "retry_operation",
   "run_operation",
+  "get_metrics",
   "get_downstream_status",
 ] as const;
 
@@ -283,6 +284,12 @@ export function registerWorkflowTools(
     { ...sessionId, operationId: z.string().min(1) },
     async ({ sessionId, operationId }) =>
       toJson(await tools.runOperation(sessionId, operationId)),
+  );
+  server.tool(
+    "get_metrics",
+    "Liest Aggregierte Metriken (Operation-Counter, Laufzeiten, Connection-Health)",
+    {},
+    async () => toJson(await tools.getMetrics()),
   );
   server.tool(
     "get_downstream_status",
