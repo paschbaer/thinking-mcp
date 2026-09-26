@@ -12,6 +12,7 @@ import {
 import { WorkflowTools } from "./mcp-server/ToolHandlers.js";
 import { scaffoldIfMissing } from "./scaffold.js";
 import { SpecKitStateStore } from "./mcp-server/register-spec-kit-tools.js";
+import { GuidanceError } from "./types/errors.js";
 import type { SpecKitState } from "./integrations/spec-kit/SpecKitEngine.js";
 
 export interface Composition {
@@ -82,7 +83,19 @@ export function composeApplication(
               featureId: state.featureId,
               status: t.status,
             }));
-          } catch {
+          } catch (err) {
+            // CHN-4: a broken bridge must be diagnosable — empty list keeps
+            // the FR-117 silent chain end. A missing state file is the
+            // documented normal case (review F-2): stay silent for it and
+            // only warn on unexpected errors.
+            if (
+              !(err instanceof GuidanceError) ||
+              err.code !== "spec_kit_artifact_missing"
+            ) {
+              process.stderr.write(
+                `[guidance] warning: specKitTasks bridge failed for ${sessionId}: ${String(err)}\n`,
+              );
+            }
             return [];
           }
         }

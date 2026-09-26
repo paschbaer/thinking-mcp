@@ -544,13 +544,16 @@ export class WorkflowEngine {
       sessionId,
       session.currentPhase,
     );
+    // CHN-6: read the POST-activation state fresh — the local `session`
+    // snapshot predates activateSession (stale status; NIT-7).
+    const fresh = this.sessions.load(sessionId);
     return {
       accepted: true,
       sessionId,
       workflowId: session.workflowId,
       currentPhase: session.currentPhase,
-      status: activation.blocked ? "blocked" : session.status,
-      guidance: this.guidanceFor(session),
+      status: fresh.status,
+      guidance: this.guidanceFor(fresh),
       operations: activation.operations,
     };
   }
@@ -1473,6 +1476,21 @@ export class WorkflowEngine {
     // lock — the successor session is NEW, per-session locks ⇒ no inversion).
     const resolved = this.resolveChainStep(session, report);
     if (resolved === null) {
+      // CHN-4: a silent Form-B end (source set, no pending candidate) is the
+      // normal termination but deserves a diagnostic marker so a broken
+      // bridge is at least countable; pure Form-A exhaustion stays fully
+      // silent per Spec §3.2.
+      if (session.chainSpec?.source === "spec_kit_tasks") {
+        this.audit.append({
+          sessionId,
+          eventType: "chain_end",
+          phase: "completed",
+          data: {
+            reason: "no_pending_tasks",
+            chainedCount: (session.chainSpec.chainedTaskIds ?? []).length,
+          },
+        });
+      }
       if (requestId) {
         this.sessions.update(sessionId, (s) => {
           s.requestIds[requestId] = successResult;
@@ -1565,6 +1583,16 @@ export class WorkflowEngine {
       data: { from: sessionId, to: successor.sessionId, chainIndex },
     });
     successResult.nextSessionId = successor.sessionId;
+    // CHN-5: cache the FULL result already in the lock (status 'activating')
+    // — a crash before the wrapper finalizes still leaves replays a complete
+    // chain entry; the wrapper overwrites with the final status.
+    successResult.chain = [
+      {
+        sessionId: successor.sessionId,
+        request: successor.request,
+        status: "activating",
+      },
+    ];
     if (requestId) {
       this.sessions.update(sessionId, (s) => {
         s.requestIds[requestId] = successResult;
