@@ -6,8 +6,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import type { NormalizedResult, OperationConfig } from "../types/index.js";
 import { createRedactor, redactUnknown } from "../policy/redaction.js";
-
-const stderrRedactor = createRedactor();
 import { GuidanceError } from "../types/errors.js";
 
 export interface OperationContext {
@@ -15,6 +13,10 @@ export interface OperationContext {
   /** Variables for template argument resolution (GUID-3): `${token}` tokens.
    * Known tokens: `session.request`, `project.name`. Unknown tokens fail fast. */
   templateVars?: Record<string, string>;
+  /** spec 004 (final review HIGH-1): configured redaction patterns from
+   *  policies.json — applied to failing-operation stderr. Defaults apply
+   *  when omitted. */
+  redactionPatterns?: string[];
 }
 
 export interface CompositeStep {
@@ -145,7 +147,7 @@ export class OperationEngine {
       const strategy = composite.strategy ?? "sequential";
       const errors: string[] = [];
       for (const step of composite.steps ?? []) {
-        const stepResult = await this.executeSync({ ...config, ...step, operationId: config.operationId, required: true } as OperationConfig, ctx, attempt);
+        const stepResult = await this.executeSync({ ...config, ...step, operationId: config.operationId, required: true } as OperationConfig, ctx, attempt, signal);
         if (stepResult.status === "succeeded") {
           return {
             ...base,
@@ -268,7 +270,7 @@ export class OperationEngine {
       const timedOut = (run.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
       return {
         ...base,
-        status: cancelled ? "failed" : timedOut ? "timed_out" : "failed",
+        status: cancelled ? "cancelled" : timedOut ? "timed_out" : "failed",
         errors: [
           {
             code: cancelled ? "operation_cancelled" : timedOut ? "operation_timed_out" : "downstream_connection_failed",
@@ -278,6 +280,7 @@ export class OperationEngine {
         summary: cancelled ? "operation cancelled" : timedOut ? "operation timed out" : "process failed to start",
       };
     }
+    const redactor = createRedactor(ctx.redactionPatterns);
     const exitCode = run.status ?? -1;
     const ok = exitCode === 0;
     return {
@@ -285,7 +288,7 @@ export class OperationEngine {
       status: ok ? "succeeded" : "failed",
       validated: ok,
       summary: ok ? `${config.operationId} succeeded` : `${config.operationId} failed with exit code ${exitCode}`,
-      errors: ok ? [] : [{ message: (stderrRedactor.redact((run.stderr ?? "") || `exit code ${exitCode}`)).slice(0, maxBuffer) }],
+      errors: ok ? [] : [{ message: (redactor.redact((run.stderr ?? "") || `exit code ${exitCode}`)).slice(0, maxBuffer) }],
       data: { exitCode },
     };
   }
@@ -331,12 +334,19 @@ export class OperationEngine {
         settled = true;
         resolve(result);
       };
+      // Pre-aborted signal: fail fast without spawning (final review LOW).
+      if (opts.signal?.aborted) {
+        settle({ status: null, stdout: "", stderr: "", error: new Error("operation cancelled"), cancelled: true });
+        return;
+      }
       try {
         child = spawn(executable, args, {
           cwd: opts.cwd,
           env: opts.env,
           shell: opts.shell,
-          signal: opts.signal,
+          // Abort wird manuell behandelt (Listener unten), damit wir die
+          // SIGTERM→SIGKILL-Eskalation kontrollieren (Node würde nur einmal
+          // SIGTERM senden).
         });
       } catch (err) {
         resolve({ status: null, stdout: "", stderr: "", error: err as Error });
@@ -360,11 +370,16 @@ export class OperationEngine {
         }
       };
       const onOutput = (buf: { toString(): string }, target: "stdout" | "stderr"): void => {
-        if (target === "stdout") stdout += buf.toString();
-        else stderr += buf.toString();
+        // MEDIUM-2: capped accumulation — a runaway child cannot grow memory
+        // unboundedly; exceeding the cap kills with SIGTERM escalation.
+        if (target === "stdout") {
+          if (stdout.length <= opts.maxBuffer) stdout += buf.toString();
+        } else {
+          if (stderr.length <= opts.maxBuffer) stderr += buf.toString();
+        }
         if (!exceeded && (stdout.length > opts.maxBuffer || stderr.length > opts.maxBuffer)) {
           exceeded = true;
-          killWithEscalation("SIGKILL");
+          killWithEscalation("SIGTERM");
         }
       };
       child.stdout?.on("data", (buf: { toString(): string }) => onOutput(buf, "stdout"));
@@ -376,6 +391,11 @@ export class OperationEngine {
       timeout.unref?.();
       child.once("close", (code) => {
         clearTimeout(timeout);
+        if (opts.signal?.aborted) {
+          // FR-202: aborted execution — distinguishable from timeout/failure.
+          settle({ status: null, stdout: stdout.slice(0, opts.maxBuffer), stderr: stderr.slice(0, opts.maxBuffer), error: new Error("operation cancelled"), cancelled: true });
+          return;
+        }
         if (timedOut) {
           // Parity with spawnSync's ETIMEDOUT behaviour.
           const err = new Error("operation timed out") as NodeJS.ErrnoException;
@@ -396,7 +416,7 @@ export class OperationEngine {
       });
       child.once("error", (err: NodeJS.ErrnoException) => {
         clearTimeout(timeout);
-        if (err.code === "ABORT_ERR" || opts.signal?.aborted) {
+        if (opts.signal?.aborted) {
           settle({ status: null, stdout, stderr, error: new Error("operation cancelled"), cancelled: true });
           return;
         }
