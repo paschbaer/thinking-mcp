@@ -507,6 +507,29 @@ Chained sessions are fully audited: `chain_successor_created`,
 The rest of the chain is **copied into each successor**, so chains survive
 pruning of the head session.
 
+### Example prompts for a chained workflow
+
+Everything above is tool-level; in chat you only need one message. The agent
+then declares the `chain` manifest at `start_workflow` itself and follows the
+`nextSessionId` responses until the chain ends:
+
+> Start a Guidance workflow for: **add rate limiting to the API gateway**.
+> Chain it: first fix whatever the verification run reports, then run a full
+> regression review of the changed files — no user input in between.
+
+Expected behavior: the head workflow runs all phases; at `complete_workflow`
+the agent declares a Form-A manifest with the two chained steps (using the
+`${chain.*}` templates) so the follow-up workflows start automatically.
+
+For a spec-kit feature, one task per full workflow:
+
+> Execute the feature `001-rate-limit` task by task with Guidance — one full
+> workflow (own verification) per pending task, chained, without user input.
+
+Expected behavior: `start_workflow` with `chain: { "source":
+"spec_kit_tasks", … }`; each completion starts the next pending task's
+workflow; the chain ends silently when no pending tasks remain.
+
 ### Chaining vs. starting workflows individually
 
 Asking the agent to "start a Guidance workflow for task1, then task2, then
