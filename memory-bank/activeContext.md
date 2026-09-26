@@ -5,6 +5,32 @@
 
 **Last updated:** 2026-09-26
 
+## 2026-09-26: Final Comprehensive Review CHN-1..6 (bb37f6c) — APPROVED, 0 HIGH/CRIT
+
+- Authorship-excluded Review über eb99873..bb37f6c (4 Commits, develop).
+  Snapshot: develop @ bb37f6c, ahead 5, working tree clean bis auf
+  intentionales `.guidance/responses.json.bak` (Backup-Protokoll).
+- Verifikation: 251/251 Tests grün (inkl. chain.test.ts 18/18, WSL/nvm);
+  CHN-1..6-Fixes einzeln gegen den Quellcode verifiziert; Spec v1.1
+  FR-110..FR-119 + §12 end-to-end geprüft; Fail-Closed-Invarianten intakt
+  (`getSession` wirft chain_activation_incomplete; Recovery nur via
+  retry_operation mit vollständiger Aktivierung — kein Gate-Bypass).
+- Cross-Task-Interaktionen geprüft: CHN-1 × CHN-5 (beide Pfade hängen am
+  Successor-Lock + status==='activating'-Recheck ⇒ keine Doppel-Aktivierung);
+  CHN-3 Cursor-Semantik (upNext=steps.length) konsistent; CHN-4 chain_end
+  Audit nur beim stillen Form-B-Ende, keine Überschneidung mit chain_failed.
+- 0 HIGH/CRITICAL offen. 4 neue Akzeptanzen/NITs getrackt: CHN-R2-1 (LOW,
+  Replay-Staleness 'activating'-Entry), CHN-R2-2 (LOW, Testlücke Mixed in
+  plain), CHN-R2-3 (NIT, Recovery ohne FR-043-Reconciliation), CHN-R2-4
+  (NIT, memory-bank-Hygiene) → remaining-work-plan.md.
+- Merge-Empfehlung: develop bereit; für main später Squash + Container-
+  Image-Rebuild im Lockstep mit guidance.json (CHN-2-Lektion) wiederholen.
+- CHN-R2-2 SOFORT geschlossen (Commit `7cb55be`): Test „mixed manifest in
+  plain profile rejected entirely“ (chain.test.ts 19/19). CHN-R2-1/3/4
+  bleiben akzeptiert getrackt. Serien-Fazit: 4 Guidance-Workflows
+  (CHN-1, CHN-2, CHN-3, CHN-4/5/6) alle completed, gemerged, Branches
+  gelöscht; develop ahead 6.
+
 ## 2026-09-26: Independent Review CHN-3 (Mixed-Manifeste) — 1 HIGH offen
 
 - Authorship-excluded Review-Pass über den uncommitteten Diff (Scope:

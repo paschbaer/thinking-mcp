@@ -9,6 +9,37 @@
 
 ## Tracked Follow-ups
 
+- [CHN-R2-1] LOW (Final Comprehensive Review 2026-09-26, bb37f6c, accepted) |
+  Replay-Staleness durch CHN-5-Fix: Crasht der Wrapper NACH Successor-
+  Aktivierung, aber VOR Re-Cache des requestIds-Resultats, liefert ein
+  Replay der complete_workflow den gecachten chain-Entry mit status
+  'activating', obwohl der Successor längst active/blocked ist (Wrapper
+  überspringt die Aktualisierung bei status != activating, WorkflowEngine
+  ~L1311). Rein informativ — der Client-Loop folgt nextSessionId und holt
+  den Realstatus via get_current_guidance. | Trigger: nächster Touch von
+  `completeWorkflow` — Entry-Status im Replay-Zweig finalisieren oder
+  dokumentieren. | accepted with rationale (ersetzt die veraltete
+  Beschreibung in [CHN-5] LOW-6 unten).
+- [CHN-R2-2] RESOLVED 2026-09-26 (Final Comprehensive Review, war LOW/accepted) |
+  Testlücke FR-119 geschlossen: Test „CHN-R2-2 mixed manifest (steps +
+  source) in plain profile rejected entirely“ in chain.test.ts (19
+  Chain-Tests). Commit 7cb55be. | — | resolved
+- [CHN-R2-3] NIT (Final Comprehensive Review 2026-09-26, bb37f6c, accepted) |
+  CHN-1-Recovery reaktiviert ohne FR-043-Reconciliation: `retryOperations`
+  lädt raw (`sessions.load`) und ruft `activateSession` erneut — Hooks, die
+  beim Crash schon liefen, werden komplett neu ausgeführt;
+  `reconcileRunningOperations` greift hier nicht (nur in getWorkflowState).
+  Identische Semantik wie der etablierte FR-040-Retry-Pfad, kein Regression —
+  Rest-Risiko nur im Doppel-Crash-Fenster (Crash mid-Hook auf activating
+  Successor). | Trigger: falls required Hooks state-changing werden.
+  | accepted with rationale.
+- [CHN-R2-4] NIT (Final Comprehensive Review 2026-09-26, bb37f6c) |
+  memory-bank-Hygiene: die superseded CHN-4/5/6-Original-Einträge (unten,
+  'accepted/action required') tragen keinen Rückverweis auf die RESOLVED-
+  Einträge oben (nur CHN-3-R1/R2 haben -HISTORIE-Aliase). | Trigger:
+  nächster Aufräumdurchlauf von remaining-work-plan.md. | accepted with
+  rationale.
+
 - [CHN-4] RESOLVED 2026-09-26 | Form-B-Silent-End auditert jetzt
   `chain_end {reason: no_pending_tasks, chainedCount}` (nur wenn source
   gesetzt; reine Form-A-Erschöpfung bleibt still, §3.2); Bridge-Fehler in
