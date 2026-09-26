@@ -5,6 +5,19 @@
 
 **Last updated:** 2026-09-25
 
+## 2026-09-25: Pre-Merge-Review Workflow-Chaining (0 HIGH/CRITICAL offen)
+
+- Frischer Review-Agent über den semantischen Diff: 3×MEDIUM, 3×LOW, 1×NIT;
+  **0 HIGH/CRITICAL**. Verifiziert gegen Source, vier behoben (mit
+  Regressionstests, chain.test.ts jetzt 12 Tests / 245 gesamt grün):
+  MEDIUM-1 (Form-B featureId aus Taskliste verworfen), MEDIUM-3
+  (Concurrent-Replay doppelt Aktivierung → Successor-Lock + In-Lock-Recheck),
+  LOW-4 (Depth-Gate vor Erschöpfung → falsches chain_depth_exceeded),
+  LOW-5 (Zod max(16) hardcodet → Engine-Gate autoritativ).
+- Akzeptiert + getrackt (remaining-work-plan): CHN-4 (stille Form-B-Brücke),
+  CHN-5 (Replay-Cache ohne chain-Entry im Crash-Fenster), CHN-6
+  (Pre-Aktivierungs-Guidance-Snapshot).
+
 ## 2026-09-25: GUID-3/4/5-Workflow (erster Lauf mit Feature-Branch-Policy, completed)
 
 - Erster Workflow-Lauf mit der neuen implement-Regel: Branch-Check +
