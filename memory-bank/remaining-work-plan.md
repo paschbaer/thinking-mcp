@@ -9,6 +9,18 @@
 
 ## Tracked Follow-ups
 
+- [CHN-4] RESOLVED 2026-09-26 | Form-B-Silent-End auditert jetzt
+  `chain_end {reason: no_pending_tasks, chainedCount}` (nur wenn source
+  gesetzt; reine Form-A-Erschöpfung bleibt still, §3.2); Bridge-Fehler in
+  composeApplication laufen auf stderr statt still zu verschwinden
+  (Verhalten [] unverändert). | — | resolved
+- [CHN-5] RESOLVED 2026-09-26 | completeWorkflowLocked cacht das
+  Successor-Result bereits im Lock mit vollständigem chain-Entry (status
+  'activating'), Wrapper finalisiert — Crash-Replays haben immer ein
+  vollständiges chain-Entry (Test CHN-5). | — | resolved
+- [CHN-6] RESOLVED 2026-09-26 | startWorkflow lädt nach activateSession
+  die Session frisch (sessions.load) für Guidance + Status — kein
+  Pre-Aktivierungs-Snapshot mehr (NIT-7 holsch). | — | resolved
 - [CHN-3-R1] RESOLVED 2026-09-26 (war HIGH) | Form-B-Cursor-Reset
   (Details der Fundstelle siehe Historie unten): GEFIXT — Form-B-Zweig
   liefert `upNext: steps.length` (Successor chainUpNext ≥ steps.length,

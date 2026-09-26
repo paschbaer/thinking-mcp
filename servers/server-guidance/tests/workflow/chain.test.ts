@@ -380,6 +380,14 @@ describe("Amendment 002: workflow chaining", () => {
     expect(c4.accepted).toBe(true);
     expect(c4.nextSessionId).toBeUndefined();
     expect(c4.chain).toBeUndefined();
+    // CHN-4: silent Form-B end is audited for diagnosability
+    const lastAudit = engine.audit.read(c3.nextSessionId!);
+    expect(
+      lastAudit.some(
+        (e) =>
+          e.eventType === "chain_end" && e.data?.reason === "no_pending_tasks",
+      ),
+    ).toBe(true);
   });
 
   it("§10.4b LOW-4 regression: steps.length == maxChainDepth ends SILENTLY, not chain_depth_exceeded", async () => {
@@ -731,5 +739,30 @@ describe("Amendment 002: workflow chaining", () => {
       s.status = "active";
     });
     expect(engine.getSession(c.nextSessionId!).status).toBe("active");
+  });
+
+  it("CHN-5: cached completion result carries a complete chain entry even before wrapper finalization", async () => {
+    chainOn();
+    engine = makeEngine();
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: { steps: [{ request: "step-1" }] },
+    });
+    await walkToVerify(head.sessionId);
+    const c = await engine.completeWorkflow(
+      head.sessionId,
+      { summary: "s" },
+      "req-ch5",
+    );
+    expect(c.chain?.[0]?.status).toBe("active");
+    // replay must return the full (finalized) chain entry, not a partial one
+    const replay = await engine.completeWorkflow(
+      head.sessionId,
+      { summary: "s" },
+      "req-ch5",
+    );
+    expect(replay.chain?.[0]?.sessionId).toBe(c.nextSessionId);
+    expect(replay.chain?.[0]?.status).toBe("active");
   });
 });
