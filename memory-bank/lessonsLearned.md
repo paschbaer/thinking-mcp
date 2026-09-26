@@ -6,6 +6,19 @@
 
 ## Avoid These Mistakes
 
+- **Self-review finds boundary defects late — mandate an independent reviewer pass INSIDE
+  the workflow, not only at merge time:** during the workflow-chaining implementation
+  (2026-09-25), the in-workflow implementation review (same author, minutes after writing
+  the code) missed 4 real defects (wrong featureId source, concurrent-replay double
+  activation, gate-ordering at `steps.length == maxChainDepth`, hardcoded zod limit) that
+  a fresh review sub-agent over the semantic diff found immediately. Root causes: author
+  bias (reading intent, not code), test plan = spec cases only (boundary/replay/omitted-
+  optional-field combinations untested), and gate-ordering defects that only boundary-value
+  analysis catches. → Prevention (now in `.guidance/responses.json`, review_and_fix_implementation):
+  non-trivial scopes REQUIRE an independent reviewer pass (sub-agent, authorship excluded)
+  over the semantic diff + boundary checklist (limits ≤/==/>, concurrency/replay/idempotency,
+  optional config fields omitted, guard-vs-exhaustion ordering). Same lesson applies outside
+  guidance workflows: never merge core-engine changes reviewed only by their author.
 - **Smithery Naming score is rename-resistant — don't chase it:** renaming all 12
   compact-lowercase tools to snake_case (breaking 1.0.0) left the Smithery "Naming"
   score EXACTLY unchanged at 4.44pt. The scoring rule is unknown (possibly camelCase
