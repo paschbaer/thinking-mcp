@@ -195,4 +195,22 @@ describe.skipIf(!hasUv)("python toolchain bootstrap E2E (spec 003 SC-001..SC-004
     const quick = await call(port, 5, "run_operation", { sessionId: (startB as { sessionId?: string }).sessionId!, operationId: "toolchain-sync" });
     expect(quick.status).toBe("succeeded");
   }, 90_000);
+
+  it("FR-405: relocated venv via UV_PROJECT_ENVIRONMENT works end-to-end", async () => {
+    const venvPath = join(ws, "..", "relocated-venv-" + Math.random().toString(36).slice(2));
+    process.env.UV_PROJECT_ENVIRONMENT = venvPath;
+    try {
+      const port = await boot();
+      const start = await call(port, 1, "start_workflow", { workspaceRoot: ws, request: "r" });
+      const sid = (start as { sessionId?: string }).sessionId!;
+      const sync = await call(port, 2, "run_operation", { sessionId: sid, operationId: "toolchain-sync" });
+      expect(sync.status).toBe("succeeded");
+      expect(existsSync(venvPath)).toBe(true);
+      expect(existsSync(join(ws, ".venv"))).toBe(false);
+      const test = await call(port, 3, "run_operation", { sessionId: sid, operationId: "test" });
+      expect(test.status).toBe("succeeded");
+    } finally {
+      delete process.env.UV_PROJECT_ENVIRONMENT;
+    }
+  }, 90_000);
 });

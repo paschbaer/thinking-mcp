@@ -667,6 +667,18 @@ phase (a required failure at session start starts the session `blocked`).
 }
 ```
 
+## Metrics (spec 005, FR-059)
+
+Every operation execution is recorded (counts by outcome, duration
+aggregates; connection health snapshots). Query via the session-independent
+`get_metrics` tool; records are appended to
+`.guidance/state/metrics.jsonl` (redacted, identifiers/numbers only) and
+replayed on boot.
+
+The scaffold detects the workspace language: a `pyproject.toml` in the
+workspace root generates the uv-based Python op set (`toolchain-sync`,
+`lint`, `test`, `check`) instead of the npm set.
+
 ## Completion final-review gate (amendment 003)
 
 The `complete` phase enforces the mandatory independent final review as a
@@ -721,11 +733,14 @@ audited as cancelled.
 
 **venv caveat:** the venv lives in the workspace (`/workspace/.venv`) and
 contains Linux binaries — do not use it from a Windows host bind mount.
-`uv` rebuilds a broken/mismatched venv on the next run. `toolchain-sync`
-accesses the network (PyPI); it is classified `workspace_write` — network
-egress is governed at the deployment level (container network policy), not
-by the operation approval gate, which only covers
-`destructive`/`credential_sensitive` risk classes.
+`uv` rebuilds a broken/mismatched venv on the next run. To relocate it
+entirely (TRACK-Venv-C), set `UV_PROJECT_ENVIRONMENT=/venvs/myproject` in
+the container environment and mount a named volume at `/venvs` — see the
+commented block in `docker-compose.yml`. `toolchain-sync` accesses the
+network (PyPI); it is classified `workspace_write` — network egress is
+governed at the deployment level (container network policy), not by the
+operation approval gate, which only covers `destructive`/
+`credential_sensitive` risk classes.
 
 ### `policies.json` — security (excerpt)
 

@@ -65,3 +65,8 @@ Sync contract: template constant ↔ `AGENTS.template.md` ↔ root `AGENTS.md`.
   werden — Reviewer-Berichte und Chat-Zusammenfassungen zählen nicht.
 - Duplikate desselben Findings in mehreren Sektionen werden beim Schließen
   zusammengeführt (Referenz auf die maßgebliche Sektion).
+
+## FR-Namespace-Konvention (2026-09-26, Feature 005)
+- Neue Feature-Specs belegen fortlaufende FR/SC-100er-Blöcke: Feature 003
+  wird auf FR-301+ umgestellt (TRACK-NS), Feature 005 nutzt FR-401+.
+- Nächster freier Block: FR-501+. Vor Vergabe grep im specs/-Baum.

@@ -3,6 +3,13 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-09-26: Kleinkitems L256/L257/L253 (Guidance-Chain session-3b7f96a5)
+- **L256 FTS-Coverage (GELÖST):** `observations_fts` (FTS5, 500-Zeichen-Cap) + Insert-Trigger + Count-Guard-Backfill in `SqliteAdapter.init()`; `searchFullText` matcht beide Indizes (Dedupe bei Dual-Match). Tests `tests/contracts/fts-observation-coverage.test.ts` (7).
+- **L257 Postgres-FTS-Parität (GELÖST, Contract-Level):** `searchFullText` → sanitisierte AND-`tsquery` über goal_summary + Observations-Auszüge, INNER→**LEFT** JOIN signatures (2026-09-22-Bugklasse im zweiten Backend behoben), GIN-Expression-Indexe; SQL-Contract gepinnt in `tests/contracts/postgres-fts-parity.test.ts` (5). Offen: Live-Smoke-Test bei erster `EMMS_STORAGE_BACKEND=postgres`-Aktivierung.
+- **L253 Prompt-Sync (OBSOLET geschlossen, User-Entscheid Option 3):** keine Ziel-Repos mit Kopien/Referenzen vorhanden; Verteilung über Paket/Smithery.
+- Verifikation: 118/118 Tests, tsc, build grün. Independent Review (Sub-Agent): APPROVED, 0 HIGH/CRIT; MED (Backfill-Kosten) + 2 LOWs im Review behoben; F3–F6 als tracked follow-ups. GitNexus-Index frisch (analyze --no-stats). Lessons geseedet (`.guidance/state/session-lessons.json`): pg-search-fulltext-ilike-inner-join-parity-trap, sqlite-fts-backfill-per-init-quadratic-cost.
+- Kontext: Session auf `feature/production-hardening` — die dirty-Dateien unter `servers/server-guidance` gehören zu einem PARALLELLEN Work-Stream und wurden nicht angefasst.
+
 **Last updated:** 2026-09-26
 
 ## 2026-09-26: Final-Review Feature 003 (develop @ ec924f6, kompletter Session-Diff 16c6f1e..ec924f6)

@@ -101,6 +101,10 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
   const entry = join(configDir, "guidance.json");
   if (existsSync(entry)) return { scaffolded: false, createdFiles: [] };
 
+  // spec 005 FR-407 (TRACK-Scaffold): language detection — a pyproject.toml
+  // in the workspace root selects the uv-based verification op set.
+  const pythonWorkspace = existsSync(join(configDir, "..", "pyproject.toml"));
+
   const created: string[] = [];
   const project = "my-project";
 
@@ -157,7 +161,7 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
                 ? {
                     response: "verify",
                     submissionSchema: "schemas/verify.schema.json",
-                    lifecycle: { beforeExit: ["lint", "test", "build"] },
+                    lifecycle: { beforeExit: pythonWorkspace ? ["lint", "test", "check"] : ["lint", "test", "build"] },
                     transitions: [
                       { to: "review_implementation", reason: "verification_failed" },
                       { to: "complete", when: "required_operations_succeeded" },
@@ -184,15 +188,26 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
     configDir,
     "operations.json",
     JSON.stringify(
-      {
-        version: 2,
-        operations: {
-          lint: { description: "run linter", type: "process", executable: "npm", args: ["run", "lint"], required: false, timeoutSeconds: 120, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-          test: { description: "run test suite", type: "process", executable: "npm", args: ["test"], required: true, timeoutSeconds: 600, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-          build: { description: "build the project", type: "process", executable: "npm", args: ["run", "build"], required: true, timeoutSeconds: 300, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-          finalReviewGate: { description: "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.", type: "process", executable: "node", args: ["node_modules/@paschbaer/guidance/scripts/check-final-review.mjs", "."], required: true, timeoutSeconds: 60, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-        },
-      },
+      pythonWorkspace
+        ? {
+            version: 2,
+            operations: {
+              "toolchain-sync": { description: "Install the pinned Python toolchain (uv sync --locked; network: PyPI). Fail-closed on missing/stale uv.lock.", type: "process", executable: "uv", args: ["sync", "--locked"], required: false, invocableByAgent: true, timeoutSeconds: 900, riskClass: "workspace_write", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              lint: { description: "Run ruff (uv run --locked ruff check .).", type: "process", executable: "uv", args: ["run", "--locked", "ruff", "check", "."], required: true, invocableByAgent: true, timeoutSeconds: 300, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              test: { description: "Run pytest (uv run --locked pytest -q).", type: "process", executable: "uv", args: ["run", "--locked", "pytest", "-q"], required: true, invocableByAgent: true, timeoutSeconds: 300, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              check: { description: "Type-check with mypy (uv run --locked mypy .).", type: "process", executable: "uv", args: ["run", "--locked", "mypy", "."], required: true, invocableByAgent: true, timeoutSeconds: 300, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              finalReviewGate: { description: "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.", type: "process", executable: "node", args: ["node_modules/@paschbaer/guidance/scripts/check-final-review.mjs", "."], required: true, timeoutSeconds: 60, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+            },
+          }
+        : {
+            version: 2,
+            operations: {
+              lint: { description: "run linter", type: "process", executable: "npm", args: ["run", "lint"], required: false, timeoutSeconds: 120, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              test: { description: "run test suite", type: "process", executable: "npm", args: ["test"], required: true, timeoutSeconds: 600, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              build: { description: "build the project", type: "process", executable: "npm", args: ["run", "build"], required: true, timeoutSeconds: 300, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              finalReviewGate: { description: "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.", type: "process", executable: "node", args: ["node_modules/@paschbaer/guidance/scripts/check-final-review.mjs", "."], required: true, timeoutSeconds: 60, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+            },
+          },
       null,
       2,
     ) + "\n",

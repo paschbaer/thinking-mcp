@@ -25,7 +25,7 @@ function reshapeRemote(result: Record<string, unknown>): Record<string, unknown>
       return {
         ...result,
         code: "client_operations_pending",
-        pendingOperations: pending.map((o) => ({ operationId: o.id, status: "awaiting_client_execution" })),
+        pendingOperations: pending.map((o) => ({ operationId: o.id, status: "awaiting_client_execution", opToken: (o as { opToken?: string }).opToken })),
       };
     }
   }
@@ -81,9 +81,13 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       exitCode: z.number().optional(),
       summary: z.string(),
       logs: z.string().optional(),
+      reportToken: z.string().min(1).optional(),
     },
-    async ({ sessionId: sid, operationId, status, exitCode, summary, logs }) => {
+    async ({ sessionId: sid, operationId, status, exitCode, summary, logs, reportToken }) => {
       const session = manager.resolve(sid);
+      // spec 005 FR-404: One-Time-Token-Binding — Report ohne passenden
+      // Token wird abgelehnt (Fabricated/Replayed Evidence).
+      session.ledger.validateAndBurn(operationId, reportToken);
       session.ledger.record({
         operationId, status, exitCode, summary, logs,
         reportedAt: new Date().toISOString(),

@@ -67,3 +67,25 @@ describe("scaffold-on-first-start (Option D)", () => {
     expect(scaffoldIfMissing(cfgDir)).toEqual({ scaffolded: false, createdFiles: [] });
   });
 });
+
+describe("scaffold language detection (spec 005 FR-407/SC-404)", () => {
+  it("pyproject.toml in the workspace selects the uv op set", () => {
+    writeFileSync(join(ws, "pyproject.toml"), "[project]\nname='x'\n");
+    ensureConfiguration(cfgDir);
+    const ops = JSON.parse(readFileSync(join(cfgDir, "operations.json"), "utf8")) as { operations: Record<string, { executable: string; invocableByAgent?: boolean }> };
+    expect(ops.operations["toolchain-sync"]!.executable).toBe("uv");
+    expect(ops.operations["lint"]!.invocableByAgent).toBe(true);
+    expect(ops.operations["build"]).toBeUndefined();
+    const wf = JSON.parse(readFileSync(join(cfgDir, "workflow.json"), "utf8")) as { phases: { verify: { lifecycle: { beforeExit: string[] } } } };
+    expect(wf.phases.verify!.lifecycle.beforeExit).toEqual(["lint", "test", "check"]);
+  });
+
+  it("without pyproject.toml the npm op set is unchanged (backward compatible)", () => {
+    ensureConfiguration(cfgDir);
+    const ops = JSON.parse(readFileSync(join(cfgDir, "operations.json"), "utf8")) as { operations: Record<string, { executable: string }> };
+    expect(ops.operations["build"]!.executable).toBe("npm");
+    expect(ops.operations["toolchain-sync"]).toBeUndefined();
+    const wf = JSON.parse(readFileSync(join(cfgDir, "workflow.json"), "utf8")) as { phases: { verify: { lifecycle: { beforeExit: string[] } } } };
+    expect(wf.phases.verify!.lifecycle.beforeExit).toEqual(["lint", "test", "build"]);
+  });
+});

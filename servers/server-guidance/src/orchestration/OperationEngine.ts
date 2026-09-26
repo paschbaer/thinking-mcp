@@ -33,7 +33,7 @@ interface CompositeConfig extends OperationConfig {
   strategy?: "sequential" | "parallel" | "dependencyGraph" | "firstSuccessful" | "firstAvailable";
 }
 
-type ExecuteFn = (
+export type ExecuteFn = (
   config: OperationConfig,
   ctx: OperationContext,
   attempt: number,

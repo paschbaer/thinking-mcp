@@ -20,6 +20,15 @@ services:
       # Host-Verzeichnis muss für UID 1000 (node) beschreibbar sein:
       #   mkdir -p ./workspace && sudo chown 1000:1000 ./workspace
       - ./workspace:/workspace
+      # Optional (spec 005 FR-405 / TRACK-Venv-C): Python-venv außerhalb des
+      # Workspace-Mounts persistieren (Named Volume + Env unten) — vermeidet
+      # Linux-Binaries auf Windows-Host-Mounts:
+      # - guidance-venvs:/venvs
+    # Optional dazu:
+    # environment:
+    #   - UV_PROJECT_ENVIRONMENT=/venvs/myproject
+# volumes:
+#   guidance-venvs:
     healthcheck:
       # healthy erst wenn konfiguriert (/health liefert "configured": true)
       test: ["CMD-SHELL", "curl -f http://localhost:3003/health | grep -q '\"configured\":true'"]
