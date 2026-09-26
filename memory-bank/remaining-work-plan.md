@@ -9,6 +9,20 @@
 
 ## Tracked Follow-ups
 
+- [CHN-1] RESOLVED 2026-09-26 | Re-Activation-Pfad implementiert:
+  `retryOperations` fängt Status `activating` ab (vor dem
+  `chain_activation_incomplete`-Wurf von getSession), führt
+  `activateSession` erneut aus — Erfolg → active + Audit
+  `chain_activation_recovered`, FR-040-Fail → blocked + recoverable
+  `required_hook_failed`. Tests §10.11b/§10.11c in chain.test.ts
+  (14 Chain-Tests / 247 gesamt grün). | — | resolved
+- [CHN-7] LOW (CHN-1 Review #3, accepted) | Response-Kontrast: der neue
+  Recovery-Fail-Pfad in `retryOperations` liefert `status` (wie
+  reportBlocker/resumeWorkflow), der bestehende FR-040-Retry-Fail-Pfad
+  verzichtet darauf; Recovery-Erfolg hat kein `previousPhase` (kein
+  Phasenübergang). Loose SubmitResult-Union ⇒ kein Consumer-Break.
+  | Trigger: nächster Touch von `retryOperations`. | accepted with rationale
+  (optionale Alignment-Follow-up).
 - [CHN-4] MEDIUM (Post-Merge-Review MEDIUM-2, accepted) | Form-B-Brücke
   (specKitTasks-Callback in `composeApplication`) fängt jede Exception als
   `[]` — ein defekter Spec-Kit-State beendet die Kette "regulär stumm"
