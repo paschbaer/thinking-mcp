@@ -10,11 +10,6 @@ import {
   writeFileSync,
   readFileSync,
   renameSync,
-  statSync,
-  openSync,
-  closeSync,
-  writeSync,
-  unlinkSync,
 } from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
@@ -27,6 +22,7 @@ import type {
   WorkflowDefinition,
   WorkflowSession,
 } from "../types/index.js";
+import { WorkspaceOpLock } from "./workspace-lock.js";
 import { SessionRepository } from "../state/SessionRepository.js";
 import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
@@ -264,6 +260,18 @@ export class WorkflowEngine {
         { ...cfg, operationId: id },
       ]),
     );
+    // FR-109/R-012a: TTL = 2× die längste konfigurierbare Op-Laufzeit — ein
+    // Live-Holder kann das TTL damit nie überschreiten; TTL-Stale impliziert
+    // garantiert toten Halter.
+    const maxTimeoutSeconds = Math.max(
+      0,
+      ...Object.values(this.operations).map((o) => o.timeoutSeconds ?? 0),
+    );
+    this.workspaceLock = new WorkspaceOpLock(
+      join(deps.stateDir, "workspace-ops.lock"),
+      "workspace-ops.lock",
+      Math.max(120_000, 2 * maxTimeoutSeconds * 1000),
+    );
     const downstream = this.config.downstreamServers as
       | {
           servers?: Record<
@@ -389,8 +397,8 @@ export class WorkflowEngine {
   private clientManager?: ClientManager;
   private allowlists?: Map<string, string[]>;
   private readonly stateDir: string;
+  private readonly workspaceLock: WorkspaceOpLock;
   private readonly runningOps = new Set<string>();
-  private workspaceOpLockHeld = false;
   private pinnedHashes = new Map<string, string>();
   private readonly policyEngine = new PolicyEngine();
   private readonly archiveDir: string;
@@ -500,66 +508,15 @@ export class WorkflowEngine {
    *  Engine-Instanzen hinweg. Stale-Lock-Recovery (Review R-004): ein Lock
    *  eines toten Prozesses oder älter als STALE_LOCK_TTL_MS wird gestohlen,
    *  damit ein Crash den Bootstrap nicht dauerhaft blockiert. */
+  /** spec 003 FR-109: cross-session serialization for venv-mutating ops.
+   *  Race-safe Implementierung in workspace-lock.ts (atomarer link-Acquire,
+   *  rename-basierter Steal mit verify+restore — Review R-011). */
   private acquireWorkspaceOpLock(): void {
-    if (this.workspaceOpLockHeld) {
-      throw new GuidanceError("operation_in_progress", "workspace operation lock is held", { recoverable: true });
-    }
-    const file = join(this.stateDir, "workspace-ops.lock");
-    try {
-      const fd = openSync(file, "wx");
-      writeSync(fd, String(process.pid));
-      closeSync(fd);
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException)?.code;
-      if (code !== "EEXIST") {
-        // Permission-/FS-Probleme sind KEINE Contention — nicht verschleiern.
-        throw new GuidanceError("operation_in_progress", `workspace operation lock cannot be created: ${code ?? String(err)}`, { recoverable: true });
-      }
-      if (!this.staleWorkspaceOpLock(file)) {
-        throw new GuidanceError("operation_in_progress", "workspace operation lock is held by another operation", { recoverable: true });
-      }
-      // Stale-Lock übernehmen (Review R-004): tote PID oder TTL überschritten.
-      try {
-        unlinkSync(file);
-        const fd = openSync(file, "wx");
-        writeSync(fd, String(process.pid));
-        closeSync(fd);
-      } catch {
-        throw new GuidanceError("operation_in_progress", "workspace lock is stale but could not be recovered; remove it manually", { recoverable: true });
-      }
-    }
-    this.workspaceOpLockHeld = true;
-  }
-
-  /** A lock is stale when its owner process is dead OR the file is older
-   *  than STALE_LOCK_TTL_MS (covers pids recycled across containers). */
-  private staleWorkspaceOpLock(file: string): boolean {
-    const STALE_LOCK_TTL_MS = 30 * 60 * 1000;
-    try {
-      const stat = statSync(file);
-      if (Date.now() - stat.mtimeMs > STALE_LOCK_TTL_MS) return true;
-      const pid = parseInt(readFileSync(file, "utf-8").trim(), 10);
-      if (Number.isNaN(pid)) return true;
-      try {
-        process.kill(pid, 0); // Liveness-Probe (kein Signal)
-        return false; // Owner lebt → echte Contention
-      } catch {
-        return true; // ESRCH: Owner tot
-      }
-    } catch {
-      return false; // im Zweifel NICHT stehlen (fail-safe)
-    }
+    this.workspaceLock.acquire();
   }
 
   private releaseWorkspaceOpLock(): void {
-    if (!this.workspaceOpLockHeld) return;
-    this.workspaceOpLockHeld = false;
-    try {
-      unlinkSync(join(this.stateDir, "workspace-ops.lock"));
-    } catch {
-      // Lock-File konnte nicht gelöscht werden (z.B. Windows-Dateisperre):
-      // die Stale-Erkennung (toter PID/TTL) räumt es beim nächsten Acquire weg.
-    }
+    this.workspaceLock.release();
   }
 
   /** spec 003 US1 (FR-101..110): on-demand execution of agent-invocable

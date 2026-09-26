@@ -76,5 +76,10 @@ from the lockfile (incl. network) — the bootstrap path is owned by
 | Scope | Mechanism | Contention result |
 |---|---|---|
 | Per session | existing per-session mutex | `operation_in_progress` |
-| Cross session | workspace-level lock file around venv-mutating ops | `operation_in_progress` |
+| Cross session | workspace-level lock file around venv-mutating ops (atomic link-acquire, rename-based steal with verify+restore — see `src/workflow/workspace-lock.ts`) | `operation_in_progress` |
 | Interruption | kill child process on cancel/timeout, release locks | next `uv run --locked` self-heals the venv |
+
+Residual limitation (accepted, LOW): the inspect→rename window of the steal
+path can move a freshly swapped lock into quarantine; the verify step then
+restores or defers — worst case a transient spurious contention plus an
+orphan quarantine file, never a double-hold.

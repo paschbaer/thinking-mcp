@@ -164,4 +164,16 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     await expect(engine.runOperation(start.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
     expect(existsSync(lock)).toBe(false); // regulär released nach dem Run
   });
+
+  it("live owner is NEVER stolen (R-012c): fresh lock from a live pid → contention, lock intact", async () => {
+    const engine = makeEngine();
+    const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    const lock = join(stateDir, WORKSPACE_LOCK);
+    writeFileSync(lock, String(process.pid)); // lebender Owner, frische mtime
+    await expect(engine.runOperation(start.sessionId, "invocable-echo")).rejects.toThrowError(/operation_in_progress/);
+    expect(existsSync(lock)).toBe(true); // nicht gerausgenommen
+    expect(readFileSync(lock, "utf8").trim()).toBe(String(process.pid));
+    // aufräumen, damit afterEach sauber ist
+    rmSync(lock);
+  });
 });
