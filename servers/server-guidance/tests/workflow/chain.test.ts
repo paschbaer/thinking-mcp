@@ -658,6 +658,22 @@ describe("Amendment 002: workflow chaining", () => {
     expect(c4.chain).toBeUndefined();
   });
 
+  it("CHN-R2-2: mixed manifest (steps + source) in plain profile rejected entirely (FR-119)", async () => {
+    chainOn();
+    engine = makeEngine();
+    await expect(
+      engine.startWorkflow({
+        workspaceRoot: ws,
+        request: "r",
+        chain: {
+          steps: [{ request: "plain step" }],
+          source: "spec_kit_tasks",
+          requestTemplate: "task ${chain.taskId}",
+        },
+      }),
+    ).rejects.toThrow(/spec-kit profile/);
+  });
+
   it("CHN-3 validation: manifest with neither steps nor source → configuration_invalid", async () => {
     chainOn();
     engine = makeEngine();
