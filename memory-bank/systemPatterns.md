@@ -58,3 +58,10 @@ Sync contract: template constant ↔ `AGENTS.template.md` ↔ root `AGENTS.md`.
 |---|---|---|
 | 2026-09-11 | Root `AGENTS.md` generated via `agents_guide` tool, customized "Project-specific conventions" section | Keep guide authoritative and regenerable |
 | 2026-09-11 | `memory-bank/` created as persistent cross-session knowledge base | Required by AGENTS.md protocols |
+
+## Findings-Plan-Hygiene (2026-09-26)
+- Wird ein getrackter Finding im selben Scope gefixt, MUSS der Plan-Eintrag
+  im selben Session-Abschluss auf `[x]` + Evidence (Commit/Datei) gesetzt
+  werden — Reviewer-Berichte und Chat-Zusammenfassungen zählen nicht.
+- Duplikate desselben Findings in mehreren Sektionen werden beim Schließen
+  zusammengeführt (Referenz auf die maßgebliche Sektion).
