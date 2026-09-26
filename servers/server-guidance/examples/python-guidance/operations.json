@@ -48,6 +48,17 @@
       "invocableByAgent": true,
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
       "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
+    "final-review-gate": {
+      "description": "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates the gate), no open HIGH/CRITICAL findings.",
+      "type": "process",
+      "executable": "node",
+      "args": ["servers/server-guidance/scripts/check-final-review.mjs", "."],
+      "required": true,
+      "timeoutSeconds": 60,
+      "riskClass": "read_only",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
     }
   }
 }

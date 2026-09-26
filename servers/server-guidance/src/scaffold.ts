@@ -146,10 +146,12 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
               ? {
                   response: "complete",
                   submissionSchema: "schemas/complete.schema.json",
-                  // Kein beforeEnter-Op im Scaffold: jede lifecycle-Referenz
-                  // MUSS in operations.json definiert sein (sonst wirft der
-                  // Engine operation_not_configured, non-recoverable).
-                  transitions: [{ to: "completed", when: "submission_valid" }],
+                  // Amendment 003 (FR-120/121): Final-Review Evidence Gate.
+                  // Die Op-Referenz und die Op-Definition werden zusammen
+                  // ergänzt (jede Lifecycle-Referenz MUSS in operations.json
+                  // definiert sein, sonst operation_not_configured).
+                  lifecycle: { beforeExit: ["final-review-gate"] },
+                  transitions: [{ to: "completed", when: "required_operations_succeeded" }],
                 }
               : phase === "verify"
                 ? {
@@ -188,6 +190,7 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
           lint: { description: "run linter", type: "process", executable: "npm", args: ["run", "lint"], required: false, timeoutSeconds: 120, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
           test: { description: "run test suite", type: "process", executable: "npm", args: ["test"], required: true, timeoutSeconds: 600, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
           build: { description: "build the project", type: "process", executable: "npm", args: ["run", "build"], required: true, timeoutSeconds: 300, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+          finalReviewGate: { description: "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.", type: "process", executable: "node", args: ["node_modules/@paschbaer/guidance/scripts/check-final-review.mjs", "."], required: true, timeoutSeconds: 60, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
         },
       },
       null,
