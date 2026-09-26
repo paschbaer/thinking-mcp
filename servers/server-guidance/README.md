@@ -466,14 +466,38 @@ every phase instruction: *import the artifacts first
 do not touch other tasks.* When no pending tasks remain, the chain ends
 silently — that is the normal Form-B termination, not an error.
 
+### Mixed manifests (steps + source)
+
+`steps` and `source` may be **combined**: the explicit steps run first, then
+the chain falls through to task derivation. At least one of both is required.
+The depth limit counts globally across both forms.
+
+```jsonc
+// spec-kit profile: one prep workflow, then one workflow per pending task
+{
+  "request": "Prepare and execute the rate-limiting feature",
+  "chain": {
+    "steps": [
+      { "request": "Prepare the workspace for: ${chain.parentRequest}. Completion summary: ${chain.completionSummary}" }
+    ],
+    "source": "spec_kit_tasks",
+    "requestTemplate": "Execute task ${chain.taskId} (${chain.taskTitle}) of feature ${chain.featureId}",
+    "featureId": "001-rate-limit"
+  }
+}
+```
+
+In the `plain` profile a manifest containing `source` is rejected entirely
+(no silent degradation to Form-A-only).
+
 ### Guardrails
 
 | Rule | Behavior |
 |---|---|
 | `chain.enabled: false` (default) | `start_workflow` with `chain` → `configuration_invalid` |
 | `maxChainDepth` (default 8) | successor creation refused beyond the depth limit → `chain_depth_exceeded` |
-| `maxStepsPerManifest` (default 16) | Form A manifests with more steps rejected |
-| Form B in plain profile | rejected (`spec-kit` profile required) |
+| `maxStepsPerManifest` (default 16) | manifests whose explicit `steps` exceed the limit rejected |
+| Mixed manifest in plain profile | rejected entirely (`spec-kit` required for the `source` part — no silent degradation) |
 | Unresolved template variable | no successor created; predecessor stays `completed` |
 | Successor gate failure (FR-040) | successor starts `blocked`; predecessor stays `completed`; chain halts |
 | User decision required | chain halts — chaining never bypasses `report_blocker` |

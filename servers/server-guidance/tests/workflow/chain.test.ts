@@ -536,9 +536,132 @@ describe("Amendment 002: workflow chaining", () => {
     expect(retry.error?.code).toBe("required_hook_failed");
     expect(retry.error?.recoverable).toBe(true);
     expect(engine.getSession(c.nextSessionId!).status).toBe("blocked");
-    const failAudit = readFileSync(join(ws, "state", "history", `${c.nextSessionId!}.jsonl`), "utf-8");
+    const failAudit = readFileSync(
+      join(ws, "state", "history", `${c.nextSessionId!}.jsonl`),
+      "utf-8",
+    );
     expect(failAudit).toContain("chain_activation_recovered");
     expect(failAudit).toContain("hook_failed");
+  });
+
+  it("CHN-3 mixed manifest: explicit steps first, then task-derived (Form A → Form B)", async () => {
+    chainOn();
+    config.profile = "spec-kit";
+    const pending = [
+      {
+        id: "T001",
+        title: "Task one",
+        featureId: "001-feat",
+        status: "pending",
+      },
+      {
+        id: "T002",
+        title: "Task two",
+        featureId: "001-feat",
+        status: "pending",
+      },
+    ];
+    engine = makeEngine(() => pending.map((t) => ({ ...t })));
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "feature work",
+      chain: {
+        steps: [{ request: "prep for ${chain.parentRequest}" }],
+        source: "spec_kit_tasks",
+        requestTemplate: "Execute task ${chain.taskId} (${chain.taskTitle})",
+        featureId: "001-feat",
+      },
+    });
+    expect(head.accepted).toBe(true);
+    // phase 1: explicit step
+    await walkToVerify(head.sessionId);
+    const c1 = await engine.completeWorkflow(head.sessionId, { summary: "s" });
+    expect(engine.getSession(c1.nextSessionId!).request).toContain(
+      "prep for feature work",
+    );
+    expect(engine.getSession(c1.nextSessionId!).chainUpNext).toBe(1);
+    // phase 2: task-derived T001
+    await walkToVerify(c1.nextSessionId!);
+    const c2 = await engine.completeWorkflow(c1.nextSessionId!, {
+      summary: "s",
+    });
+    const s2 = engine.getSession(c2.nextSessionId!);
+    expect(s2.request).toContain("T001");
+    expect(s2.chainTaskScope?.taskId).toBe("T001");
+    expect(s2.chainSpec?.chainedTaskIds).toEqual(["T001"]);
+    // phase 3: task-derived T002
+    await walkToVerify(c2.nextSessionId!);
+    const c3 = await engine.completeWorkflow(c2.nextSessionId!, {
+      summary: "s",
+    });
+    expect(engine.getSession(c3.nextSessionId!).chainTaskScope?.taskId).toBe(
+      "T002",
+    );
+    // exhausted: steps done + no pending tasks → silent end
+    await walkToVerify(c3.nextSessionId!);
+    const c4 = await engine.completeWorkflow(c3.nextSessionId!, {
+      summary: "s",
+    });
+    expect(c4.nextSessionId).toBeUndefined();
+    expect(c4.chain).toBeUndefined();
+  });
+
+  it("CHN-3 HIGH-1 regression: Form B after 2 explicit steps does NOT re-enter Form A", async () => {
+    chainOn();
+    config.profile = "spec-kit";
+    const pending = [
+      {
+        id: "T001",
+        title: "Only task",
+        featureId: "001-feat",
+        status: "pending",
+      },
+    ];
+    engine = makeEngine(() => pending.map((t) => ({ ...t })));
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "feature work",
+      chain: {
+        steps: [{ request: "step-one" }, { request: "step-two" }],
+        source: "spec_kit_tasks",
+        requestTemplate: "Execute task ${chain.taskId}",
+        featureId: "001-feat",
+      },
+    });
+    await walkToVerify(head.sessionId);
+    const c1 = await engine.completeWorkflow(head.sessionId, { summary: "s" }); // step-one
+    expect(engine.getSession(c1.nextSessionId!).request).toContain("step-one");
+    await walkToVerify(c1.nextSessionId!);
+    const c2 = await engine.completeWorkflow(c1.nextSessionId!, {
+      summary: "s",
+    }); // step-two
+    expect(engine.getSession(c2.nextSessionId!).request).toContain("step-two");
+    await walkToVerify(c2.nextSessionId!);
+    const c3 = await engine.completeWorkflow(c2.nextSessionId!, {
+      summary: "s",
+    }); // T001
+    expect(engine.getSession(c3.nextSessionId!).request).toContain("T001");
+    await walkToVerify(c3.nextSessionId!);
+    // T001 done, steps exhausted → SILENT end; must NOT re-run step-two (HIGH-1)
+    const c4 = await engine.completeWorkflow(c3.nextSessionId!, {
+      summary: "s",
+    });
+    expect(c4.nextSessionId).toBeUndefined();
+    expect(c4.chain).toBeUndefined();
+  });
+
+  it("CHN-3 validation: manifest with neither steps nor source → configuration_invalid", async () => {
+    chainOn();
+    engine = makeEngine();
+    await expect(
+      engine.startWorkflow({
+        workspaceRoot: ws,
+        request: "r",
+        chain: { source: undefined } as unknown as {
+          steps: { request: string }[];
+        },
+      }),
+    ).rejects.toThrow(/steps or source/);
   });
 
   it("§10.9 backward compatibility: sessions without chain fields load and complete unchanged", async () => {
@@ -567,6 +690,12 @@ describe("Amendment 002: workflow chaining", () => {
     });
     await walkToVerify(head.sessionId);
     const c1 = await engine.completeWorkflow(head.sessionId, { summary: "s" });
+    expect(c1.accepted).toBe(true);
+    // backdate deterministically — with maxAgeDays 0 the cutoff is Date.now(),
+    // and a millisecond-equal completedAt would make the prune a no-op flake.
+    engine.sessions.update(head.sessionId, (s) => {
+      s.completedAt = new Date(Date.now() - 10_000).toISOString();
+    });
     const pruned = engine.pruneFinishedSessions(0, "delete");
     expect(pruned).toBeGreaterThanOrEqual(1);
     expect(engine.sessions.exists(head.sessionId)).toBe(false);

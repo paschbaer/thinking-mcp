@@ -1,6 +1,7 @@
-# Spec Amendment: Workflow-Chaining (`chain`) — v1
+# Spec Amendment: Workflow-Chaining (`chain`) — v1.1
 
-> Status: **APPROVED** (open questions Q1–Q3 decided, see §9)
+> Status: **APPROVED** (open questions Q1–Q3 decided, see §9; v1.1: Q-B
+> revidiert durch Nutzer — Mixed-Manifeste erlaubt, s. §12)
 > Base: `specs/002-guidance-workflow-server/spec.md` (v1 + v2 + v2.1)
 >       + `amendments/001-remote-mode.md`
 > Date: 2026-09-25
@@ -301,6 +302,7 @@ Nutzerinput ist nur nötig, wenn der Agent selbst `report_blocker
 | Q1 | Unresolved Template-Variable | Hart ablehnen auf Successor-Creation-Ebene: kein Successor wird erzeugt; Vorgänger bleibt `completed`; Response meldet `chain_failed`/`chain_template_unresolved` (Präzisierung in §4.2) |
 | Q2 | Manifest-Ort | Am Kettenkopf erzeugt, auf jeden Nachfolger **kopiert** (Restkette wandert mit; robust gegen Pruning) |
 | Q3 (revidiert) | Profil-Scope | `chain` in beiden Profilen erlaubt; `spec-kit` erhält zusätzlich Form B (`source: "spec_kit_tasks"`, §11) — Taskliste aus `speckit.tasks` als Chain-Quelle, ein voller Workflow pro Task (FR-117/FR-118) |
+| Q-B (revidiert in v1.1) | Mixed-Manifest | `steps` und `source` sind KOMBINIERBAR (§12): explizite Steps laufen zuerst, danach die task-abgeleitete Kette; mindestens eines von beiden erforderlich |
 
 ## 10. Testplan (Must-Pass vor Merge)
 
@@ -370,3 +372,23 @@ Spec-Kit-Abhängigkeit (kein Dependency-Zyklus, testbar via Fake-Callback).
 Form-B-Ketten haben eine natürliche Obergrenze (Anzahl pending Tasks),
 trotzdem greift `maxChainDepth` weiterhin als Backstop gegen Endlosketten
 (z. B. wenn Tasks von außen nachgetragen werden).
+
+## 12. Mixed-Manifeste (v1.1, CHN-3)
+
+**FR-119 (Mixed Semantics):** `steps` und `source` sind im Manifest
+**kombinierbar** (Q-B revidiert). Semantik: Die expliziten Steps (Form A)
+laufen zuerst in deklarierter Reihenfolge; nach ihrer Erschöpfung fallt die
+Kette in die task-abgeleitete Phase (Form B) und erzeugt Successors für die
+pending Tasks. Mindestens eines von beiden ist erforderlich
+(`configuration_invalid` sonst).
+
+- Das Depth-Limit (FR-111) wirkt **kettenglobal**: `chainIndex` zählt
+  formübergreifend; die Gate-Ordering-Regeln je Form bleiben unverändert
+  (Form A: Erschöpfung vor Depth [LOW-4]; Form B: Depth als Backstop [§11.4]).
+- Die Kopf-Kopie (FR-114) umfasst das **gesamte** Manifest-Objekt;
+  `chainedTaskIds` wird nur durch task-abgeleitete Schritte fortgeschrieben
+  (Form-A-Schritte appenden keinen Eintrag).
+- Form-B-Profil-Gate (FR-112 rev.): ein Mixed-Manifest mit `source` im
+  `plain`-Profil wird vollständig abgelehnt (keine stillen Degradierungen).
+- Reine Form-A- und reine Form-B-Manifeste sind Teilmengen und verhalten
+  sich unverändert (Rückwärtskompatibilität).

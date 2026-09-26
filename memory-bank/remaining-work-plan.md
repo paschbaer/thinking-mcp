@@ -9,6 +9,49 @@
 
 ## Tracked Follow-ups
 
+- [CHN-3-R1] RESOLVED 2026-09-26 (war HIGH) | Form-B-Cursor-Reset
+  (Details der Fundstelle siehe Historie unten): GEFIXT — Form-B-Zweig
+  liefert `upNext: steps.length` (Successor chainUpNext ≥ steps.length,
+  für reines Form B inert); Regressionstest „CHN-3 HIGH-1 regression“
+  (2 Form-A-Steps + source + 1 Task → nach T001 stummes Ende, kein
+  step-two-Re-Run). 17 Chain-Tests / 249 gesamt grün. | — | resolved
+- [CHN-3-R2] RESOLVED 2026-09-26 (war MEDIUM) | Scope-Abweichung
+  verifiziert und behoben: die 25 Out-of-Scope-Dateien waren reines
+  Prettier-Reformatting (LF/Zeilenumbruch) durch einen zu breit
+ laufenden `prettier --write` über das gesamte src-Verzeichnis —
+  `git checkout --` auf alle nicht intendierten Dateien, Diff wieder auf
+  die 7 intended Files begrenzt. Lehre: prettier nie breiter als die
+  intendierten Files ausführen. | — | resolved (reverted)
+- [CHN-3-R1-HISTORIE] HIGH (CHN-3 Review, 2026-09-26) | Mixed-Chain Form-B-Cursor-
+  Reset: `resolveChainStep` liefert für Form-B-Schritte `upNext: 0`
+  (WorkflowEngine.ts:743), `completeWorkflowLocked` setzt daraus
+  `chainUpNext = upNext + 1 = 1` (WorkflowEngine.ts:1543). Bei Manifesten
+  mit `steps.length >= 2` + `source` zeigt der Cursor damit ZURÜCK in Form
+  A: nach JEDEM Form-B-Task wird `steps[1]` erneut ausgeführt, bis der
+  Depth-Gate (`chain_depth_exceeded`) die Kette abwürgt — Verstoß gegen
+  §12. Reproduziert durch den Reviewer; Regressionstest
+  „CHN-3 HIGH-1 regression“ nachgeliefert → siehe CHN-3-R1 RESOLVED oben.
+  | — | resolved (fixed)
+- [CHN-3-R2-HISTORIE] MEDIUM | Scope-Abweichung: 25 Dateien reformattet
+  (Prettier zu breit gelaufen) — siehe CHN-3-R2 RESOLVED oben (reverted).
+  | — | resolved (reverted)
+- [CHN-3-R2] MEDIUM (CHN-3 Review, 2026-09-26) | Review-Scope-Abweichung:
+  der deklarierte Review-Scope (register-tools.ts, WorkflowEngine.ts,
+  README, Spec §12, chain.test.ts) deckt nur einen Teil des tatsächlichen
+  uncommitteten Diffs ab — 25 weitere Dateien mit substanziellen Änderungen
+  (u. a. SpecKitEngine.ts +755 Zeilen, ConfigAssistant.ts, remote-tools.ts,
+  server.ts) sind unreviewed; der Feature-Branch hat NULL Commits
+  (HEAD == develop 49a18bc). Zudem markiert der bestehende Eintrag
+  [CHN-3] „RESOLVED“ — mit CHN-3-R1 offen ist das präzisieren.
+  | Trigger: Commit/PR-Erstellung des Branches — Out-of-Scope-Diff entweder
+  separieren, nachreviewen oder explizit als separater Scope deklarieren.
+  | action required
+- [CHN-3] RESOLVED 2026-09-26 | Mixed-Manifeste (Q-B revidiert):
+  `steps` + `source` kombinierbar (Spec-Amendment 002 v1.1, §12/FR-119);
+  Engine resolveChainStep zwei-phasig (Form A bis Erschöpfung, dann Form
+  B), chainedTaskIds nur durch Task-Steps fortgeschrieben, plain + source
+  abgelehnt. Tests: Mixed-Happy-Path + Validierung + HIGH-1-Regression
+  (17 Chain-Tests / 249 gesamt). | — | resolved
 - [CHN-2] RESOLVED 2026-09-26 | Dogfooding aktiviert: `chain: {enabled:
   true, maxChainDepth: 8, maxStepsPerManifest: 16}` in
   `.guidance/guidance.json` (plain-Profil ⇒ Form A). KRITISCHER Hinweis:
