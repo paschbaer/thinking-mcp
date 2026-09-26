@@ -483,6 +483,33 @@ Chained sessions are fully audited: `chain_successor_created`,
 The rest of the chain is **copied into each successor**, so chains survive
 pruning of the head session.
 
+### Chaining vs. starting workflows individually
+
+Asking the agent to "start a Guidance workflow for task1, then task2, then
+task3" produces a similar *outcome* — several full workflows run back-to-back
+— but the two modes differ in who drives the sequence and what is guaranteed:
+
+| Aspect | Agent-side loop ("start a workflow each for …") | `chain` manifest |
+|---|---|---|
+| Driver | The agent in chat fires `start_workflow` per task | The server engine creates each successor on completion |
+| Context handover | Prompt text at the agent's discretion (whatever is still in context) | Typed, validated templates (`${chain.parentRequest}`, `${chain.completionSummary}`, `${chain.changedFiles}`, `${chain.taskId}`) — unresolved variables fail closed instead of producing a broken successor |
+| Sequencing guarantee | None: the agent *could* start task2 before task1 completes, or interleave tasks | Successor is created only inside `complete_workflow` after all completion gates passed — strict sequencing is engine semantics, not agent discipline |
+| Crash / session restart | The loop lives in the chat session: a restart or context compaction silently drops the remaining tasks | The chain persists server-side (rest chain copied into every successor): after any restart `get_workflow_state` shows the position, and task3's request already exists |
+| Failure semantics | Ad hoc per agent run (skip? abort? ask?) | Deterministic: a gate failure blocks the successor and halts the chain exactly there; the predecessor stays `completed`; everything audited |
+| Traceability | Three unrelated sessions in the state directory | `chainFrom`/`chainIndex` provenance, `chain_successor_created`/`chain_failed` audit events, `maxChainDepth` guard |
+| Runaway protection | Agent self-discipline only | `maxChainDepth` enforced by the engine |
+| Flexibility | ✅ Higher: the agent can re-plan, skip, parallelize, or vary on user input | Deliberately rigid: exactly the declared steps, no improvisation |
+
+**Rule of thumb:** an agent-side loop is fine when the tasks are *independent*
+( no result flows from one into the next ), the list is short and ad hoc, or
+you want to intervene between runs. Use `chain` when task2 *depends on*
+task1's result (e.g. "fix the failures from the verification run" — which
+needs `completionSummary` as structured data, not from memory), when the
+pipeline must survive session boundaries, or when a hard hold-semantics is
+required ("if task2 blocks, task3 must never start"). In short: the agent
+loop is a recipe in the agent's head; `chain` is a recipe the server cooks
+and checks against.
+
 ## Configuration (`.guidance/`)
 
 All configuration is JSON, version 2. Full contract:
