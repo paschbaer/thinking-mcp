@@ -5,6 +5,18 @@
 
 **Last updated:** 2026-09-26
 
+## 2026-09-26: Post-Commit-Review 77fa854+a457329 (independent, spec 003)
+
+- Snapshot: feature/guidance-toolchain-bootstrap @ a457329, clean; Review-Basis
+  git show beider Commits + current source. Suite 267/267 im
+  guidance-bootstrap-test-Image bestätigt; RUN_PY_E2E=1 4/4; tsc clean,
+  build OK; manueller uv-sync-0.12.19-Repro OK.
+- Ergebnis: 0 CRITICAL, 1 HIGH (R-004 Stale-Workspace-Lock ohne Recovery),
+  3 MEDIUM (R-005 SC-002-Denial-Audit, R-006 E2E-Abdeckung vs T008,
+  R-007 T013-Checkbox premature), 2 LOW (R-008, R-009) — Details + Trigger
+  in remaining-work-plan.md ("Getrackte Follow-ups 2026-09-26, Post-Commit-
+  Review 77fa854+a457329"). Kein Code geändert.
+
 ## 2026-09-26: Workflow-Konfiguration — Final-Review-Pflicht in complete-Phase
 
 - `.guidance/responses.json` (complete): pflichtiger abschließender Review
@@ -616,6 +628,12 @@
 - Positiv verifiziert: insight FTS5-Sanitization + Prepared Statements + atomare tmp+rename-Writes + Read-Hash-Verifikation; guidance SESSION_ID_PATTERN, separator-bewusster Pfadschutz, timing-safe Pair-Auth, 401/404-Kanaltrennung, Loopback-fail-closed-Binding; Reaper+MAX_SESSIONS in beiden HTTP-Servern.
 - Tests NICHT ausgeführt (keine Node-Toolchain in der Session; drei Shells geprüft) — CI test.yml autoritativ.
 - Review-Qualität: c22585a-Commitmsg „dbg-Logs entfernt" traf nicht zu (1 [dbg] in src L132 verblieben) → als CB-9 getrackt.
+
+## 2026-09-26: Feature 003 Toolchain-Bootstrap implementiert (Chained Workflow)
+- Spec (16c6f1e auf develop) via Guidance-Chained-Workflow umgesetzt (Session session-1dcd604f, Profil spec-kit in .guidance/guidance.json aktiviert, chain depth 16). Branch feature/guidance-toolchain-bootstrap: 77fa854 (Implementierung) + Review-Fix-Commit.
+- Kern: run_operation-Tool (nur invocableByAgent:true, fail-closed), FR-107 Per-Session-Mutex, FR-109 Cross-Session-Workspace-Lock mit Stale-Recovery (dead-PID/TTL-Steal), FR-110 kooperativ (spawnSync-Constraint dokumentiert), Dockerfile python3 + uv 0.12.19 gepinnt, examples/python-guidance (uv sync --locked fail-closed), E2E SC-001..004. Suite 268/268 + tsc + build grün (Container guidance-bootstrap-test).
+- Unabhängiger Review (Subagent): 1 HIGH (Stale-Lock) + MEDIUMs/LOWs — HIGH + Denial-Audit + EACCES + README sofort gefixt; Rest (R-006 E2E-Lücken, R-008a globaler Lock, R-010 ERROR_CODES-Test) in remaining-work-plan getrackt.
+- Testumgebung: kein Node auf Host — Suite im Container (Repo-Copy + @rollup/rollup-linux-x64-musl; für E2E das Guidance-Image selbst: node+uv vereint).
 
 ## 2026-09-24: Security-/Policy-Verifikation (Phase 5/6-Fixes) + Rest-Fixes
 - User-Anderungen verifiziert (Code + Container-Tests, node:22-alpine): Phase 6 Egress-Inhaltsprüfung (`containsSecretPattern` für restricted), `redactUnknown()`-Seam auf content + protocolMetadata.structuredContent, Multi-Line-Redaction, Capability-Pin-Persistenz über Restarts. 192/192 grün + tsc clean.
