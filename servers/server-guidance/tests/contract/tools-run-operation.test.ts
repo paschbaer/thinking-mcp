@@ -176,6 +176,29 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     await expect(engine.runOperation(b.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
   }, 20_000);
 
+  it("cancel during composite op kills the child step (HIGH-2 regression, FR-202)", async () => {
+    const engine = makeEngine();
+    const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    // composite op mit langem Prozess-Step in die Config injizieren
+    const opsPath = join(configDir, "operations.json");
+    const ops = JSON.parse(readFileSync(opsPath, "utf8")) as { operations: Record<string, unknown> };
+    ops.operations["slow-composite"] = {
+      description: "composite with a slow process step",
+      type: "composite", strategy: "firstAvailable", required: false, invocableByAgent: true,
+      timeoutSeconds: 30,
+      steps: [{ type: "process", executable: "node", args: ["-e", "setTimeout(()=>{process.exit(0)},30000)"] }],
+    };
+    writeFileSync(opsPath, JSON.stringify(ops, null, 2));
+    // Engine liest operations beim Start → neue Engine mit erweiterter Config
+    const config = loadConfig(configDir);
+    const engine2 = new WorkflowEngine({ config, stateDir });
+    const running = engine2.runOperation(start.sessionId, "slow-composite");
+    await new Promise((r) => setTimeout(r, 400)); // child started
+    await engine2.cancelWorkflow(start.sessionId);
+    const res = await running;
+    expect(res.summary).toMatch(/cancel/i);
+  }, 15_000);
+
   it("workspace lock file is cleaned up after runs (no residue)", async () => {
     const engine = makeEngine();
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });

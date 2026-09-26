@@ -81,8 +81,34 @@ describe("async process execution (spec 004 FR-201)", () => {
       1,
       controller.signal,
     );
-    expect(res.status).toBe("failed");
+    expect(res.status).toBe("cancelled");
     expect(res.errors[0]?.code).toBe("operation_cancelled");
     controller.abort(); // idempotent late abort must not throw
   }, 20_000);
+
+  it("maxBuffer parity: exceeding the cap kills the child and fails the op", async () => {
+    const res = await new OperationEngine().execute(
+      procOp({
+        args: ["-e", "console.log('x'.repeat(50000))"],
+        output: { returnToAgent: "summary_and_errors", maximumBytes: 1024 },
+      }) as never,
+      ctx,
+      1,
+    );
+    expect(res.status).toBe("failed");
+    expect(JSON.stringify(res.errors)).toMatch(/maxBuffer/);
+  }, 20_000);
+
+  it("stderr redaction honours context-configured patterns (final review HIGH-1)", async () => {
+    const engine = new OperationEngine();
+    const res = await engine.execute(
+      procOp({ args: ["-e", "console.error('corp_token: xyz123secretvalue'); process.exit(3)"] }) as never,
+      { ...ctx, redactionPatterns: ["corp_token"] },
+      1,
+    );
+    expect(res.status).toBe("failed");
+    const message = res.errors[0]?.message ?? "";
+    expect(message).toContain("[REDACTED]");
+    expect(message).not.toContain("xyz123secretvalue");
+  });
 });
