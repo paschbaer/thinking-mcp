@@ -1,7 +1,8 @@
 # Spec Amendment 003: Final-Review Evidence Gate (FRE)
 
-> Status: **DRAFT** (Prinzip vom Nutzer am 2026-09-26 gebilligt; offene
-> Entscheidungen Q1–Q3 in §9 mit Defaults)
+> Status: **APPROVED** (2026-09-26, Nutzerbilligung der Drafts Q1–Q3; implementiert
+> in 2983be3/8fa8125-Linie und produktiv im Einsatz — Gates final-review-gate,
+> index-freshness, repository-analysis, capture-session-lessons verifiziert)
 > Base: `specs/002-guidance-workflow-server/spec.md` (v1 + v2 + v2.1)
 >       + `amendments/001-remote-mode.md` + `amendments/002-workflow-chaining.md`
 > Date: 2026-09-26
