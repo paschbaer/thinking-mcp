@@ -1,15 +1,32 @@
 /** Typed wrappers around WorkflowEngine — one per upstream MCP tool (FR-016). */
-import type { WorkflowEngine, StartResult, SubmitResult } from "../workflow/WorkflowEngine.js";
+import type {
+  WorkflowEngine,
+  StartResult,
+  SubmitResult,
+} from "../workflow/WorkflowEngine.js";
 import type { WorkflowSession, PhaseInstruction } from "../types/index.js";
 
 export class WorkflowTools {
   constructor(private readonly engine: WorkflowEngine) {}
 
-  async startWorkflow(input: { workspaceRoot: string; request: string; workflowId?: string; metadata?: Record<string, unknown> }): Promise<StartResult> {
+  async startWorkflow(input: {
+    workspaceRoot: string;
+    request: string;
+    workflowId?: string;
+    metadata?: Record<string, unknown>;
+    chain?: unknown;
+  }): Promise<StartResult> {
     return this.engine.startWorkflow(input);
   }
 
-  async getCurrentGuidance(sessionId: string): Promise<{ sessionId: string; currentPhase: string; status: string; guidance: PhaseInstruction }> {
+  async getCurrentGuidance(
+    sessionId: string,
+  ): Promise<{
+    sessionId: string;
+    currentPhase: string;
+    status: string;
+    guidance: PhaseInstruction;
+  }> {
     const s = this.engine.getSession(sessionId);
     return {
       sessionId,
@@ -19,26 +36,64 @@ export class WorkflowTools {
     };
   }
 
-  async submitUnderstanding(sessionId: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
+  async submitUnderstanding(
+    sessionId: string,
+    payload: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<SubmitResult> {
     return this.engine.submit(sessionId, "understand", payload, requestId);
   }
-  async submitPlan(sessionId: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
+  async submitPlan(
+    sessionId: string,
+    payload: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<SubmitResult> {
     return this.engine.submit(sessionId, "plan", payload, requestId);
   }
-  async submitPlanReview(sessionId: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
-    return this.engine.submit(sessionId, "review_and_adjust_plan", payload, requestId);
+  async submitPlanReview(
+    sessionId: string,
+    payload: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<SubmitResult> {
+    return this.engine.submit(
+      sessionId,
+      "review_and_adjust_plan",
+      payload,
+      requestId,
+    );
   }
-  async submitImplementation(sessionId: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
+  async submitImplementation(
+    sessionId: string,
+    payload: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<SubmitResult> {
     return this.engine.submit(sessionId, "implement", payload, requestId);
   }
-  async submitImplementationReview(sessionId: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
-    return this.engine.submit(sessionId, "review_and_fix_implementation", payload, requestId);
+  async submitImplementationReview(
+    sessionId: string,
+    payload: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<SubmitResult> {
+    return this.engine.submit(
+      sessionId,
+      "review_and_fix_implementation",
+      payload,
+      requestId,
+    );
   }
-  async submitVerification(sessionId: string, payload: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
+  async submitVerification(
+    sessionId: string,
+    payload: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<SubmitResult> {
     return this.engine.submit(sessionId, "verify", payload, requestId);
   }
 
-  async completeWorkflow(sessionId: string, report: Record<string, unknown>, requestId?: string): Promise<SubmitResult> {
+  async completeWorkflow(
+    sessionId: string,
+    report: Record<string, unknown>,
+    requestId?: string,
+  ): Promise<SubmitResult> {
     return this.engine.completeWorkflow(sessionId, report, requestId);
   }
 
@@ -46,11 +101,22 @@ export class WorkflowTools {
     return this.engine.getSession(sessionId);
   }
 
-  async reportBlocker(sessionId: string, input: { category: string; description: string; requiresUserDecision?: boolean; options?: string[] }): Promise<SubmitResult> {
+  async reportBlocker(
+    sessionId: string,
+    input: {
+      category: string;
+      description: string;
+      requiresUserDecision?: boolean;
+      options?: string[];
+    },
+  ): Promise<SubmitResult> {
     return this.engine.reportBlocker(sessionId, input);
   }
 
-  async resumeWorkflow(sessionId: string, input: { decision: string; notes?: string }): Promise<SubmitResult> {
+  async resumeWorkflow(
+    sessionId: string,
+    input: { decision: string; notes?: string },
+  ): Promise<SubmitResult> {
     return this.engine.resumeWorkflow(sessionId, input);
   }
 
@@ -60,15 +126,21 @@ export class WorkflowTools {
 
   // ---- orchestration tools (FR-046, profile §31) ----
 
-  async getOrchestrationStatus(sessionId: string): Promise<ReturnType<WorkflowEngine["getOrchestrationStatus"]>> {
+  async getOrchestrationStatus(
+    sessionId: string,
+  ): Promise<ReturnType<WorkflowEngine["getOrchestrationStatus"]>> {
     return this.engine.getOrchestrationStatus(sessionId);
   }
 
-  listConfiguredOperations(): ReturnType<WorkflowEngine["listConfiguredOperations"]> {
+  listConfiguredOperations(): ReturnType<
+    WorkflowEngine["listConfiguredOperations"]
+  > {
     return this.engine.listConfiguredOperations();
   }
 
-  async getDownstreamStatus(): Promise<ReturnType<WorkflowEngine["getDownstreamStatus"]>> {
+  async getDownstreamStatus(): Promise<
+    ReturnType<WorkflowEngine["getDownstreamStatus"]>
+  > {
     return this.engine.getDownstreamStatus();
   }
 

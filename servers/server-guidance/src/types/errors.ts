@@ -21,6 +21,7 @@ export const ERROR_CODES = [
   "workflow_already_completed",
   "workflow_cancelled",
   "workflow_blocked",
+  "chain_activation_incomplete",
   "internal_error",
   // v2 orchestration
   "downstream_server_not_configured",
@@ -104,7 +105,12 @@ export class GuidanceError extends Error {
   constructor(
     code: ErrorCode,
     message: string,
-    opts: { recoverable?: boolean; currentPhase?: string; workflowStatus?: string; allowedActions?: string[] } = {},
+    opts: {
+      recoverable?: boolean;
+      currentPhase?: string;
+      workflowStatus?: string;
+      allowedActions?: string[];
+    } = {},
   ) {
     super(`${code}: ${message}`);
     this.name = "GuidanceError";
@@ -118,7 +124,11 @@ export class GuidanceError extends Error {
   toResponse(): GuidanceErrorResponse {
     return {
       accepted: false,
-      error: { code: this.code, message: this.message, recoverable: this.recoverable },
+      error: {
+        code: this.code,
+        message: this.message,
+        recoverable: this.recoverable,
+      },
       currentPhase: this.currentPhase,
       workflowStatus: this.workflowStatus,
       allowedActions: this.allowedActions,
