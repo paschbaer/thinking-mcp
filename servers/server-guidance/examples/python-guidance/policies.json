@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "trustLevels": {
+    "untrusted": {
+      "dataEgress": "none"
+    },
+    "restricted": {
+      "dataEgress": "validated_inputs_only"
+    },
+    "trusted": {
+      "dataEgress": "project_data"
+    },
+    "privileged": {
+      "dataEgress": "project_data_with_approval"
+    }
+  },
+  "redaction": {
+    "patterns": [
+      "\\bapi[_-]?key\\b",
+      "\\btoken\\b",
+      "\\bsecret\\b",
+      "\\bpassword\\b"
+    ]
+  },
+  "outputDefaults": {
+    "returnToAgent": "summary_and_errors",
+    "maxExcerptBytes": 65536,
+    "maxArtifactBytes": 1048576
+  }
+}

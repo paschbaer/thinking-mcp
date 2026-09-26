@@ -3,6 +3,15 @@ FROM node:22-alpine
 # Install curl for health check (must happen before USER node)
 RUN apk add --no-cache curl
 
+# Python toolchain bootstrap (spec 003 FR-105): interpreter + pinned uv binary.
+# Project dependencies are NOT baked into the image — they are installed
+# lazily, server-side, from the workspace lockfile (uv sync --locked).
+# Update UV_VERSION deliberately (manual upgrade procedure, keep in sync
+# with the README note).
+ARG UV_VERSION=0.12.19
+RUN apk add --no-cache python3 py3-pip \
+  && pip install --break-system-packages --no-cache-dir "uv==${UV_VERSION}"
+
 # Copy package files first for better layer caching
 COPY package*.json ./
 

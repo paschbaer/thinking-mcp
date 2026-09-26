@@ -763,6 +763,17 @@ function validateOperations(operationsFile: Record<string, unknown>): void {
         `operations.${id}: required must be boolean`,
       );
     }
+    // FR-102 (spec 003): fail-closed agent-invocation allowlist flag.
+    const invocableByAgent = raw["invocableByAgent"];
+    if (
+      invocableByAgent !== undefined &&
+      typeof invocableByAgent !== "boolean"
+    ) {
+      throw new ConfigurationError(
+        "configuration_invalid",
+        `operations.${id}: invocableByAgent must be boolean`,
+      );
+    }
   }
 }
 

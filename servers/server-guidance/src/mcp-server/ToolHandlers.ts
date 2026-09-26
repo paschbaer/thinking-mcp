@@ -147,4 +147,11 @@ export class WorkflowTools {
   async retryOperation(sessionId: string): Promise<SubmitResult> {
     return this.engine.retryOperations(sessionId);
   }
+
+  async runOperation(
+    sessionId: string,
+    operationId: string,
+  ): Promise<ReturnType<WorkflowEngine["runOperation"]>> {
+    return this.engine.runOperation(sessionId, operationId);
+  }
 }

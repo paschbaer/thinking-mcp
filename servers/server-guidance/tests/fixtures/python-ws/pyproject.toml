@@ -1,0 +1,21 @@
+[project]
+name = "demo-ws"
+version = "0.1.0"
+description = "Fixture workspace for the guidance toolchain-bootstrap E2E test"
+requires-python = ">=3.9"
+dependencies = [
+    "six>=1.16",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+ignore_missing_imports = true

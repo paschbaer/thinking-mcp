@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "responses": {
+    "understand": {
+      "title": "Understand the Request",
+      "instruction": "Analyze the Python project's development request before proposing an implementation. The toolchain-sync operation installs the pinned environment on session start (optional; failure does not block).",
+      "requiredActions": []
+    },
+    "plan": {
+      "title": "Create the Implementation Plan",
+      "instruction": "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification.",
+      "requiredActions": []
+    },
+    "review_and_adjust_plan": {
+      "title": "Review and Adjust the Plan",
+      "instruction": "Review the plan critically before implementation; submit findings and the adjusted plan.",
+      "requiredActions": []
+    },
+    "implement": {
+      "title": "Implement the Approved Plan",
+      "instruction": "Implement the approved plan; verification runs ruff, pytest and mypy via the pinned uv environment.",
+      "requiredActions": []
+    },
+    "review_and_fix_implementation": {
+      "title": "Review and Fix the Implementation",
+      "instruction": "Review the implementation against the plan; fix findings before verification.",
+      "requiredActions": []
+    },
+    "verify": {
+      "title": "Verify the Implementation",
+      "instruction": "The verify phase runs lint (ruff), test (pytest) and check (mypy) as required operations via uv run --locked; completion requires all of them to succeed.",
+      "requiredActions": []
+    },
+    "complete": {
+      "title": "Complete the Feature",
+      "instruction": "Summarize the completed work and submit the completion report.",
+      "requiredActions": []
+    }
+  }
+}

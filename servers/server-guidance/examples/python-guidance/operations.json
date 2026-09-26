@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "operations": {
+    "toolchain-sync": {
+      "description": "Install the pinned Python toolchain from uv.lock into /workspace/.venv (network: PyPI). Fail-closed on a missing or stale uv.lock (--locked).",
+      "type": "process",
+      "executable": "uv",
+      "args": ["sync", "--locked"],
+      "required": false,
+      "timeoutSeconds": 900,
+      "riskClass": "workspace_write",
+      "invocableByAgent": true,
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
+    "lint": {
+      "description": "Run ruff over the workspace (uv run --locked ruff check .).",
+      "type": "process",
+      "executable": "uv",
+      "args": ["run", "--locked", "ruff", "check", "."],
+      "required": true,
+      "timeoutSeconds": 300,
+      "riskClass": "read_only",
+      "invocableByAgent": true,
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
+    "test": {
+      "description": "Run the pytest suite (uv run --locked pytest -q).",
+      "type": "process",
+      "executable": "uv",
+      "args": ["run", "--locked", "pytest", "-q"],
+      "required": true,
+      "timeoutSeconds": 300,
+      "riskClass": "read_only",
+      "invocableByAgent": true,
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
+    "check": {
+      "description": "Type-check the workspace with mypy (uv run --locked mypy .).",
+      "type": "process",
+      "executable": "uv",
+      "args": ["run", "--locked", "mypy", "."],
+      "required": true,
+      "timeoutSeconds": 300,
+      "riskClass": "read_only",
+      "invocableByAgent": true,
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    }
+  }
+}

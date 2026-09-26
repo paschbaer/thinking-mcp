@@ -80,6 +80,9 @@ export interface OperationConfig {
   };
   riskClass?: RiskClass;
   approved?: boolean;
+  /** FR-102 (spec 003): opt-in marker — the operation may be invoked on
+   *  demand by the agent via run_operation. Default false (fail-closed). */
+  invocableByAgent?: boolean;
   fallback?: OperationConfig[];
   condition?: unknown;
 }
