@@ -45,6 +45,7 @@ function seededWorkspace(): void {
     operations: {
       "invocable-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('hi')"], required: false, invocableByAgent: true, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
       "unmarked-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('nope')"], required: false, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+      "slow-echo": { description: "d", type: "process", executable: "node", args: ["-e", "setTimeout(()=>{process.exit(0)},3000)"], required: false, invocableByAgent: true, timeoutSeconds: 30, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
       "secret-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('api_key: sk-abc123deployment')"], required: false, invocableByAgent: true, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
     },
   }));
@@ -148,6 +149,32 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     const res = await engine.runOperation(start.sessionId, "secret-echo");
     expect(JSON.stringify(res)).not.toContain("sk-abc123deployment");
   });
+
+  it("hard-cancel kills a real running child, releases the lock (FR-202, SC-201)", async () => {
+    const engine = makeEngine();
+    const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    const running = engine.runOperation(start.sessionId, "slow-echo");
+    await new Promise((r) => setTimeout(r, 400)); // let the child start
+    await engine.cancelWorkflow(start.sessionId);
+    const res = await running;
+    expect(res.status).toBe("failed");
+    expect(res.summary).toMatch(/cancel/i);
+    // lock released + child dead: another session runs immediately
+    const other = await engine.startWorkflow({ workspaceRoot: ws, request: "b" });
+    await expect(engine.runOperation(other.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
+  }, 15_000);
+
+  it("real-process cross-session contention (FR-109/FR-203, R-006)", async () => {
+    const engine = makeEngine();
+    const a = await engine.startWorkflow({ workspaceRoot: ws, request: "a" });
+    const b = await engine.startWorkflow({ workspaceRoot: ws, request: "b" });
+    const first = engine.runOperation(a.sessionId, "slow-echo");
+    await new Promise((r) => setTimeout(r, 400)); // child running
+    await expect(engine.runOperation(b.sessionId, "slow-echo")).rejects.toThrowError(/operation_in_progress/);
+    await expect(first).resolves.toMatchObject({ status: "succeeded" });
+    // after release, b can acquire
+    await expect(engine.runOperation(b.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
+  }, 20_000);
 
   it("workspace lock file is cleaned up after runs (no residue)", async () => {
     const engine = makeEngine();

@@ -62,6 +62,30 @@ function seedWorkspace(opts: { withLock: boolean; stale?: boolean }): void {
   for (const f of ["pyproject.toml", "demo.py", "test_demo.py", ...(opts.withLock ? ["uv.lock"] : [])]) {
     copyFileSync(join(FIXTURE_WS, f), join(ws, f));
   }
+  // Test-injected workspace ops (R-006 E2E): a slow invocable op (contention
+  // + cancel-kill) and an UNMARKED op (SC-002 denial). Present in the
+  // workspace config, not in the example profile.
+  const opsPath = join(cfgDir, "operations.json");
+  const ops = JSON.parse(readFileSync(opsPath, "utf8")) as { operations: Record<string, unknown> };
+  ops.operations["slow-op"] = {
+    description: "slow invocable op for contention/cancel E2E",
+    type: "process", executable: "uv", args: ["run", "--locked", "python", "-c", "import time; time.sleep(8)"],
+    required: false, invocableByAgent: true, timeoutSeconds: 60, riskClass: "read_only",
+    validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" },
+  };
+  ops.operations["unmarked-op"] = {
+    description: "present but NOT agent-invocable",
+    type: "process", executable: "uv", args: ["run", "--locked", "python", "-c", "print('nope')"],
+    required: false, timeoutSeconds: 60, riskClass: "read_only",
+    validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" },
+  };
+  ops.operations["secret-fail"] = {
+    description: "fails with a credential on stderr (SC-004 E2E)",
+    type: "process", executable: "uv", args: ["run", "--locked", "python", "-c", "import sys; print('api_key: sk-abcdefghijklmnopqrstuvwx', file=sys.stderr); raise SystemExit(3)"],
+    required: false, invocableByAgent: true, timeoutSeconds: 60, riskClass: "read_only",
+    validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" },
+  };
+  writeFileSync(opsPath, JSON.stringify(ops, null, 2));
   process.env.GUIDANCE_WORKSPACE_ROOT = ws;
   if (opts.stale) {
     // change pyproject AFTER the lockfile was copied → lock is now stale
@@ -124,4 +148,51 @@ describe.skipIf(!hasUv)("python toolchain bootstrap E2E (spec 003 SC-001..SC-004
     const res = await call(port, 2, "run_operation", { sessionId: (start as { sessionId?: string }).sessionId!, operationId: "nope" });
     expect(res.rawError ?? res.error?.message ?? "").toMatch(/operation_not_configured|not configured/);
   });
+
+  it("SC-002: configured-but-unmarked op → agent_invocation_denied, not executed", async () => {
+    const port = await boot();
+    const start = await call(port, 1, "start_workflow", { workspaceRoot: ws, request: "bootstrap" });
+    const sid = (start as { sessionId?: string }).sessionId!;
+    const res = await call(port, 2, "run_operation", { sessionId: sid, operationId: "unmarked-op" });
+    expect(res.rawError ?? "").toMatch(/agent_invocation_denied/);
+  });
+
+  it("FR-109: real contention — session B blocked while session A runs slow-op", async () => {
+    const port = await boot();
+    const startA = await call(port, 1, "start_workflow", { workspaceRoot: ws, request: "A" });
+    const startB = await call(port, 2, "start_workflow", { workspaceRoot: ws, request: "B" });
+    const sidA = (startA as { sessionId?: string }).sessionId!;
+    const sidB = (startB as { sessionId?: string }).sessionId!;
+    const runA = call(port, 3, "run_operation", { sessionId: sidA, operationId: "slow-op" });
+    await new Promise((r) => setTimeout(r, 2500)); // child (uv run) started
+    const blocked = await call(port, 4, "run_operation", { sessionId: sidB, operationId: "slow-op" });
+    expect(blocked.rawError ?? JSON.stringify(blocked)).toMatch(/operation_in_progress/);
+    await expect(runA).resolves.toMatchObject({ status: "succeeded" });
+  }, 90_000);
+
+  it("SC-004: secret on stderr of a failing op is redacted in the agent-facing result", async () => {
+    const port = await boot();
+    const start = await call(port, 1, "start_workflow", { workspaceRoot: ws, request: "bootstrap" });
+    const sid = (start as { sessionId?: string }).sessionId!;
+    const res = await call(port, 2, "run_operation", { sessionId: sid, operationId: "secret-fail" });
+    expect(res.status).toBe("failed");
+    expect(JSON.stringify(res)).not.toContain("sk-abcdefghijklmnopqrstuvwx");
+  }, 60_000);
+
+  it("FR-202/SC-201: cancel mid-run kills the child and releases the lock", async () => {
+    const port = await boot();
+    const start = await call(port, 1, "start_workflow", { workspaceRoot: ws, request: "bootstrap" });
+    const sid = (start as { sessionId?: string }).sessionId!;
+    const runA = call(port, 2, "run_operation", { sessionId: sid, operationId: "slow-op" });
+    await new Promise((r) => setTimeout(r, 2500));
+    const cancel = await call(port, 3, "cancel_workflow", { sessionId: sid });
+    expect(cancel.accepted).toBe(true);
+    const res = await runA;
+    expect(res.status).toBe("failed");
+    expect(res.summary).toMatch(/cancel/i);
+    // lock released: another session runs immediately (sync is fast now — venv exists)
+    const startB = await call(port, 4, "start_workflow", { workspaceRoot: ws, request: "B" });
+    const quick = await call(port, 5, "run_operation", { sessionId: (startB as { sessionId?: string }).sessionId!, operationId: "toolchain-sync" });
+    expect(quick.status).toBe("succeeded");
+  }, 90_000);
 });

@@ -399,6 +399,7 @@ export class WorkflowEngine {
   private readonly stateDir: string;
   private readonly workspaceLock: WorkspaceOpLock;
   private readonly runningOps = new Set<string>();
+  private readonly activeOpControllers = new Map<string, Set<AbortController>>();
   private pinnedHashes = new Map<string, string>();
   private readonly policyEngine = new PolicyEngine();
   private readonly archiveDir: string;
@@ -519,6 +520,14 @@ export class WorkflowEngine {
     this.workspaceLock.release();
   }
 
+  /** spec 004 FR-202: bricht alle laufenden Operationen der Session ab
+   *  (Hard-Kill: Abort → SIGTERM → SIGKILL nach Grace). */
+  private abortActiveOperations(sessionId: string): void {
+    const controllers = this.activeOpControllers.get(sessionId);
+    if (!controllers) return;
+    for (const c of controllers) c.abort();
+  }
+
   /** spec 003 US1 (FR-101..110): on-demand execution of agent-invocable
    *  operations through the trusted lifecycle pipeline (OperationEngine →
    *  exposure → downstream state → audit). Fail-closed: nur Operationen mit
@@ -545,13 +554,22 @@ export class WorkflowEngine {
     }
     this.acquireWorkspaceOpLock();
     this.runningOps.add(sessionId);
+    // spec 004 FR-202: AbortController je Ausführung — cancel_workflow bricht
+    // alle Controller der Session ab (Hard-Kill SIGTERM→SIGKILL).
+    const controller = new AbortController();
+    let controllers = this.activeOpControllers.get(sessionId);
+    if (!controllers) {
+      controllers = new Set();
+      this.activeOpControllers.set(sessionId, controllers);
+    }
+    controllers.add(controller);
     const startedAt = Date.now();
     try {
       if (session.status !== "active") {
         this.audit.append({ sessionId, eventType: "operation_invocation_denied", data: { operationId, reason: `session_${session.status}` } });
         return { id: operationId, status: "failed", summary: `session is ${session.status}` };
       }
-      const run = await this.operationEngine.execute(op, this.ctxFor(session), 1);
+      const run = await this.operationEngine.execute(op, this.ctxFor(session), 1, controller.signal);
       const cancelled = this.sessions.load(sessionId).status === "cancelled";
       // FR-110 (kooperativ): Cancel/Timeout verwirft das Ergebnis; der
       // Kindprozess selbst wird über den op-Timeout (SIGTERM) beendet —
@@ -581,6 +599,9 @@ export class WorkflowEngine {
       throw err;
     } finally {
       this.runningOps.delete(sessionId);
+      const controllers = this.activeOpControllers.get(sessionId);
+      controllers?.delete(controller);
+      if (controllers && controllers.size === 0) this.activeOpControllers.delete(sessionId);
       this.releaseWorkspaceOpLock();
     }
   }
@@ -1968,6 +1989,10 @@ export class WorkflowEngine {
         s.status = "cancelled";
         s.completedAt = now;
       });
+      // spec 004 FR-202: hart abbrechen — alle laufenden Operationen der
+      // Session erhalten Abort → Child SIGTERM/SIGKILL, Ergebnis wird im
+      // runOperation-Discard-Pfad verworfen, Lock im finally released.
+      this.abortActiveOperations(sessionId);
       this.audit.append({
         sessionId,
         eventType: "workflow_cancelled",
