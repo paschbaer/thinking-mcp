@@ -5,6 +5,20 @@
 
 **Last updated:** 2026-09-26
 
+## 2026-09-26: Final-Review Feature 003 (develop @ ec924f6, kompletter Session-Diff 16c6f1e..ec924f6)
+
+- Snapshot: develop @ ec924f6, clean (bis auf diese Review-Notiz); Diff
+  4 Commits gelesen (77fa854/a457329/b6edcee/ec924f6) + current source.
+- Verifikation: Suite 268/268 (RUN_PY_E2E=1) ✓, tsc clean ✓, build OK ✓.
+- Fix-Commit b6edcee geprüft: R-004-Stale-Lock-Recovery vorhanden, aber mit
+  neuem MEDIUM R-011 (Steal-TOCTOU, nicht-atomares unlink+recreate) und LOW
+  R-012 (TTL-vs-Timeout, EACCES-Code, Testlücken des neuen Codes) — getrackt
+  in remaining-work-plan.md. R-005 (Denial-Audit) korrekt, SC-002 erfüllt;
+  R-009 README konsistent mit PolicyEngine; R-007/R-007-Fix (Merge +
+  memory-bank) erledigt.
+- Offen: 0 CRITICAL, 0 HIGH, 1 MEDIUM (R-011), 3 LOW (R-012a-c). Kein reviewed
+  Code geändert.
+
 ## 2026-09-26: Post-Commit-Review 77fa854+a457329 (independent, spec 003)
 
 - Snapshot: feature/guidance-toolchain-bootstrap @ a457329, clean; Review-Basis
