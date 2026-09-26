@@ -7,6 +7,23 @@
 
 ## What Works
 
+- **Workflow-Chaining implementiert (2026-09-25, `feature/workflow-chaining`,
+  Guidance-Session `session-802f2c91…` → completed)**: Amendment 002
+  (Form A explizite Steps + Form B `spec_kit_tasks`) gemäß FR-110…FR-118 —
+  chain-Schema in `start_workflow`, lazy Successor-Creation in
+  `completeWorkflowLocked` (Q2 Kopf-Kopie), `activating`-Fail-Closed gegen
+  das Crash-Fenster (Plan-Review F1), `specKitTasks`-EngineDeps-Brücke,
+  chainTaskScope-Guidance (FR-118), chain.*-Templates fail-closed (Q1).
+  243/243 Tests (10 neue Chain-Tests, Spec §10.1–10.11), Build grün,
+  detect_changes scope-clean, Index frisch. Docs: README-Section
+  „Workflow Chaining“ (plain- + spec-kit-Beispiel). Follow-ups: CHN-1…CHN-3
+  (remaining-work-plan). Verify-Gates lint/test schlugen mit prä-existierenden
+  Container-Caveats fehl (required:false; native Suite grün).
+- **Workflow-Chaining-Spec APPROVED (2026-09-25)**:
+  `specs/002-guidance-workflow-server/amendments/002-workflow-chaining.md`
+  (Layer 1: `chain`-Manifest, lazy Successor-Creation, `nextSessionId`-
+  Response, FR-110…FR-118; Q1–Q3 locked, Q3 revidiert: Form B im
+  spec-kit-Profil). Implementierung siehe oben.
 - **Guidance-Working-Sample dokumentiert (2026-09-25, `842cd3c` + `b91054a`)**:
   Erster Versuch im Root-README revertet (falscher Ort + deutscher Text);
   final in `servers/server-guidance/README.md` (englisch): Workspace-Pfad-

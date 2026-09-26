@@ -9,6 +9,42 @@
 
 ## Tracked Follow-ups
 
+- [CHN-4] MEDIUM (Post-Merge-Review MEDIUM-2, accepted) | Form-B-Brücke
+  (specKitTasks-Callback in `composeApplication`) fängt jede Exception als
+  `[]` — ein defekter Spec-Kit-State beendet die Kette "regulär stumm"
+  (FR-117-Silent-End) statt diagnostisch unterscheidbar zu sein.
+  | Trigger: Form-B produktiver Einsatz oder nächster Touch der Brücke.
+  | action required: Load-Fehler von leerer Liste unterscheiden oder
+  `chain_end`-Audit-Event mit Bridge-Status ergänzen.
+- [CHN-5] LOW (Post-Merge-Review LOW-6, accepted) | Crash nach Successor-
+  Aktivierung, aber vor Re-Cache des requestIds-Resultats: Replay liefert
+  `nextSessionId` ohne `chain`-Entry (rein informativ; Client-Loop folgt
+  nextSessionId). | Trigger: nächster Touch von `completeWorkflow`.
+  | accepted with rationale.
+- [CHN-6] NIT (Post-Merge-Review NIT-7, accepted) | `startWorkflow` baut
+  die Response-Guidance aus dem Pre-Aktivierungs-Snapshot (lokal
+  veraltetes Session-Objekt); aktuell wirkungslos, da `guidanceFor` nur
+  statische Texte + chainTaskScope liest. | Trigger: falls `guidanceFor`
+  künftig dynamischen Session-Zustand einbezieht. | accepted with rationale.
+- [CHN-1] MEDIUM | Workflow-Chaining (Amendment 002, implementiert auf
+  `feature/workflow-chaining`): eine im Crash-Fenster zurückbleibende
+  `activating`-Session wird fail-closed abgelehnt (`chain_activation_incomplete`),
+  aber `retry_operation` nimmt sie nicht automatisch wieder auf (Re-Activation
+  erfordert manuellen Eingriff/Neustart). Fail-closed verhindert jeden
+  Gate-Bypass; die komfortable Wiederaufnahme fehlt. | Trigger: nächster
+  Touch von `WorkflowEngine.retryOperation` oder ein Chaining-Feedback aus
+  produktiver Nutzung. | action required: Re-Activation-Pfad ergänzen
+  (retry_operation oder Startup-Recovery) + Test.
+- [CHN-2] LOW | Chain-Dogfooding: `chain` ist implementiert, aber in der
+  repo-eigenen `.guidance/guidance.json` noch nicht aktiviert (Default
+  `enabled:false`, Arbeits-Annahme Q-A). | Trigger: Merge von
+  `feature/workflow-chaining` nach develop. | action required: Nutzer-
+  Entscheidung — `chain.enabled: true` setzen oder bewusst deaktiviert lassen.
+- [CHN-3] LOW | Mixed-Chain-Manifest (Form A steps + Form B source kombiniert)
+  ist aktuell exklusiv (z.union) abgelehnt (Arbeits-Annahme Q-B). | Trigger:
+  falls ein Anwendungsfall „erst Steps, dann task-abgeleitet“ auftritt.
+  | accepted with rationale; ggf. Folgearbeit im Spec.
+
 - [GUID-6] CLOSED 2026-09-25 | Frische-Prüfung deterministisch im Gate:
   neue blocking-Operation `index-freshness` (Skript
   `servers/server-guidance/scripts/check-index-freshness.mjs`, reiner Node
