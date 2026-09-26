@@ -56,6 +56,7 @@ export const WORKFLOW_TOOL_NAMES = [
   "get_orchestration_status",
   "list_configured_operations",
   "retry_operation",
+  "run_operation",
   "get_downstream_status",
 ] as const;
 
@@ -275,6 +276,13 @@ export function registerWorkflowTools(
     "Wiederholt fehlgeschlagene Pflicht-Operationen der aktuellen Phase",
     sessionId,
     async ({ sessionId }) => toJson(await tools.retryOperation(sessionId)),
+  );
+  server.tool(
+    "run_operation",
+    "Führt eine konfigurierte Operation on-demand aus (nur mit invocableByAgent:true)",
+    { ...sessionId, operationId: z.string().min(1) },
+    async ({ sessionId, operationId }) =>
+      toJson(await tools.runOperation(sessionId, operationId)),
   );
   server.tool(
     "get_downstream_status",

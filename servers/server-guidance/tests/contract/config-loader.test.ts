@@ -140,6 +140,36 @@ describe("config loader (FR-009, FR-026, R15)", () => {
   });
 });
 
+describe("operation invocableByAgent flag (spec 003 FR-102)", () => {
+  function writeOps(invocable?: unknown): void {
+    const op: Record<string, unknown> = {
+      description: "d", type: "process", executable: "uv", args: [], required: false,
+    };
+    if (invocable !== undefined) op.invocableByAgent = invocable;
+    write("operations.json", { version: 2, operations: { sync: op } });
+    write("guidance.json", { ...minimalGuidance, operations: { file: "operations.json" } });
+  }
+
+  it("accepts invocableByAgent true and false", () => {
+    writeOps(true);
+    expect(() => loadConfig(dir)).not.toThrow();
+    writeOps(false);
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+
+  it("is optional: configs without the flag still load (backward compatible)", () => {
+    writeOps(undefined);
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+
+  it("rejects non-boolean invocableByAgent (fail closed)", () => {
+    writeOps("yes");
+    expect(() => loadConfig(dir)).toThrowError(/invocableByAgent/);
+    writeOps(1);
+    expect(() => loadConfig(dir)).toThrowError(/invocableByAgent/);
+  });
+});
+
 describe("downstream http transports (fail-closed egress + secret resolution)", () => {
   let savedToken: string | undefined;
   beforeEach(() => { savedToken = process.env.INSIGHT_TEST_TOKEN; });

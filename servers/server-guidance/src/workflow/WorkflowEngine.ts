@@ -10,6 +10,10 @@ import {
   writeFileSync,
   readFileSync,
   renameSync,
+  openSync,
+  closeSync,
+  writeSync,
+  unlinkSync,
 } from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
@@ -218,6 +222,7 @@ export class WorkflowEngine {
       return out;
     };
     this.audit = new AuditRepository(join(deps.stateDir, "history"), redact);
+    this.stateDir = deps.stateDir;
     // 2e: persistierte Capability-Pins laden (Drift-Detection überlebt Restarts)
     for (const [key, hash] of Object.entries(
       loadCapabilityPins(deps.stateDir),
@@ -382,6 +387,9 @@ export class WorkflowEngine {
 
   private clientManager?: ClientManager;
   private allowlists?: Map<string, string[]>;
+  private readonly stateDir: string;
+  private readonly runningOps = new Set<string>();
+  private workspaceOpLockHeld = false;
   private pinnedHashes = new Map<string, string>();
   private readonly policyEngine = new PolicyEngine();
   private readonly archiveDir: string;
@@ -484,6 +492,96 @@ export class WorkflowEngine {
       });
     }
     return out;
+  }
+
+  /** spec 003 FR-109: cross-session serialization for venv-mutating ops.
+   *  File lock (O_CREATE-exclusiv) im stateDir — gilt auch über
+   *  Engine-Instanzen hinweg; der In-Memory-Flag ist Belt-and-Braces. */
+  private acquireWorkspaceOpLock(): void {
+    if (this.workspaceOpLockHeld) {
+      throw new GuidanceError("operation_in_progress", "workspace operation lock is held", { recoverable: true });
+    }
+    const file = join(this.stateDir, "workspace-ops.lock");
+    try {
+      const fd = openSync(file, "wx");
+      writeSync(fd, String(process.pid));
+      closeSync(fd);
+    } catch {
+      throw new GuidanceError("operation_in_progress", "workspace operation lock is held (or stale from a crashed process)", { recoverable: true });
+    }
+    this.workspaceOpLockHeld = true;
+  }
+
+  private releaseWorkspaceOpLock(): void {
+    if (!this.workspaceOpLockHeld) return;
+    this.workspaceOpLockHeld = false;
+    try {
+      unlinkSync(join(this.stateDir, "workspace-ops.lock"));
+    } catch {
+      // best effort — ein verwaistes Lock-File stört den nächsten wx-Versuch
+      // nicht, wenn es vom selben Prozess stammt; Fremd-Prozesse steuern über
+      // den Timeout des ausführenden Ops (SIGTERM) ihre Freigabe selbst.
+    }
+  }
+
+  /** spec 003 US1 (FR-101..110): on-demand execution of agent-invocable
+   *  operations through the trusted lifecycle pipeline (OperationEngine →
+   *  exposure → downstream state → audit). Fail-closed: nur Operationen mit
+   *  invocableByAgent:true sind aufrufbar. */
+  async runOperation(
+    sessionId: string,
+    operationId: string,
+  ): Promise<{ id: string; status: string; summary: string }> {
+    const session = this.getSession(sessionId);
+    const op = this.operations[operationId];
+    if (!op) {
+      throw new GuidanceError("operation_not_configured", `operation ${operationId} is not configured`, { recoverable: false });
+    }
+    if (op.invocableByAgent !== true) {
+      throw new GuidanceError("agent_invocation_denied", `operation ${operationId} is not marked invocableByAgent`, { recoverable: true });
+    }
+    if (this.runningOps.has(sessionId)) {
+      throw new GuidanceError("operation_in_progress", `an operation is already running for session ${sessionId}`, { recoverable: true });
+    }
+    this.acquireWorkspaceOpLock();
+    this.runningOps.add(sessionId);
+    const startedAt = Date.now();
+    try {
+      if (session.status !== "active") {
+        return { id: operationId, status: "failed", summary: `session is ${session.status}` };
+      }
+      const run = await this.operationEngine.execute(op, this.ctxFor(session), 1);
+      const cancelled = this.sessions.load(sessionId).status === "cancelled";
+      // FR-110 (kooperativ): Cancel/Timeout verwirft das Ergebnis; der
+      // Kindprozess selbst wird über den op-Timeout (SIGTERM) beendet —
+      // spawnSync erlaubt keinen harten Kill mid-run (dokumentierte
+      // Limitation, siehe README).
+      if (cancelled) {
+        this.audit.append({
+          sessionId,
+          eventType: "operation_invoked",
+          data: { operationId, status: "cancelled", durationMs: Date.now() - startedAt, via: "run_operation" },
+        });
+        return { id: operationId, status: "failed", summary: "session cancelled during operation; result discarded" };
+      }
+      this.recordDownstreamState(sessionId, run.operationId, run.status, run.summary);
+      this.audit.append({
+        sessionId,
+        eventType: "operation_invoked",
+        data: { operationId, status: run.status, durationMs: Date.now() - startedAt, via: "run_operation" },
+      });
+      return this.exposeOpResult(run, op);
+    } catch (err) {
+      this.audit.append({
+        sessionId,
+        eventType: "operation_invoked",
+        data: { operationId, status: "failed", durationMs: Date.now() - startedAt, via: "run_operation" },
+      });
+      throw err;
+    } finally {
+      this.runningOps.delete(sessionId);
+      this.releaseWorkspaceOpLock();
+    }
   }
 
   private ctxFor(session: {

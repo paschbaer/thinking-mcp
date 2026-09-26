@@ -49,6 +49,9 @@ export const ERROR_CODES = [
   "data_egress_denied",
   "fallback_unavailable",
   "nested_request_limit_exceeded",
+  // spec 003: toolchain-bootstrap / run_operation
+  "agent_invocation_denied",
+  "operation_in_progress",
   // Spec-Kit profile
   "spec_kit_feature_in_use",
   "spec_kit_not_enabled",

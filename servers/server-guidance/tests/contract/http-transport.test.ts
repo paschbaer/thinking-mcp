@@ -59,7 +59,7 @@ describe("HTTP transport (FR-027 loopback-only)", () => {
       })) as { status: number; json: () => Promise<{ result?: { tools?: unknown[]; content?: { text: string }[] } }> };
     const list = await call({ jsonrpc: "2.0", id: 1, method: "tools/list" });
     expect(list.status).toBe(200);
-    expect(((await list.json()).result?.tools as unknown[]).length).toBe(20); // 17 workflow + 3 setup tools
+    expect(((await list.json()).result?.tools as unknown[]).length).toBe(21); // 18 workflow + 3 setup tools
     const start = await call({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "start_workflow", arguments: { workspaceRoot: ws, request: "http-demo" } } });
     expect(start.status).toBe(200);
     const parsed = JSON.parse((await start.json()).result?.content?.[0]?.text ?? "{}") as { accepted: boolean; currentPhase: string };

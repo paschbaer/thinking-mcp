@@ -667,6 +667,43 @@ phase (a required failure at session start starts the session `blocked`).
 }
 ```
 
+## Verification in other languages (toolchain bootstrap)
+
+The image ships bootstrap tooling — `node`/`npm` plus `python3` and a pinned
+`uv` binary (see `ARG UV_VERSION` in the Dockerfile; upgrade deliberately).
+Project toolchains are **not** baked into the image: they are installed
+lazily, server-side, from the workspace lockfile. See
+`examples/python-guidance/` for a full profile.
+
+Pattern for any language:
+
+1. **Bootstrap op** (e.g. `toolchain-sync`): a `process` operation that
+   installs the pinned environment — for Python: `uv sync --locked`.
+   `--locked` is fail-closed: a missing **or stale** lockfile fails the
+   operation instead of installing anything (verified: `--frozen` would
+   install a stale lock silently).
+2. **Verification ops** (e.g. `lint`/`test`/`check`): `process` operations
+   via `uv run --locked ...` — they never mutate the lockfile. Caveat: on a
+   missing/empty venv they still install from the lockfile; run the
+   bootstrap op first.
+3. **On-demand execution**: mark operations with `"invocableByAgent": true`
+   to make them callable via the `run_operation` tool. Unmarked operations
+   are rejected with `agent_invocation_denied` (fail-closed). On-demand
+   results are advisory — the authoritative verdict remains the lifecycle
+   execution in the `verify` phase.
+
+Concurrency: one operation per session at a time (FR-107); venv-mutating
+operations serialize across sessions via a workspace lock file (FR-109);
+cancelled/timed-out operations discard their result and release the lock
+(FR-110, cooperative — the underlying `spawnSync` enforces termination via
+SIGTERM at the operation timeout, it cannot hard-kill mid-run).
+
+**venv caveat:** the venv lives in the workspace (`/workspace/.venv`) and
+contains Linux binaries — do not use it from a Windows host bind mount.
+`uv` rebuilds a broken/mismatched venv on the next run. `toolchain-sync`
+accesses the network (PyPI); it is classified `workspace_write` and can be
+made approval-gated via `policies.json`.
+
 ### `policies.json` — security (excerpt)
 
 ```json
