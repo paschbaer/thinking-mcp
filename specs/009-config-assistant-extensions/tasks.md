@@ -19,8 +19,8 @@
 
 - [ ] T6 Referenz-Validierung: alle Dateien existieren + laden; Profil-Gleichheit
   (FR-902/908, AC-6)
-- [ ] T7 Adopt-Generator: Kopie workflow/policies/schemas; Regeneration
-  responses (ohne Referenz-Shell-Satz, F-4) + operations (buildOperations,
+- [ ] T7 Adopt-Generator: Kopie workflow/schemas; Regeneration policies
+  (buildPolicies, FR-910), responses (ohne Referenz-Shell-Satz, F-4) + operations (buildOperations,
   F-1); guidance.json mit `adoption`-Block (FR-906, AC-4)
 - [ ] T8 Anpassungsliste: nicht-generische Referenz-Ops erkannt → notes +
   adoption-Block (FR-903)
