@@ -872,3 +872,10 @@ Anlass: Nutzer-Befund am Niyama-Beispiel — guidance ist aktuell single-repo ve
 - [ ] L2 LOW: Lock-Map-Cap 64 nicht strikt (held Entries werden nicht evicted — bewusst sicher); FR-705-Wortlaut präzisieren. Trigger: Multi-Workspace > 64.
 - [ ] L3 LOW: Router-Objekt per Cast als OperationEngine — künftige Member-Zugriffe zur Laufzeit ungeschützt. Trigger: neue Engine-Member-Nutzung.
 - [ ] L4 INFO: SC-604 Remote-Parallelität nur lokal getestet (SC-503); Remote-Level-Parallelitätstest bei Bedarf. SIGKILL-Observation bleibt getrackt (siehe Feature 004-Rest).
+
+## Getrackte Follow-ups (2026-09-27, Feature 008 LOW-Residue Closure — GELÖST)
+Branch feature/low-residue-closure. Suite 314/314 + tsc + build grün (Container).
+- [x] Interleaving-Parität GELÖST (FR-801, Doku+Test): getrennte Stream-Erfassung dokumentiert (keine Cross-Stream-Ordering-Garantie, POSIX); pinning test (alternierender out/err-Child) in operation-engine-async.test.ts.
+- [x] Router-Cast-Robustheit GELÖST (FR-802): Router als Proxy — unbekannte Member werden funktionsgebunden an die Downstream-Engine weitergeleitet; then/catch/finally + Target-Properties ausgenommen; Regressionstest in tools-run-operation.test.ts.
+- [x] Lock-Cap-Wortlaut GELÖST (FR-803): specs/007 FR-705 = soft cap 64, held nie evicted, temporäres Überschreiten unter Contention möglich; memory-bank L-2-Rest synchronisiert.
+- [x] L253-Ersatz GELÖST (FR-804): prompts/capture-lessons.prompt.md im Paket (files-Eintrag, Master-Header-Verweis), README-Nutzungsabschnitt. L253 bleibt obsolet-closed mit Verweis auf FR-804.
