@@ -23,7 +23,7 @@
   Muster-Treffer, `submission_invalid` sonst); Contract-Doku — FR-954
   (Evidence: SpecKitEngine.ts DOCS_RELEVANT_PATTERNS + Validierung; Contract specs/002 aktualisiert)
 - [x] T7 lifecycle-Tests: docsImpact fehlt/`none`/`updated:` (AC-5)
-  (Evidence: tests/speckit/lifecycle.test.ts, 3 Tests, speckit-Suite 52/52 grün)
+  (Evidence: tests/speckit/lifecycle.test.ts, 4 Tests, speckit-Suite 53/53 grün; Review: Segment-Matching + Bare-'none'-Fall ergänzt)
 
 ## P4 — Docs & Sanierung
 

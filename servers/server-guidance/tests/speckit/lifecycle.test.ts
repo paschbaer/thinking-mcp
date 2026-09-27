@@ -56,14 +56,23 @@ describe("docsImpact enforcement (specs/010 FR-954, AC-5)", () => {
   it("accepts docsImpact 'updated: <file>' and defaults to 'none' when not docs-relevant", () => {
     const { engine, state } = importState();
     startT001(engine, state);
-    engine.submitImplementation(state, "b1", [{ taskId: "T001", summary: "s", changedFiles: ["src/integrations/spec-kit/SpecKitEngine.ts"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [], docsImpact: "updated: README.md" }]);
-    expect(state.tasks["T001"]!.implementation!.docsImpact).toBe("updated: README.md");
+    engine.submitImplementation(state, "b1", [{ taskId: "T001", summary: "s", changedFiles: ["servers/server-guidance/README.md"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [], docsImpact: "updated: servers/server-guidance/README.md" }]);
+    expect(state.tasks["T001"]!.implementation!.docsImpact).toBe("updated: servers/server-guidance/README.md");
     engine.transitionTask(state, "T001", "completed");
     engine.releaseBatch(state, "single", "b2");
     // non-docs-relevant: docsImpact optional, stored default "none"
     engine.startTask(state, "b2", ["T002"]);
     engine.submitImplementation(state, "b2", [{ taskId: "T002", summary: "d", changedFiles: ["src/util.ts"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [] }]);
     expect(state.tasks["T002"]!.implementation!.docsImpact).toBe("none");
+  });
+
+  it("rejects bare 'none' (no reason) and near-miss paths on docs-relevant hits (segment-boundary matching)", () => {
+    const { engine, state } = importState();
+    startT001(engine, state);
+    expect(() => engine.submitImplementation(state, "b1", [{ taskId: "T001", summary: "s", changedFiles: ["specs/010/spec.md"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [], docsImpact: "none" }])).toThrowError(/submission_invalid|docsImpact/);
+    // segment-boundary: "docs/myspecs/a.md" does not match "specs/", "src/config.tsx" does not match "src/config.ts"
+    engine.submitImplementation(state, "b1", [{ taskId: "T001", summary: "s", changedFiles: ["docs/myspecs/a.md", "src/config.tsx"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [] }]);
+    expect(state.tasks["T001"]!.implementation!.docsImpact).toBe("none");
   });
 });
 
