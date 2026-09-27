@@ -667,6 +667,16 @@ phase (a required failure at session start starts the session `blocked`).
 }
 ```
 
+## Remote sessions & downstream operations (spec 007 / amendment 004)
+
+Remote sessions execute downstream MCP operations (`server`/`capability`)
+**server-side** through the same trust stack as local workflows (allowlist,
+egress, capability pins, redaction, audit) with an isolated `ClientManager`
+per session. Client-executable operations keep the one-time report-token
+flow. `required` downstream operations block the transition like local
+workflows. `get_metrics` is available per remote session and includes
+connection health with `lastSuccessfulRequestAt`.
+
 ## Metrics (spec 005, FR-059)
 
 Every operation execution is recorded (counts by outcome, duration

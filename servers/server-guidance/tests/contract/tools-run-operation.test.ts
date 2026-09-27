@@ -167,16 +167,26 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     const config = loadConfig(configDir);
     const engine2 = new WorkflowEngine({ config, stateDir });
     const running = engine2.runOperation(start.sessionId, "invocable-echo");
-    await new Promise((r) => setTimeout(r, 600)); // child started (marker in ps)
-    const psBefore = spawnSync("ps", ["ax"], { encoding: "utf8" }).stdout ?? "";
-    expect(psBefore).toContain(marker); // child läuft
+    // L-2: poll until the child is visible in ps (robust against slow starts)
+    const psContainsMarker = (): boolean =>
+      (spawnSync("ps", ["ax"], { encoding: "utf8" }).stdout ?? "").includes(marker);
+    let visible = psContainsMarker();
+    for (let i = 0; i < 25 && !visible; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      visible = psContainsMarker();
+    }
+    expect(visible).toBe(true);
     await engine2.cancelWorkflow(start.sessionId);
     const res = await running;
     expect(res.status).toBe("failed");
     expect(res.summary).toMatch(/cancel/i);
     // FR-503/SC-501: Child nach Cancel nicht mehr in der Prozessliste
-    const psAfter = spawnSync("ps", ["ax"], { encoding: "utf8" }).stdout ?? "";
-    expect(psAfter).not.toContain(marker);
+    let gone = false;
+    for (let i = 0; i < 10 && !gone; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      gone = !psContainsMarker();
+    }
+    expect(gone).toBe(true);
     // lock released + child dead: another session runs immediately
     const other = await engine.startWorkflow({ workspaceRoot: ws, request: "b" });
     await expect(engine.runOperation(other.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });

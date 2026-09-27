@@ -34,12 +34,20 @@ import {
 } from "node:fs";
 import { randomUUID, createHash } from "node:crypto";
 import { join, resolve } from "node:path";
+import { realpathSync } from "node:fs";
 import { GuidanceError } from "../types/errors.js";
 
-/** spec 006 FR-502 (R-008a): lock file per workspaceRoot (sha256-16hex
- *  suffix) — different workspaces no longer over-serialize each other. */
+/** spec 006 FR-502 (R-008a): lock file per workspaceRoot (realpath-based
+ *  sha256-16hex suffix — L-4) — different workspaces no longer
+ *  over-serialize each other. */
 export function workspaceLockFile(stateDir: string, workspaceRoot: string): string {
-  const key = createHash("sha256").update(resolve(workspaceRoot)).digest("hex").slice(0, 16);
+  let base: string;
+  try {
+    base = realpathSync(workspaceRoot);
+  } catch {
+    base = resolve(workspaceRoot); // Pfad existiert evtl. noch nicht
+  }
+  const key = createHash("sha256").update(base).digest("hex").slice(0, 16);
   return join(stateDir, `workspace-ops.${key}.lock`);
 }
 

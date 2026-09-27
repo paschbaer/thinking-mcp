@@ -238,7 +238,7 @@ export class RemoteSessionManager {
       // FR-102.2: In-memory-Validierung durch Komposition (wirft bei invalid).
       // N1-Fix: bei Fehler wird der verbrauchte Quota-Slot zurückgerollt.
       composition = composeApplication(wsRootFor(sessionId), cfgDir, join(dir, "state"), {
-        operationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
+        clientOperationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
         skipScaffold: true,
       });
     } catch (err) {
@@ -384,7 +384,7 @@ export class RemoteSessionManager {
     const ledger = new ClientOpLedger();
     const dir = this.sessionDir(meta.sessionId);
     const composition = composeApplication(wsRootFor(meta.sessionId), this.configDir(meta.sessionId), join(dir, "state"), {
-      operationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
+      clientOperationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
       skipScaffold: true,
     });
     const session: RemoteSession = { meta, composition, ledger };

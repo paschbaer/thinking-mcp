@@ -277,4 +277,14 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     sessionId,
     async ({ sessionId: sid }) => { manager.resolve(sid); return toJson(await toolsOf(manager.resolve(sid)).getDownstreamStatus()); },
   );
+
+  server.tool(
+    "get_metrics",
+    "spec 005 FR-402: aggregierte Metriken der Session (Operation-Counter, Laufzeiten, Connection-Health)",
+    sessionId,
+    async ({ sessionId: sid }) => {
+      manager.resolve(sid);
+      return toJson(await toolsOf(manager.resolve(sid)).getMetrics());
+    },
+  );
 }

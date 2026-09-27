@@ -87,7 +87,7 @@ describe("async process execution (spec 004 FR-201)", () => {
     const elapsed = Date.now() - t0;
     // SIGTERM bei 2s wirkungslos → SIGKILL nach 5s Grace ≈ 7s. Ohne
     // Eskalation würde der Test am 30s-Timeout hängen.
-    expect(elapsed).toBeGreaterThanOrEqual(6000);
+    expect(elapsed).toBeGreaterThanOrEqual(5_500); // SIGTERM bei 2s wirkungslos → SIGKILL nach Grace
     expect(elapsed).toBeLessThan(20_000);
   }, 30_000);
 

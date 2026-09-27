@@ -842,6 +842,16 @@ Umsetzung (Option A):
   Punkte (historisch 25/25) verlieren; ggf. debug-Flag als Option exponieren.
   Evaluation zusammen mit CB-22-Rescan. Trigger: nächster Release/Publish.
 
+## Getrackte Follow-ups (2026-09-27, Feature 007 Remote Downstream Execution — LOW-Reste GELÖST)
+Branch feature/remote-downstream-execution. Suite 312/312 + tsc + build grün (Container).
+- [x] F3 GELÖST (FR-704): recordConnection nach jedem Downstream-Invoke (Status + lastSuccessfulRequestAt); ConnectionSnapshot erweitert; get_metrics führt Live + Persistiertes zusammen.
+- [x] F5 GELÖST (Wortlaut): Spec-005 FR-404 nennt Opak-Token; HMAC entfällt (Transport key-authentifiziert) — optionale Härtung getrackt.
+- [x] F7 GELÖST by design: FR-501 (check/burn getrennt + persistierter Report-Token) + SC-502-Test decken das Crash-Fenster; Plan-Eintrag verweist darauf.
+- [x] L-2 GELÖST: ps-/Eskalations-Tests polling-basiert (≤5s), Eskalations-Untergrenze 5,5s.
+- [x] L-4 GELÖST: Lock-Key via realpathSync (Fallback resolve).
+- [x] L-5 GELÖST: workspaceLocks-Cap 64 mit Eviction des ältesten unheld Eintrags.
+- [ ] Residual LOW: SIGKILL-Observation erfolgt indirekt (SIGTERM-deaf Child + Zeitfenster) — direkte pid-Assertion im Eskalationstest möglich. Trigger: nächster Executor-Touch.
+
 ## Getrackte Follow-ups (2026-09-26, Feature 005 Final-Review — Reste)
 Final-Review (fresh subagent 35f63807) über f300cf9..98c4d62: 1 HIGH (F1 metrics.jsonl exponentielles Wachstum durch Replay-Re-Persist) — GEFIXT (replaying-Flag) + Replay-Größen-Regressionstest; F2 SC-401-Integrationstest nachgereicht; F6 catch-Recording; F9 defensive copies. 0 HIGH/CRITICAL offen nach Fixes (304/304 + tsc grün).
 - [ ] F3 LOW: ClientManager-Hook für Verbindungs-Historie zwischen get_metrics-Abrufen fehlt (Live-Merge deckt aktuellen Status); lastSuccessfulRequestAt nicht im Snapshot-Shape. Trigger: Metrics-Ausbau. Action required.
@@ -849,3 +859,8 @@ Final-Review (fresh subagent 35f63807) über f300cf9..98c4d62: 1 HIGH (F1 metric
 - [ ] F7 LOW: Token-Burn vor Persist — Crash-Fenster macht akzeptierten Report einmal replay-bar (128-bit Token, praxisnah). Akzeptiert/dokumentiert.
 - [ ] F8 LOW: Scaffold-Detection false positive (pyproject.toml in JS-Monorepo). Akzeptiert spec-konform; Trigger: Feedback aus Praxis.
 - [x] F4 MEDIUM: tasks.md-Checkboxen mit diesem Commit gesetzt (Hygiene-Regel).
+
+## Getrackte Follow-ups (2026-09-27, Multi-Repo-Fähigkeit Guidance)
+Anlass: Nutzer-Befund am Niyama-Beispiel — guidance ist aktuell single-repo verdrahtet und damit nicht produktionsreif für mehrere Repos.
+- [ ] MR-1 MEDIUM: Workspace-Konzept ist singulär — `composeApplication(workspaceRoot, …)` bindet EIN Root (`src/index.ts:15-16`); `assertWorkspaceInside` (`src/mcp-server/register-tools.ts:82-98`) und `spec_kit_feature_outside_workspace` (`SpecKitEngine.ts:116-120`) lehnen alles außerhalb des EINEN Mounts ab; `.guidance/` (config+state) liegt zwingend im Workspace-Root. Kein Repo-Registry-/Workspace-Registry-Konzept. Trigger: specs/008-multi-workspace (spec.md + plan.md + tasks.md angelegt; Q1–Q5 durch Nutzer entschieden 2026-09-27: 1 Container + Registry, workspaces[] in guidance.json, statisch ohne Laufzeit-Tools, State im Repo, per-Workspace-Lock). Action required: Implementierung P1–P7.
+- [ ] MR-2 LOW: Deployment-Annahme „1 Container = 1 Repo" (docker-compose.override.yml Mount + GUIDANCE_WORKSPACE_ROOT) ist undokumentiert als Produktionsbeschränkung. Trigger: README/Dokumentation-Update. Action required.
