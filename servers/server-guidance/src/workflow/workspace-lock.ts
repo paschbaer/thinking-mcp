@@ -32,9 +32,16 @@ import {
   unlinkSync,
   writeSync,
 } from "node:fs";
-import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { randomUUID, createHash } from "node:crypto";
+import { join, resolve } from "node:path";
 import { GuidanceError } from "../types/errors.js";
+
+/** spec 006 FR-502 (R-008a): lock file per workspaceRoot (sha256-16hex
+ *  suffix) — different workspaces no longer over-serialize each other. */
+export function workspaceLockFile(stateDir: string, workspaceRoot: string): string {
+  const key = createHash("sha256").update(resolve(workspaceRoot)).digest("hex").slice(0, 16);
+  return join(stateDir, `workspace-ops.${key}.lock`);
+}
 
 const MAX_ATTEMPTS = 3;
 const ORPHAN_TTL_MS = 60 * 60 * 1000;
@@ -209,7 +216,7 @@ export class WorkspaceOpLock {
       return;
     }
     for (const entry of entries) {
-      if (!entry.startsWith(`${this.basename}.stolen.`)) continue;
+      if (!entry.startsWith(`${this.basename}.`) || !entry.includes(".stolen.")) continue;
       const full = join(dir, entry);
       try {
         if (Date.now() - statSync(full).mtimeMs > ORPHAN_TTL_MS) unlinkSync(full);

@@ -620,7 +620,7 @@ Branch feature/production-hardening. Suite 302/302 + tsc + build grün (Containe
 - [x] TRACK-Scaffold GELÖST (T009): pyproject.toml-Erkennung erzeugt uv-Op-Set, Tests beide Varianten.
 - [ ] R-006-Residual LOW (bleibt getrackt): SIGKILL-Eskalation wird von keinem Test direkt beobachtet (nur SIGTERM-Settle); pid-Liveness-Assertions fehlen. Trigger: nächster Executor-Touch.
 - [ ] R-008a LOW (bleibt getrackt): Lock global pro stateDir statt pro workspaceRoot.
-- [ ] FR-Nummern-Kollision GELÖST für specs/003 (TRACK-NS); systemübergreifende Konvention „neue Feature-Specs nummerieren FR-4xx/5xx+ fortlaufend" in systemPatterns.md dokumentieren. Trigger: nächste neue Feature-Spec. Action required (klein).
+- [x] Tracking-NS-Rest ERL.: Konventionsnotiz existiert in systemPatterns.md (FR-Namespace-Konvention, Feature 005). „neue Feature-Specs nummerieren FR-4xx/5xx+ fortlaufend" in systemPatterns.md dokumentieren. Trigger: nächste neue Feature-Spec. Action required (klein).
 
 ## Getrackte Follow-ups (2026-09-26, Feature 004 Async Execution — R-006/FR-110 GELÖST)
 Branch feature/async-operation-execution (0c01c01 spec, d606ee2 docs, 8a8abc0 impl). Suite 290/290 + tsc + build grün (Container).

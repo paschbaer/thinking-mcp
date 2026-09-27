@@ -20,6 +20,9 @@ export interface OpReport {
   logs?: string;
   requestId?: string;
   reportedAt: string;
+  /** spec 006 FR-501: the one-time token this report was accepted with —
+   *  enables replay detection across crashes (report+token persisted). */
+  token?: string;
 }
 
 /** Ledger je Session: Operation-ID → letzter Report + One-Time-Report-Tokens
@@ -43,9 +46,18 @@ export class ClientOpLedger {
     return token;
   }
 
-  /** FR-404: Einmal-Binding — nur der passende Token akzeptiert; Burn on
-   *  accept. Mismatch/fehlend/ungekannt → client_report_invalid. */
-  validateAndBurn(operationId: string, token: string | undefined): void {
+  /** spec 006 FR-501: Binding-Prüfung OHNE Burn — der Burn erfolgt erst
+   *  nach erfolgreichem record+persist, damit das Crash-Fenster (Burn vor
+   *  Persist) keinen Replay zulässt: ein bereits gemeldeter Token wird via
+   *  gespeichertem Report-Token als 'already reported' erkannt. */
+  checkReportBinding(operationId: string, token: string | undefined): void {
+    const existing = this.reports.get(operationId);
+    if (existing?.token !== undefined) {
+      if (existing.token !== token) {
+        throw new GuidanceError("client_report_invalid", `operation ${operationId} was already reported (token mismatch)`, { recoverable: true });
+      }
+      throw new GuidanceError("client_report_invalid", `operation ${operationId} was already reported (replay)`, { recoverable: true });
+    }
     const expected = this.pendingTokens.get(operationId);
     if (!expected) {
       throw new GuidanceError("client_report_invalid", `no pending client operation ${operationId}`, { recoverable: true });
@@ -53,6 +65,10 @@ export class ClientOpLedger {
     if (token !== expected) {
       throw new GuidanceError("client_report_invalid", `report token mismatch for ${operationId}`, { recoverable: true });
     }
+  }
+
+  /** FR-404/501: Burn NACH record+persist aufrufen. */
+  burn(operationId: string): void {
     this.pendingTokens.delete(operationId);
   }
 

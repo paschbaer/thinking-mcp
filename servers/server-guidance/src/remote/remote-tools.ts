@@ -85,14 +85,16 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     },
     async ({ sessionId: sid, operationId, status, exitCode, summary, logs, reportToken }) => {
       const session = manager.resolve(sid);
-      // spec 005 FR-404: One-Time-Token-Binding — Report ohne passenden
-      // Token wird abgelehnt (Fabricated/Replayed Evidence).
-      session.ledger.validateAndBurn(operationId, reportToken);
+      // spec 006 FR-501: Binding-Prüfung ohne Burn → record → persist → Burn.
+      // Reihenfolge schließt das Crash-Fenster: nach record+persist erkennt
+      // checkReportBinding Replays über den gespeicherten Report-Token.
+      session.ledger.checkReportBinding(operationId, reportToken);
       session.ledger.record({
-        operationId, status, exitCode, summary, logs,
+        operationId, status, exitCode, summary, logs, token: reportToken,
         reportedAt: new Date().toISOString(),
       }); // requestId: im v1 Ledger über operationId je Transition addressiert
       manager.persistSessionState(session); // L305(a): Report überlebt Restarts
+      session.ledger.burn(operationId);
       // FR-104.3: letzten blockierten Submit automatisch wiederholen.
       const attempt = session.lastAttempt;
       if (attempt) {
