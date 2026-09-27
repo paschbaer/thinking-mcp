@@ -3,7 +3,7 @@
 **Feature ID:** `009-config-assistant-extensions`
 **Basis:** Nutzer-Anfrage 2026-09-27 (Shell-Prompt, Default-Config-Adoption, Template-Idee)
 **Namespace:** FR-901+ (keine Kollision: 008 nutzt FR-801…808)
-**Status:** Draft — Plan-Phase ausstehend
+**Status:** Draft — Q1–Q3 entschieden (2026-09-27); bereit für Plan-Phase
 **Date:** 2026-09-27
 
 ## Overview
@@ -41,21 +41,33 @@ scaffoldet `.guidance/` per Frage-Katalog. Drei Erweiterungen:
   (Setup-Frage mit Default `/workspace/.guidance/`); Validierung: muss
   existieren und eine valide `guidance.json` enthalten, sonst fail-closed
   mit klarer Meldung.
-- **FR-903 Adopt-Subset:** Beim Adopt werden nur prozesstragende Dateien
+- **FR-903 Adopt-Subset (konkretisiert):** Beim Adopt werden nur prozesstragende Dateien
   übernommen (`workflow`, `operations`, `policies`, `responses`,
   `downstream-servers`, `schemas/`); NICHT: `state/`, `workspaces[]`,
   projekt-spezifische Gate-Skript-Argumente (werden auf den neuen
   `project.name`/Pfade umgeschrieben oder als Anpassungs-Hinweis geliefert).
-- **FR-904 Shell-Promotion:** Die `shell`-Antwort wird in den Instructions
-  ALLER Phasen eingebettet (statt nur understand) — oder in einen dedizierten
-  globalen Instruction-Kanal, falls die Workflow-Definition einen solchen
-  erhält. Encoding wie heute (Setup-Satz, Freitext).
+- **FR-904 Shell-Promotion (Q3, entschieden):** Neuer optionaler globaler
+  Instruction-Slot `instructions.global` in `workflow.json` (schema-validiert).
+  Der Shell-Satz wird dort abgelegt und von `WorkflowEngine.guidanceForPublic`
+  **server-seitig vor jede agent-facing Phase-Instruction gesetzt** — Garantie
+  durch Konstruktion: Phasen-Definitionen enthalten den Text nie und können
+  ihn nicht vergessen oder entfernen (kein Opt-out-Feld). Absicherung:
+  Config-Load-Validierung des Slots + Contract-Test über ALLE Phasen.
+  Der bisherige understand-only Einbettungspfad entfällt.
 - **FR-905 Template-Hook (reserviert, nicht implementiert):**
   `generateFiles` erhält einen optionalen Template-Parameter; Sprach-Erkennung
   (Lockfiles/`pyproject.toml`/`*.csproj`) + Template-Auswahl ist Out of Scope
   und wird als Follow-up getrackt.
 
-## Open Questions (vor Plan-Phase zu klären)
+## Decisions (User, 2026-09-27)
+
+- **Q1/Q2:** Sinnvolles Subset beim Adopt — siehe FR-903-Tabelle; repo-spezifische
+  Ops werden nicht übernommen, sondern als Anpassungsliste in `notes` geliefert.
+- **Q3:** Globaler Instruction-Slot `instructions.global` + server-seitige
+  Injektion in `guidanceForPublic` (Garantie durch Konstruktion) statt
+  Duplikation in jeder Phase.
+
+## Superseded Open Questions (historisch, entschieden)
 
 - **Q1 Adopt-Mechanik:** Kopiert der Assistent die Referenzdateien direkt aus
   einem Pfad (FR-902), oder werden die Referenzdateien als eingebettete
@@ -64,9 +76,7 @@ scaffoldet `.guidance/` per Frage-Katalog. Drei Erweiterungen:
   repo-spezifische Gates/Argumente (z. B. `check-final-review.mjs`-Pfade,
   Smithery-Ops). Adopt = 1:1-Kopie mit Anpassungs-Hinweisen, oder Teil-Subset
   (nur workflow/policies, gates nur bei expliziter Zustimmung)?
-- **Q3 Shell-Kanal:** Einbettung in jede Phase-Instruction (einfach, Text-
-  Duplikation) vs. neuer globaler Instruction-Slot in `workflow.json`
-  (sauberer, aber Workflow-Format-Änderung)?
+- ~~Q3 Shell-Kanal~~ → entschieden: globaler Slot + Injektion (siehe Decisions).
 
 ## Acceptance Criteria (entscheidungsunabhängig)
 
