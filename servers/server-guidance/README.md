@@ -300,7 +300,8 @@ Example prompt (fresh):
 > with its options, and once complete generate the files and write them to
 > the project root.
 
-Example prompt (adopt the proven reference configuration):
+Example prompt (adopt the proven reference configuration — self-hosting
+deployment where `/workspace/.guidance/` IS the reference):
 
 > This repo should work with Guidance using the proven reference
 > configuration instead of a fresh one. Run `setup_guidance_start`, answer
@@ -309,6 +310,14 @@ Example prompt (adopt the proven reference configuration):
 > files, and write them to this project's root. Then add `.guidance/state/`
 > to the `.gitignore` and remind me to run `gitnexus analyze --no-stats`
 > here.
+
+> **Deployment note:** `/workspace/.guidance/` only exists in the
+> self-hosting deployment (repo root mounted as `/workspace`). In a
+> container-only deployment (`docker compose up` from the package,
+> `/workspace` = scaffolded volume) there is no proven reference — adopt
+> then requires an explicitly mounted reference directory, or falls back to
+> `fresh`. `validateAdoptReference` fails closed with
+> `adopt source: missing/unreadable file guidance.json` in that case.
 
 ### Error codes
 

@@ -45,10 +45,15 @@ dieses Prinzip gebunden (Testpflicht).
   (N-2): jede in `workflow.json` referenzierte Op muss in der
   regenerierten `operations.json` existieren, sonst fail-closed mit Muster
   `adopt coherence: workflow references unknown op <name>` (R-4).
-- **FR-902 Referenz-Pfad + Komplett-Validierung:** Die Referenzkonfiguration
-  ist eine Setup-Frage (Default: deploymentspezifisch, Container:
-  `/workspace/.guidance/`; bei Nicht-Existenz fail-closed mit Hinweis auf die
-  manuelle Pfadangabe). Validierung umfasst ALLE zu übernehmenden Dateien
+- **FR-902 Referenz-Pfad + Komplett-Validierung (präzisiert nach
+  Container-Only-Befund):** Die Referenzkonfiguration ist eine Setup-Frage.
+  Der Default ist **deploymentspezifisch**: Self-Hosting-Deployment (Repo-Root
+  als `/workspace` gemountet) ⇒ `/workspace/.guidance/`. Container-Only-
+  Deployment (`/workspace` = Scaffold-Volume) ⇒ **keine Referenz vorhanden**;
+  `validateAdoptReference` fail-closed mit `adopt source: missing/unreadable
+  file guidance.json` — der Nutzer wählt dann `fresh` oder mountet eine
+  Referenz explizit. (Ausblick: gebündeltes Template als Referenz — siehe
+  specs/010-Nachfolger / FR-907-Nähe.) Validierung umfasst ALLE zu übernehmenden Dateien
   (existieren + ladbar), nicht nur `guidance.json`: `workflow.json`,
   `policies.json`, `schemas/`, `operations.json`, `downstream-servers.json`,
   `profiles/` (Profil-Lesbarkeit, FR-908), `guidance.json` der Referenz
