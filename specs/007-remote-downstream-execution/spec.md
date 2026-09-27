@@ -4,7 +4,7 @@
 **Implements:** Amendment 004 (FR-601…605, Q1–Q3 defaults locked by user 2026-09-26)
 **Closes tracks:** F3 · F5 · F7 (resolved-by-design) · L-2 · L-4 · L-5
 **Namespace:** neue FRs ab FR-701; Amendment-004-FRs (FR-601…605) werden hier referenziert, nicht neu definiert
-**Status:** Draft
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-26
 
 ## Overview

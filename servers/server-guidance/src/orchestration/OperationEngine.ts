@@ -370,7 +370,8 @@ export class OperationEngine {
         }
       };
       const onOutput = (buf: { toString(): string }, target: "stdout" | "stderr"): void => {
-        // FR-801 (dokumentierte Semantik): stdout und stderr werden in
+        // LR-1 (LOW-Residue-Closure 2026-09-27, ex-"FR-801" — Nummern-
+        // kreisung mit specs/008 bereinigt): stdout und stderr werden in
         // getrennten Puffern erfasst — eine quergestreamte Reihenfolge
         // (out/err interleaved) wird bewusst NICHT garantiert (POSIX-
         // Limitierung ohne Merged-Pipe). Der agent-facing Fehlerpfad nutzt

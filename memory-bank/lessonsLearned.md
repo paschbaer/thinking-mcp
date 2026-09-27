@@ -392,3 +392,6 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
   zu verdrahten, braucht es einen HANGING Transport (im Test über den
   useTransport-Seam: start() never resolves). Erst dann zeigt elapsed<5s bei
   Default 10s, dass der per-Call-Timeout wirklich greift.
+
+## Avoid These Mistakes
+- **sed -i auf CRLF-Dateien (Windows-Checkout):** `sed -i` rewrote komplette Datei (132/132 Zeilen im Diff) statt nur der gematchten Zeile — Zeilenenden wurden normalisiert. Preventive: edits in CRLF-Dateien mit `perl -pi -e` (erhält \r) oder `edit_file`-Tool; danach immer `git diff --stat` auf Zeilenzahl-Plausibilität prüfen.

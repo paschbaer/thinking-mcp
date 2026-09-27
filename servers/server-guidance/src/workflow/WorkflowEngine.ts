@@ -385,7 +385,7 @@ export class WorkflowEngine {
           results: [...downRun.results, ...restRun.results],
         };
       };
-      // FR-802: Proxy — unbekannte Member-Zugriffe werden funktionsgebunden
+      // LR-2 (LOW-Residue-Closure, ex-"FR-802"): Proxy — unbekannte Member-Zugriffe werden funktionsgebunden
       // an die Downstream-Engine weitergeleitet (Robustheit gegen künftige
       // Member-Nutzung; L-3-Rest aus Feature 007). Thenable-Eigenschaften
       // bleiben auf dem Target (Promise-Semantik).

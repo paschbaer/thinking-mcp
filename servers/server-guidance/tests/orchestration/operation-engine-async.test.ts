@@ -91,7 +91,7 @@ describe("async process execution (spec 004 FR-201)", () => {
     expect(elapsed).toBeLessThan(20_000);
   }, 30_000);
 
-  it("FR-801: interleaved out/err child — streams captured separately, op succeeds", async () => {
+  it("LR-1: interleaved out/err child — streams captured separately, op succeeds", async () => {
     const engine = new OperationEngine();
     const res = await engine.execute(
       procOp({

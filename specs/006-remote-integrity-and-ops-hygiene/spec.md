@@ -3,7 +3,7 @@
 **Feature ID:** `006-remote-integrity-and-ops-hygiene`
 **Namespace:** FR-501+, SC-501+ (Fortlaufende Blöcke, siehe systemPatterns-Konvention)
 **Closes tracks:** L305d (Spec) · F7 · R-008a · R-006-Residual · F8 · Phase-3/7a-Reste (Teil) · Tracking-NS-Rest · L253 (Reklassifizierung)
-**Status:** Draft
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-26
 
 ## Overview
