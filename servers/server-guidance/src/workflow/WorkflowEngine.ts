@@ -547,6 +547,16 @@ export class WorkflowEngine {
       const session = this.reconcileRunningOperations(
         this.getSession(sessionId),
       );
+      // specs/008 AC-5 (FR-019 enforcement, agent-facing path): a session
+      // bound to an older configurationVersion fails closed on the next
+      // operation instead of silently continuing on stale config.
+      if (session.configurationVersion !== this.config.configVersion) {
+        throw new GuidanceError(
+          "configuration_invalid",
+          `session ${sessionId} is bound to ${session.configurationVersion}, current configuration is ${this.config.configVersion} (registry/config changed; specs/008 AC-5)`,
+          { recoverable: false },
+        );
+      }
       return session;
     });
   }
@@ -1346,16 +1356,6 @@ export class WorkflowEngine {
     // via getWorkflowState (write-on-read outside the lock caused a
     // lost-update window, review Phase 10-12 Finding 1).
     const session = this.sessions.load(sessionId);
-    // specs/008 AC-5 (FR-019 enforcement): a persisted session bound to an
-    // older configurationVersion fails closed on the next operation instead
-    // of silently continuing on stale config.
-    if (session.configurationVersion !== this.config.configVersion) {
-      throw new GuidanceError(
-        "configuration_invalid",
-        `session ${sessionId} is bound to ${session.configurationVersion}, current configuration is ${this.config.configVersion} (registry/config changed; specs/008 AC-5)`,
-        { recoverable: false },
-      );
-    }
     // Amendment 002 (Crash-Fenster-Fix, Plan-Review F1): eine Successor-Session,
     // deren Lifecycle-Aktivierung nie abgeschlossen hat, wird fail-closed
     // abgelehnt — stiller Gate-Bypass (beforeEnter lief nie) ist ausgeschlossen.
