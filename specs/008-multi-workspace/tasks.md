@@ -42,9 +42,9 @@
 
 ## P4 — Lock-Scoping
 
-- [ ] T11 `WorkspaceOpLock`-Key um Workspace-Identität erweitern;
+- [x] T11 `WorkspaceOpLock`-Key um Workspace-Identität erweitern;
   Invarianten unverändert. — FR-804
-- [ ] T12 Tests: 6-Prozess-Race je Workspace; Cross-Workspace
+- [x] T12 Tests: 6-Prozess-Race je Workspace; Cross-Workspace
   Parallel-Progress (AC-1-Präfix).
 
 ## P5 — Gate-Verdrahtung
@@ -76,3 +76,4 @@
 - T5+T7 completed 2026-09-27 (workspace-binding.test.ts 3/3; Full-Suite 320 passed, 5 pre-existing).
 - T8+T9+T10 completed 2026-09-27 (commit siehe log; build clean, Suite 321 passed / 5 pre-existing).
 - T8+T9+T10 completed 2026-09-27 (9151fbc; build clean, Suite 321 passed / 5 pre-existing).
+- T11+T12 completed 2026-09-27 (FR-804 war durch Feature-006-Scoping + Child-StateDirs erfüllt; Scoping-Tests 5/5, Suite 325 passed / 5 pre-existing).
