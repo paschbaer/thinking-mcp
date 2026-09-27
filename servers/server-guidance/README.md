@@ -1433,7 +1433,7 @@ apply the change twice (request ledger). Submissions are validated against the
 phase's JSON-Schema; validation failures return `submission_invalid` with
 details.
 
-### Workflow tools (17)
+### Workflow tools (19)
 
 | Tool | Parameters | Purpose |
 |---|---|---|
@@ -1454,6 +1454,8 @@ details.
 | `list_configured_operations` | — | Read-only: all operations defined in `operations.json` (no session needed) |
 | `retry_operation` | `sessionId` | Re-runs failed **required** operations of the current phase (transient downstream failures) |
 | `get_downstream_status` | — | Read-only: connection health of all configured downstream servers |
+| `run_operation` | `sessionId`, `operationId` | Runs a configured operation on demand (only operations with `invocableByAgent: true`) |
+| `get_metrics` | — | Read-only: aggregated metrics (operation counters, runtimes, connection health) |
 
 ### Configuration assistant tools (3)
 
@@ -1466,7 +1468,7 @@ Stateless wizard for designing a `.guidance/` configuration — see
 | `setup_guidance_answer` | `answers` | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate` |
 | `setup_guidance_generate` | `answers` | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
-### Spec-Kit tools (12, profile `spec-kit` only)
+### Spec-Kit tools (14, profile `spec-kit` only)
 
 All tools operate on the Spec-Kit state of the session (created by
 `import_spec_kit_artifacts` and persisted per session).
@@ -1484,6 +1486,8 @@ All tools operate on the Spec-Kit state of the session (created by
 | `complete_task` | `sessionId`, `taskId` | Marks a task completed — only after implementation + review + successful verification and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing |
 | `verify_task` | `sessionId`, `batchId?`, `taskId`, `succeeded?`, `executions?` | Writes `task.verification` (write path fix: was read-only, which made `complete_task` unreachable) |
 | `propose_plan_change` | `sessionId`, `changeType`, `reason`, `affectedTasks`, `impact` | Proposes a plan deviation; deterministic `minor`/`major` classification from the change type and impact flags; major changes require artifact update + approval before completion |
+| `approve_plan_change` | `sessionId`, `changeId`, `decision` | Releases or rejects a plan change (terminal decision) |
+| `apply_plan_change` | `sessionId`, `changeId` | Marks a released plan change as applied |
 | `refresh_spec_kit_artifacts` | `sessionId` | Re-imports the artifacts and activates a fresh snapshot (for approved plan changes / external edits) |
 | `get_traceability_report` | `sessionId` | Read-only: acceptance criteria ↔ task coverage |
 | `validate_spec_kit_completion` | `sessionId`, `snapshotCurrent`, `requiredVerificationSucceeded`, `completionOpsSucceeded` | Evaluates the completion invariants (no uncompleted tasks, no open plan changes, criteria coverage, verification) and returns violations |

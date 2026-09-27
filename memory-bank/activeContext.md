@@ -710,3 +710,6 @@
 
 ## 2026-09-27: specs/010 Completion-Phase
 - Review-Fixes (3191d05): Segment-Matching + AC-5-Testlücken. Final-Review durch frischen Sub-Agent: 0 HIGH/CRITICAL unresolved. lint/test-Ops rot = pre-existing non-blocking (Doku in remaining-work-plan). final-review.json + session-lessons.json geschrieben; Index-Refresh nach letztem Commit.
+
+## 2026-09-27: specs/010 Final-Review Runde 2 — 2 HIGH behoben
+- Unabhängiger Final-Review fand: Check-1-Tool-Parität war nie implementiert (No-op) + fehlende Gate-Tests. Beide HIGH gefixt (Segment: check-docs-drift.mjs vollständig umgebaut, tests/scripts/check-docs-drift.test.ts 12 Regressionstests). MEDIUMs (Freitext-Match, Override-Datei, Kapitel-Scoping) + LOWs (.bak-Dirs, Ziffern-Codes, done>0-Guard) ebenfalls gefixt. Gate Exit 0 (35 tools beidseitig), Vollsuite 357/357, tsc grün.

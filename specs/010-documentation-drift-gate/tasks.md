@@ -4,6 +4,10 @@
 
 - [x] T1 `check-docs-drift.mjs`: Tool-Parität (Quelle: SPEC_KIT_TOOL_NAMES +
   WORKFLOW_TOOL_NAMES ↔ README-Tool-Tabelle) — FR-951.1
+  (Evidence: beide Richtungen implementiert (Forward: Tool-Zeile je registriertem Tool;
+  Reverse: README-Tool-Zeile ohne src-Registrierung); Regression: tests/scripts/check-docs-drift.test.ts.
+  Final-Review-Fund "Check 1 No-op" (HIGH) gefixt; dadurch echter Rest-Drift gefunden und saniert:
+  README-Zeilen für run_operation, get_metrics, approve_plan_change, apply_plan_change ergänzt)
 - [x] T2 `check-docs-drift.mjs`: Frage-Katalog-Parität (QUESTIONS-IDs ⊆
   README) + ERROR_CODES-Tabelle-Parität — FR-951.2/3
 - [x] T3 `check-docs-drift.mjs`: Spec-Status-Hygiene (dateibasiert, Draft +
@@ -37,7 +41,8 @@
 ## P5 — Abschluss
 
 - [x] T10 AC-1..AC-4 + N-AC-1..4 als Tests; Vollsuite + tsc + build;
-  Memory-Bank-Update (Evidence: vitest 55 Dateien/344 Tests grün, tsc exit 0,
-  build exit 0; Gate Exit 0; Memory-Bank finalisiert 2026-09-27)
+  Memory-Bank-Update (Evidence: tests/scripts/check-docs-drift.test.ts 12 Tests
+  (AC-1..4 inkl. Override/Kapitel-Scoping/Freitext-Ausschluss, N-AC-1/2/4);
+  Vollsuite 56 Dateien/357 Tests grün, tsc exit 0, build exit 0, Gate Exit 0)
 - Batch 1 (T1-T4) completed 2026-09-27: Gate live, Exit 0 (35 tools, 6 questions, 80 error codes). Negative-Fälle per Design abgedeckt (fehlende README fail-closed, leerer specs-Baum still, kein .git dateibasiert, .bak-Ausnahme).
 - Batch 2 (T5-T10) completed 2026-09-27: Verdrahtung live (docs-drift VOR final-review-gate), docsImpact im Lifecycle erzwungen, Vollsuite grün. Batch-/Task-Lifecycle per dokumentiertem State-Injection-Workaround gesetzt (Client ohne release_batch/verify_task).

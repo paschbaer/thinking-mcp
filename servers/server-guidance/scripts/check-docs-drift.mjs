@@ -50,10 +50,38 @@ if (readme === null) {
 }
 
 // ---- check 1: tool parity (FR-951.1, AC-1) -------------------------------
-// Check direction: registered tools must be DOCUMENTED (missing = drift).
-// The reverse (README rows without a registered tool) is NOT checked — the
-// README legitimately documents more tools than the registered lists
-// (setup_* tools, status codes, parameters).
+// Both directions: every registered tool must have a README tool-table row
+// (tool id at line start of a table row), and every README tool-table row id
+// must have a source (registered tool name in src/).
+const toolRefMatch = readme.match(/^## Tool reference[\s\S]*?(?=^## )/m);
+const toolTable = toolRefMatch ? toolRefMatch[0] : "";
+const readmeToolIds = [...toolTable.matchAll(/^\| `([a-z_0-9]+)`/gm)].map((m) => m[1]);
+const toolSet = new Set(allTools);
+for (const tool of allTools) {
+  if (!readmeToolIds.includes(tool)) {
+    report(`tool ${tool}`, "README tool-table row (id at line start)", "missing");
+  }
+}
+const serverToolRe = /server\.tool\(\s*"([a-z_0-9]+)"/g;
+const registeredSources = new Set(allTools);
+const mcpDir = join(repoRoot, "servers/server-guidance/src");
+const scanTs = (dir) => {
+  if (!existsSync(dir)) return;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name);
+    if (entry.isDirectory()) scanTs(p);
+    else if (entry.name.endsWith(".ts")) {
+      const src = read(p);
+      if (src) for (const m of src.matchAll(serverToolRe)) registeredSources.add(m[1]);
+    }
+  }
+};
+scanTs(mcpDir);
+for (const id of readmeToolIds) {
+  if (!registeredSources.has(id)) {
+    report(`README tool row ${id}`, "registered tool name in src", "no source");
+  }
+}
 
 // ---- check 2: question catalog parity (FR-951.2, AC-2) -------------------
 const assistantPath = join(repoRoot, "servers/server-guidance/src/setup/ConfigAssistant.ts");
@@ -63,8 +91,11 @@ if (assistantSrc === null) {
   process.exit(1);
 }
 const questionIds = [...assistantSrc.matchAll(/^\s{4}id: "([a-z_0-9]+)",$/gm)].map((m) => m[1]);
+// Spec FR-951.2: scoped to the README assistant chapter, not the whole file.
+const chapterMatch = readme.match(/^## Configuration assistant[\s\S]*?(?=^## )/m);
+const assistantChapter = chapterMatch ? chapterMatch[0] : "";
 for (const id of questionIds) {
-  if (!readme.includes(`\`${id}\``)) report(`question ${id}`, "documented in README assistant chapter", "missing");
+  if (!assistantChapter.includes(`\`${id}\``)) report(`question ${id}`, "documented in README assistant chapter", "missing");
 }
 
 // ---- check 3: error codes table (FR-951.3, AC-3) -------------------------
@@ -74,27 +105,29 @@ if (errorsSrc === null) {
   console.error(`docs drift: missing/unreadable source file ${errorsPath}`);
   process.exit(1);
 }
-const errorCodes = [...errorsSrc.matchAll(/^\s{2}"([a-z_]+)",$/gm)].map((m) => m[1]);
+const errorCodes = [...errorsSrc.matchAll(/^\s{2}"([a-z_0-9]+)",$/gm)].map((m) => m[1]);
 for (const code of errorCodes) {
-  if (!readme.includes(`\`${code}\``)) report(`error code ${code}`, "documented in README", "missing");
+  // Spec FR-951.3: code must start a table row — free-text matches do not count.
+  if (!new RegExp("^\\| `" + code + "`", "m").test(readme)) report(`error code ${code}`, "README error-codes table row", "missing");
 }
 
 // ---- check 4: spec status hygiene (FR-951.4, AC-4) -----------------------
 const specsDir = join(repoRoot, "specs");
 if (existsSync(specsDir)) {
   for (const id of readdirSync(specsDir)) {
+    if (id.endsWith(".bak") || id.includes("~")) continue; // N-AC-4: backups out
     const specFile = join(specsDir, id, "spec.md");
     const tasksFile = join(specsDir, id, "tasks.md");
     if (!existsSync(specFile) || !existsSync(tasksFile)) continue;
     const spec = read(specFile);
     if (spec === null) continue;
     const statusMatch = spec.match(/^\*\*Status:\*\* (.+)$/m);
-    if (!statusMatch || !statusMatch[1].startsWith("Draft")) continue;
+    // Spec FR-951.4: override comment lives in spec.md (documented escape hatch).
+    if (!statusMatch || !statusMatch[1].startsWith("Draft") || spec.includes("docs-drift: status ok")) continue;
     const tasks = read(tasksFile) ?? "";
     const open = (tasks.match(/^- \[ \] /gm) ?? []).length;
-    const done = (tasks.match(/^- \[x\] /gm) ?? []).length;
-    if (open === 0 && done > 0 && !tasks.includes("docs-drift: status ok")) {
-      report(`spec ${id}`, "status updated (all tasks done, status still Draft)", "Draft");
+    if (open === 0) {
+      report(`spec ${id}`, "status updated (no open checkboxes, status still Draft)", "Draft");
     }
   }
 }
