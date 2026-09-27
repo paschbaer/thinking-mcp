@@ -685,3 +685,9 @@
 ## 2026-09-27: MCP-Timeout-Diagnose (clearthought/gitnexus) — Ursache clientseitig
 - Wiederkehrende `Context server request timeout`-Fehler verifiziert: Container healthy, Logs 24h ohne error/timeout/warn, direkter curl-MCP-Roundtrip gegen :3000/mcp = ~160 ms. Server-Seite exkulpiert → Ursache ist der Zed-MCP-Client/HTTP-Transport (eigener, kürzerer Request-Timeout; abgebrochener SSE-Stream kaskadiert).
 - Workarounds: schwere GitNexus-Ops via CLI statt MCP; nach Timeout MCP-Session im Editor neu starten. Lesson in lessonsLearned.md (Avoid These Mistakes, 2026-09-27) dokumentiert. Befund :4747 = Web-UI, kein /mcp-Endpunkt.
+
+## 2026-09-27: Spec-009 Delta-Re-Review R-1…R-5 (Commit 7f9065f, spec-only)
+- R-1 gelöst in spec.md (FR-901/903: Kopierliste = workflow.json + schemas/, policies via FR-910 regeneriert) — ABER plan.md (L18, L46-47) und tasks.md (T7) nennen policies.json weiterhin als „kopiert" (widerspricht FR-910/T13). → N-D1 (MEDIUM) getrackt.
+- R-2 gelöst (FR-902: Referenz-guidance.json lesbar + profile-Feld auswertbar), R-3 gelöst (AC-3 differenzierter Golden-File-Vergleich, testbar via T5), R-4 gelöst (Muster „adopt coherence: workflow references unknown op <name>", AC-9), R-5 weitgehend gelöst (Ziel-.guidance-Ausschluss + Symlink-Regel für schemas/); Restvektor: Check nicht als realpath/resolve-basiert spezifiziert → N-D2 (LOW).
+- Weitere: N-D3 (LOW) FR-909 referenziert aber nicht definiert; N-D4 (INFO) FR-902 Satzbruch durch R-5-Einschub, plan.md-Typo „und宵".
+- Urteil: 0 HIGH/CRITICAL offen → Spec FREIGEGEBEN; Plan/Tasks brauchen 1-Zeilen-Fix (N-D1) vor/vor Implementation.

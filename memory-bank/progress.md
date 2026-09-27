@@ -448,3 +448,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - docker-compose.override.yml: relative Mounts ../../:/workspace + ../../../:/workspaces (Repo-Pool, D:/repos) — keine absoluten Pfade mehr; Niyama als /workspaces/Niyama registriert (workspaces[] in .guidance/guidance.json), /health zeigt beide reachable.
 - Scaffold erweitert: ensureConfiguration/scaffoldIfMissing nehmen workspaceRoot und schreiben den Default-Workspace explizit in die generierte guidance.json (FR-801/806) — Registry ab Tag 1 sichtbar/editierbar.
 - CRLF-Lesson erneut bestätigt (main.ts): node-Patches CRLF-safe via Regex.
+
+## 2026-09-27: Spec-009 Delta-Re-Review (R-1…R-5)
+- What works: Alle 5 R-Fixes in spec.md verifiziert (R-1 inhaltlich gelöst, R-2/R-3/R-4 gelöst, R-5 weitgehend); 0 HIGH/CRITICAL offen → Spec freigegeben.
+- What's left: N-D1 (plan/tasks policies-Kopie-Restdrift, MEDIUM), N-D2/N-D3 (LOW), N-D4 (INFO) — in remaining-work-plan.md getrackt.
+- Current State: Spec 009 plan-reif nach 1-Zeilen-Fix N-D1 in plan.md/tasks.md.
