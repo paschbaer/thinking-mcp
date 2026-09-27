@@ -462,3 +462,10 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 ## 2026-09-27: specs/009 merged, develop gepusht, Container mit Multi-Workspace + 009 neu gebaut
 - /health zeigt niyama + thinking-mcp beide reachable (T17 live).
 - Live-Validierung (Niyama-Onboarding) erfolgt durch den Nutzer mit bereitgestelltem Prompt (siehe Chat).
+
+## 2026-09-27: Session-Handoff — specs/010 Implementierung läuft (T1-T4 done, T5-T10 offen)
+- Guidance-Session session-6f80021f-6555-4c94-bb51-0fd3b4a32dba: Phase implement, Batch b1-gate-script (T1-T4) in_progress — Zustand persistiert (persistAfterEveryOperation), Wiederaufnahme per import_spec_kit_artifacts + Batch-Release via State-Injection (Workaround dokumentiert).
+- DONE in dieser Session: Gate-Skript check-docs-drift.mjs (4 Checks, rein lesend), erster Gate-Lauf fand echten Drift → saniert (Exit 0). Q3-Sanierung 80 ERROR-Codes-Tabelle + Status-Hygiene. Q1/Q2 umgesetzt: docsImpact-Feld NOCH NICHT implementiert (T6/T7 offen)!
+- OFFEN für nächste Session: T5 (operations.json + workflow.json beforeExit-Reihenfolge VOR final-review-gate), T6/T7 (docsImpact-Feld + lifecycle-Tests), T8 (README-Assistenten-Kapitel für 009), T9/T10 (Final-Regression + Memory-Bank).
+- WICHTIG: 009-Tasks T3-T15 aus tasks.md 009 sind NICHT die 010-Tasks — 010 hat eigenes T1-T10 (siehe specs/010-documentation-drift-gate/tasks.md, Stand: T1-T4 offen als nächster Implementierungsschritt).
+- Push: develop ist ahead (Stand: 3d47b53 +以下). feature/config-assistant-extensions gemerged (009-Teil 1). Restliche Feature-Branches sind Parallel-Chat-Arbeit.
