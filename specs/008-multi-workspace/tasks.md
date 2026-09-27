@@ -75,3 +75,4 @@
 - T3+T4+T6 completed 2026-09-27 (commit 5e7b8b8; Suite 315-317 passed, nur 5 pre-existing Gate-Failures).
 - T5+T7 completed 2026-09-27 (workspace-binding.test.ts 3/3; Full-Suite 320 passed, 5 pre-existing).
 - T8+T9+T10 completed 2026-09-27 (commit siehe log; build clean, Suite 321 passed / 5 pre-existing).
+- T8+T9+T10 completed 2026-09-27 (9151fbc; build clean, Suite 321 passed / 5 pre-existing).
