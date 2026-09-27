@@ -255,30 +255,56 @@ call. Flow (which tool when) — the full configuration reference follows in
 
 | Step | Tool | Purpose |
 |---|---|---|
-| 1 | `setup_guidance_start` | Returns the question catalog (7 questions) and the first question with help text and options |
+| 1 | `setup_guidance_start` | Returns the question catalog (9 questions) and the first question with help text and options |
 | 2 | `setup_guidance_answer` `{answers}` | Takes the accumulated answers, validates them, and returns the next open question |
 | 3 | … repeat `setup_guidance_answer` | Until `done: true` — then `nextTool` points to `setup_guidance_generate` |
 | 4 | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload |
 | 5 | Agent writes the files | The server deliberately writes nothing — the agent places the files in the project root with its file tools |
 | 6 | Restart the server / new session | Config is snapshotted per session (`configurationVersion`) |
 
-Question catalog v1: `projectName`, `transport` (stdio / http-docker —
-controls `localhost` vs. `host.docker.internal` URLs and the egress
-allowlist), `profile` (plain / spec-kit), `shell` (optional, agent-facing —
-embedded in the understand instruction, because strict config validation
-would reject a `guidance.json` field), `insight` and `gitnexus` (on/off —
-control the downstream entries and their gates) and the gates preset
-(`standard`: lint opt + test opt + build REQ · `minimal`: build REQ only).
+Question catalog v2: `configSource` (**fresh / adopt** — see below),
+`projectName`, `transport` (stdio / http-docker — controls `localhost` vs.
+`host.docker.internal` URLs and the egress allowlist), `referencePath`
+(adopt only: path to the reference `.guidance/` directory), `profile`
+(plain / spec-kit — locked to the reference when adopting), `shell`
+(optional, agent-facing — placed in `workflow.json` `instructions.global`
+and injected into EVERY phase instruction), `insight` and `gitnexus`
+(on/off — control the downstream entries and their gates) and the gates
+preset (`standard`: lint opt + test opt + build REQ · `minimal`: build REQ
+only). Generation returns all six config files plus the seven submission
+schemas (from `examples/default-guidance/schemas`; if the directory is
+missing from the installation, the agent receives a copy hint instead of an
+error).
+
+**Adopt mode (`configSource: "adopt"`):** instead of building everything
+from answers, the proven reference configuration is used as the base —
+`workflow.json` and `schemas/` are copied (with the shell answer placed in
+`instructions.global`), `operations.json` / `policies.json` /
+`downstream-servers.json` are **regenerated** from your remaining answers,
+and an `adoption` block records the source. Repo-specific values (paths,
+project name, workspaces, shell) are **never inherited** — they always come
+from your answers. Non-generic reference operations are listed as manual
+adaptation hints instead of being silently copied.
 Generation returns all six config files plus the seven submission schemas
 (from `examples/default-guidance/schemas`; if the directory is missing from
 the installation, the agent receives a copy hint instead of an error).
 
-Example prompt:
+Example prompt (fresh):
 
 > Use the configuration assistant to create a `.guidance/` configuration for
 > this project: run `setup_guidance_start`, walk me through every question
 > with its options, and once complete generate the files and write them to
 > the project root.
+
+Example prompt (adopt the proven reference configuration):
+
+> This repo should work with Guidance using the proven reference
+> configuration instead of a fresh one. Run `setup_guidance_start`, answer
+> `configSource` with `adopt`, use `/workspace/.guidance/` as the
+> reference path, walk me through the remaining questions, generate the
+> files, and write them to this project's root. Then add `.guidance/state/`
+> to the `.gitignore` and remind me to run `gitnexus analyze --no-stats`
+> here.
 
 ## Using Guidance inside an agent (chat)
 
