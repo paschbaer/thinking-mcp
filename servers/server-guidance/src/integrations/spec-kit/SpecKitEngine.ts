@@ -11,6 +11,16 @@ import { randomUUID } from "node:crypto";
 import { GuidanceError } from "../../types/errors.js";
 import { parseTasks, PARSER_VERSION, type ParsedTask } from "./parser.js";
 
+/** specs/010 FR-954: documentation-relevant paths — a changedFiles hit makes docsImpact mandatory in submit_task_implementation evidence. */
+export const DOCS_RELEVANT_PATTERNS = [
+  "src/mcp-server/",
+  "src/setup/",
+  "src/config.ts",
+  "src/types/errors.ts",
+  "specs/",
+  "README.md",
+] as const;
+
 export type TaskStatus =
   | "pending" | "ready" | "in_progress" | "implemented" | "review_required"
   | "fix_required" | "verification_required" | "verified" | "completed"
@@ -48,7 +58,7 @@ export interface SpecTask {
   linkedCriteria: { id: string; source: "parsed" | "asserted" }[];
   affectedFiles: string[];
   source: { artifact: string; relativePath: string; line: number; contentHash: string };
-  implementation?: { summary: string; changedFiles: string[]; createdFiles: string[]; deletedFiles: string[]; testsAddedOrUpdated: string[]; deviations: unknown[]; unresolvedIssues: string[] };
+  implementation?: { summary: string; changedFiles: string[]; createdFiles: string[]; deletedFiles: string[]; testsAddedOrUpdated: string[]; deviations: unknown[]; unresolvedIssues: string[]; docsImpact?: string };
   review?: { findings: { findingId: string; severity: string; fixRequired: boolean; fixApplied: boolean }[]; unresolved: string[] };
   verification?: { executions: string[]; succeeded: boolean };
   checkboxAtImport: "checked" | "unchecked";
@@ -421,12 +431,19 @@ export class SpecKitEngine {
     for (const id of taskIds) this.transitionTask(state, id, "in_progress");
   }
 
-  submitImplementation(state: SpecKitState, batchId: string, evidence: { taskId: string; summary: string; changedFiles: string[]; testsAddedOrUpdated: string[]; deviations: unknown[]; unresolvedIssues: string[] }[]): void {
+  submitImplementation(state: SpecKitState, batchId: string, evidence: { taskId: string; summary: string; changedFiles: string[]; testsAddedOrUpdated: string[]; deviations: unknown[]; unresolvedIssues: string[]; docsImpact?: string }[]): void {
     const batch = state.batches[batchId];
     if (!batch) throw new GuidanceError("spec_kit_task_not_released", batchId, { recoverable: true });
     for (const e of evidence) {
       if (!batch.taskIds.includes(e.taskId)) {
         throw new GuidanceError("spec_kit_task_not_released", `task ${e.taskId} not in released batch`, { recoverable: true });
+      }
+      // specs/010 FR-954: docsImpact is mandatory when changedFiles touch
+      // documentation-relevant paths; format "updated: <file>" or "none: <reason>".
+      const docsRelevant = e.changedFiles.some((f) => DOCS_RELEVANT_PATTERNS.some((p) => f.replaceAll("\\", "/").includes(p)));
+      const impact = (e.docsImpact ?? "").trim();
+      if (docsRelevant && (!impact || !(impact.startsWith("updated:") || impact.startsWith("none:")))) {
+        throw new GuidanceError("submission_invalid", `task ${e.taskId}: changedFiles touch documentation-relevant paths — docsImpact required ("updated: <file>" or "none: <reason>")`, { recoverable: true });
       }
       const task = state.tasks[e.taskId]!;
       task.implementation = {
@@ -437,6 +454,7 @@ export class SpecKitEngine {
         testsAddedOrUpdated: e.testsAddedOrUpdated,
         deviations: e.deviations,
         unresolvedIssues: e.unresolvedIssues,
+        docsImpact: docsRelevant ? impact : impact || "none",
       };
       this.transitionTask(state, e.taskId, "implemented");
     }

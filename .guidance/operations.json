@@ -34,6 +34,17 @@
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
       "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
     },
+    "docs-drift": {
+      "description": "Documentation-Drift-Gate (specs/010, FR-951/952): read-only deterministic checks — README tool table vs. tool-name sources, assistant question catalog, ERROR_CODES table coverage, spec status hygiene. Fails closed on missing README; exit 1 on any finding.",
+      "type": "process",
+      "executable": "node",
+      "args": ["servers/server-guidance/scripts/check-docs-drift.mjs", "."],
+      "required": true,
+      "timeoutSeconds": 60,
+      "riskClass": "read_only",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
     "final-review-gate": {
       "description": "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates the gate), no open HIGH/CRITICAL findings.",
       "type": "process",

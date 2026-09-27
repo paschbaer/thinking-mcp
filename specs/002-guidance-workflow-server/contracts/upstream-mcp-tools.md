@@ -29,7 +29,7 @@ Feature: specs/002-guidance-workflow-server · Transport-independent (stdio + lo
 | `get_spec_kit_status` | `{ sessionId }` | read-only: snapshot id, staleness, task summary, criterion coverage, pending plan changes |
 | `get_next_task` | `{ sessionId }` | next ready task/batch per scheduler; agent cannot select blocked tasks (FR-067) |
 | `start_task` | `{ sessionId, batchId, requestId? }` | claims a released batch; rejects if not released / not ready / wrong phase / dependency unsatisfied |
-| `submit_task_implementation` | `{ sessionId, batchId, requestId?, tasks[] evidence }` | batch members only (unless configured opportunistic); evidence bound to snapshot (FR-069) |
+| `submit_task_implementation` | `{ sessionId, batchId, requestId?, tasks[] evidence }` | batch members only (unless configured opportunistic); evidence bound to snapshot (FR-069). Evidence field `docsImpact` (specs/010 FR-954): mandatory when `changedFiles` hit documentation-relevant paths (`src/mcp-server/`, `src/setup/`, `src/config.ts`, `src/types/errors.ts`, `specs/`, `README.md`) — format `"updated: <file>"` or `"none: <reason>"`, missing/invalid → `submission_invalid`; optional otherwise (default `none`) |
 | `submit_task_review` | `{ sessionId, batchId, findings[], unresolvedFindings[] }` | blocking findings → `fix_required` (FR-069) |
 | `complete_task` | `{ sessionId, taskId, requestId? }` | requires evidence + review + task verification + approved deviations (FR-069) |
 | `propose_plan_change` | `{ sessionId, requestId?, change }` | classified; major → approval via elicitation/blocker (FR-072); returns `artifact_update_required` + instruction |

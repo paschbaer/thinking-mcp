@@ -469,3 +469,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - OFFEN für nächste Session: T5 (operations.json + workflow.json beforeExit-Reihenfolge VOR final-review-gate), T6/T7 (docsImpact-Feld + lifecycle-Tests), T8 (README-Assistenten-Kapitel für 009), T9/T10 (Final-Regression + Memory-Bank).
 - WICHTIG: 009-Tasks T3-T15 aus tasks.md 009 sind NICHT die 010-Tasks — 010 hat eigenes T1-T10 (siehe specs/010-documentation-drift-gate/tasks.md, Stand: T1-T4 offen als nächster Implementierungsschritt).
 - Push: develop ist ahead (Stand: 3d47b53 +以下). feature/config-assistant-extensions gemerged (009-Teil 1). Restliche Feature-Branches sind Parallel-Chat-Arbeit.
+
+## 2026-09-27: specs/010 Documentation-Drift-Gate VOLLSTÄNDIG implementiert (T1-T10)
+- What works: T5 Verdrahtung (docs-drift-Op required/read_only/60s in operations.json; workflow.json complete.beforeExit VOR final-review-gate — headCommit-Schutz); T6 docsImpact-Pflicht in submit_task_implementation-Evidence (DOCS_RELEVANT_PATTERNS: src/mcp-server/, src/setup/, src/config.ts, src/types/errors.ts, specs/, README.md; "updated: <file>"|\"none: <reason>\", sonst submission_invalid; Default none); T7 lifecycle-Tests (3 neue, fehlt/none/updated); T8 README-009-Kapitel durch Vorgängersession abgedeckt (verifiziert); T9 Q3-Sanierung verifiziert (005/006/007 Implemented, 006/007 0 offene Checkboxen); T10 Regression: 344/344 Tests, tsc, build grün; Gate Exit 0.
+- What's left: Commit + Push auf develop; GitNexus-Index-Refresh vor complete_workflow (Completion-Gate index-freshness).
+- Current State: specs/010 implementierungsmäßig abgeschlossen; Batch-/Task-Lifecycle per dokumentiertem State-Injection-Workaround gesetzt (Client ohne release_batch/verify_task); Inject-Skript nach Lauf gelöscht.
