@@ -21,6 +21,12 @@ export const DOCS_RELEVANT_PATTERNS = [
   "README.md",
 ] as const;
 
+/** Segment-boundary matching per spec 010 F-1: directory patterns (trailing "/") match at any path position but only on segment boundaries; file patterns match as exact path or segment-anchored suffix (so "src/config.tsx" does NOT match "src/config.ts"). */
+function matchesDocsPattern(normalizedPath: string, pattern: string): boolean {
+  if (pattern.endsWith("/")) return normalizedPath.startsWith(pattern) || normalizedPath.includes("/" + pattern);
+  return normalizedPath === pattern || (normalizedPath.endsWith(pattern) && normalizedPath.charAt(normalizedPath.length - pattern.length - 1) === "/");
+}
+
 export type TaskStatus =
   | "pending" | "ready" | "in_progress" | "implemented" | "review_required"
   | "fix_required" | "verification_required" | "verified" | "completed"
@@ -440,7 +446,7 @@ export class SpecKitEngine {
       }
       // specs/010 FR-954: docsImpact is mandatory when changedFiles touch
       // documentation-relevant paths; format "updated: <file>" or "none: <reason>".
-      const docsRelevant = e.changedFiles.some((f) => DOCS_RELEVANT_PATTERNS.some((p) => f.replaceAll("\\", "/").includes(p)));
+      const docsRelevant = e.changedFiles.some((f) => DOCS_RELEVANT_PATTERNS.some((p) => matchesDocsPattern(f.replaceAll("\\", "/"), p)));
       const impact = (e.docsImpact ?? "").trim();
       if (docsRelevant && (!impact || !(impact.startsWith("updated:") || impact.startsWith("none:")))) {
         throw new GuidanceError("submission_invalid", `task ${e.taskId}: changedFiles touch documentation-relevant paths — docsImpact required ("updated: <file>" or "none: <reason>")`, { recoverable: true });
