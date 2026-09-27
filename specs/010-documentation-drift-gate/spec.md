@@ -5,7 +5,7 @@
 7→9, README-Tool-Tabelle, Spec-Status stale, Checkboxen stale) trotz bestehender
 Docs-Pflicht. Spec-Review Runde 1: F-1…F-11 eingearbeitet (2026-09-27).
 **Namespace:** FR-951+ (kollisionsfrei verifiziert)
-**Status:** Draft — Review-F-1…F-11 eingearbeitet; bereit für Plan-Phase
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-27
 
 ## Problem
