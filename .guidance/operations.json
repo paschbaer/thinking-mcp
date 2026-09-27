@@ -104,6 +104,7 @@
       "type": "mcpTool",
       "server": "clearthought",
       "capability": "sequential_thinking",
+      "invocableByAgent": true,
       "required": false,
       "timeoutSeconds": 120,
       "riskClass": "read_only",
