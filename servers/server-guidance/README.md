@@ -724,12 +724,13 @@ Pattern for any language:
    execution in the `verify` phase.
 
 Concurrency: one operation per session at a time (FR-107); venv-mutating
-operations serialize across sessions via a workspace lock file (FR-109);
-cancellation (and operation timeout) **hard-kills** the child — SIGTERM,
-escalating to SIGKILL after a 5 s grace — and releases the lock (FR-202,
-superseding the earlier cooperative limitation; requires the async process
-executor of feature 004). A cancelled run discards its result and is
-audited as cancelled.
+operations serialize across sessions **per workspace** via hash-suffixed
+workspace lock files (FR-309/FR-502 — different workspaces run in
+parallel); cancellation (and operation timeout) **hard-kills** the child —
+SIGTERM, escalating to SIGKILL after a 5 s grace — and releases the lock
+(FR-202, superseding the earlier cooperative limitation; requires the async
+process executor of feature 004). A cancelled run discards its result and
+is audited as cancelled.
 
 **venv caveat:** the venv lives in the workspace (`/workspace/.venv`) and
 contains Linux binaries — do not use it from a Windows host bind mount.
