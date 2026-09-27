@@ -15,7 +15,7 @@ async function main(): Promise<void> {
   const workspaceRoot = process.cwd();
   const app = composeApplication(workspaceRoot, join(workspaceRoot, ".guidance"), join(workspaceRoot, ".guidance", "state"));
   const server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, workspaceRoot);
+  registerWorkflowTools(server, app.tools, workspaceRoot, app.config.workspaces);
   registerSetupTools(server);
   // Option C (Review Finding 7): Spec-Kit-Tools nur bei Profil "spec-kit".
   if (app.config.profile === "spec-kit") {
@@ -28,6 +28,13 @@ async function main(): Promise<void> {
       stateDir: app.stateDir,
       configVersion: app.config.configVersion,
       specKitConfig: toEngineSpecKitConfig(app.config.specKit),
+      getSessionWorkspace: (sid: string): string | undefined => {
+        try {
+          return app.engine.getSession(sid).workspaceRoot;
+        } catch {
+          return undefined;
+        }
+      },
       audit: (event) => audit.append({ sessionId: event.sessionId, eventType: event.eventType, phase: event.phase, data: event.data }),
     });
   }

@@ -28,7 +28,7 @@ beforeEach(async () => {
   }
   const app = composeApplication(ws, cfgDir, join(ws, "state"));
   server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, ws);
+  registerWorkflowTools(server, app.tools, ws, app.config.workspaces);
   const pair = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(pair[0]), (client = new Client({ name: "test", version: "1" })).connect(pair[1])]);
 });

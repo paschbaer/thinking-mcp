@@ -63,6 +63,7 @@ interface ComposedApp {
   profile: string;
   configVersion: string;
   specKit?: import("./config.js").SpecKitConfig;
+  workspaces: import("./workspace-registry.js").WorkspaceRegistry;
 }
 
 /** Creates a fully wired McpServer over the SHARED composition (one per boot,
@@ -71,7 +72,7 @@ interface ComposedApp {
 export function createConfiguredServer(opts: HttpAppOptions, composed: ComposedApp | undefined): McpServer {
   const server = createGuidanceServer();
   if (!composed) return server; // Remote-Modus: Registrierung via registerRemoteTools
-  registerWorkflowTools(server, composed.tools, opts.workspaceRoot);
+  registerWorkflowTools(server, composed.tools, opts.workspaceRoot, composed.workspaces);
   registerSetupTools(server);
   if (composed.profile === "spec-kit") {
     if (!composed.specKit) {
@@ -119,6 +120,7 @@ export function createHttpApp(opts: HttpAppOptions) {
         profile: composed.config.profile,
         configVersion: composed.config.configVersion,
         specKit: composed.config.specKit,
+        workspaces: composed.config.workspaces,
       }
     : undefined;
 
