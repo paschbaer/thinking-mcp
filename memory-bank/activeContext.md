@@ -717,3 +717,8 @@
 ## 2026-09-27: Rest-Findings-Batch implementiert (session-4e4471f2)
 - Branch feature/rest-findings-batch. AD-1-Semantik: Kopie statt Verwerfen — nicht-generische Referenz-Ops landen mit Marker in operations.json; Notes-Text + Test AC-9 angepasst (legacy-custom-op jetzt erwartet).
 - Achtung: Prettier --write reformatiert server-guidance/src (ConfigAssistant/SpecKitEngine) — Bulk-Diff in diesem Commit enthalten (Format-only).
+
+## 2026-09-27: AD-1/AD-1a/AD-2 geschlossen (parallel implementiert, live verifiziert) + Guidance-Workflow-Restart-Falle
+- AD-1/AD-1a/AD-2 wurden vom parallelen Agenten implementiert (36e6233: non-generische Ops werden mit [adopted]-Marker kopiert statt verworfen; realistic-reference Regressionstest; referencePath-Help+README dokumentieren builtin-Referenz; 798e545: Shape-Validation kopierter Ops; 4bd2556: [x]-Close-out mit Independent Final Review 0 HIGH/CRITICAL, Suite 360/360).
+- Unabhängige Live-Verifikation: Guidance-Image neu gebaut, Original-Repro setup_guidance_generate {referencePath:/examples/default-guidance} jetzt GRÜN (9-Dateien-Payload, final-review-gate/store-completion-insight kopiert mit Review-Hinweis, Kohärenzprüfung grün).
+- Workflow session-d57a0bc7 wurde nach Container-Restart nicht fortsetzbar: (1) Restart mit falschem Compose-File (servers/server-guidance/docker-compose.yml allein — docker compose -f lädt das override.yml NICHT automatisch → falsches /workspace-Mount, Sessions "verschwunden"); korrekt: -f docker-compose.yml -f docker-compose.override.yml. (2) Danach Config-Drift: Session an alte configurationVersion gebunden (specs/008 AC-5, fail-closed) — Restarts nach Config-Änderung invalidieren laufende Sessions grundsätzlich.
