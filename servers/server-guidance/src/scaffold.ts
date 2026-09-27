@@ -6,7 +6,7 @@
  * hin. Opt-out: GUIDANCE_SCAFFOLD=off.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const PHASES = [
   "understand",
@@ -97,7 +97,7 @@ function phaseResponse(phase: PhaseName): string {
  * Scaffold eine minimale Standardkonfiguration, wenn guidance.json fehlt.
  * @returns was erzeugt wurde; scaffolded=false wenn guidance.json existierte.
  */
-export function scaffoldIfMissing(configDir: string): ScaffoldResult {
+export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): ScaffoldResult {
   const entry = join(configDir, "guidance.json");
   if (existsSync(entry)) return { scaffolded: false, createdFiles: [] };
 
@@ -120,6 +120,12 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
         version: 2,
         profile: "plain",
         project: { name: project },
+        // specs/008 FR-801/FR-806: the initial configuration carries the
+        // workspace path explicitly, so the registry is visible (and
+        // editable — additional repos join via workspaces[]) from day one.
+        workspaces: [
+          { name: "default", root: resolve(workspaceRoot ?? join(configDir, "..")) },
+        ],
         workflow: { file: "workflow.json" },
         responses: { file: "responses.json" },
         operations: { file: "operations.json" },

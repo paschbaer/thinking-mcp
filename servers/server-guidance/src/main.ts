@@ -30,7 +30,10 @@ export interface Composition {
  * Dateien werden nie überschrieben; invalide Config wirft weiterhin
  * (fail-closed). Opt-out: GUIDANCE_SCAFFOLD=off.
  */
-export function ensureConfiguration(configDir: string): {
+export function ensureConfiguration(
+  configDir: string,
+  workspaceRoot?: string,
+): {
   scaffolded: boolean;
   createdFiles: string[];
 } {
@@ -41,7 +44,7 @@ export function ensureConfiguration(configDir: string): {
       `configuration_not_found: ${entry} fehlt (GUIDANCE_SCAFFOLD=off — Konfiguration manuell anlegen oder 'mcp-server-guidance-init' nutzen)`,
     );
   }
-  const result = scaffoldIfMissing(configDir);
+  const result = scaffoldIfMissing(configDir, workspaceRoot);
   if (result.scaffolded) {
     process.stderr.write(
       `[guidance] scaffolding initial configuration in ${configDir}:\n`,
@@ -70,7 +73,7 @@ export function composeApplication(
     skipScaffold?: boolean;
   },
 ): Composition {
-  if (!options?.skipScaffold) ensureConfiguration(configDir);
+  if (!options?.skipScaffold) ensureConfiguration(configDir, workspaceRoot);
   // specs/008 FR-806: registry default entry anchors on the real workspace root.
   const config = loadConfig(configDir, { workspaceRoot });
   // Amendment 002 (FR-117 State-Brücke): pending spec-kit tasks in tasks.md
