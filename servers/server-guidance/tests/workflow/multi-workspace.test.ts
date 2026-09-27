@@ -129,6 +129,7 @@ describe("multi-workspace parallel sessions (specs/008 T10, AC-1)", () => {
 
     // Changed child workspace: persisted session fails closed (AC-5).
     const stateB = await client.callTool({ name: "get_workflow_state", arguments: { sessionId: idB } });
+    console.log('DBG stateB:', JSON.stringify(stateB).slice(0, 300));
     expect(stateB.isError).toBe(true);
     expect(errText(stateB)).toMatch(/configuration_invalid|bound to/);
   });
