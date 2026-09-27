@@ -292,6 +292,28 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
     }
   });
 
+  it("AD-1/RV-M1: reference op without valid type is rejected fail-closed", () => {
+    void ws;
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    try {
+      for (const f of ["guidance.json", "policies.json", "downstream-servers.json"]) writeFileSync(join(ref, f), "{}");
+      mkdirSync(join(ref, "schemas"), { recursive: true });
+      writeFileSync(join(ref, "guidance.json"), JSON.stringify({ profile: "plain" }));
+      writeFileSync(join(ref, "workflow.json"), "{}");
+      writeFileSync(join(ref, "operations.json"), JSON.stringify({
+        operations: { "broken-op": { description: "no type field" } },
+      }));
+      expect(() => generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      })).toThrowError(/adopt source: reference op broken-op has no valid type/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
   it("adopt coherence: workflow op missing from regenerated operations fails closed (N-2)", () => {
     void ws;
     const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
