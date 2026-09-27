@@ -3,7 +3,7 @@
 **Feature ID:** `009-config-assistant-extensions`
 **Basis:** Nutzer-Anfrage 2026-09-27; Spec-Review (fresh subagent, 2026-09-27 — F-1…F-10 eingearbeitet)
 **Namespace:** FR-901+ (kollisionsfrei: 008 nutzt FR-801…808)
-**Status:** Draft — review-bereinigt (0 HIGH/CRIT offen); bereit für Plan-Phase
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-27
 
 ## Overview

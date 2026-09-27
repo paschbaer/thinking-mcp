@@ -3,7 +3,7 @@
 **Feature ID:** `004-async-operation-execution`
 **Parent follow-ups:** specs/003-guidance-toolchain-bootstrap — R-006 (E2E coverage gaps), FR-110 (hard-kill)
 **Namespace note:** FR/SC numbering starts at FR-201/SC-201 (lesson from the FR-101 collision between spec 003 and amendments 001/002)
-**Status:** Draft
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-26
 
 ## Overview

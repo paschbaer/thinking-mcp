@@ -269,8 +269,8 @@ Question catalog v2: `configSource` (**fresh / adopt** — see below),
 (plain / spec-kit — locked to the reference when adopting), `shell`
 (optional, agent-facing — placed in `workflow.json` `instructions.global`
 and injected into EVERY phase instruction), `insight` and `gitnexus`
-(on/off — control the downstream entries and their gates) and the gates
-preset (`standard`: lint opt + test opt + build REQ · `minimal`: build REQ
+(on/off — control the downstream entries and their gates) and the `gates` preset
+(`standard`: lint opt + test opt + build REQ · `minimal`: build REQ
 only). Generation returns all six config files plus the seven submission
 schemas (from `examples/default-guidance/schemas`; if the directory is
 missing from the installation, the agent receives a copy hint instead of an
@@ -305,6 +305,93 @@ Example prompt (adopt the proven reference configuration):
 > files, and write them to this project's root. Then add `.guidance/state/`
 > to the `.gitignore` and remind me to run `gitnexus analyze --no-stats`
 > here.
+
+### Error codes
+
+All registered `ERROR_CODES` (exact-surface snapshot, spec 002 FR-028 / R-010):
+
+| Code | Meaning |
+|---|---|
+| `configuration_not_found` | Configuration Not Found |
+| `configuration_invalid` | Configuration Invalid |
+| `workflow_not_found` | Workflow Not Found |
+| `session_not_found` | Session Not Found |
+| `session_locked` | Session Locked |
+| `workspace_not_registered` | Workspace Not Registered |
+| `invalid_active_phase` | Invalid Active Phase |
+| `invalid_transition` | Invalid Transition |
+| `submission_invalid` | Submission Invalid |
+| `required_field_missing` | Required Field Missing |
+| `required_hook_failed` | Required Hook Failed |
+| `hook_not_found` | Hook Not Found |
+| `hook_retry_not_allowed` | Hook Retry Not Allowed |
+| `hook_timed_out` | Hook Timed Out |
+| `command_not_found` | Command Not Found |
+| `working_directory_invalid` | Working Directory Invalid |
+| `workspace_boundary_violation` | Workspace Boundary Violation |
+| `state_persistence_failed` | State Persistence Failed |
+| `workflow_already_completed` | Workflow Already Completed |
+| `workflow_cancelled` | Workflow Cancelled |
+| `workflow_blocked` | Workflow Blocked |
+| `chain_activation_incomplete` | Chain Activation Incomplete |
+| `internal_error` | Internal Error |
+| `downstream_server_not_configured` | Downstream Server Not Configured |
+| `downstream_server_disabled` | Downstream Server Disabled |
+| `downstream_server_unavailable` | Downstream Server Unavailable |
+| `downstream_connection_failed` | Downstream Connection Failed |
+| `downstream_protocol_error` | Downstream Protocol Error |
+| `downstream_capability_missing` | Downstream Capability Missing |
+| `downstream_capability_not_allowed` | Downstream Capability Not Allowed |
+| `downstream_capability_changed` | Downstream Capability Changed |
+| `operation_not_configured` | Operation Not Configured |
+| `operation_not_allowed_in_phase` | Operation Not Allowed In Phase |
+| `operation_arguments_invalid` | Operation Arguments Invalid |
+| `operation_input_required` | Operation Input Required |
+| `operation_cancelled` | Operation Cancelled |
+| `operation_timed_out` | Operation Timed Out |
+| `operation_result_invalid` | Operation Result Invalid |
+| `operation_result_too_large` | Operation Result Too Large |
+| `operation_retry_not_allowed` | Operation Retry Not Allowed |
+| `operation_retry_limit_exceeded` | Operation Retry Limit Exceeded |
+| `authorization_required` | Authorization Required |
+| `authorization_failed` | Authorization Failed |
+| `user_approval_required` | User Approval Required |
+| `user_approval_declined` | User Approval Declined |
+| `data_egress_denied` | Data Egress Denied |
+| `fallback_unavailable` | Fallback Unavailable |
+| `nested_request_limit_exceeded` | Nested Request Limit Exceeded |
+| `agent_invocation_denied` | Agent Invocation Denied |
+| `operation_in_progress` | Operation In Progress |
+| `workspace_lock_unavailable` | Workspace Lock Unavailable |
+| `client_report_invalid` | Client Report Invalid |
+| `spec_kit_feature_in_use` | Spec Kit Feature In Use |
+| `spec_kit_not_enabled` | Spec Kit Not Enabled |
+| `spec_kit_feature_not_found` | Spec Kit Feature Not Found |
+| `spec_kit_feature_ambiguous` | Spec Kit Feature Ambiguous |
+| `spec_kit_feature_outside_workspace` | Spec Kit Feature Outside Workspace |
+| `spec_kit_artifact_missing` | Spec Kit Artifact Missing |
+| `spec_kit_artifact_unreadable` | Spec Kit Artifact Unreadable |
+| `spec_kit_artifact_empty` | Spec Kit Artifact Empty |
+| `spec_kit_artifact_invalid` | Spec Kit Artifact Invalid |
+| `spec_kit_required_section_missing` | Spec Kit Required Section Missing |
+| `spec_kit_task_id_missing` | Spec Kit Task Id Missing |
+| `spec_kit_duplicate_task_id` | Spec Kit Duplicate Task Id |
+| `spec_kit_unknown_dependency` | Spec Kit Unknown Dependency |
+| `spec_kit_dependency_cycle` | Spec Kit Dependency Cycle |
+| `spec_kit_snapshot_stale` | Spec Kit Snapshot Stale |
+| `spec_kit_reconciliation_required` | Spec Kit Reconciliation Required |
+| `spec_kit_task_not_found` | Spec Kit Task Not Found |
+| `spec_kit_task_not_ready` | Spec Kit Task Not Ready |
+| `spec_kit_task_not_released` | Spec Kit Task Not Released |
+| `spec_kit_task_already_active` | Spec Kit Task Already Active |
+| `spec_kit_task_dependency_unsatisfied` | Spec Kit Task Dependency Unsatisfied |
+| `spec_kit_task_review_required` | Spec Kit Task Review Required |
+| `spec_kit_task_verification_required` | Spec Kit Task Verification Required |
+| `spec_kit_plan_change_required` | Spec Kit Plan Change Required |
+| `spec_kit_plan_change_pending` | Spec Kit Plan Change Pending |
+| `spec_kit_traceability_incomplete` | Spec Kit Traceability Incomplete |
+| `spec_kit_acceptance_criterion_unverified` | Spec Kit Acceptance Criterion Unverified |
+| `spec_kit_completion_invariant_failed` | Spec Kit Completion Invariant Failed |
 
 ## Using Guidance inside an agent (chat)
 
