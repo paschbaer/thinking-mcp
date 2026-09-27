@@ -370,6 +370,11 @@ export class OperationEngine {
         }
       };
       const onOutput = (buf: { toString(): string }, target: "stdout" | "stderr"): void => {
+        // FR-801 (dokumentierte Semantik): stdout und stderr werden in
+        // getrennten Puffern erfasst — eine quergestreamte Reihenfolge
+        // (out/err interleaved) wird bewusst NICHT garantiert (POSIX-
+        // Limitierung ohne Merged-Pipe). Der agent-facing Fehlerpfad nutzt
+        // ausschließlich den redigierten stderr-Kanal.
         // MEDIUM-2: capped accumulation — a runaway child cannot grow memory
         // unboundedly; exceeding the cap kills with SIGTERM escalation.
         if (target === "stdout") {

@@ -385,10 +385,29 @@ export class WorkflowEngine {
           results: [...downRun.results, ...restRun.results],
         };
       };
-      this.operationEngine = {
+      // FR-802: Proxy — unbekannte Member-Zugriffe werden funktionsgebunden
+      // an die Downstream-Engine weitergeleitet (Robustheit gegen künftige
+      // Member-Nutzung; L-3-Rest aus Feature 007). Thenable-Eigenschaften
+      // bleiben auf dem Target (Promise-Semantik).
+      const routerTarget = {
         execute: routerExecute,
         executeRequired: routerExecuteRequired,
-      } as unknown as OperationEngine;
+      };
+      this.operationEngine = new Proxy(
+        routerTarget as unknown as OperationEngine,
+        {
+          get(target, prop, receiver) {
+            if (prop === "then" || prop === "catch" || prop === "finally") return Reflect.get(target, prop, receiver);
+            if (prop in target) return Reflect.get(target, prop, receiver);
+            if (typeof prop === "string") {
+              const value = (downstreamEngine as unknown as Record<string, unknown>)[prop];
+              if (typeof value === "function") return (value as (...a: unknown[]) => unknown).bind(downstreamEngine);
+              return value;
+            }
+            return undefined;
+          },
+        },
+      ) as unknown as OperationEngine;
     } else if (downstreamEnabled && !deps.operationEngine) {
       this.operationEngine.setDownstreamInvoker({
         invokeTool: this.buildInvokerClosure(servers, deps.stateDir),
