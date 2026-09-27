@@ -7,7 +7,7 @@ import { ServerConfigSchema, type ServerConfig } from "./config.js";
 import {
   AlgorithmInputError,
   runAlgorithm,
-  type BanditRunState
+  type BanditRunState,
 } from "./algorithms/index.js";
 
 // Export the config schema for Smithery
@@ -30,12 +30,14 @@ const stochasticInputShape = {
   parameters: z
     .record(z.unknown())
     .describe(
-      "Algorithm-specific model inputs — see the parameter tables in the server README (transitions/rewards for mdp, environment for mcts, arms for bandit, observations/bounds for bayesian, matrices + sequence for hmm)"
+      "Algorithm-specific model inputs — see the parameter tables in the server README (transitions/rewards for mdp, environment for mcts, arms for bandit, observations/bounds for bayesian, matrices + sequence for hmm)",
     ),
   result: z
     .string()
     .optional()
-    .describe("Reserved for future use; accepted but not required by the real algorithms")
+    .describe(
+      "Reserved for future use; accepted but not required by the real algorithms",
+    ),
 };
 
 const stochasticOutputSchema = z.object({
@@ -44,7 +46,7 @@ const stochasticOutputSchema = z.object({
   summary: z.string(),
   hasResult: z.boolean(),
   /** Measured artifacts of the computation (value function, visits, …). */
-  details: z.record(z.unknown()).optional()
+  details: z.record(z.unknown()).optional(),
 });
 
 // Server Identity
@@ -65,7 +67,9 @@ export default function createStochasticThinkingServer({
   config: ServerConfig;
 }): Server {
   if (config.debug) {
-    console.error(`[Stochastic Thinking] Creating server for session ${sessionId}`);
+    console.error(
+      `[Stochastic Thinking] Creating server for session ${sessionId}`,
+    );
   }
 
   // Per-session bandit run store: runs persist across tool calls within one
@@ -82,7 +86,7 @@ export default function createStochasticThinkingServer({
       capabilities: {
         tools: {},
       },
-    }
+    },
   );
 
   mcpServer.registerTool(
@@ -103,50 +107,50 @@ Summaries contain the measured numbers (convergence, visits, reward, regret, log
         readOnlyHint: true, // only server-internal session state is touched
         destructiveHint: false,
         idempotentHint: false, // bandit runs accumulate across calls
-        openWorldHint: false
-      }
+        openWorldHint: false,
+      },
     },
     async ({ algorithm, parameters }) => {
       if (config.debug) {
         console.error(
-          `[Stochastic Thinking] Tool call: stochasticalgorithm (session ${sessionId})`
+          `[Stochastic Thinking] Tool call: stochasticalgorithm (session ${sessionId})`,
         );
       }
 
       try {
         const { summary, details } = runAlgorithm(algorithm, parameters, {
-          banditRuns
+          banditRuns,
         });
         if (config.debug) {
           console.error(`[Stochastic Thinking] ${summary}`);
         }
         const payload = {
           algorithm,
-          status: 'success',
+          status: "success",
           summary,
           hasResult: true,
-          details
+          details,
         };
         return {
           content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-          structuredContent: payload
+          structuredContent: payload,
         };
       } catch (error) {
         if (!(error instanceof AlgorithmInputError)) throw error;
         const payload = {
           algorithm,
-          status: 'failed',
-          summary: '',
+          status: "failed",
+          summary: "",
           hasResult: false,
-          details: { error: error.message }
+          details: { error: error.message },
         };
         return {
           isError: true,
           content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-          structuredContent: payload
+          structuredContent: payload,
         };
       }
-    }
+    },
   );
 
   registerAgentsGuide(mcpServer);

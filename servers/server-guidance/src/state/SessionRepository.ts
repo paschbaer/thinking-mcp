@@ -1,5 +1,13 @@
 /** Atomic session persistence (FR-019): write temp file, fsync, rename. */
-import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, readdirSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  renameSync,
+  existsSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
 import type { WorkflowSession } from "../types/index.js";
@@ -29,10 +37,16 @@ export class SessionRepository {
   }
 
   save(session: WorkflowSession): void {
-    this.atomicWrite(this.pathOf(session.sessionId), JSON.stringify(session, null, 2));
+    this.atomicWrite(
+      this.pathOf(session.sessionId),
+      JSON.stringify(session, null, 2),
+    );
   }
 
-  update(sessionId: string, mutate: (s: WorkflowSession) => void): WorkflowSession {
+  update(
+    sessionId: string,
+    mutate: (s: WorkflowSession) => void,
+  ): WorkflowSession {
     const s = this.load(sessionId);
     mutate(s);
     s.updatedAt = new Date().toISOString();
@@ -43,7 +57,9 @@ export class SessionRepository {
   load(sessionId: string): WorkflowSession {
     const path = this.pathOf(sessionId);
     if (!existsSync(path)) {
-      throw new GuidanceError("session_not_found", `no session ${sessionId}`, { recoverable: true });
+      throw new GuidanceError("session_not_found", `no session ${sessionId}`, {
+        recoverable: true,
+      });
     }
     return JSON.parse(readFileSync(path, "utf-8")) as WorkflowSession;
   }
@@ -61,7 +77,9 @@ export class SessionRepository {
       renameSync(tmp, path);
     } catch (err) {
       if (existsSync(tmp)) rmSync(tmp, { force: true });
-      throw new GuidanceError("state_persistence_failed", String(err), { recoverable: true });
+      throw new GuidanceError("state_persistence_failed", String(err), {
+        recoverable: true,
+      });
     }
   }
 
@@ -71,11 +89,20 @@ export class SessionRepository {
   }
 
   list(): string[] {
-    return readdirSync(this.dir).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
+    return readdirSync(this.dir)
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => f.replace(/\.json$/, ""));
   }
 }
 
-type AuditEvent = { sessionId: string; eventType: string; phase?: string; data?: Record<string, unknown>; timestamp?: string; snapshotId?: string };
+type AuditEvent = {
+  sessionId: string;
+  eventType: string;
+  phase?: string;
+  data?: Record<string, unknown>;
+  timestamp?: string;
+  snapshotId?: string;
+};
 
 /** Append-only JSONL audit log (FR-021/FR-045) with redaction hook. */
 export class AuditRepository {
@@ -89,9 +116,14 @@ export class AuditRepository {
   }
 
   append(event: AuditEvent): void {
-    const record = { timestamp: event.timestamp ?? new Date().toISOString(), ...event };
+    const record = {
+      timestamp: event.timestamp ?? new Date().toISOString(),
+      ...event,
+    };
     const line = this.redact(JSON.stringify(record));
-    writeFileSync(join(this.dir, `${event.sessionId}.jsonl`), line + "\n", { flag: "a" });
+    writeFileSync(join(this.dir, `${event.sessionId}.jsonl`), line + "\n", {
+      flag: "a",
+    });
   }
 
   read(sessionId: string): AuditEvent[] {

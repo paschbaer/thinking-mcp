@@ -3,7 +3,7 @@
  * flagging (FR-026). No external services. Versioned ruleset id — referenced
  * by artifact metadata and audit records (FR-030).
  */
-export const RULESET_VERSION = 'emms-redact-2026-09-22';
+export const RULESET_VERSION = "emms-redact-2026-09-22";
 
 interface Rule {
   name: string;
@@ -11,14 +11,31 @@ interface Rule {
 }
 
 const RULES: Rule[] = [
-  { name: 'aws_access_key', pattern: /\bAKIA[0-9A-Z]{16}\b/g },
-  { name: 'generic_api_token', pattern: /\b(?:sk|pk|ghp|gho|xox[baprs]|api)[_-][A-Za-z0-9_-]{16,}\b/g },
-  { name: 'bearer_token', pattern: /\bBearer\s+[A-Za-z0-9._~+/=-]{16,}\b/gi },
-  { name: 'private_key_block', pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g },
-  { name: 'connection_string', pattern: /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[^\s'"]+:[^\s'"]+@[^\s'"]+/g },
-  { name: 'password_assignment', pattern: /\b(?:password|passwd|pwd|secret|token)\s*[:=]\s*\S{4,}/gi },
-  { name: 'home_path', pattern: /(?:\/home\/[\w.-]+|\/Users\/[\w.-]+|C:\\Users\\[\w.-]+)/g },
-  { name: 'google_api_key', pattern: /\bAIza[0-9A-Za-z_-]{35}\b/g },
+  { name: "aws_access_key", pattern: /\bAKIA[0-9A-Z]{16}\b/g },
+  {
+    name: "generic_api_token",
+    pattern: /\b(?:sk|pk|ghp|gho|xox[baprs]|api)[_-][A-Za-z0-9_-]{16,}\b/g,
+  },
+  { name: "bearer_token", pattern: /\bBearer\s+[A-Za-z0-9._~+/=-]{16,}\b/gi },
+  {
+    name: "private_key_block",
+    pattern:
+      /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+  },
+  {
+    name: "connection_string",
+    pattern:
+      /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[^\s'"]+:[^\s'"]+@[^\s'"]+/g,
+  },
+  {
+    name: "password_assignment",
+    pattern: /\b(?:password|passwd|pwd|secret|token)\s*[:=]\s*\S{4,}/gi,
+  },
+  {
+    name: "home_path",
+    pattern: /(?:\/home\/[\w.-]+|\/Users\/[\w.-]+|C:\\Users\\[\w.-]+)/g,
+  },
+  { name: "google_api_key", pattern: /\bAIza[0-9A-Za-z_-]{35}\b/g },
 ];
 
 export interface RedactionResult {
@@ -45,7 +62,9 @@ export function redact(content: string): RedactionResult {
       return `[REDACTED:${rule.name}]`;
     });
   }
-  const flags_instruction_like = INSTRUCTION_PATTERNS.some((p) => p.test(content));
+  const flags_instruction_like = INSTRUCTION_PATTERNS.some((p) =>
+    p.test(content),
+  );
   return {
     redacted: out,
     findings,

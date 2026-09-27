@@ -2,7 +2,7 @@
  * Configuration schema and types for the Stochastic Thinking MCP server
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Configuration schema for the Stochastic Thinking MCP server
@@ -10,7 +10,7 @@ import { z } from 'zod';
  * @property debug - Enable debug logging (default: false)
  */
 export const ServerConfigSchema = z.object({
-  debug: z.boolean().default(false).describe('Enable debug logging')
+  debug: z.boolean().default(false).describe("Enable debug logging"),
 });
 
 /**
@@ -22,7 +22,7 @@ export type ServerConfig = z.infer<typeof ServerConfigSchema>;
  * Default configuration values
  */
 export const defaultConfig: ServerConfig = {
-  debug: false
+  debug: false,
 };
 
 /**
@@ -46,6 +46,9 @@ export function safeParseConfig(config: unknown): ServerConfig {
     return result.data;
   }
 
-  console.warn('Invalid configuration provided, using defaults:', result.error.issues);
+  console.warn(
+    "Invalid configuration provided, using defaults:",
+    result.error.issues,
+  );
   return defaultConfig;
 }

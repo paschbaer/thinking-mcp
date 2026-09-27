@@ -34,7 +34,12 @@ export interface ScaffoldResult {
   createdFiles: string[];
 }
 
-function fileIfMissing(root: string, rel: string, content: string, created: string[]): void {
+function fileIfMissing(
+  root: string,
+  rel: string,
+  content: string,
+  created: string[],
+): void {
   const target = join(root, rel);
   // "wx": atomar exklusiv — existiert die Datei zwischen Check und Write
   // (TOCTOU), schlägt der Write fehl statt zu überschreiben (NEVER overwrite).
@@ -58,17 +63,19 @@ function schemaFor(phase: PhaseName): string {
     verify: `,\n    "verificationSummary": { "type": "array", "items": { "type": "string" } }`,
     complete: `,\n    "changedFiles": { "type": "array", "items": { "type": "string" } },\n    "verificationSummary": { "type": "array", "items": { "type": "string" } }`,
   };
-  return JSON.stringify(
-    JSON.parse(`{
+  return (
+    JSON.stringify(
+      JSON.parse(`{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
   "required": ["summary"],
   "properties": { "summary": { "type": "string" }${extras[phase] ?? ""} }
 }`),
-    null,
-    2,
-  ) + "\n";
+      null,
+      2,
+    ) + "\n"
+  );
 }
 
 function phaseResponse(phase: PhaseName): string {
@@ -81,23 +88,35 @@ function phaseResponse(phase: PhaseName): string {
     verify: "Verify the Result",
     complete: "Complete the Workflow",
   };
-  return JSON.stringify(
-    {
-      version: 2,
-      responses: Object.fromEntries(
-        PHASES.map((p) => [p, { title: titles[p], instruction: `Phase ${p}: ${titles[p]}.`, requiredActions: [] }]),
-      ),
-    },
-    null,
-    2,
-  ) + "\n";
+  return (
+    JSON.stringify(
+      {
+        version: 2,
+        responses: Object.fromEntries(
+          PHASES.map((p) => [
+            p,
+            {
+              title: titles[p],
+              instruction: `Phase ${p}: ${titles[p]}.`,
+              requiredActions: [],
+            },
+          ]),
+        ),
+      },
+      null,
+      2,
+    ) + "\n"
+  );
 }
 
 /**
  * Scaffold eine minimale Standardkonfiguration, wenn guidance.json fehlt.
  * @returns was erzeugt wurde; scaffolded=false wenn guidance.json existierte.
  */
-export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): ScaffoldResult {
+export function scaffoldIfMissing(
+  configDir: string,
+  workspaceRoot?: string,
+): ScaffoldResult {
   const entry = join(configDir, "guidance.json");
   if (existsSync(entry)) return { scaffolded: false, createdFiles: [] };
 
@@ -107,7 +126,8 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
   // do NOT flip the op set.
   const pyprojectPath = join(configDir, "..", "pyproject.toml");
   const pythonWorkspace =
-    existsSync(pyprojectPath) && /^\s*\[project\]/m.test(readFileSync(pyprojectPath, "utf8"));
+    existsSync(pyprojectPath) &&
+    /^\s*\[project\]/m.test(readFileSync(pyprojectPath, "utf8"));
 
   const created: string[] = [];
   const project = "my-project";
@@ -124,7 +144,10 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
         // workspace path explicitly, so the registry is visible (and
         // editable — additional repos join via workspaces[]) from day one.
         workspaces: [
-          { name: "default", root: resolve(workspaceRoot ?? join(configDir, "..")) },
+          {
+            name: "default",
+            root: resolve(workspaceRoot ?? join(configDir, "..")),
+          },
         ],
         workflow: { file: "workflow.json" },
         responses: { file: "responses.json" },
@@ -152,7 +175,11 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
     JSON.stringify(
       {
         version: 2,
-        workflow: { id: "standard-development", initialPhase: "understand", terminalStates: ["completed", "cancelled"] },
+        workflow: {
+          id: "standard-development",
+          initialPhase: "understand",
+          terminalStates: ["completed", "cancelled"],
+        },
         phases: Object.fromEntries(
           PHASES.map((phase) => [
             phase,
@@ -165,26 +192,41 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
                   // ergänzt (jede Lifecycle-Referenz MUSS in operations.json
                   // definiert sein, sonst operation_not_configured).
                   lifecycle: { beforeExit: ["final-review-gate"] },
-                  transitions: [{ to: "completed", when: "required_operations_succeeded" }],
+                  transitions: [
+                    { to: "completed", when: "required_operations_succeeded" },
+                  ],
                 }
               : phase === "verify"
                 ? {
                     response: "verify",
                     submissionSchema: "schemas/verify.schema.json",
-                    lifecycle: { beforeExit: pythonWorkspace ? ["lint", "test", "check"] : ["lint", "test", "build"] },
+                    lifecycle: {
+                      beforeExit: pythonWorkspace
+                        ? ["lint", "test", "check"]
+                        : ["lint", "test", "build"],
+                    },
                     transitions: [
-                      { to: "review_implementation", reason: "verification_failed" },
+                      {
+                        to: "review_implementation",
+                        reason: "verification_failed",
+                      },
                       { to: "complete", when: "required_operations_succeeded" },
                     ],
                   }
                 : {
                     response: phase,
                     submissionSchema: `schemas/${phase}.schema.json`,
-                    transitions: [{ to: TRANSITION_TO[phase], when: "submission_valid" }],
+                    transitions: [
+                      { to: TRANSITION_TO[phase], when: "submission_valid" },
+                    ],
                   },
           ]),
         ),
-        states: { completed: { terminal: true }, blocked: { system: true }, cancelled: { terminal: true } },
+        states: {
+          completed: { terminal: true },
+          blocked: { system: true },
+          cancelled: { terminal: true },
+        },
       },
       null,
       2,
@@ -192,7 +234,12 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
     created,
   );
 
-  fileIfMissing(configDir, "responses.json", phaseResponse("understand"), created);
+  fileIfMissing(
+    configDir,
+    "responses.json",
+    phaseResponse("understand"),
+    created,
+  );
 
   fileIfMissing(
     configDir,
@@ -202,20 +249,120 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
         ? {
             version: 2,
             operations: {
-              "toolchain-sync": { description: "Install the pinned Python toolchain (uv sync --locked; network: PyPI). Fail-closed on missing/stale uv.lock.", type: "process", executable: "uv", args: ["sync", "--locked"], required: false, invocableByAgent: true, timeoutSeconds: 900, riskClass: "workspace_write", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-              lint: { description: "Run ruff (uv run --locked ruff check .).", type: "process", executable: "uv", args: ["run", "--locked", "ruff", "check", "."], required: true, invocableByAgent: true, timeoutSeconds: 300, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-              test: { description: "Run pytest (uv run --locked pytest -q).", type: "process", executable: "uv", args: ["run", "--locked", "pytest", "-q"], required: true, invocableByAgent: true, timeoutSeconds: 300, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-              check: { description: "Type-check with mypy (uv run --locked mypy .).", type: "process", executable: "uv", args: ["run", "--locked", "mypy", "."], required: true, invocableByAgent: true, timeoutSeconds: 300, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-              finalReviewGate: { description: "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.", type: "process", executable: "node", args: ["node_modules/@paschbaer/guidance/scripts/check-final-review.mjs", "."], required: true, timeoutSeconds: 60, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              "toolchain-sync": {
+                description:
+                  "Install the pinned Python toolchain (uv sync --locked; network: PyPI). Fail-closed on missing/stale uv.lock.",
+                type: "process",
+                executable: "uv",
+                args: ["sync", "--locked"],
+                required: false,
+                invocableByAgent: true,
+                timeoutSeconds: 900,
+                riskClass: "workspace_write",
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
+              lint: {
+                description: "Run ruff (uv run --locked ruff check .).",
+                type: "process",
+                executable: "uv",
+                args: ["run", "--locked", "ruff", "check", "."],
+                required: true,
+                invocableByAgent: true,
+                timeoutSeconds: 300,
+                riskClass: "read_only",
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
+              test: {
+                description: "Run pytest (uv run --locked pytest -q).",
+                type: "process",
+                executable: "uv",
+                args: ["run", "--locked", "pytest", "-q"],
+                required: true,
+                invocableByAgent: true,
+                timeoutSeconds: 300,
+                riskClass: "read_only",
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
+              check: {
+                description: "Type-check with mypy (uv run --locked mypy .).",
+                type: "process",
+                executable: "uv",
+                args: ["run", "--locked", "mypy", "."],
+                required: true,
+                invocableByAgent: true,
+                timeoutSeconds: 300,
+                riskClass: "read_only",
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
+              finalReviewGate: {
+                description:
+                  "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.",
+                type: "process",
+                executable: "node",
+                args: [
+                  "node_modules/@paschbaer/guidance/scripts/check-final-review.mjs",
+                  ".",
+                ],
+                required: true,
+                timeoutSeconds: 60,
+                riskClass: "read_only",
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
             },
           }
         : {
             version: 2,
             operations: {
-              lint: { description: "run linter", type: "process", executable: "npm", args: ["run", "lint"], required: false, timeoutSeconds: 120, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-              test: { description: "run test suite", type: "process", executable: "npm", args: ["test"], required: true, timeoutSeconds: 600, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-              build: { description: "build the project", type: "process", executable: "npm", args: ["run", "build"], required: true, timeoutSeconds: 300, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
-              finalReviewGate: { description: "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.", type: "process", executable: "node", args: ["node_modules/@paschbaer/guidance/scripts/check-final-review.mjs", "."], required: true, timeoutSeconds: 60, riskClass: "read_only", validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+              lint: {
+                description: "run linter",
+                type: "process",
+                executable: "npm",
+                args: ["run", "lint"],
+                required: false,
+                timeoutSeconds: 120,
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
+              test: {
+                description: "run test suite",
+                type: "process",
+                executable: "npm",
+                args: ["test"],
+                required: true,
+                timeoutSeconds: 600,
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
+              build: {
+                description: "build the project",
+                type: "process",
+                executable: "npm",
+                args: ["run", "build"],
+                required: true,
+                timeoutSeconds: 300,
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
+              finalReviewGate: {
+                description:
+                  "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.",
+                type: "process",
+                executable: "node",
+                args: [
+                  "node_modules/@paschbaer/guidance/scripts/check-final-review.mjs",
+                  ".",
+                ],
+                required: true,
+                timeoutSeconds: 60,
+                riskClass: "read_only",
+                validation: { exitCodeMustBeZero: true },
+                output: { returnToAgent: "summary_and_errors" },
+              },
             },
           },
       null,
@@ -251,8 +398,21 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
           rejectEmptyArtifacts: true,
         },
         reviewFindings: { blockingSeverities: ["high", "critical"] },
-        redaction: { patterns: ["\\bapi[_-]?key\\b", "\\btoken\\b", "\\bsecret\\b", "\\bpassword\\b"] },
-        outputDefaults: { returnToAgent: "summary_and_errors", maxExcerptBytes: 65536, maxArtifactBytes: 1048576, maximumTasks: 500, maximumEntities: 2000 },
+        redaction: {
+          patterns: [
+            "\\bapi[_-]?key\\b",
+            "\\btoken\\b",
+            "\\bsecret\\b",
+            "\\bpassword\\b",
+          ],
+        },
+        outputDefaults: {
+          returnToAgent: "summary_and_errors",
+          maxExcerptBytes: 65536,
+          maxArtifactBytes: 1048576,
+          maximumTasks: 500,
+          maximumEntities: 2000,
+        },
       },
       null,
       2,
@@ -261,7 +421,12 @@ export function scaffoldIfMissing(configDir: string, workspaceRoot?: string): Sc
   );
 
   for (const phase of PHASES) {
-    fileIfMissing(configDir, join("schemas", `${phase}.schema.json`), schemaFor(phase), created);
+    fileIfMissing(
+      configDir,
+      join("schemas", `${phase}.schema.json`),
+      schemaFor(phase),
+      created,
+    );
   }
 
   return { scaffolded: true, createdFiles: created };

@@ -91,6 +91,12 @@ dieses Prinzip gebunden (Testpflicht).
   erhält einen persistenten `adoption`-Block: `{ source: "<pfad>", date,
   strategy: "adopt", nonGenericOps: [...], shellSource: "answer" }` — Teil
   der gehashten Config, damit die Herkunft dauerhaft prüfbar ist.
+- **FR-909 Downstream-Regeneration (N-1):** `downstream-servers.json` ist
+  transport-/antwortabhängig (`buildDownstream(insight, gitnexus, transport)`:
+  URLs localhost vs. host.docker.internal, Enablement gemäß
+  `insight`/`gitnexus`-Antworten) und wird im Adopt-Flow daher IMMER via
+  `buildDownstream` aus den neuen Antworten regeneriert — eine Kopie würde
+  Host-/Port-Werte der Referenz vererben (Widerspruch zum Leitprinzip).
 - **FR-910 Policies-Regeneration (N-3):** `policies.json` ist transport-/
   umgebungsabhängig (`buildPolicies(transport)`: Egress-Allowlist localhost vs.
   host.docker.internal, Ports) und wird im Adopt-Flow daher IMMER via

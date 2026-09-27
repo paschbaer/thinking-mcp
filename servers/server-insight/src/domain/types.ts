@@ -3,74 +3,74 @@
  * Mirrors specs/001-experience-memory-server/data-model.md.
  */
 
-export type Visibility = 'session' | 'workflow' | 'repository';
+export type Visibility = "session" | "workflow" | "repository";
 
 export type EpisodeState =
-  | 'DRAFT'
-  | 'OBSERVED'
-  | 'DIAGNOSING'
-  | 'SOLUTION_PROPOSED'
-  | 'VALIDATING'
-  | 'LOCALLY_VERIFIED'
-  | 'REPRODUCED'
-  | 'CROSS_PROJECT_VERIFIED'
-  | 'UNRESOLVED'
-  | 'PARTIALLY_VERIFIED'
-  | 'NEEDS_REVIEW'
-  | 'CONTRADICTED'
-  | 'INVALIDATED'
-  | 'DEPRECATED'
-  | 'SUPERSEDED';
+  | "DRAFT"
+  | "OBSERVED"
+  | "DIAGNOSING"
+  | "SOLUTION_PROPOSED"
+  | "VALIDATING"
+  | "LOCALLY_VERIFIED"
+  | "REPRODUCED"
+  | "CROSS_PROJECT_VERIFIED"
+  | "UNRESOLVED"
+  | "PARTIALLY_VERIFIED"
+  | "NEEDS_REVIEW"
+  | "CONTRADICTED"
+  | "INVALIDATED"
+  | "DEPRECATED"
+  | "SUPERSEDED";
 
 export const TERMINAL_STATES: EpisodeState[] = [
-  'UNRESOLVED',
-  'PARTIALLY_VERIFIED',
-  'NEEDS_REVIEW',
-  'CONTRADICTED',
-  'INVALIDATED',
-  'DEPRECATED',
-  'SUPERSEDED',
+  "UNRESOLVED",
+  "PARTIALLY_VERIFIED",
+  "NEEDS_REVIEW",
+  "CONTRADICTED",
+  "INVALIDATED",
+  "DEPRECATED",
+  "SUPERSEDED",
 ];
 
 export const ACTIVE_PROGRESSION: EpisodeState[] = [
-  'DRAFT',
-  'OBSERVED',
-  'DIAGNOSING',
-  'SOLUTION_PROPOSED',
-  'VALIDATING',
-  'LOCALLY_VERIFIED',
-  'REPRODUCED',
-  'CROSS_PROJECT_VERIFIED',
+  "DRAFT",
+  "OBSERVED",
+  "DIAGNOSING",
+  "SOLUTION_PROPOSED",
+  "VALIDATING",
+  "LOCALLY_VERIFIED",
+  "REPRODUCED",
+  "CROSS_PROJECT_VERIFIED",
 ];
 
 export type ObservationKind =
-  | 'failure_output'
-  | 'command_output'
-  | 'test_result'
-  | 'environment_fact'
-  | 'file_state'
-  | 'dependency_graph_fact'
-  | 'user_feedback'
-  | 'performance_measurement'
-  | 'security_measurement'
-  | 'external_service_result'
-  | 'agent_reflection';
+  | "failure_output"
+  | "command_output"
+  | "test_result"
+  | "environment_fact"
+  | "file_state"
+  | "dependency_graph_fact"
+  | "user_feedback"
+  | "performance_measurement"
+  | "security_measurement"
+  | "external_service_result"
+  | "agent_reflection";
 
 export type AttemptClassification =
-  | 'successful'
-  | 'partially_successful'
-  | 'ineffective'
-  | 'harmful'
-  | 'inconclusive'
-  | 'not_applicable';
+  | "successful"
+  | "partially_successful"
+  | "ineffective"
+  | "harmful"
+  | "inconclusive"
+  | "not_applicable";
 
 export interface Provenance {
-  actor_type: 'agent' | 'human' | 'system';
+  actor_type: "agent" | "human" | "system";
   actor_id: string;
   source_type: string;
   source_artifact_id?: string;
   recorded_at: string;
-  derivation: 'observed' | 'inferred' | 'summarized';
+  derivation: "observed" | "inferred" | "summarized";
   trace_id?: string;
 }
 
@@ -100,7 +100,8 @@ export interface Attempt {
   seq: number;
 }
 
-export type HypothesisStatus = 'proposed' | 'supported' | 'rejected' | 'superseded';
+export type HypothesisStatus =
+  "proposed" | "supported" | "rejected" | "superseded";
 
 export interface Hypothesis {
   hypothesis_id: string;
@@ -133,7 +134,7 @@ export interface ValidationRun {
   run_id: string;
   episode_id: string;
   check_index: number;
-  status: 'passed' | 'failed';
+  status: "passed" | "failed";
   exit_code?: number;
   evidence_artifact_id?: string;
   seq: number;
@@ -147,7 +148,7 @@ export interface EvidenceArtifact {
   kind: string;
   media_type: string;
   byte_size: number;
-  redaction_status: 'completed' | 'failed';
+  redaction_status: "completed" | "failed";
   redaction_findings: number;
   redaction_ruleset_version: string;
   trust: string;
@@ -200,7 +201,7 @@ export interface DomainEvent {
 
 export interface AuditEvent {
   event_id: string;
-  actor: { actor_type: 'agent' | 'human' | 'system'; actor_id: string };
+  actor: { actor_type: "agent" | "human" | "system"; actor_id: string };
   action: string;
   target: string;
   before_revision?: number;
@@ -213,7 +214,7 @@ export interface AuditEvent {
 export interface ReuseFeedback {
   feedback_id: string;
   episode_id: string;
-  verdict: 'applicable' | 'useful' | 'misleading' | 'harmful';
+  verdict: "applicable" | "useful" | "misleading" | "harmful";
   changed_plan?: boolean;
   outcome?: string;
   seq: number;

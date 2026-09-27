@@ -1,4 +1,4 @@
-import { BaseStore } from './BaseStore.js';
+import { BaseStore } from "./BaseStore.js";
 
 /** Navigation state for one recipe run of `recipe_runner` (track C). */
 export interface RecipeProgress {
@@ -9,7 +9,7 @@ export interface RecipeProgress {
 /** Stores recipe run progress per recipe id — session-scoped. */
 export class WorkflowStore extends BaseStore<RecipeProgress> {
   constructor() {
-    super('workflow');
+    super("workflow");
   }
 
   add(id: string, item: RecipeProgress): void {

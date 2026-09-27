@@ -40,7 +40,10 @@ import { GuidanceError } from "../types/errors.js";
 /** spec 006 FR-502 (R-008a): lock file per workspaceRoot (realpath-based
  *  sha256-16hex suffix — L-4) — different workspaces no longer
  *  over-serialize each other. */
-export function workspaceLockFile(stateDir: string, workspaceRoot: string): string {
+export function workspaceLockFile(
+  stateDir: string,
+  workspaceRoot: string,
+): string {
   let base: string;
   try {
     base = realpathSync(workspaceRoot);
@@ -90,7 +93,9 @@ export class WorkspaceOpLock {
       const inspect = this.inspectFile();
       if (inspect === null) continue; // vanished: a holder released → retry create
       if (!this.isStale(inspect)) {
-        throw contention("workspace operation lock is held by another operation");
+        throw contention(
+          "workspace operation lock is held by another operation",
+        );
       }
       // Stale → steal atomically: move the CURRENT file into a private
       // quarantine (rename never deletes; it fails ENOENT if someone else
@@ -105,7 +110,11 @@ export class WorkspaceOpLock {
       // concurrent party swapped in a fresh lock between inspect and rename,
       // restore it via link (atomic create-if-absent) and defer.
       const moved = this.inspectPath(quarantine);
-      if (moved === null || moved.pid !== inspect.pid || Math.abs(moved.mtimeMs - inspect.mtimeMs) > 2) {
+      if (
+        moved === null ||
+        moved.pid !== inspect.pid ||
+        Math.abs(moved.mtimeMs - inspect.mtimeMs) > 2
+      ) {
         let restored = false;
         try {
           linkSync(quarantine, this.file);
@@ -119,7 +128,9 @@ export class WorkspaceOpLock {
           /* orphan: harmless, TTL sweep cleans up */
         }
         if (restored) {
-          throw contention("workspace lock re-acquired by another operation during recovery");
+          throw contention(
+            "workspace lock re-acquired by another operation during recovery",
+          );
         }
         continue;
       }
@@ -139,10 +150,14 @@ export class WorkspaceOpLock {
         } catch {
           /* orphan: harmless */
         }
-        throw contention("workspace lock re-acquired by another process during recovery");
+        throw contention(
+          "workspace lock re-acquired by another process during recovery",
+        );
       }
     }
-    throw contention("workspace operation lock contention after repeated attempts");
+    throw contention(
+      "workspace operation lock contention after repeated attempts",
+    );
   }
 
   release(): void {
@@ -224,7 +239,8 @@ export class WorkspaceOpLock {
       return;
     }
     for (const entry of entries) {
-      const isOrphan = entry.startsWith(`${this.basename}.`) && entry.includes(".stolen.");
+      const isOrphan =
+        entry.startsWith(`${this.basename}.`) && entry.includes(".stolen.");
       // Legacy (pre-FR-502): unnamensraumloses Lock-File. Wird erst nach
       // TTL entfernt (M-2-Fix): im Mischbetrieb alter/neuer Versionen kann
       // ein alter Prozess es noch aktiv halten.
@@ -232,7 +248,8 @@ export class WorkspaceOpLock {
       if (!isOrphan && !isLegacy) continue;
       const full = join(dir, entry);
       try {
-        if (Date.now() - statSync(full).mtimeMs > ORPHAN_TTL_MS) unlinkSync(full);
+        if (Date.now() - statSync(full).mtimeMs > ORPHAN_TTL_MS)
+          unlinkSync(full);
       } catch {
         /* best effort */
       }

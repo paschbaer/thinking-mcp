@@ -5,14 +5,14 @@
  */
 
 export class StaleRevisionError extends Error {
-  public readonly code = 'STALE_REVISION';
+  public readonly code = "STALE_REVISION";
   public readonly retryable = false;
   constructor(
     public readonly expected: number,
-    public readonly current_revision: number
+    public readonly current_revision: number,
   ) {
     super(`Stale revision: expected ${expected}, current ${current_revision}`);
-    this.name = 'StaleRevisionError';
+    this.name = "StaleRevisionError";
   }
 }
 
@@ -25,6 +25,10 @@ export function nextRevision(current: number): number {
 }
 
 /** Assert the caller's expected revision matches; throw otherwise. */
-export function assertExpectedRevision(expected: number | undefined, current: number): void {
-  if (expected !== current) throw new StaleRevisionError(expected ?? -1, current);
+export function assertExpectedRevision(
+  expected: number | undefined,
+  current: number,
+): void {
+  if (expected !== current)
+    throw new StaleRevisionError(expected ?? -1, current);
 }

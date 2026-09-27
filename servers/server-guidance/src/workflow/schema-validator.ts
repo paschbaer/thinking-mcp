@@ -28,10 +28,14 @@ export function createValidator(schema: unknown): SchemaValidator {
   return validator;
 }
 
-type AjvValidate = ((data: unknown) => boolean) & { errors?: { instancePath: string; message?: string }[] | null };
+type AjvValidate = ((data: unknown) => boolean) & {
+  errors?: { instancePath: string; message?: string }[] | null;
+};
 
 function collectErrors(validate: AjvValidate): string[] {
-  return (validate.errors ?? []).map((e) => `${e.instancePath} ${e.message ?? ""}`.trim());
+  return (validate.errors ?? []).map((e) =>
+    `${e.instancePath} ${e.message ?? ""}`.trim(),
+  );
 }
 
 import { createRequire } from "node:module";
@@ -44,7 +48,9 @@ let compileFn: ((schema: unknown) => AjvValidate) | null = null;
 function getCompile(): (schema: unknown) => AjvValidate {
   if (!compileFn) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Ajv2020 = require("ajv/dist/2020.js").default as new (opts: object) => {
+    const Ajv2020 = require("ajv/dist/2020.js").default as new (
+      opts: object,
+    ) => {
       compile: (s: unknown) => AjvValidate;
     };
     const ajv = new Ajv2020({ allErrors: true, strict: false });
@@ -52,4 +58,3 @@ function getCompile(): (schema: unknown) => AjvValidate {
   }
   return compileFn;
 }
-

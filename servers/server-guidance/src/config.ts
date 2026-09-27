@@ -936,8 +936,11 @@ export function loadConfig(
   // Only EXPLICIT registry entries feed the hash — the implicit default
   // entry derives from the environment (workspaceRoot/tmp dirs) and must not
   // invalidate persisted sessions across runs (specs/008 AC-5 scoping).
-  const explicitWorkspaces = workspaces.list().filter((w) => w.name !== "default");
-  if (explicitWorkspaces.length > 0) hashable.push(canonical(explicitWorkspaces));
+  const explicitWorkspaces = workspaces
+    .list()
+    .filter((w) => w.name !== "default");
+  if (explicitWorkspaces.length > 0)
+    hashable.push(canonical(explicitWorkspaces));
   const configVersion = `sha256:${hash.copy().update(hashable.join("\n")).digest("hex")}`;
   // Resolution happens AFTER the hash: secrets stay out of configVersion.
   applyHttpTransports(loaded);

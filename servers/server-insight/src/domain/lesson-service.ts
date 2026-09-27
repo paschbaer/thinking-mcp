@@ -7,14 +7,14 @@
  * mark the lesson contested. No destructive merging; lesson entity was
  * schema-reserved in data-model.md.
  */
-import { randomUUID } from 'node:crypto';
-import type { StorageAdapter } from '../storage/adapter.js';
+import { randomUUID } from "node:crypto";
+import type { StorageAdapter } from "../storage/adapter.js";
 
 export interface LessonCandidate {
   lesson_id: string;
   normalized_hash: string;
   pattern: string;
-  status: 'candidate' | 'provisional' | 'verified' | 'contested';
+  status: "candidate" | "provisional" | "verified" | "contested";
   supporting_episodes: string[];
   counterexample_episodes: string[];
   confidence: number;
@@ -37,22 +37,32 @@ export class LessonService {
    * signature. Promotion per independent-verified-episode count; any
    * contradicting outcome marks the lesson contested.
    */
-  async proposeFromEpisodes(normalized_hash: string, pattern: string, rule: string, recommended_strategy: string): Promise<LessonRecord | null> {
+  async proposeFromEpisodes(
+    normalized_hash: string,
+    pattern: string,
+    rule: string,
+    recommended_strategy: string,
+  ): Promise<LessonRecord | null> {
     const existing = await this.adapter.getLessonByHash(normalized_hash);
-    const supporting = await this.adapter.listVerifiedEpisodesForSignature(normalized_hash);
-    const contradicting = await this.adapter.listContradictingEpisodesForSignature(normalized_hash);
+    const supporting =
+      await this.adapter.listVerifiedEpisodesForSignature(normalized_hash);
+    const contradicting =
+      await this.adapter.listContradictingEpisodesForSignature(normalized_hash);
 
     if (supporting.length === 0) return null; // FR-022: nothing to propose from
 
-    let status: LessonCandidate['status'];
+    let status: LessonCandidate["status"];
     if (contradicting.length > 0) {
-      status = 'contested';
-    } else if (supporting.length >= 3 || new Set(supporting.map((e) => e.scope_id)).size >= 3) {
-      status = 'verified';
+      status = "contested";
+    } else if (
+      supporting.length >= 3 ||
+      new Set(supporting.map((e) => e.scope_id)).size >= 3
+    ) {
+      status = "verified";
     } else if (supporting.length >= 2) {
-      status = 'provisional';
+      status = "provisional";
     } else {
-      status = 'candidate';
+      status = "candidate";
     }
 
     const now = new Date().toISOString();
@@ -62,17 +72,20 @@ export class LessonService {
           status,
           supporting_episodes: supporting.map((e) => e.experience_id),
           counterexample_episodes: contradicting.map((e) => e.experience_id),
-          confidence: Math.min(1, supporting.length * 0.3 - contradicting.length * 0.4),
+          confidence: Math.min(
+            1,
+            supporting.length * 0.3 - contradicting.length * 0.4,
+          ),
           last_updated_at: now,
         }
       : {
-          lesson_id: 'les_' + randomUUID().slice(0, 12),
+          lesson_id: "les_" + randomUUID().slice(0, 12),
           normalized_hash,
           pattern,
           rule,
           recommended_strategy,
           prohibited_strategies: [],
-          validation_recipe: '',
+          validation_recipe: "",
           status,
           supporting_episodes: supporting.map((e) => e.experience_id),
           counterexample_episodes: contradicting.map((e) => e.experience_id),

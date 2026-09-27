@@ -5,26 +5,28 @@
  * per-session store).
  */
 
-import { z } from 'zod';
-import { createRng, gaussian, sampleBeta, type SeededRng } from './rng.js';
+import { z } from "zod";
+import { createRng, gaussian, sampleBeta, type SeededRng } from "./rng.js";
 
-export const banditArmSchema = z.discriminatedUnion('type', [
+export const banditArmSchema = z.discriminatedUnion("type", [
   z.object({
-    type: z.literal('bernoulli'),
+    type: z.literal("bernoulli"),
     /** Success probability, [0, 1]. */
-    p: z.number().min(0).max(1)
+    p: z.number().min(0).max(1),
   }),
   z.object({
-    type: z.literal('gaussian'),
+    type: z.literal("gaussian"),
     mu: z.number(),
     /** Standard deviation, > 0. */
-    sigma: z.number().positive()
-  })
+    sigma: z.number().positive(),
+  }),
 ]);
 
 export const banditParamsSchema = z.object({
   arms: z.array(banditArmSchema).min(2).max(20),
-  strategy: z.enum(['epsilon-greedy', 'UCB', 'thompson']).default('epsilon-greedy'),
+  strategy: z
+    .enum(["epsilon-greedy", "UCB", "thompson"])
+    .default("epsilon-greedy"),
   /** epsilon-greedy exploration rate. */
   epsilon: z.number().min(0).max(1).default(0.1),
   /** UCB exploration multiplier (default 1 = standard UCB1). */
@@ -34,7 +36,7 @@ export const banditParamsSchema = z.object({
   /** Seed for a NEW run (continuations reuse the stored RNG state). */
   seed: z.number().int().default(42),
   /** Opaque run id: pass it back to continue the same run. */
-  runId: z.string().min(1).optional()
+  runId: z.string().min(1).optional(),
 });
 
 export type BanditParams = z.infer<typeof banditParamsSchema>;
@@ -55,7 +57,7 @@ export interface BanditRunState {
 
 export interface BanditCallResult {
   runId: string;
-  strategy: BanditParams['strategy'];
+  strategy: BanditParams["strategy"];
   thisCall: { pulls: number; meanReward: number; chosenCounts: number[] };
   cumulative: { totalPulls: number; meanReward: number; regret: number };
   bestArm: number;
@@ -70,12 +72,12 @@ export interface BanditCallResult {
 }
 
 function armMean(arm: BanditArm): number {
-  return arm.type === 'bernoulli' ? arm.p : arm.mu;
+  return arm.type === "bernoulli" ? arm.p : arm.mu;
 }
 
 /** Samples one reward from the arm's distribution using the given RNG. */
 function pullReward(arm: BanditArm, rng: SeededRng): number {
-  if (arm.type === 'bernoulli') return rng.next() < arm.p ? 1 : 0;
+  if (arm.type === "bernoulli") return rng.next() < arm.p ? 1 : 0;
   return gaussian(rng, arm.mu, arm.sigma);
 }
 
@@ -84,8 +86,13 @@ function pullReward(arm: BanditArm, rng: SeededRng): number {
  * - Bernoulli: Beta(1 + successes, 1 + failures)
  * - Gaussian: Normal(mu_hat, sigma / sqrt(n)) with a broad prior at n = 0
  */
-function thompsonScore(arm: BanditArm, count: number, sum: number, rng: SeededRng): number {
-  if (arm.type === 'bernoulli') {
+function thompsonScore(
+  arm: BanditArm,
+  count: number,
+  sum: number,
+  rng: SeededRng,
+): number {
+  if (arm.type === "bernoulli") {
     return sampleBeta(rng, 1 + sum, 1 + Math.max(0, count - sum));
   }
   const priorSd = arm.sigma * 10;
@@ -94,7 +101,11 @@ function thompsonScore(arm: BanditArm, count: number, sum: number, rng: SeededRn
   return mean + posteriorSd * gaussian(rng);
 }
 
-export function createBanditRun(params: BanditParams, runId: string, seed: number): BanditRunState {
+export function createBanditRun(
+  params: BanditParams,
+  runId: string,
+  seed: number,
+): BanditRunState {
   const means = params.arms.map(armMean);
   let bestArm = 0;
   for (let i = 1; i < means.length; i++) {
@@ -110,7 +121,7 @@ export function createBanditRun(params: BanditParams, runId: string, seed: numbe
     cumulativeRegret: 0,
     rngState: seed >>> 0,
     bestArm,
-    bestMean: means[bestArm]
+    bestMean: means[bestArm],
   };
 }
 
@@ -118,7 +129,10 @@ export function createBanditRun(params: BanditParams, runId: string, seed: numbe
  * Runs `pulls` additional pulls on the given run state, mutating it
  * (counts, sums, regret, RNG state). Returns the call + cumulative stats.
  */
-export function runBanditCall(state: BanditRunState, params: BanditParams): BanditCallResult {
+export function runBanditCall(
+  state: BanditRunState,
+  params: BanditParams,
+): BanditCallResult {
   const rng = createRng(state.rngState);
   const strategy = params.strategy;
   const chosenCounts = new Array<number>(state.arms.length).fill(0);
@@ -127,17 +141,22 @@ export function runBanditCall(state: BanditRunState, params: BanditParams): Band
   for (let pull = 0; pull < params.pulls; pull++) {
     let chosen: number;
 
-    if (strategy === 'thompson') {
+    if (strategy === "thompson") {
       chosen = 0;
       let bestScore = Number.NEGATIVE_INFINITY;
       for (let i = 0; i < state.arms.length; i++) {
-        const score = thompsonScore(state.arms[i], state.counts[i], state.sums[i], rng);
+        const score = thompsonScore(
+          state.arms[i],
+          state.counts[i],
+          state.sums[i],
+          rng,
+        );
         if (score > bestScore) {
           bestScore = score;
           chosen = i;
         }
       }
-    } else if (strategy === 'UCB') {
+    } else if (strategy === "UCB") {
       chosen = -1;
       for (let i = 0; i < state.arms.length; i++) {
         if (state.counts[i] === 0) {
@@ -162,7 +181,10 @@ export function runBanditCall(state: BanditRunState, params: BanditParams): Band
     } else {
       // epsilon-greedy
       if (state.totalPulls === 0 || rng.next() < params.epsilon) {
-        chosen = Math.min(state.arms.length - 1, Math.floor(rng.next() * state.arms.length));
+        chosen = Math.min(
+          state.arms.length - 1,
+          Math.floor(rng.next() * state.arms.length),
+        );
       } else {
         chosen = 0;
         let bestEstimate = Number.NEGATIVE_INFINITY;
@@ -193,7 +215,7 @@ export function runBanditCall(state: BanditRunState, params: BanditParams): Band
     arm,
     trueMean: armMean(arm),
     pulls: state.counts[i],
-    estimate: state.counts[i] === 0 ? 0 : state.sums[i] / state.counts[i]
+    estimate: state.counts[i] === 0 ? 0 : state.sums[i] / state.counts[i],
   }));
 
   return {
@@ -202,16 +224,16 @@ export function runBanditCall(state: BanditRunState, params: BanditParams): Band
     thisCall: {
       pulls: params.pulls,
       meanReward: callReward / params.pulls,
-      chosenCounts
+      chosenCounts,
     },
     cumulative: {
       totalPulls: state.totalPulls,
       meanReward: state.cumulativeReward / state.totalPulls,
-      regret: state.cumulativeRegret
+      regret: state.cumulativeRegret,
     },
     bestArm: state.bestArm,
     bestMean: state.bestMean,
-    perArm
+    perArm,
   };
 }
 
@@ -219,7 +241,7 @@ export function formatBanditSummary(result: BanditCallResult): string {
   const chosen = result.thisCall.chosenCounts
     .map((n, i) => (n > 0 ? `arm-${i}×${n}` : null))
     .filter((x): x is string => x !== null)
-    .join(', ');
+    .join(", ");
   return (
     `Bandit (${result.strategy}, ${result.perArm.length} arms): ` +
     `${result.thisCall.pulls} pulls this call [${chosen}], ` +

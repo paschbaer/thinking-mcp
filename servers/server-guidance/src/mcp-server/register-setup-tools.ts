@@ -7,7 +7,12 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GuidanceError } from "../types/errors.js";
-import { catalogOverview, generateFiles, type SetupAnswers, type SetupAnswerValue } from "../setup/ConfigAssistant.js";
+import {
+  catalogOverview,
+  generateFiles,
+  type SetupAnswers,
+  type SetupAnswerValue,
+} from "../setup/ConfigAssistant.js";
 
 export const SETUP_TOOL_NAMES = [
   "setup_guidance_start",
@@ -19,13 +24,17 @@ const answersShape = {
   answers: z.record(z.union([z.string(), z.boolean()])).optional(),
 };
 
-function toAnswerRecord(raw: Record<string, string | boolean> | undefined): SetupAnswers {
+function toAnswerRecord(
+  raw: Record<string, string | boolean> | undefined,
+): SetupAnswers {
   const out: SetupAnswers = {};
   for (const [k, v] of Object.entries(raw ?? {})) out[k] = v;
   return out;
 }
 
-function toJson(payload: unknown): { content: Array<{ type: "text"; text: string }> } {
+function toJson(payload: unknown): {
+  content: Array<{ type: "text"; text: string }>;
+} {
   return { content: [{ type: "text", text: JSON.stringify(payload) }] };
 }
 
@@ -42,7 +51,11 @@ export function registerSetupTools(server: McpServer): void {
     answersShape,
     async ({ answers }) => {
       if (answers === undefined) {
-        throw new GuidanceError("configuration_invalid", "answers object required (accumulate all previous answers)", { recoverable: true });
+        throw new GuidanceError(
+          "configuration_invalid",
+          "answers object required (accumulate all previous answers)",
+          { recoverable: true },
+        );
       }
       return toJson(catalogOverview(toAnswerRecord(answers)));
     },
@@ -53,7 +66,11 @@ export function registerSetupTools(server: McpServer): void {
     answersShape,
     async ({ answers }) => {
       if (answers === undefined) {
-        throw new GuidanceError("configuration_invalid", "answers object required (accumulate all previous answers)", { recoverable: true });
+        throw new GuidanceError(
+          "configuration_invalid",
+          "answers object required (accumulate all previous answers)",
+          { recoverable: true },
+        );
       }
       return toJson(generateFiles(toAnswerRecord(answers)));
     },

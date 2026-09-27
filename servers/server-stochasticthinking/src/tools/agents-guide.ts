@@ -1,11 +1,11 @@
-import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { AGENTS_TEMPLATE } from './agents-guide-template.js';
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { AGENTS_TEMPLATE } from "./agents-guide-template.js";
 
-const START_MARKER = '<!-- stochastic-thinking:agents-guide:start -->';
-const END_MARKER = '<!-- stochastic-thinking:agents-guide:end -->';
-const BODY_HEADING = '## Ground rules';
-const GUIDE_HEADING = '# Stochastic Thinking — Decision Tool Guide';
+const START_MARKER = "<!-- stochastic-thinking:agents-guide:start -->";
+const END_MARKER = "<!-- stochastic-thinking:agents-guide:end -->";
+const BODY_HEADING = "## Ground rules";
+const GUIDE_HEADING = "# Stochastic Thinking — Decision Tool Guide";
 
 interface Placeholder {
   token: string;
@@ -26,29 +26,35 @@ const agentsGuideInputShape = {
     .trim()
     .min(1)
     .optional()
-    .describe('Name of the target project — replaces the {{PROJECT_NAME}} placeholder'),
+    .describe(
+      "Name of the target project — replaces the {{PROJECT_NAME}} placeholder",
+    ),
   domain_context: z
     .string()
     .trim()
     .min(1)
     .optional()
-    .describe('1-3 sentences about the target project domain — replaces {{DOMAIN_CONTEXT}}'),
+    .describe(
+      "1-3 sentences about the target project domain — replaces {{DOMAIN_CONTEXT}}",
+    ),
   codebase_root: z
     .string()
     .trim()
     .min(1)
     .optional()
-    .describe('Working root for the agent — replaces the {{CODEBASE_ROOT}} placeholder'),
+    .describe(
+      "Working root for the agent — replaces the {{CODEBASE_ROOT}} placeholder",
+    ),
   existing_agents_md: z
     .string()
     .trim()
     .min(1)
     .optional()
     .describe(
-      'Content of an existing AGENTS.md. Providing it switches to merge mode: ' +
-        'the guide is integrated into this content (replacing a previously ' +
-        'inserted guide block if present) instead of returning a full document.'
-    )
+      "Content of an existing AGENTS.md. Providing it switches to merge mode: " +
+        "the guide is integrated into this content (replacing a previously " +
+        "inserted guide block if present) instead of returning a full document.",
+    ),
 };
 
 const agentsGuideOutputSchema = z.object({
@@ -58,105 +64,119 @@ const agentsGuideOutputSchema = z.object({
   content: z.string(),
   unresolved_placeholders: z.array(z.string()).optional(),
   nextSteps: z.array(z.string()).optional(),
-  status: z.string()
+  status: z.string(),
 });
 
 /** Registers the agents_guide tool on a high-level McpServer instance. */
 export function registerAgentsGuide(mcpServer: McpServer): void {
   mcpServer.registerTool(
-    'agents_guide',
+    "agents_guide",
     {
-      title: 'Generate AGENTS.md guide',
+      title: "Generate AGENTS.md guide",
       description:
-        'Return a ready-to-use AGENTS.md decision-tool guide (with algorithm ' +
-        'routing and workflow recipes) for projects consuming this server, ' +
-        'optionally merged into existing AGENTS.md content',
+        "Return a ready-to-use AGENTS.md decision-tool guide (with algorithm " +
+        "routing and workflow recipes) for projects consuming this server, " +
+        "optionally merged into existing AGENTS.md content",
       inputSchema: agentsGuideInputShape,
       outputSchema: agentsGuideOutputSchema,
       annotations: {
-        title: 'Generate AGENTS.md guide',
+        title: "Generate AGENTS.md guide",
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: false
-      }
+        openWorldHint: false,
+      },
     },
-    async args => {
+    async (args) => {
       const payload = buildAgentsGuideResult(args);
       const textBlock = {
-        type: 'text' as const,
-        text: JSON.stringify(payload, null, 2)
+        type: "text" as const,
+        text: JSON.stringify(payload, null, 2),
       };
       return {
         content: [textBlock],
-        structuredContent: payload
+        structuredContent: payload,
       };
-    }
+    },
   );
 }
 
 /** Builds the agents_guide result payload from validated arguments. */
 function buildAgentsGuideResult(args: AgentsGuideArgs): {
-  mode: 'full' | 'merge';
+  mode: "full" | "merge";
   block_replaced: boolean;
   warning?: string;
   content: string;
   unresolved_placeholders: string[];
   nextSteps: string[];
-  status: 'success';
+  status: "success";
 } {
   const placeholders: Placeholder[] = [
-      { token: '{{PROJECT_NAME}}', value: args.project_name, fallback: '<your project>' },
-      {
-        token: '{{DOMAIN_CONTEXT}}',
-        value: args.domain_context,
-        fallback: '<describe your domain>'
-      },
-      { token: '{{CODEBASE_ROOT}}', value: args.codebase_root, fallback: '<working root>' }
-    ];
+    {
+      token: "{{PROJECT_NAME}}",
+      value: args.project_name,
+      fallback: "<your project>",
+    },
+    {
+      token: "{{DOMAIN_CONTEXT}}",
+      value: args.domain_context,
+      fallback: "<describe your domain>",
+    },
+    {
+      token: "{{CODEBASE_ROOT}}",
+      value: args.codebase_root,
+      fallback: "<working root>",
+    },
+  ];
 
-    const template = loadTemplate();
-    const rendered = applyPlaceholders(template, placeholders);
-    const block = buildGuideBlock(rendered, args.existing_agents_md !== undefined, placeholders);
+  const template = loadTemplate();
+  const rendered = applyPlaceholders(template, placeholders);
+  const block = buildGuideBlock(
+    rendered,
+    args.existing_agents_md !== undefined,
+    placeholders,
+  );
 
-    let mode: 'full' | 'merge' = 'full';
-    let blockReplaced = false;
-    let warning: string | undefined;
-    let content: string;
+  let mode: "full" | "merge" = "full";
+  let blockReplaced = false;
+  let warning: string | undefined;
+  let content: string;
 
-    if (args.existing_agents_md !== undefined) {
-      mode = 'merge';
-      const merged = integrateIntoExisting(args.existing_agents_md, block);
-      blockReplaced = merged.blockReplaced;
-      warning = merged.warning;
-      content = merged.content;
-    } else {
-      content = buildFullDocument(rendered, block);
-    }
+  if (args.existing_agents_md !== undefined) {
+    mode = "merge";
+    const merged = integrateIntoExisting(args.existing_agents_md, block);
+    blockReplaced = merged.blockReplaced;
+    warning = merged.warning;
+    content = merged.content;
+  } else {
+    content = buildFullDocument(rendered, block);
+  }
 
-    const unresolved = placeholders
-      .filter((p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback))
-      .map((p) => p.token);
+  const unresolved = placeholders
+    .filter(
+      (p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback),
+    )
+    .map((p) => p.token);
 
-    const resultPayload = {
-      mode,
-      block_replaced: blockReplaced,
-      ...(warning ? { warning } : {}),
-      content,
-      unresolved_placeholders: unresolved,
-      nextSteps: [
-        mode === 'merge'
-          ? 'Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication.'
-          : 'Write `content` to the AGENTS.md at the target project root.',
-        'Fill any unresolved placeholders directly in the written file.',
-        mode === 'full'
-          ? 'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
-          : 'Repeat calls with updated content stay idempotent via the stochastic-thinking markers.'
-      ],
-      status: 'success' as const
-    };
+  const resultPayload = {
+    mode,
+    block_replaced: blockReplaced,
+    ...(warning ? { warning } : {}),
+    content,
+    unresolved_placeholders: unresolved,
+    nextSteps: [
+      mode === "merge"
+        ? "Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication."
+        : "Write `content` to the AGENTS.md at the target project root.",
+      "Fill any unresolved placeholders directly in the written file.",
+      mode === "full"
+        ? "Later updates: pass the file content as existing_agents_md to update the guide block in place."
+        : "Repeat calls with updated content stay idempotent via the stochastic-thinking markers.",
+    ],
+    status: "success" as const,
+  };
 
-    return resultPayload;
+  return resultPayload;
 }
 
 /** The AGENTS template is embedded (see agents-guide-template.ts) so it
@@ -165,7 +185,10 @@ function loadTemplate(): string {
   return AGENTS_TEMPLATE;
 }
 
-function applyPlaceholders(template: string, placeholders: Placeholder[]): string {
+function applyPlaceholders(
+  template: string,
+  placeholders: Placeholder[],
+): string {
   let out = template;
   for (const p of placeholders) {
     out = out.split(p.token).join(valueOrFallback(p));
@@ -183,16 +206,20 @@ function splitGuide(rendered: string): { head: string; body: string } {
   const bodyStart = rendered.indexOf(BODY_HEADING);
   if (headingStart === -1 || bodyStart === -1 || bodyStart < headingStart) {
     throw new Error(
-      'AGENTS template is malformed: expected "# Stochastic Thinking — Decision Tool Guide" followed by "## Ground rules"'
+      'AGENTS template is malformed: expected "# Stochastic Thinking — Decision Tool Guide" followed by "## Ground rules"',
     );
   }
   return {
     head: rendered.slice(headingStart, bodyStart).trimEnd(),
-    body: rendered.slice(bodyStart).trimEnd()
+    body: rendered.slice(bodyStart).trimEnd(),
   };
 }
 
-function buildGuideBlock(rendered: string, mergeMode: boolean, placeholders: Placeholder[]): string {
+function buildGuideBlock(
+  rendered: string,
+  mergeMode: boolean,
+  placeholders: Placeholder[],
+): string {
   const { body } = splitGuide(rendered);
   if (mergeMode === false) {
     return `${START_MARKER}\n${body}\n${END_MARKER}`;
@@ -200,15 +227,18 @@ function buildGuideBlock(rendered: string, mergeMode: boolean, placeholders: Pla
   // The template head (with the project-specific intro) is not part of a
   // merged block, so surface the provided context as a line under the heading.
   const provided = placeholders
-    .filter((p) => p.value !== undefined && p.token !== '{{CODEBASE_ROOT}}')
-    .map((p) => `${p.token === '{{PROJECT_NAME}}' ? 'Project' : 'Domain'}: ${p.value}`);
+    .filter((p) => p.value !== undefined && p.token !== "{{CODEBASE_ROOT}}")
+    .map(
+      (p) =>
+        `${p.token === "{{PROJECT_NAME}}" ? "Project" : "Domain"}: ${p.value}`,
+    );
   const contextLine = placeholders.find(
-    (p) => p.token === '{{CODEBASE_ROOT}}' && p.value !== undefined
+    (p) => p.token === "{{CODEBASE_ROOT}}" && p.value !== undefined,
   );
   if (contextLine) provided.push(`Codebase root: ${contextLine.value}`);
   const heading = mergeMode
-    ? `${GUIDE_HEADING.replace('# ', '## ')}${provided.length ? `\n\n${provided.join(' ')}` : ''}`
-    : '';
+    ? `${GUIDE_HEADING.replace("# ", "## ")}${provided.length ? `\n\n${provided.join(" ")}` : ""}`
+    : "";
   return `${START_MARKER}\n${heading}\n\n${body}\n${END_MARKER}`;
 }
 
@@ -219,7 +249,7 @@ function buildFullDocument(rendered: string, block: string): string {
 
 function integrateIntoExisting(
   existing: string,
-  block: string
+  block: string,
 ): { content: string; blockReplaced: boolean; warning?: string } {
   const startCount = existing.split(START_MARKER).length - 1;
   const endCount = existing.split(END_MARKER).length - 1;
@@ -230,11 +260,18 @@ function integrateIntoExisting(
   // START without END, END before START, multiple pairs) replacing the span
   // [first START .. last END] could silently delete user content, so append
   // instead and tell the caller.
-  if (startCount === 1 && endCount === 1 && startIdx !== -1 && endIdx > startIdx) {
+  if (
+    startCount === 1 &&
+    endCount === 1 &&
+    startIdx !== -1 &&
+    endIdx > startIdx
+  ) {
     const before = existing.slice(0, startIdx).trimEnd();
     const after = existing.slice(endIdx + END_MARKER.length).trimStart();
     const joined =
-      after.length > 0 ? `${before}\n\n${block}\n\n${after}` : `${before}\n\n${block}`;
+      after.length > 0
+        ? `${before}\n\n${block}\n\n${after}`
+        : `${before}\n\n${block}`;
     return { content: `${joined}\n`, blockReplaced: true };
   }
   if (startCount > 0 || endCount > 0) {
@@ -242,9 +279,9 @@ function integrateIntoExisting(
       content: `${existing.trimEnd()}\n\n${block}\n`,
       blockReplaced: false,
       warning:
-        'The existing content contains incomplete or duplicated stochastic-thinking guide markers; ' +
-        'the guide was appended instead of replacing them. Clean up the stray ' +
-        `${START_MARKER} / ${END_MARKER} lines manually and re-run to restore in-place updates.`
+        "The existing content contains incomplete or duplicated stochastic-thinking guide markers; " +
+        "the guide was appended instead of replacing them. Clean up the stray " +
+        `${START_MARKER} / ${END_MARKER} lines manually and re-run to restore in-place updates.`,
     };
   }
   const base = existing.trimEnd();

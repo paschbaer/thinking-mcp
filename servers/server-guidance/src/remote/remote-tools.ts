@@ -5,7 +5,10 @@
  */
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { RemoteSessionManager, RemoteSession } from "./remote-session-manager.js";
+import type {
+  RemoteSessionManager,
+  RemoteSession,
+} from "./remote-session-manager.js";
 import { getBearerToken } from "./remote-context.js";
 
 function toJson(result: unknown) {
@@ -16,23 +19,33 @@ const sessionId = { sessionId: z.string().min(1) };
 const requestId = { requestId: z.string().min(1).optional() };
 
 /** FR-104: awaiting_client-Responses in client_operations_pending umformen. */
-function reshapeRemote(result: Record<string, unknown>): Record<string, unknown> {
+function reshapeRemote(
+  result: Record<string, unknown>,
+): Record<string, unknown> {
   const err = result.error as { code?: string } | undefined;
-  const ops = result.operations as { status?: string; id?: string }[] | undefined;
+  const ops = result.operations as
+    { status?: string; id?: string }[] | undefined;
   if (err?.code === "required_hook_failed" && Array.isArray(ops)) {
     const pending = ops.filter((o) => o.status === "input_required");
     if (pending.length > 0) {
       return {
         ...result,
         code: "client_operations_pending",
-        pendingOperations: pending.map((o) => ({ operationId: o.id, status: "awaiting_client_execution", opToken: (o as { opToken?: string }).opToken })),
+        pendingOperations: pending.map((o) => ({
+          operationId: o.id,
+          status: "awaiting_client_execution",
+          opToken: (o as { opToken?: string }).opToken,
+        })),
       };
     }
   }
   return result;
 }
 
-export function registerRemoteTools(server: McpServer, manager: RemoteSessionManager): void {
+export function registerRemoteTools(
+  server: McpServer,
+  manager: RemoteSessionManager,
+): void {
   const engineOf = (session: RemoteSession) => session.composition.engine;
   const toolsOf = (session: RemoteSession) => session.composition.tools;
 
@@ -41,8 +54,14 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     "FR-102: Laedt die lokale .guidance-Konfiguration eines Repos hoch und erzeugt eine isolierte Session",
     {
       key: z.string().min(1).optional(),
-      config: z.custom<Record<string, unknown>>((v) => typeof v === "object" && v !== null),
-      configFiles: z.custom<Record<string, string>>((v) => typeof v === "object" && v !== null).optional(),
+      config: z.custom<Record<string, unknown>>(
+        (v) => typeof v === "object" && v !== null,
+      ),
+      configFiles: z
+        .custom<Record<string, string>>(
+          (v) => typeof v === "object" && v !== null,
+        )
+        .optional(),
       requestId: z.string().min(1).optional(),
     },
     async ({ key, config, configFiles }) => {
@@ -52,10 +71,17 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
           sessionId: session.meta.sessionId,
           configVersion: session.meta.configVersion,
           key: session.meta.key,
-          workflow: { id: session.composition.config.main.workflow?.file ?? "workflow.json" },
+          workflow: {
+            id:
+              session.composition.config.main.workflow?.file ?? "workflow.json",
+          },
         });
       } catch (err) {
-        return toJson({ isError: true, code: "configuration_invalid", message: String((err as Error).message ?? err) });
+        return toJson({
+          isError: true,
+          code: "configuration_invalid",
+          message: String((err as Error).message ?? err),
+        });
       }
     },
   );
@@ -83,14 +109,27 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       logs: z.string().optional(),
       reportToken: z.string().min(1).optional(),
     },
-    async ({ sessionId: sid, operationId, status, exitCode, summary, logs, reportToken }) => {
+    async ({
+      sessionId: sid,
+      operationId,
+      status,
+      exitCode,
+      summary,
+      logs,
+      reportToken,
+    }) => {
       const session = manager.resolve(sid);
       // spec 006 FR-501: Binding-Prüfung ohne Burn → record → persist → Burn.
       // Reihenfolge schließt das Crash-Fenster: nach record+persist erkennt
       // checkReportBinding Replays über den gespeicherten Report-Token.
       session.ledger.checkReportBinding(operationId, reportToken);
       session.ledger.record({
-        operationId, status, exitCode, summary, logs, token: reportToken,
+        operationId,
+        status,
+        exitCode,
+        summary,
+        logs,
+        token: reportToken,
         reportedAt: new Date().toISOString(),
       }); // requestId: im v1 Ledger über operationId je Transition addressiert
       manager.persistSessionState(session); // L305(a): Report überlebt Restarts
@@ -99,7 +138,12 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
       const attempt = session.lastAttempt;
       if (attempt) {
         const engine = engineOf(session);
-        const result = (await engine.submit(attempt.sessionId, attempt.phase, attempt.payload as never, attempt.requestId)) as unknown as Record<string, unknown>;
+        const result = (await engine.submit(
+          attempt.sessionId,
+          attempt.phase,
+          attempt.payload as never,
+          attempt.requestId,
+        )) as unknown as Record<string, unknown>;
         return toJson(reshapeRemote(result));
       }
       return toJson({ recorded: true, pendingOperations: [] });
@@ -109,10 +153,18 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
   server.tool(
     "start_workflow",
     "Startet eine Workflow-Session in der init_session-Konfiguration",
-    { ...sessionId, request: z.string(), metadata: z.record(z.unknown()).optional() },
+    {
+      ...sessionId,
+      request: z.string(),
+      metadata: z.record(z.unknown()).optional(),
+    },
     async ({ sessionId: sid, request, metadata }) => {
       const session = manager.resolve(sid);
-      const result = (await toolsOf(session).startWorkflow({ workspaceRoot: "/remote", request, metadata })) as unknown as Record<string, unknown>;
+      const result = (await toolsOf(session).startWorkflow({
+        workspaceRoot: "/remote",
+        request,
+        metadata,
+      })) as unknown as Record<string, unknown>;
       // Workflow-Session-Id dem Binding/Mapping zuordnen (FR-103.1).
       if (result.accepted === true) {
         manager.registerWorkflowSession(sid, result.sessionId as string);
@@ -128,9 +180,15 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     sessionId,
     async ({ sessionId: sid }) => {
       try {
-        return toJson(await toolsOf(manager.resolve(sid)).getCurrentGuidance(sid));
+        return toJson(
+          await toolsOf(manager.resolve(sid)).getCurrentGuidance(sid),
+        );
       } catch (err) {
-        return toJson({ isError: true, code: "session_not_found", message: (err as Error).message });
+        return toJson({
+          isError: true,
+          code: "session_not_found",
+          message: (err as Error).message,
+        });
       }
     },
   );
@@ -138,11 +196,26 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
   server.tool(
     "submit_understanding",
     "Reicht das Verstaendnis der Anfrage ein",
-    { ...sessionId, ...requestId, summary: z.string(), assumptions: z.array(z.string()).optional(), acceptanceCriteria: z.array(z.string()).optional() },
+    {
+      ...sessionId,
+      ...requestId,
+      summary: z.string(),
+      assumptions: z.array(z.string()).optional(),
+      acceptanceCriteria: z.array(z.string()).optional(),
+    },
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
-      const result = (await toolsOf(session).submitUnderstanding(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      const result = (await toolsOf(session).submitUnderstanding(
+        sid,
+        payload,
+        reqId,
+      )) as unknown as Record<string, unknown>;
+      session.lastAttempt = {
+        sessionId: session.workflowSid ?? sid,
+        phase: (result.currentPhase as string) ?? sid,
+        payload: payload,
+        requestId: reqId,
+      };
       manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
@@ -154,8 +227,17 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     { ...sessionId, ...requestId, tasks: z.array(z.record(z.unknown())) },
     async ({ sessionId: sid, requestId: reqId, tasks }) => {
       const session = manager.resolve(sid);
-      const result = (await toolsOf(session).submitPlan(sid, { tasks }, reqId)) as unknown as Record<string, unknown>;
-      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: "plan", payload: { tasks }, requestId: reqId };
+      const result = (await toolsOf(session).submitPlan(
+        sid,
+        { tasks },
+        reqId,
+      )) as unknown as Record<string, unknown>;
+      session.lastAttempt = {
+        sessionId: session.workflowSid ?? sid,
+        phase: "plan",
+        payload: { tasks },
+        requestId: reqId,
+      };
       manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
@@ -164,11 +246,25 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
   server.tool(
     "submit_plan_review",
     "Reicht die Plan-Review-Ergebnisse ein",
-    { ...sessionId, ...requestId, findings: z.array(z.record(z.unknown())).optional(), approvedPlan: z.record(z.unknown()).optional() },
+    {
+      ...sessionId,
+      ...requestId,
+      findings: z.array(z.record(z.unknown())).optional(),
+      approvedPlan: z.record(z.unknown()).optional(),
+    },
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
-      const result = (await toolsOf(session).submitPlanReview(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      const result = (await toolsOf(session).submitPlanReview(
+        sid,
+        payload,
+        reqId,
+      )) as unknown as Record<string, unknown>;
+      session.lastAttempt = {
+        sessionId: session.workflowSid ?? sid,
+        phase: (result.currentPhase as string) ?? sid,
+        payload: payload,
+        requestId: reqId,
+      };
       manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
@@ -177,11 +273,25 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
   server.tool(
     "submit_implementation",
     "Reicht Implementierungsnachweise ein",
-    { ...sessionId, ...requestId, implementedTasks: z.array(z.string()), changedFiles: z.array(z.string()) },
+    {
+      ...sessionId,
+      ...requestId,
+      implementedTasks: z.array(z.string()),
+      changedFiles: z.array(z.string()),
+    },
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
-      const result = (await toolsOf(session).submitImplementation(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      const result = (await toolsOf(session).submitImplementation(
+        sid,
+        payload,
+        reqId,
+      )) as unknown as Record<string, unknown>;
+      session.lastAttempt = {
+        sessionId: session.workflowSid ?? sid,
+        phase: (result.currentPhase as string) ?? sid,
+        payload: payload,
+        requestId: reqId,
+      };
       manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
@@ -190,11 +300,25 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
   server.tool(
     "submit_implementation_review",
     "Reicht Implementation-Review-Findings ein",
-    { ...sessionId, ...requestId, findings: z.array(z.record(z.unknown())).optional(), filesChangedDuringReview: z.array(z.string()).optional() },
+    {
+      ...sessionId,
+      ...requestId,
+      findings: z.array(z.record(z.unknown())).optional(),
+      filesChangedDuringReview: z.array(z.string()).optional(),
+    },
     async ({ sessionId: sid, requestId: reqId, ...payload }) => {
       const session = manager.resolve(sid);
-      const result = (await toolsOf(session).submitImplementationReview(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? sid, payload: payload, requestId: reqId };
+      const result = (await toolsOf(session).submitImplementationReview(
+        sid,
+        payload,
+        reqId,
+      )) as unknown as Record<string, unknown>;
+      session.lastAttempt = {
+        sessionId: session.workflowSid ?? sid,
+        phase: (result.currentPhase as string) ?? sid,
+        payload: payload,
+        requestId: reqId,
+      };
       manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
@@ -203,12 +327,31 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
   server.tool(
     "submit_verification",
     "Reicht Verifizierungsergebnisse ein; loest die Client-Gates (verify beforeExit) aus",
-    { ...sessionId, ...requestId, summary: z.string(), verificationSummary: z.array(z.string()) },
-    async ({ sessionId: sid, requestId: reqId, summary, verificationSummary }) => {
+    {
+      ...sessionId,
+      ...requestId,
+      summary: z.string(),
+      verificationSummary: z.array(z.string()),
+    },
+    async ({
+      sessionId: sid,
+      requestId: reqId,
+      summary,
+      verificationSummary,
+    }) => {
       const session = manager.resolve(sid);
       const payload = { summary, verificationSummary };
-      const result = (await toolsOf(session).submitVerification(sid, payload, reqId)) as unknown as Record<string, unknown>;
-      session.lastAttempt = { sessionId: session.workflowSid ?? sid, phase: (result.currentPhase as string) ?? "verify", payload, requestId: reqId };
+      const result = (await toolsOf(session).submitVerification(
+        sid,
+        payload,
+        reqId,
+      )) as unknown as Record<string, unknown>;
+      session.lastAttempt = {
+        sessionId: session.workflowSid ?? sid,
+        phase: (result.currentPhase as string) ?? "verify",
+        payload,
+        requestId: reqId,
+      };
       manager.persistSessionState(session); // L305(a)
       return toJson(reshapeRemote(result));
     },
@@ -219,63 +362,92 @@ export function registerRemoteTools(server: McpServer, manager: RemoteSessionMan
     "Reicht den Abschlussbericht ein und fordert Completion an",
     { ...sessionId, ...requestId, summary: z.string() },
     async ({ sessionId: sid, requestId: reqId, summary }) =>
-      toJson(await toolsOf(manager.resolve(sid)).completeWorkflow(sid, { summary }, reqId)),
+      toJson(
+        await toolsOf(manager.resolve(sid)).completeWorkflow(
+          sid,
+          { summary },
+          reqId,
+        ),
+      ),
   );
 
   server.tool(
     "get_workflow_state",
     "Liest den persistierten Session-Zustand",
     { ...sessionId, includeHistory: z.boolean().optional() },
-    async ({ sessionId: sid }) => toJson(await toolsOf(manager.resolve(sid)).getWorkflowState(sid)),
+    async ({ sessionId: sid }) =>
+      toJson(await toolsOf(manager.resolve(sid)).getWorkflowState(sid)),
   );
 
   server.tool(
     "report_blocker",
     "Meldet einen Blocker; Session geht in 'blocked'",
-    { ...sessionId, category: z.string(), description: z.string(), requiresUserDecision: z.boolean().optional(), options: z.array(z.string()).optional() },
-    async ({ sessionId: sid, ...rest }) => toJson(await toolsOf(manager.resolve(sid)).reportBlocker(sid, rest)),
+    {
+      ...sessionId,
+      category: z.string(),
+      description: z.string(),
+      requiresUserDecision: z.boolean().optional(),
+      options: z.array(z.string()).optional(),
+    },
+    async ({ sessionId: sid, ...rest }) =>
+      toJson(await toolsOf(manager.resolve(sid)).reportBlocker(sid, rest)),
   );
 
   server.tool(
     "resume_workflow",
     "Beendet 'blocked' und kehrt in die vorherige Phase zurueck",
     { ...sessionId, decision: z.string(), notes: z.string().optional() },
-    async ({ sessionId: sid, decision, notes }) => toJson(await toolsOf(manager.resolve(sid)).resumeWorkflow(sid, { decision, notes })),
+    async ({ sessionId: sid, decision, notes }) =>
+      toJson(
+        await toolsOf(manager.resolve(sid)).resumeWorkflow(sid, {
+          decision,
+          notes,
+        }),
+      ),
   );
 
   server.tool(
     "cancel_workflow",
     "Bricht die Session graceful ab (FR-057)",
     sessionId,
-    async ({ sessionId: sid }) => toJson(await toolsOf(manager.resolve(sid)).cancelWorkflow(sid)),
+    async ({ sessionId: sid }) =>
+      toJson(await toolsOf(manager.resolve(sid)).cancelWorkflow(sid)),
   );
 
   server.tool(
     "get_orchestration_status",
     "Status der Operationen der aktiven Phase",
     sessionId,
-    async ({ sessionId: sid }) => toJson(await toolsOf(manager.resolve(sid)).getOrchestrationStatus(sid)),
+    async ({ sessionId: sid }) =>
+      toJson(await toolsOf(manager.resolve(sid)).getOrchestrationStatus(sid)),
   );
 
   server.tool(
     "list_configured_operations",
     "Sichere Liste konfigurierter Operationen der Session",
     sessionId,
-    async ({ sessionId: sid }) => { manager.resolve(sid); return toJson(toolsOf(manager.resolve(sid)).listConfiguredOperations()); },
+    async ({ sessionId: sid }) => {
+      manager.resolve(sid);
+      return toJson(toolsOf(manager.resolve(sid)).listConfiguredOperations());
+    },
   );
 
   server.tool(
     "retry_operation",
     "Wiederholt fehlgeschlagene Pflicht-Operationen der aktuellen Phase",
     sessionId,
-    async ({ sessionId: sid }) => toJson(await toolsOf(manager.resolve(sid)).retryOperation(sid)),
+    async ({ sessionId: sid }) =>
+      toJson(await toolsOf(manager.resolve(sid)).retryOperation(sid)),
   );
 
   server.tool(
     "get_downstream_status",
     "Gesundheitsstatus der Downstream-Server der Session",
     sessionId,
-    async ({ sessionId: sid }) => { manager.resolve(sid); return toJson(await toolsOf(manager.resolve(sid)).getDownstreamStatus()); },
+    async ({ sessionId: sid }) => {
+      manager.resolve(sid);
+      return toJson(await toolsOf(manager.resolve(sid)).getDownstreamStatus());
+    },
   );
 
   server.tool(

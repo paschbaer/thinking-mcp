@@ -13,7 +13,8 @@ export interface EmbeddingProvider {
 }
 
 export class TransformersEmbedding implements EmbeddingProvider {
-  private pipeline: import('@xenova/transformers').FeatureExtractionPipeline | null = null;
+  private pipeline:
+    import("@xenova/transformers").FeatureExtractionPipeline | null = null;
   private loadAttempted = false;
   private loadFailed = false;
 
@@ -21,7 +22,7 @@ export class TransformersEmbedding implements EmbeddingProvider {
     if (this.loadFailed) return false;
     if (this.pipeline) return true;
     // Probe without caching a failure permanently: try loading once.
-    return (await this.embed('probe')) !== null;
+    return (await this.embed("probe")) !== null;
   }
 
   async embed(text: string): Promise<Float32Array | null> {
@@ -33,13 +34,17 @@ export class TransformersEmbedding implements EmbeddingProvider {
       // binding may fail to dlopen — the failure is caught below, but the
       // thrown error can still surface as an unhandled rejection in vitest
       // (exit code 1 despite green tests). Also honored by tests via env.
-      if (process.env.EMMS_DISABLE_EMBEDDINGS === '1') {
+      if (process.env.EMMS_DISABLE_EMBEDDINGS === "1") {
         this.loadFailed = true;
         return null;
       }
       try {
-        const mod = await import('@xenova/transformers');
-        this.pipeline = await mod.pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true });
+        const mod = await import("@xenova/transformers");
+        this.pipeline = await mod.pipeline(
+          "feature-extraction",
+          "Xenova/all-MiniLM-L6-v2",
+          { quantized: true },
+        );
       } catch {
         this.loadFailed = true;
         return null;
@@ -47,7 +52,10 @@ export class TransformersEmbedding implements EmbeddingProvider {
     }
     if (!this.pipeline) return null;
     try {
-      const out = await this.pipeline(text, { pooling: 'mean', normalize: true });
+      const out = await this.pipeline(text, {
+        pooling: "mean",
+        normalize: true,
+      });
       return out.data as Float32Array;
     } catch {
       return null;

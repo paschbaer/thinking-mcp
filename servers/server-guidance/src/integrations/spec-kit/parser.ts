@@ -73,9 +73,16 @@ export function parseTasks(content: string): ParsedArtifact {
       const parallelizable = PARALLEL.test(rest);
       rest = rest.replace(PARALLEL, "").trim();
       const dependencies = extractDependencies(rest);
-      rest = rest.replace(/`[^`]*`/g, "").replace(/\(depends:[^)]*\)/gi, "").trim();
-      const linkedRequirementIds = [...new Set((rest.match(REQ_TOKEN) ?? []).map((x) => x.toUpperCase()))];
-      const linkedCriterionIds = [...new Set((rest.match(CRIT_TOKEN) ?? []).map((x) => x.toUpperCase()))];
+      rest = rest
+        .replace(/`[^`]*`/g, "")
+        .replace(/\(depends:[^)]*\)/gi, "")
+        .trim();
+      const linkedRequirementIds = [
+        ...new Set((rest.match(REQ_TOKEN) ?? []).map((x) => x.toUpperCase())),
+      ];
+      const linkedCriterionIds = [
+        ...new Set((rest.match(CRIT_TOKEN) ?? []).map((x) => x.toUpperCase())),
+      ];
       const title = rest.split(/[.;(]/)[0]!.trim() || rest;
       tasks.push({
         taskId,
@@ -93,20 +100,34 @@ export function parseTasks(content: string): ParsedArtifact {
       });
       return;
     }
-    const req = line.match(/\*\*(FR-\d+)\*\*:?\s*(.*)/i) ?? line.match(/- \*\*?(FR-\d+)\*\*?/i);
+    const req =
+      line.match(/\*\*(FR-\d+)\*\*:?\s*(.*)/i) ??
+      line.match(/- \*\*?(FR-\d+)\*\*?/i);
     if (req) {
-      requirements.push({ id: req[1]!.toUpperCase(), text: line.replace(/^\s*-\s*/, ""), line: lineNo });
+      requirements.push({
+        id: req[1]!.toUpperCase(),
+        text: line.replace(/^\s*-\s*/, ""),
+        line: lineNo,
+      });
       return;
     }
     // Bold form (**AC-001**) and plain list form (- AC-001:) both match —
     // mirroring the requirement pattern below (was bold-only, 2d-hygiene).
-    const crit = line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i) ?? line.match(/- \*?\*?((?:AC|SC)-\d+)\*?\*?:?\s*(.*)/i);
+    const crit =
+      line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i) ??
+      line.match(/- \*?\*?((?:AC|SC)-\d+)\*?\*?:?\s*(.*)/i);
     if (crit) {
-      criteria.push({ id: crit[1]!.toUpperCase(), text: line.replace(/^\s*-\s*/, ""), line: lineNo });
+      criteria.push({
+        id: crit[1]!.toUpperCase(),
+        text: line.replace(/^\s*-\s*/, ""),
+        line: lineNo,
+      });
       return;
     }
     if (/\[[a-z]+\]/i.test(line) && line.startsWith("-")) {
-      warnings.push(`unrecognized marker at line ${lineNo}: ${line.slice(0, 60)}`);
+      warnings.push(
+        `unrecognized marker at line ${lineNo}: ${line.slice(0, 60)}`,
+      );
     }
   });
   return { tasks, requirements, criteria, warnings };

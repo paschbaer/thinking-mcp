@@ -1,32 +1,41 @@
-import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { SessionState } from '../state/SessionState.js';
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SessionState } from "../state/SessionState.js";
 
-export function registerComparativeAdvantage(server: McpServer, _sessionState: SessionState) {
+export function registerComparativeAdvantage(
+  server: McpServer,
+  _sessionState: SessionState,
+) {
   server.tool(
-    'comparative_advantage',
-    'Map tasks to the skill holder with highest capability. Skills are ' +
-      'matched per task: each agent is scored by its (average) level on the ' +
-      'skills the task requires; missing skills count as 0. Optional ' +
-      'capacity enables greedy multi-task assignment; optional costs divide ' +
-      'the skill score (effective score = skill score / cost)',
+    "comparative_advantage",
+    "Map tasks to the skill holder with highest capability. Skills are " +
+      "matched per task: each agent is scored by its (average) level on the " +
+      "skills the task requires; missing skills count as 0. Optional " +
+      "capacity enables greedy multi-task assignment; optional costs divide " +
+      "the skill score (effective score = skill score / cost)",
     {
       skills: z
         .record(z.string(), z.record(z.string(), z.number()))
-        .describe('Map of agent name to that agent\u2019s skill levels, e.g. { "alice": { "sql": 4, "python": 5 } }'),
+        .describe(
+          'Map of agent name to that agent\u2019s skill levels, e.g. { "alice": { "sql": 4, "python": 5 } }',
+        ),
       tasks: z
         .record(z.string(), z.array(z.string()))
-        .describe('Map of task name to the skills the task requires, e.g. { "migrate_db": ["sql", "python"] }'),
+        .describe(
+          'Map of task name to the skills the task requires, e.g. { "migrate_db": ["sql", "python"] }',
+        ),
       capacity: z
         .record(z.string(), z.number().int().min(0))
         .optional()
         .describe(
-          'Max simultaneous tasks per agent (unlisted agents: unlimited). Enables greedy capacity-aware assignment across all tasks'
+          "Max simultaneous tasks per agent (unlisted agents: unlimited). Enables greedy capacity-aware assignment across all tasks",
         ),
       costs: z
         .record(z.string(), z.number().positive())
         .optional()
-        .describe('Cost per task per agent (unlisted agents: cost 1); effective score = skill score / cost')
+        .describe(
+          "Cost per task per agent (unlisted agents: cost 1); effective score = skill score / cost",
+        ),
     },
     async ({ skills, tasks, capacity, costs }) => {
       const warnings: string[] = [];
@@ -34,8 +43,10 @@ export function registerComparativeAdvantage(server: McpServer, _sessionState: S
         const levels = skills[agent] ?? {};
         const base =
           required.length > 0
-            ? required.reduce((sum, skill) => sum + (levels[skill] ?? 0), 0) / required.length
-            : Object.values(levels).reduce((s, v) => s + v, 0) / (Object.keys(levels).length || 1);
+            ? required.reduce((sum, skill) => sum + (levels[skill] ?? 0), 0) /
+              required.length
+            : Object.values(levels).reduce((s, v) => s + v, 0) /
+              (Object.keys(levels).length || 1);
         const cost = costs?.[agent] ?? 1;
         return Number((base / cost).toFixed(2));
       };
@@ -44,11 +55,12 @@ export function registerComparativeAdvantage(server: McpServer, _sessionState: S
         const breakdown = Object.keys(skills)
           .map((agent) => ({
             agent,
-            score: effective(agent, required)
+            score: effective(agent, required),
           }))
           .sort((a, b) => b.score - a.score || a.agent.localeCompare(b.agent));
         const missing_skills = required.filter(
-          (skill) => !Object.values(skills).some((levels) => (levels[skill] ?? 0) > 0)
+          (skill) =>
+            !Object.values(skills).some((levels) => (levels[skill] ?? 0) > 0),
         );
         return { task, required, breakdown, missing_skills };
       });
@@ -74,13 +86,13 @@ export function registerComparativeAdvantage(server: McpServer, _sessionState: S
             assignee: breakdown[0]?.agent ?? null,
             score: breakdown[0]?.score ?? 0,
             breakdown,
-            missing_skills
+            missing_skills,
           }));
 
       for (const entry of advantage_map) {
         if (entry.missing_skills.length > 0) {
           warnings.push(
-            `Task "${entry.task}": no agent has any level in [${entry.missing_skills.join(', ')}]`
+            `Task "${entry.task}": no agent has any level in [${entry.missing_skills.join(", ")}]`,
           );
         }
       }
@@ -88,21 +100,23 @@ export function registerComparativeAdvantage(server: McpServer, _sessionState: S
       return {
         content: [
           {
-            type: 'text',
+            type: "text",
             text: JSON.stringify(
               {
-                assignment_mode: capacityAware ? 'capacity-aware-greedy' : 'per-task',
+                assignment_mode: capacityAware
+                  ? "capacity-aware-greedy"
+                  : "per-task",
                 advantage_map,
                 ...(warnings.length ? { warnings } : {}),
-                status: 'success'
+                status: "success",
               },
               null,
-              2
-            )
-          }
-        ]
+              2,
+            ),
+          },
+        ],
       };
-    }
+    },
   );
 }
 
@@ -120,7 +134,7 @@ function assignGlobally(
     missing_skills: string[];
   }>,
   remaining: Map<string, number>,
-  warnings: string[]
+  warnings: string[],
 ): Array<{
   task: string;
   assignee: string | null;
@@ -128,17 +142,27 @@ function assignGlobally(
   breakdown: Array<{ agent: string; score: number }>;
   missing_skills: string[];
 }> {
-  const pairs: Array<{ task: string; agent: string; score: number; taskIdx: number }> = [];
+  const pairs: Array<{
+    task: string;
+    agent: string;
+    score: number;
+    taskIdx: number;
+  }> = [];
   taskEntries.forEach(({ task, breakdown }, taskIdx) => {
     for (const candidate of breakdown) {
-      pairs.push({ task, agent: candidate.agent, score: candidate.score, taskIdx });
+      pairs.push({
+        task,
+        agent: candidate.agent,
+        score: candidate.score,
+        taskIdx,
+      });
     }
   });
   pairs.sort(
     (a, b) =>
       b.score - a.score ||
       a.taskIdx - b.taskIdx ||
-      a.agent.localeCompare(b.agent)
+      a.agent.localeCompare(b.agent),
   );
 
   const assigned = new Map<number, { assignee: string; score: number }>();
@@ -155,14 +179,16 @@ function assignGlobally(
   return taskEntries.map(({ task, breakdown, missing_skills }, taskIdx) => {
     const hit = assigned.get(taskIdx);
     if (!hit) {
-      warnings.push(`Task "${task}": no agent with remaining capacity available.`);
+      warnings.push(
+        `Task "${task}": no agent with remaining capacity available.`,
+      );
     }
     return {
       task,
       assignee: hit?.assignee ?? null,
       score: hit?.score ?? 0,
       breakdown,
-      missing_skills
+      missing_skills,
     };
   });
 }

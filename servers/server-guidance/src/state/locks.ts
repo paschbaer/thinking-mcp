@@ -26,7 +26,9 @@ export class FeatureLockRegistry {
         this.cache = {};
       } else {
         try {
-          this.cache = JSON.parse(readFileSync(this.lockPath, "utf-8")) as LockFile;
+          this.cache = JSON.parse(
+            readFileSync(this.lockPath, "utf-8"),
+          ) as LockFile;
         } catch {
           // Corrupt lock file must not brick locking: quarantine and rebuild.
           try {
@@ -53,9 +55,13 @@ export class FeatureLockRegistry {
     const lock = this.load();
     const holder = lock[featureDir];
     if (holder && holder.sessionId !== sessionId) {
-      throw new GuidanceError("spec_kit_feature_in_use", `feature locked by ${holder.sessionId}`, {
-        recoverable: true,
-      });
+      throw new GuidanceError(
+        "spec_kit_feature_in_use",
+        `feature locked by ${holder.sessionId}`,
+        {
+          recoverable: true,
+        },
+      );
     }
     lock[featureDir] = { sessionId, acquiredAt: new Date().toISOString() };
     this.persist(lock);
@@ -65,9 +71,13 @@ export class FeatureLockRegistry {
     const lock = this.load();
     const holder = lock[featureDir];
     if (holder && holder.sessionId !== sessionId) {
-      throw new GuidanceError("spec_kit_feature_in_use", `feature locked by ${holder.sessionId}`, {
-        recoverable: true,
-      });
+      throw new GuidanceError(
+        "spec_kit_feature_in_use",
+        `feature locked by ${holder.sessionId}`,
+        {
+          recoverable: true,
+        },
+      );
     }
     delete lock[featureDir];
     this.persist(lock);

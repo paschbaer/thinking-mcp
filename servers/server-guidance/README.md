@@ -283,8 +283,12 @@ from answers, the proven reference configuration is used as the base —
 `downstream-servers.json` are **regenerated** from your remaining answers,
 and an `adoption` block records the source. Repo-specific values (paths,
 project name, workspaces, shell) are **never inherited** — they always come
-from your answers. Non-generic reference operations are listed as manual
-adaptation hints instead of being silently copied.
+from your answers. Non-generic reference operations are **copied** into the
+generated `operations.json` with an `[adopted from reference]` marker in
+their description — review their args/paths before relying on them.
+A proven builtin reference ships with the guidance package at
+`examples/default-guidance` (pass that directory's path as `referencePath`,
+e.g. the container path `/workspace/servers/server-guidance/examples/default-guidance`).
 Generation returns all six config files plus the seven submission schemas
 (from `examples/default-guidance/schemas`; if the directory is missing from
 the installation, the agent receives a copy hint instead of an error).

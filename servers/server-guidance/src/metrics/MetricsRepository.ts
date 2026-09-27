@@ -7,7 +7,8 @@
  */
 import { existsSync, appendFileSync, readFileSync } from "node:fs";
 
-export type OperationOutcome = "succeeded" | "failed" | "cancelled" | "timed_out";
+export type OperationOutcome =
+  "succeeded" | "failed" | "cancelled" | "timed_out";
 
 export interface OperationMetrics {
   runs: number;
@@ -27,9 +28,14 @@ export interface ConnectionSnapshot {
 export interface MetricsSnapshot {
   operations: Record<string, OperationMetrics>;
   connections: ConnectionSnapshot[];
-  perWorkspace?: Record<string, { operations: Record<string, OperationMetrics>; connections: ConnectionSnapshot[] }>;
-
-  }
+  perWorkspace?: Record<
+    string,
+    {
+      operations: Record<string, OperationMetrics>;
+      connections: ConnectionSnapshot[];
+    }
+  >;
+}
 
 interface MetricsRecord {
   ts: string;
@@ -42,7 +48,14 @@ interface MetricsRecord {
 }
 
 function emptyBucket(): OperationMetrics {
-  return { runs: 0, succeeded: 0, failed: 0, cancelled: 0, timedOut: 0, durationMs: { count: 0, sum: 0, max: 0 } };
+  return {
+    runs: 0,
+    succeeded: 0,
+    failed: 0,
+    cancelled: 0,
+    timedOut: 0,
+    durationMs: { count: 0, sum: 0, max: 0 },
+  };
 }
 
 export class MetricsRepository {
@@ -54,7 +67,11 @@ export class MetricsRepository {
     this.replay();
   }
 
-  recordOperation(operationId: string, outcome: OperationOutcome, durationMs: number): void {
+  recordOperation(
+    operationId: string,
+    outcome: OperationOutcome,
+    durationMs: number,
+  ): void {
     const bucket = (this.operations[operationId] ??= emptyBucket());
     bucket.runs += 1;
     if (outcome === "succeeded") bucket.succeeded += 1;
@@ -64,17 +81,37 @@ export class MetricsRepository {
     bucket.durationMs.count += 1;
     bucket.durationMs.sum += durationMs;
     if (durationMs > bucket.durationMs.max) bucket.durationMs.max = durationMs;
-    this.persist({ ts: new Date().toISOString(), kind: "operation", operationId, outcome, durationMs });
+    this.persist({
+      ts: new Date().toISOString(),
+      kind: "operation",
+      operationId,
+      outcome,
+      durationMs,
+    });
   }
 
-  recordConnection(serverId: string, status: string, lastSuccessfulRequestAt?: string): void {
+  recordConnection(
+    serverId: string,
+    status: string,
+    lastSuccessfulRequestAt?: string,
+  ): void {
     this.connections[serverId] = { serverId, status, lastSuccessfulRequestAt };
-    this.persist({ ts: new Date().toISOString(), kind: "connection", serverId, status });
+    this.persist({
+      ts: new Date().toISOString(),
+      kind: "connection",
+      serverId,
+      status,
+    });
   }
 
   snapshot(): MetricsSnapshot {
     return {
-      operations: Object.fromEntries(Object.entries(this.operations).map(([k, v]) => [k, { ...v, durationMs: { ...v.durationMs } }])),
+      operations: Object.fromEntries(
+        Object.entries(this.operations).map(([k, v]) => [
+          k,
+          { ...v, durationMs: { ...v.durationMs } },
+        ]),
+      ),
       connections: Object.values(this.connections).map((c) => ({ ...c })),
     };
   }
@@ -98,7 +135,12 @@ export class MetricsRepository {
         if (!line.trim()) continue;
         try {
           const rec = JSON.parse(line) as MetricsRecord;
-          if (rec.kind === "operation" && rec.operationId && rec.outcome && typeof rec.durationMs === "number") {
+          if (
+            rec.kind === "operation" &&
+            rec.operationId &&
+            rec.outcome &&
+            typeof rec.durationMs === "number"
+          ) {
             this.recordOperation(rec.operationId, rec.outcome, rec.durationMs);
           } else if (rec.kind === "connection" && rec.serverId && rec.status) {
             this.recordConnection(rec.serverId, rec.status);

@@ -5,12 +5,23 @@
  * - resolve: sessionId + Bearer-Token → sessiongebundene Komposition (Cache)
  * - TTL 30 Tage Inaktivität (FR-102.8, GUIDANCE_SESSION_TTL_DAYS)
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { composeApplication, type Composition } from "../main.js";
 import { WorkflowEngine } from "../workflow/WorkflowEngine.js";
-import { ClientOpEngine, ClientOpLedger, type OpReport } from "./client-op-engine.js";
+import {
+  ClientOpEngine,
+  ClientOpLedger,
+  type OpReport,
+} from "./client-op-engine.js";
 import { getBearerToken } from "./remote-context.js";
 import { RateLimiter } from "./rate-limiter.js";
 import { PairStore } from "./pair-store.js";
@@ -30,7 +41,12 @@ export interface RemoteSession {
   /** FR-104: Ledger der client-reported Operationsergebnisse. */
   ledger: ClientOpLedger;
   /** FR-104.3: letzter blockierter Submit (Phase+Payload) fuer Auto-Retry. */
-  lastAttempt?: { sessionId: string; phase: string; payload: Record<string, unknown>; requestId?: string };
+  lastAttempt?: {
+    sessionId: string;
+    phase: string;
+    payload: Record<string, unknown>;
+    requestId?: string;
+  };
   /** Workflow-Session-Id (von start_workflow erzeugt). */
   workflowSid?: string;
 }
@@ -46,7 +62,9 @@ interface PersistedSessionState {
 }
 
 const TTL_DAYS = Number(process.env.GUIDANCE_SESSION_TTL_DAYS || "30");
-const MAX_SESSIONS_PER_KEY = Number(process.env.GUIDANCE_MAX_SESSIONS_PER_KEY || "10");
+const MAX_SESSIONS_PER_KEY = Number(
+  process.env.GUIDANCE_MAX_SESSIONS_PER_KEY || "10",
+);
 const CONFIG_PAYLOAD_LIMIT = 1_048_576; // FR-102.8: 1 MB
 
 export class RemoteSessionManager {
@@ -57,7 +75,9 @@ export class RemoteSessionManager {
   /** M3: Disk-Sessions zählen mit (auch nach Restarts). */
   private diskSessionsByKey = new Map<string, number>();
   /** Q4: init_session Rate-Limit 20/min pro Quell-IP. */
-  private readonly rateLimiter = new RateLimiter(Number(process.env.GUIDANCE_INIT_RATE_LIMIT_PER_MIN || "20"));
+  private readonly rateLimiter = new RateLimiter(
+    Number(process.env.GUIDANCE_INIT_RATE_LIMIT_PER_MIN || "20"),
+  );
 
   constructor(
     private readonly stateDir: string,
@@ -76,21 +96,29 @@ export class RemoteSessionManager {
       const metaPath = join(this.sessionsRoot, dir, "meta.json");
       if (!existsSync(metaPath)) continue;
       try {
-        const meta = JSON.parse(readFileSync(metaPath, "utf-8")) as RemoteSessionMeta & { canonicalHash?: string };
+        const meta = JSON.parse(
+          readFileSync(metaPath, "utf-8"),
+        ) as RemoteSessionMeta & { canonicalHash?: string };
         const bucket = meta.key ?? "__anonymous__";
         perKey.set(bucket, (perKey.get(bucket) ?? 0) + 1);
         // Index-Schlüssel MUSS canonicalHash sein (identisch zum init_session-Pfad).
         if (meta.canonicalHash) {
-          this.canonicalIndex.set(`${bucket}:${meta.canonicalHash}`, meta.sessionId);
+          this.canonicalIndex.set(
+            `${bucket}:${meta.canonicalHash}`,
+            meta.sessionId,
+          );
         }
         // L305(a): Workflow-Bindings aus state.json wiederaufbauen.
         const statePath = join(this.sessionsRoot, dir, "state.json");
         if (existsSync(statePath)) {
           try {
-            const st = JSON.parse(readFileSync(statePath, "utf-8")) as PersistedSessionState;
+            const st = JSON.parse(
+              readFileSync(statePath, "utf-8"),
+            ) as PersistedSessionState;
             if (st.formatVersion === 2) {
               for (const wf of st.workflowSids ?? []) {
-                if (!this.workflowToRemote.has(wf)) this.workflowToRemote.set(wf, meta.sessionId);
+                if (!this.workflowToRemote.has(wf))
+                  this.workflowToRemote.set(wf, meta.sessionId);
               }
             }
           } catch {
@@ -128,7 +156,9 @@ export class RemoteSessionManager {
     const sid = session.meta.sessionId;
     const payload: PersistedSessionState = {
       formatVersion: 2,
-      workflowSids: [...this.workflowToRemote.entries()].filter(([, remote]) => remote === sid).map(([wf]) => wf),
+      workflowSids: [...this.workflowToRemote.entries()]
+        .filter(([, remote]) => remote === sid)
+        .map(([wf]) => wf),
       lastAttempt: session.lastAttempt,
       ledgerReports: session.ledger.all(),
       pendingReportTokens: session.ledger.pendingSnapshot(),
@@ -140,21 +170,33 @@ export class RemoteSessionManager {
   assertPayloadSize(config: Record<string, unknown>): void {
     const size = Buffer.byteLength(JSON.stringify(config));
     if (size > CONFIG_PAYLOAD_LIMIT) {
-      throw new Error(`configuration_invalid: config payload too large (${size} > ${CONFIG_PAYLOAD_LIMIT} bytes)`);
+      throw new Error(
+        `configuration_invalid: config payload too large (${size} > ${CONFIG_PAYLOAD_LIMIT} bytes)`,
+      );
     }
   }
 
   /** FR-102/102.2/102.4/102.6: Config-Upload, Validierung, Session-Erzeugung. */
-  initSession(opts: { key?: string; config: Record<string, unknown>; configFiles?: Record<string, string>; bearerToken?: string; clientIp?: string }): RemoteSession {
+  initSession(opts: {
+    key?: string;
+    config: Record<string, unknown>;
+    configFiles?: Record<string, string>;
+    bearerToken?: string;
+    clientIp?: string;
+  }): RemoteSession {
     const { key, config } = opts;
     // Q4: Rate-Limit erfolgt auf der HTTP-Ebene (checkInitRateLimit, pro IP).
     // FR-102.1/FR-101.6: Key-Authentifizierung erfolgt auf der HTTP-Ebene
     // (Authorization-Header); hier nur die Form-Konsistenz:
     if (this.pairs.configured && key === undefined) {
-      throw new Error("configuration_invalid: key is required when key/token pairs are configured");
+      throw new Error(
+        "configuration_invalid: key is required when key/token pairs are configured",
+      );
     }
     if (!this.pairs.configured && key !== undefined) {
-      throw new Error("configuration_invalid: key must not be supplied when no key/token pairs are configured (anonymous fallback)");
+      throw new Error(
+        "configuration_invalid: key must not be supplied when no key/token pairs are configured (anonymous fallback)",
+      );
     }
 
     this.assertPayloadSize(config);
@@ -164,7 +206,11 @@ export class RemoteSessionManager {
     // den kanonischen Config-String).
     const canonical = JSON.stringify(config, (_k, v: unknown) =>
       v !== null && typeof v === "object" && !Array.isArray(v)
-        ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
+        ? Object.fromEntries(
+            Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+              a < b ? -1 : 1,
+            ),
+          )
         : v,
     );
 
@@ -204,16 +250,27 @@ export class RemoteSessionManager {
     try {
       // Config-Dateien in den Session-Config-Ordner schreiben (Dateireferenz-
       // Form wird erwartet: guidance.json + referenzierte Dateien + schemas/).
-      const files = (config as { configFiles?: Record<string, string> }).configFiles;
+      const files = (config as { configFiles?: Record<string, string> })
+        .configFiles;
       if (files && typeof files === "object") {
         for (const [rel, content] of Object.entries(files)) {
-          if (typeof content !== "string") throw new Error(`configuration_invalid: configFiles.${rel} must be a string`);
+          if (typeof content !== "string")
+            throw new Error(
+              `configuration_invalid: configFiles.${rel} must be a string`,
+            );
           const target = resolve(join(cfgDir, rel));
           const root = resolve(cfgDir);
           // F2-Fix: relativ + separator-bewusst (kein Prefix-Only-Match).
           const relPath = target.slice(root.length + 1);
-          if (target !== root && (relPath.startsWith("/") || relPath.startsWith("\\") || relPath.includes(".."))) {
-            throw new Error("configuration_invalid: configFiles path escapes session config directory");
+          if (
+            target !== root &&
+            (relPath.startsWith("/") ||
+              relPath.startsWith("\\") ||
+              relPath.includes(".."))
+          ) {
+            throw new Error(
+              "configuration_invalid: configFiles path escapes session config directory",
+            );
           }
           mkdirSync(join(target, ".."), { recursive: true });
           writeFileSync(target, content);
@@ -222,31 +279,50 @@ export class RemoteSessionManager {
         // Inline-Objekt-Form: alle Top-Level-Sektionen als Dateien schreiben.
         for (const [name, value] of Object.entries(config)) {
           if (name === "configFiles") continue;
-          const target = name.endsWith(".json") ? join(cfgDir, name) : join(cfgDir, `${name}.json`);
+          const target = name.endsWith(".json")
+            ? join(cfgDir, name)
+            : join(cfgDir, `${name}.json`);
           writeFileSync(target, JSON.stringify(value, null, 2) + "\n");
         }
         // schemas-Objekt: { "schemas": { "understand": {...} } } → schemas/*.schema.json
-        const schemas = (config as Record<string, Record<string, unknown>>).schemas;
+        const schemas = (config as Record<string, Record<string, unknown>>)
+          .schemas;
         if (schemas && typeof schemas === "object") {
           mkdirSync(join(cfgDir, "schemas"), { recursive: true });
           for (const [schemaName, schema] of Object.entries(schemas)) {
-            writeFileSync(join(cfgDir, "schemas", `${schemaName}.schema.json`), JSON.stringify(schema, null, 2) + "\n");
+            writeFileSync(
+              join(cfgDir, "schemas", `${schemaName}.schema.json`),
+              JSON.stringify(schema, null, 2) + "\n",
+            );
           }
         }
       }
 
       // FR-102.2: In-memory-Validierung durch Komposition (wirft bei invalid).
       // N1-Fix: bei Fehler wird der verbrauchte Quota-Slot zurückgerollt.
-      composition = composeApplication(wsRootFor(sessionId), cfgDir, join(dir, "state"), {
-        clientOperationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
-        skipScaffold: true,
-      });
+      composition = composeApplication(
+        wsRootFor(sessionId),
+        cfgDir,
+        join(dir, "state"),
+        {
+          clientOperationEngine: new ClientOpEngine(
+            ledger,
+          ) as unknown as ConstructorParameters<
+            typeof WorkflowEngine
+          >[0]["operationEngine"],
+          skipScaffold: true,
+        },
+      );
     } catch (err) {
       // Rollback: Slot freigeben + Orphan-Verzeichnis entfernen (N4).
       const bucket = key ?? "__anonymous__";
       const c = this.diskSessionsByKey.get(bucket) ?? 0;
       if (c > 0) this.diskSessionsByKey.set(bucket, c - 1);
-      try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
       throw err;
     }
 
@@ -260,11 +336,15 @@ export class RemoteSessionManager {
     };
 
     const session: RemoteSession = { meta, composition, ledger };
-    (session as unknown as { canonicalHash?: string }).canonicalHash = canonicalHash;
+    (session as unknown as { canonicalHash?: string }).canonicalHash =
+      canonicalHash;
     // CB-10: single write INCLUDING canonicalHash — the former interim
     // hashless write left a crash window where meta.json existed without the
     // M2 rebuild key (canonicalHash), breaking restart idempotency.
-    writeFileSync(this.metaPath(sessionId), JSON.stringify({ ...meta, canonicalHash }, null, 2));
+    writeFileSync(
+      this.metaPath(sessionId),
+      JSON.stringify({ ...meta, canonicalHash }, null, 2),
+    );
     this.canonicalIndex.set(canonicalId, sessionId);
     this.cache.set(sessionId, session);
     return session;
@@ -308,7 +388,9 @@ export class RemoteSessionManager {
     if (!existsSync(metaPath)) {
       throw new Error("session_not_found");
     }
-    const meta = JSON.parse(readFileSync(metaPath, "utf-8")) as RemoteSessionMeta;
+    const meta = JSON.parse(
+      readFileSync(metaPath, "utf-8"),
+    ) as RemoteSessionMeta;
     const session = this.restore(meta);
     this.touch(effectiveId);
     return session;
@@ -326,7 +408,8 @@ export class RemoteSessionManager {
       const remoteSid = this.workflowToRemote.get(sessionId);
       if (remoteSid) {
         const rp = this.metaPath(remoteSid);
-        if (existsSync(rp)) return JSON.parse(readFileSync(rp, "utf-8")) as RemoteSessionMeta;
+        if (existsSync(rp))
+          return JSON.parse(readFileSync(rp, "utf-8")) as RemoteSessionMeta;
       }
       return undefined;
     } catch {
@@ -337,7 +420,10 @@ export class RemoteSessionManager {
   /** Workflow-Session-Id → Remote-Session-Id (für Binding + TTL-Zugriff). */
   private readonly workflowToRemote = new Map<string, string>();
 
-  registerWorkflowSession(remoteSessionId: string, workflowSessionId: string): void {
+  registerWorkflowSession(
+    remoteSessionId: string,
+    workflowSessionId: string,
+  ): void {
     assertSafeSessionId(remoteSessionId);
     assertSafeSessionId(workflowSessionId);
     this.workflowToRemote.set(workflowSessionId, remoteSessionId);
@@ -383,16 +469,27 @@ export class RemoteSessionManager {
     // Disk gezählt; Restore darf das Limit nicht künstlich verknapppen.
     const ledger = new ClientOpLedger();
     const dir = this.sessionDir(meta.sessionId);
-    const composition = composeApplication(wsRootFor(meta.sessionId), this.configDir(meta.sessionId), join(dir, "state"), {
-      clientOperationEngine: new ClientOpEngine(ledger) as unknown as ConstructorParameters<typeof WorkflowEngine>[0]["operationEngine"],
-      skipScaffold: true,
-    });
+    const composition = composeApplication(
+      wsRootFor(meta.sessionId),
+      this.configDir(meta.sessionId),
+      join(dir, "state"),
+      {
+        clientOperationEngine: new ClientOpEngine(
+          ledger,
+        ) as unknown as ConstructorParameters<
+          typeof WorkflowEngine
+        >[0]["operationEngine"],
+        skipScaffold: true,
+      },
+    );
     const session: RemoteSession = { meta, composition, ledger };
     // L305(a): state.json (Ledger, lastAttempt, Workflow-Binding) rehydrieren.
     const sp = this.statePath(meta.sessionId);
     if (existsSync(sp)) {
       try {
-        const st = JSON.parse(readFileSync(sp, "utf-8")) as PersistedSessionState;
+        const st = JSON.parse(
+          readFileSync(sp, "utf-8"),
+        ) as PersistedSessionState;
         if (st.formatVersion === 2) {
           for (const report of st.ledgerReports ?? []) ledger.record(report);
           ledger.restorePending(st.pendingReportTokens);
@@ -400,7 +497,8 @@ export class RemoteSessionManager {
           const wf = st.workflowSids?.[st.workflowSids.length - 1];
           if (wf) {
             session.workflowSid = wf;
-            if (!this.workflowToRemote.has(wf)) this.workflowToRemote.set(wf, meta.sessionId);
+            if (!this.workflowToRemote.has(wf))
+              this.workflowToRemote.set(wf, meta.sessionId);
           }
         }
       } catch {
@@ -417,7 +515,8 @@ export class RemoteSessionManager {
     if (!existsSync(p)) return;
     const meta = JSON.parse(readFileSync(p, "utf-8")) as RemoteSessionMeta;
     // H1-Fix: Idle-Alter aus dem VOR-touch lastAccessAt berechnen.
-    const idleDays = (Date.now() - new Date(meta.lastAccessAt).getTime()) / 86_400_000;
+    const idleDays =
+      (Date.now() - new Date(meta.lastAccessAt).getTime()) / 86_400_000;
     if (idleDays > TTL_DAYS) throw new Error("session_not_found");
     meta.lastAccessAt = new Date().toISOString();
     writeFileSync(p, JSON.stringify(meta, null, 2));
@@ -428,7 +527,9 @@ export class RemoteSessionManager {
     const bucket = key ?? "__anonymous__";
     const count = this.diskSessionsByKey.get(bucket) ?? 0;
     if (count >= MAX_SESSIONS_PER_KEY) {
-      throw new Error(`quota_exceeded: too many active sessions for ${key ?? "anonymous"} (max ${MAX_SESSIONS_PER_KEY})`);
+      throw new Error(
+        `quota_exceeded: too many active sessions for ${key ?? "anonymous"} (max ${MAX_SESSIONS_PER_KEY})`,
+      );
     }
     this.diskSessionsByKey.set(bucket, count + 1);
   }

@@ -713,3 +713,7 @@
 
 ## 2026-09-27: specs/010 Final-Review Runde 2 — 2 HIGH behoben
 - Unabhängiger Final-Review fand: Check-1-Tool-Parität war nie implementiert (No-op) + fehlende Gate-Tests. Beide HIGH gefixt (Segment: check-docs-drift.mjs vollständig umgebaut, tests/scripts/check-docs-drift.test.ts 12 Regressionstests). MEDIUMs (Freitext-Match, Override-Datei, Kapitel-Scoping) + LOWs (.bak-Dirs, Ziffern-Codes, done>0-Guard) ebenfalls gefixt. Gate Exit 0 (35 tools beidseitig), Vollsuite 357/357, tsc grün.
+
+## 2026-09-27: Rest-Findings-Batch implementiert (session-4e4471f2)
+- Branch feature/rest-findings-batch. AD-1-Semantik: Kopie statt Verwerfen — nicht-generische Referenz-Ops landen mit Marker in operations.json; Notes-Text + Test AC-9 angepasst (legacy-custom-op jetzt erwartet).
+- Achtung: Prettier --write reformatiert server-guidance/src (ConfigAssistant/SpecKitEngine) — Bulk-Diff in diesem Commit enthalten (Format-only).

@@ -4,7 +4,15 @@
  * machine, dependency-aware scheduling, evidence-gated completion,
  * controlled plan changes, traceability, and completion invariants.
  */
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync, readdirSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  renameSync,
+  statSync,
+  readdirSync,
+} from "node:fs";
 import { createHash } from "node:crypto";
 import { join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -23,14 +31,31 @@ export const DOCS_RELEVANT_PATTERNS = [
 
 /** Segment-boundary matching per spec 010 F-1: directory patterns (trailing "/") match at any path position but only on segment boundaries; file patterns match as exact path or segment-anchored suffix (so "src/config.tsx" does NOT match "src/config.ts"). */
 function matchesDocsPattern(normalizedPath: string, pattern: string): boolean {
-  if (pattern.endsWith("/")) return normalizedPath.startsWith(pattern) || normalizedPath.includes("/" + pattern);
-  return normalizedPath === pattern || (normalizedPath.endsWith(pattern) && normalizedPath.charAt(normalizedPath.length - pattern.length - 1) === "/");
+  if (pattern.endsWith("/"))
+    return (
+      normalizedPath.startsWith(pattern) ||
+      normalizedPath.includes("/" + pattern)
+    );
+  return (
+    normalizedPath === pattern ||
+    (normalizedPath.endsWith(pattern) &&
+      normalizedPath.charAt(normalizedPath.length - pattern.length - 1) === "/")
+  );
 }
 
 export type TaskStatus =
-  | "pending" | "ready" | "in_progress" | "implemented" | "review_required"
-  | "fix_required" | "verification_required" | "verified" | "completed"
-  | "blocked" | "deferred" | "cancelled";
+  | "pending"
+  | "ready"
+  | "in_progress"
+  | "implemented"
+  | "review_required"
+  | "fix_required"
+  | "verification_required"
+  | "verified"
+  | "completed"
+  | "blocked"
+  | "deferred"
+  | "cancelled";
 
 export interface ArtifactRecord {
   type: string;
@@ -63,9 +88,31 @@ export interface SpecTask {
   linkedRequirements: { id: string; source: "parsed" | "asserted" }[];
   linkedCriteria: { id: string; source: "parsed" | "asserted" }[];
   affectedFiles: string[];
-  source: { artifact: string; relativePath: string; line: number; contentHash: string };
-  implementation?: { summary: string; changedFiles: string[]; createdFiles: string[]; deletedFiles: string[]; testsAddedOrUpdated: string[]; deviations: unknown[]; unresolvedIssues: string[]; docsImpact?: string };
-  review?: { findings: { findingId: string; severity: string; fixRequired: boolean; fixApplied: boolean }[]; unresolved: string[] };
+  source: {
+    artifact: string;
+    relativePath: string;
+    line: number;
+    contentHash: string;
+  };
+  implementation?: {
+    summary: string;
+    changedFiles: string[];
+    createdFiles: string[];
+    deletedFiles: string[];
+    testsAddedOrUpdated: string[];
+    deviations: unknown[];
+    unresolvedIssues: string[];
+    docsImpact?: string;
+  };
+  review?: {
+    findings: {
+      findingId: string;
+      severity: string;
+      fixRequired: boolean;
+      fixApplied: boolean;
+    }[];
+    unresolved: string[];
+  };
   verification?: { executions: string[]; succeeded: boolean };
   checkboxAtImport: "checked" | "unchecked";
 }
@@ -75,7 +122,14 @@ export interface SpecCriterion {
   text: string;
   required: boolean;
   linkedTaskIds: string[];
-  coverage: "unmapped" | "planned" | "implemented" | "partially_verified" | "verified" | "waived" | "blocked";
+  coverage:
+    | "unmapped"
+    | "planned"
+    | "implemented"
+    | "partially_verified"
+    | "verified"
+    | "waived"
+    | "blocked";
   waiver?: { reason: string; approvedBy: "user"; at: string };
 }
 
@@ -85,8 +139,17 @@ export interface PlanChange {
   classification: "minor" | "major";
   reason: string;
   affectedTasks: string[];
-  impact: { acceptanceCriteria: boolean; publicApi: boolean; dependencies: boolean };
-  status: "proposed" | "artifact_update_required" | "approved" | "applied" | "rejected";
+  impact: {
+    acceptanceCriteria: boolean;
+    publicApi: boolean;
+    dependencies: boolean;
+  };
+  status:
+    | "proposed"
+    | "artifact_update_required"
+    | "approved"
+    | "applied"
+    | "rejected";
 }
 
 export interface SpecKitState {
@@ -96,15 +159,30 @@ export interface SpecKitState {
   snapshots: Snapshot[];
   tasks: Record<string, SpecTask>;
   criteria: Record<string, SpecCriterion>;
-  batches: Record<string, { batchId: string; taskIds: string[]; status: "released" | "active" | "closed" }>;
+  batches: Record<
+    string,
+    {
+      batchId: string;
+      taskIds: string[];
+      status: "released" | "active" | "closed";
+    }
+  >;
   planChanges: Record<string, PlanChange>;
-  validation: { valid: boolean; findings: { severity: string; message: string }[] };
+  validation: {
+    valid: boolean;
+    findings: { severity: string; message: string }[];
+  };
   activeBatchId: string | null;
 }
 
 export interface SpecKitConfig {
   featureRoot: string;
-  strategy: "explicit" | "currentBranch" | "mostRecentlyModified" | "singleCandidate" | "configuredDefault";
+  strategy:
+    | "explicit"
+    | "currentBranch"
+    | "mostRecentlyModified"
+    | "singleCandidate"
+    | "configuredDefault";
   /** Enforced by batch scheduling (task release slice). */
   requireUniqueMatch: boolean;
   artifactPatterns: Record<string, { required: boolean; patterns: string[] }>;
@@ -116,7 +194,10 @@ export interface SpecKitConfig {
   maxExcerptBytes: number;
 }
 
-export const DEFAULT_ARTIFACTS: Record<string, { required: boolean; patterns: string[] }> = {
+export const DEFAULT_ARTIFACTS: Record<
+  string,
+  { required: boolean; patterns: string[] }
+> = {
   specification: { required: true, patterns: ["spec.md"] },
   plan: { required: true, patterns: ["plan.md"] },
   tasks: { required: true, patterns: ["tasks.md"] },
@@ -127,13 +208,22 @@ export const DEFAULT_ARTIFACTS: Record<string, { required: boolean; patterns: st
   checklists: { required: false, patterns: ["checklists/**"] },
 };
 
-const sha256 = (content: string) => `sha256:${createHash("sha256").update(content).digest("hex")}`;
+const sha256 = (content: string) =>
+  `sha256:${createHash("sha256").update(content).digest("hex")}`;
 
-function discoverArtifacts(featureDir: string, workspaceRoot: string, patterns: Record<string, { required: boolean; patterns: string[] }>): { type: string; path: string }[] {
+function discoverArtifacts(
+  featureDir: string,
+  workspaceRoot: string,
+  patterns: Record<string, { required: boolean; patterns: string[] }>,
+): { type: string; path: string }[] {
   const resolved = resolve(featureDir);
   const ws = resolve(workspaceRoot);
   if (!resolved.startsWith(ws + "/") && resolved !== ws) {
-    throw new GuidanceError("spec_kit_feature_outside_workspace", `feature directory escapes the workspace: ${featureDir}`, { recoverable: false });
+    throw new GuidanceError(
+      "spec_kit_feature_outside_workspace",
+      `feature directory escapes the workspace: ${featureDir}`,
+      { recoverable: false },
+    );
   }
   const found: { type: string; path: string }[] = [];
   for (const [type, def] of Object.entries(patterns)) {
@@ -182,28 +272,55 @@ export class SpecKitEngine {
     private readonly stateDir: string,
     private readonly configVersion: string,
     private readonly config: SpecKitConfig,
-    private readonly audit: (event: { sessionId: string; eventType: string; phase?: string; data?: Record<string, unknown> }) => void,
+    private readonly audit: (event: {
+      sessionId: string;
+      eventType: string;
+      phase?: string;
+      data?: Record<string, unknown>;
+    }) => void,
     private readonly sessionId: string,
   ) {}
 
   /** FR-061: exactly one feature; explicit strategy is authoritative. */
-  discoverFeature(featureId?: string): { featureId: string; directory: string } {
+  discoverFeature(featureId?: string): {
+    featureId: string;
+    directory: string;
+  } {
     const root = join(this.workspaceRoot, this.config.featureRoot);
     if (!existsSync(root)) {
-      throw new GuidanceError("spec_kit_feature_not_found", `feature root missing: ${this.config.featureRoot}`, { recoverable: true });
+      throw new GuidanceError(
+        "spec_kit_feature_not_found",
+        `feature root missing: ${this.config.featureRoot}`,
+        { recoverable: true },
+      );
     }
     if (featureId) {
       const dir = join(root, featureId);
-      if (!existsSync(dir)) throw new GuidanceError("spec_kit_feature_not_found", `feature ${featureId} not found`, { recoverable: true });
+      if (!existsSync(dir))
+        throw new GuidanceError(
+          "spec_kit_feature_not_found",
+          `feature ${featureId} not found`,
+          { recoverable: true },
+        );
       this.assertInsideWorkspace(dir);
       return { featureId, directory: dir };
     }
     if (this.config.strategy === "explicit") {
-      throw new GuidanceError("spec_kit_feature_ambiguous", "no featureId supplied for explicit strategy", { recoverable: true });
+      throw new GuidanceError(
+        "spec_kit_feature_ambiguous",
+        "no featureId supplied for explicit strategy",
+        { recoverable: true },
+      );
     }
-    const candidates = readdirSyncSafe(root).filter((d) => existsSync(join(root, d, "spec.md")));
+    const candidates = readdirSyncSafe(root).filter((d) =>
+      existsSync(join(root, d, "spec.md")),
+    );
     if (candidates.length !== 1) {
-      throw new GuidanceError("spec_kit_feature_ambiguous", `${candidates.length} candidate features`, { recoverable: true });
+      throw new GuidanceError(
+        "spec_kit_feature_ambiguous",
+        `${candidates.length} candidate features`,
+        { recoverable: true },
+      );
     }
     this.assertInsideWorkspace(join(root, candidates[0]!));
     return { featureId: candidates[0]!, directory: join(root, candidates[0]!) };
@@ -212,15 +329,26 @@ export class SpecKitEngine {
   private assertInsideWorkspace(dir: string): void {
     const resolved = resolve(dir);
     const ws = resolve(this.workspaceRoot);
-    if (resolved !== ws && !resolved.startsWith(ws + "/") && !resolved.startsWith(ws + "\\")) {
-      throw new GuidanceError("spec_kit_feature_outside_workspace", `outside workspace: ${dir}`, { recoverable: false });
+    if (
+      resolved !== ws &&
+      !resolved.startsWith(ws + "/") &&
+      !resolved.startsWith(ws + "\\")
+    ) {
+      throw new GuidanceError(
+        "spec_kit_feature_outside_workspace",
+        `outside workspace: ${dir}`,
+        { recoverable: false },
+      );
     }
   }
 
   /** FR-062/063: deterministic import with structural validation + normalization.
    *  2a: pass the previous state to chain snapshots (previousSnapshotId) and
    *  preserve snapshot history; omitted ⇒ first import (previousSnapshotId null). */
-  importArtifacts(feature: { featureId: string; directory: string }, previous?: SpecKitState): SpecKitState {
+  importArtifacts(
+    feature: { featureId: string; directory: string },
+    previous?: SpecKitState,
+  ): SpecKitState {
     const findings: { severity: string; message: string }[] = [];
     const artifacts: Snapshot["artifacts"] = [];
     const patterns = { ...DEFAULT_ARTIFACTS, ...this.config.artifactPatterns };
@@ -230,15 +358,25 @@ export class SpecKitEngine {
       for (const pattern of def.patterns) {
         if (pattern.endsWith("/**")) continue;
         const candidate = join(feature.directory, pattern);
-        if (existsSync(candidate)) { path = candidate; break; }
+        if (existsSync(candidate)) {
+          path = candidate;
+          break;
+        }
       }
       if (!path) {
-        if (def.required) findings.push({ severity: "blocking", message: `${type}: required artifact missing (${def.patterns.join(", ")})` });
+        if (def.required)
+          findings.push({
+            severity: "blocking",
+            message: `${type}: required artifact missing (${def.patterns.join(", ")})`,
+          });
         continue;
       }
       content = readFileSync(path, "utf-8");
       if (content.trim() === "") {
-        findings.push({ severity: "blocking", message: `${type}: artifact is empty` });
+        findings.push({
+          severity: "blocking",
+          message: `${type}: artifact is empty`,
+        });
         continue;
       }
       const stat = statSync(path);
@@ -259,30 +397,57 @@ export class SpecKitEngine {
         // M1: Pfade relativ zum Feature-Verzeichnis — absolute Pfade liessen
         // isSnapshotStale nach einem Umzug garantiert "stale" melden.
         const relPath = relative(feature.directory, f);
-        artifacts.push({ type: "contracts", relativePath: relPath, sha256: sha256(content), sizeBytes: statSync(f).size, mtimeAtImport: statSync(f).mtime.toISOString(), content });
+        artifacts.push({
+          type: "contracts",
+          relativePath: relPath,
+          sha256: sha256(content),
+          sizeBytes: statSync(f).size,
+          mtimeAtImport: statSync(f).mtime.toISOString(),
+          content,
+        });
       }
     }
 
     const tasksArtifact = artifacts.find((a) => a.type === "tasks");
     const specArtifact = artifacts.find((a) => a.type === "specification");
-    const parsed = tasksArtifact ? parseTasks(tasksArtifact.content!) : { tasks: [] as ParsedTask[], warnings: [] as string[] };
-    for (const w of parsed.warnings) findings.push({ severity: "warning", message: w });
+    const parsed = tasksArtifact
+      ? parseTasks(tasksArtifact.content!)
+      : { tasks: [] as ParsedTask[], warnings: [] as string[] };
+    for (const w of parsed.warnings)
+      findings.push({ severity: "warning", message: w });
 
-    if (parsed.tasks.length === 0) findings.push({ severity: "blocking", message: "tasks.md normalized to zero tasks" });
+    if (parsed.tasks.length === 0)
+      findings.push({
+        severity: "blocking",
+        message: "tasks.md normalized to zero tasks",
+      });
 
     // uniqueness
     const ids = parsed.tasks.map((t) => t.taskId);
     const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
-    if (dupes.length > 0) findings.push({ severity: "blocking", message: `duplicate task ids: ${[...new Set(dupes)].join(", ")}` });
+    if (dupes.length > 0)
+      findings.push({
+        severity: "blocking",
+        message: `duplicate task ids: ${[...new Set(dupes)].join(", ")}`,
+      });
     // unknown deps
     for (const t of parsed.tasks) {
       for (const d of t.dependencies) {
-        if (!ids.includes(d)) findings.push({ severity: "blocking", message: `unknown dependency: ${t.taskId} -> ${d}` });
+        if (!ids.includes(d))
+          findings.push({
+            severity: "blocking",
+            message: `unknown dependency: ${t.taskId} -> ${d}`,
+          });
       }
     }
     // cycles (DFS)
     if (findings.every((f) => !f.message.startsWith("unknown dependency"))) {
-      const graph = new Map(parsed.tasks.map((t) => [t.taskId, t.dependencies.filter((d) => ids.includes(d))]));
+      const graph = new Map(
+        parsed.tasks.map((t) => [
+          t.taskId,
+          t.dependencies.filter((d) => ids.includes(d)),
+        ]),
+      );
       const visiting = new Set<string>();
       const visited = new Set<string>();
       const visit = (id: string): boolean => {
@@ -294,11 +459,19 @@ export class SpecKitEngine {
         visited.add(id);
         return false;
       };
-      if (ids.some((id) => visit(id))) findings.push({ severity: "blocking", message: "dependency cycle detected" });
+      if (ids.some((id) => visit(id)))
+        findings.push({
+          severity: "blocking",
+          message: "dependency cycle detected",
+        });
     }
     if (findings.some((f) => f.severity === "blocking")) {
       for (const f of findings.filter((x) => x.severity === "blocking")) {
-        this.audit({ sessionId: this.sessionId, eventType: "spec_kit_artifact_rejected", data: { message: f.message } });
+        this.audit({
+          sessionId: this.sessionId,
+          eventType: "spec_kit_artifact_rejected",
+          data: { message: f.message },
+        });
       }
       // 2a: a failed refresh must NOT wipe the previous snapshot chain —
       // keep history and mark invalid instead of returning a bare state.
@@ -309,8 +482,15 @@ export class SpecKitEngine {
         };
       }
       return {
-        featureId: feature.featureId, featureDirectory: feature.directory, activeSnapshotId: null, snapshots: [],
-        tasks: {}, criteria: {}, batches: {}, planChanges: {}, validation: { valid: false, findings },
+        featureId: feature.featureId,
+        featureDirectory: feature.directory,
+        activeSnapshotId: null,
+        snapshots: [],
+        tasks: {},
+        criteria: {},
+        batches: {},
+        planChanges: {},
+        validation: { valid: false, findings },
         activeBatchId: null,
       };
     }
@@ -327,22 +507,45 @@ export class SpecKitEngine {
         sourceSection: t.sourceSection,
         status: "pending",
         dependencies: t.dependencies,
-        linkedRequirements: t.linkedRequirementIds.map((id) => ({ id, source: "parsed" as const })),
-        linkedCriteria: t.linkedCriterionIds.map((id) => ({ id, source: "parsed" as const })),
+        linkedRequirements: t.linkedRequirementIds.map((id) => ({
+          id,
+          source: "parsed" as const,
+        })),
+        linkedCriteria: t.linkedCriterionIds.map((id) => ({
+          id,
+          source: "parsed" as const,
+        })),
         affectedFiles: [],
-        source: { artifact: "tasks", relativePath: "tasks.md", line: t.line, contentHash: tasksArtifact!.sha256 },
+        source: {
+          artifact: "tasks",
+          relativePath: "tasks.md",
+          line: t.line,
+          contentHash: tasksArtifact!.sha256,
+        },
         checkboxAtImport: t.checkboxChecked ? "checked" : "unchecked",
       };
     }
     const criteria: Record<string, SpecCriterion> = {};
     for (const c of specArtifact ? parseCriteria(specArtifact.content!) : []) {
-      criteria[c.id] = { id: c.id, text: c.text, required: true, linkedTaskIds: [], coverage: c.linkedTasks ? "unmapped" : "unmapped", waiver: undefined };
+      criteria[c.id] = {
+        id: c.id,
+        text: c.text,
+        required: true,
+        linkedTaskIds: [],
+        coverage: c.linkedTasks ? "unmapped" : "unmapped",
+        waiver: undefined,
+      };
       void c.linkedTasks;
     }
     for (const task of Object.values(tasks)) {
       for (const link of task.linkedCriteria) {
-        if (criteria[link.id]) criteria[link.id]!.linkedTaskIds.push(task.taskId);
-        else findings.push({ severity: "warning", message: `${task.taskId} links unknown criterion ${link.id}` });
+        if (criteria[link.id])
+          criteria[link.id]!.linkedTaskIds.push(task.taskId);
+        else
+          findings.push({
+            severity: "warning",
+            message: `${task.taskId} links unknown criterion ${link.id}`,
+          });
       }
     }
 
@@ -361,14 +564,31 @@ export class SpecKitEngine {
     // Persist snapshot dir with normalized entities (immutability: never rewritten)
     const snapDir = join(this.stateDir, "snapshots", snapshotId);
     mkdirSync(snapDir, { recursive: true });
-    writeFileSync(join(snapDir, "manifest.json"), JSON.stringify({ ...snapshot, artifacts: snapshot.artifacts }, null, 2));
-    writeFileSync(join(snapDir, "entities.json"), JSON.stringify({ tasks, criteria }, null, 2));
-    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_snapshot_created", data: { snapshotId } });
+    writeFileSync(
+      join(snapDir, "manifest.json"),
+      JSON.stringify({ ...snapshot, artifacts: snapshot.artifacts }, null, 2),
+    );
+    writeFileSync(
+      join(snapDir, "entities.json"),
+      JSON.stringify({ tasks, criteria }, null, 2),
+    );
+    this.audit({
+      sessionId: this.sessionId,
+      eventType: "spec_kit_snapshot_created",
+      data: { snapshotId },
+    });
 
     return {
-      featureId: feature.featureId, featureDirectory: feature.directory, activeSnapshotId: snapshotId,
-      snapshots: [...history, snapshot], tasks, criteria, batches: {}, planChanges: {},
-      validation: { valid: true, findings }, activeBatchId: null,
+      featureId: feature.featureId,
+      featureDirectory: feature.directory,
+      activeSnapshotId: snapshotId,
+      snapshots: [...history, snapshot],
+      tasks,
+      criteria,
+      batches: {},
+      planChanges: {},
+      validation: { valid: true, findings },
+      activeBatchId: null,
     };
   }
 
@@ -382,7 +602,8 @@ export class SpecKitEngine {
     for (const dep of task.dependencies) {
       const depTask = state.tasks[dep];
       if (!depTask) return false;
-      if (depTask.status !== "completed" && depTask.status !== "verified") return false;
+      if (depTask.status !== "completed" && depTask.status !== "verified")
+        return false;
     }
     return true;
   }
@@ -394,16 +615,30 @@ export class SpecKitEngine {
       .sort((a, b) => a.localeCompare(b));
   }
 
-  releaseBatch(state: SpecKitState, mode: "single" | "batch" | "allReady" | "phaseGroup", batchId: string): string[] {
+  releaseBatch(
+    state: SpecKitState,
+    mode: "single" | "batch" | "allReady" | "phaseGroup",
+    batchId: string,
+  ): string[] {
     const ready = this.readyTasks(state);
     let selected: string[];
     switch (mode) {
-      case "single": selected = ready.slice(0, 1); break;
-      case "batch": selected = ready.slice(0, this.config.maxTasks); break;
-      case "allReady": selected = ready; break;
+      case "single":
+        selected = ready.slice(0, 1);
+        break;
+      case "batch":
+        selected = ready.slice(0, this.config.maxTasks);
+        break;
+      case "allReady":
+        selected = ready;
+        break;
       case "phaseGroup": {
-        const sections = [...new Set(ready.map((id) => state.tasks[id]!.sourceSection ?? ""))].sort();
-        selected = ready.filter((id) => (state.tasks[id]!.sourceSection ?? "") === sections[0]);
+        const sections = [
+          ...new Set(ready.map((id) => state.tasks[id]!.sourceSection ?? "")),
+        ].sort();
+        selected = ready.filter(
+          (id) => (state.tasks[id]!.sourceSection ?? "") === sections[0],
+        );
         break;
       }
     }
@@ -416,40 +651,105 @@ export class SpecKitEngine {
 
   transitionTask(state: SpecKitState, taskId: string, to: TaskStatus): void {
     const task = state.tasks[taskId];
-    if (!task) throw new GuidanceError("spec_kit_task_not_found", `unknown task ${taskId}`, { recoverable: true });
+    if (!task)
+      throw new GuidanceError(
+        "spec_kit_task_not_found",
+        `unknown task ${taskId}`,
+        { recoverable: true },
+      );
     task.previousStatus = task.status;
     task.status = to;
   }
 
   startTask(state: SpecKitState, batchId: string, taskIds: string[]): void {
     const batch = state.batches[batchId];
-    if (!batch) throw new GuidanceError("spec_kit_task_not_released", `batch ${batchId} not released`, { recoverable: true });
-    if (state.activeBatchId !== batchId) throw new GuidanceError("spec_kit_task_already_active", "another batch is active", { recoverable: true });
+    if (!batch)
+      throw new GuidanceError(
+        "spec_kit_task_not_released",
+        `batch ${batchId} not released`,
+        { recoverable: true },
+      );
+    if (state.activeBatchId !== batchId)
+      throw new GuidanceError(
+        "spec_kit_task_already_active",
+        "another batch is active",
+        { recoverable: true },
+      );
     for (const id of taskIds) {
       const task = state.tasks[id];
-      if (!task) throw new GuidanceError("spec_kit_task_not_found", id, { recoverable: true });
-      if (!batch.taskIds.includes(id)) throw new GuidanceError("spec_kit_task_not_released", `${id} not in released batch`, { recoverable: true });
-      if (!this.isReady(state, id) && task.status !== "ready" && task.status !== "in_progress") {
-        throw new GuidanceError("spec_kit_task_dependency_unsatisfied", `${id} dependencies unsatisfied`, { recoverable: true });
+      if (!task)
+        throw new GuidanceError("spec_kit_task_not_found", id, {
+          recoverable: true,
+        });
+      if (!batch.taskIds.includes(id))
+        throw new GuidanceError(
+          "spec_kit_task_not_released",
+          `${id} not in released batch`,
+          { recoverable: true },
+        );
+      if (
+        !this.isReady(state, id) &&
+        task.status !== "ready" &&
+        task.status !== "in_progress"
+      ) {
+        throw new GuidanceError(
+          "spec_kit_task_dependency_unsatisfied",
+          `${id} dependencies unsatisfied`,
+          { recoverable: true },
+        );
       }
     }
     batch.status = "active";
     for (const id of taskIds) this.transitionTask(state, id, "in_progress");
   }
 
-  submitImplementation(state: SpecKitState, batchId: string, evidence: { taskId: string; summary: string; changedFiles: string[]; testsAddedOrUpdated: string[]; deviations: unknown[]; unresolvedIssues: string[]; docsImpact?: string }[]): void {
+  submitImplementation(
+    state: SpecKitState,
+    batchId: string,
+    evidence: {
+      taskId: string;
+      summary: string;
+      changedFiles: string[];
+      testsAddedOrUpdated: string[];
+      deviations: unknown[];
+      unresolvedIssues: string[];
+      docsImpact?: string;
+    }[],
+  ): void {
     const batch = state.batches[batchId];
-    if (!batch) throw new GuidanceError("spec_kit_task_not_released", batchId, { recoverable: true });
+    if (!batch)
+      throw new GuidanceError("spec_kit_task_not_released", batchId, {
+        recoverable: true,
+      });
     for (const e of evidence) {
       if (!batch.taskIds.includes(e.taskId)) {
-        throw new GuidanceError("spec_kit_task_not_released", `task ${e.taskId} not in released batch`, { recoverable: true });
+        throw new GuidanceError(
+          "spec_kit_task_not_released",
+          `task ${e.taskId} not in released batch`,
+          { recoverable: true },
+        );
       }
-      // specs/010 FR-954: docsImpact is mandatory when changedFiles touch
-      // documentation-relevant paths; format "updated: <file>" or "none: <reason>".
-      const docsRelevant = e.changedFiles.some((f) => DOCS_RELEVANT_PATTERNS.some((p) => matchesDocsPattern(f.replaceAll("\\", "/"), p)));
+      // specs/010 FR-954 + FR2-L1: docsImpact is mandatory when changedFiles
+      // touch documentation-relevant paths; format "updated: <file>" or
+      // "none: <reason>" — a bare prefix with empty remainder is invalid.
+      const docsRelevant = e.changedFiles.some((f) =>
+        DOCS_RELEVANT_PATTERNS.some((p) =>
+          matchesDocsPattern(f.replaceAll("\\", "/"), p),
+        ),
+      );
       const impact = (e.docsImpact ?? "").trim();
-      if (docsRelevant && (!impact || !(impact.startsWith("updated:") || impact.startsWith("none:")))) {
-        throw new GuidanceError("submission_invalid", `task ${e.taskId}: changedFiles touch documentation-relevant paths — docsImpact required ("updated: <file>" or "none: <reason>")`, { recoverable: true });
+      const updatedRest = impact.startsWith("updated:")
+        ? impact.slice("updated:".length).trim()
+        : "";
+      const noneRest = impact.startsWith("none:")
+        ? impact.slice("none:".length).trim()
+        : "";
+      if (docsRelevant && updatedRest === "" && noneRest === "") {
+        throw new GuidanceError(
+          "submission_invalid",
+          `task ${e.taskId}: changedFiles touch documentation-relevant paths — docsImpact required ("updated: <file>" or "none: <reason>" with non-empty value)`,
+          { recoverable: true },
+        );
       }
       const task = state.tasks[e.taskId]!;
       task.implementation = {
@@ -466,23 +766,60 @@ export class SpecKitEngine {
     }
   }
 
-  submitReview(state: SpecKitState, batchId: string, findings: { findingId: string; taskIds: string[]; severity: string; fixRequired: boolean; fixApplied: boolean }[]): void {
+  submitReview(
+    state: SpecKitState,
+    batchId: string,
+    findings: {
+      findingId: string;
+      taskIds: string[];
+      severity: string;
+      fixRequired: boolean;
+      fixApplied: boolean;
+    }[],
+  ): void {
     const batch = state.batches[batchId];
-    if (!batch) throw new GuidanceError("spec_kit_task_not_released", `batch ${batchId} unknown`, { recoverable: true });
+    if (!batch)
+      throw new GuidanceError(
+        "spec_kit_task_not_released",
+        `batch ${batchId} unknown`,
+        { recoverable: true },
+      );
     for (const f of findings) {
       for (const taskId of f.taskIds) {
         const task = state.tasks[taskId];
         if (!task) continue;
         if (task.status === "completed") {
-          throw new GuidanceError("spec_kit_task_not_found", `task ${taskId} is completed and cannot regress`, { recoverable: false });
+          throw new GuidanceError(
+            "spec_kit_task_not_found",
+            `task ${taskId} is completed and cannot regress`,
+            { recoverable: false },
+          );
         }
         if (!batch.taskIds.includes(taskId)) {
-          throw new GuidanceError("spec_kit_task_not_released", `task ${taskId} not in released batch`, { recoverable: true });
+          throw new GuidanceError(
+            "spec_kit_task_not_released",
+            `task ${taskId} not in released batch`,
+            { recoverable: true },
+          );
         }
         task.review = task.review ?? { findings: [], unresolved: [] };
-        const existingIdx = task.review.findings.findIndex((x) => x.findingId === f.findingId);
-        if (existingIdx >= 0) task.review.findings[existingIdx] = { findingId: f.findingId, severity: f.severity, fixRequired: f.fixRequired, fixApplied: f.fixApplied };
-        else task.review.findings.push({ findingId: f.findingId, severity: f.severity, fixRequired: f.fixRequired, fixApplied: f.fixApplied });
+        const existingIdx = task.review.findings.findIndex(
+          (x) => x.findingId === f.findingId,
+        );
+        if (existingIdx >= 0)
+          task.review.findings[existingIdx] = {
+            findingId: f.findingId,
+            severity: f.severity,
+            fixRequired: f.fixRequired,
+            fixApplied: f.fixApplied,
+          };
+        else
+          task.review.findings.push({
+            findingId: f.findingId,
+            severity: f.severity,
+            fixRequired: f.fixRequired,
+            fixApplied: f.fixApplied,
+          });
         if (f.fixRequired && !f.fixApplied) {
           this.transitionTask(state, taskId, "fix_required");
         }
@@ -491,49 +828,148 @@ export class SpecKitEngine {
   }
 
   /** specs/008-Lifecycle-Fix: write path for task.verification (was read-only). */
-  verifyTask(state: SpecKitState, taskId: string, executions: string[], succeeded: boolean): void {
+  verifyTask(
+    state: SpecKitState,
+    taskId: string,
+    executions: string[],
+    succeeded: boolean,
+  ): void {
     const task = state.tasks[taskId];
-    if (!task) throw new GuidanceError("spec_kit_task_not_found", taskId, { recoverable: true });
-    if (!task.implementation) throw new GuidanceError("spec_kit_task_review_required", `${taskId} has no implementation evidence`, { recoverable: true });
+    if (!task)
+      throw new GuidanceError("spec_kit_task_not_found", taskId, {
+        recoverable: true,
+      });
+    if (!task.implementation)
+      throw new GuidanceError(
+        "spec_kit_task_review_required",
+        `${taskId} has no implementation evidence`,
+        { recoverable: true },
+      );
     task.verification = { executions, succeeded };
     if (succeeded) this.transitionTask(state, taskId, "verified");
   }
 
   completeTask(state: SpecKitState, taskId: string): void {
     const task = state.tasks[taskId]!;
-    if (!task.implementation) throw new GuidanceError("spec_kit_task_review_required", `${taskId} has no implementation evidence`, { recoverable: true });
-    const blocking = (task.review?.findings ?? []).some((f) => f.fixRequired && !f.fixApplied);
-    if (blocking) throw new GuidanceError("spec_kit_task_review_required", `${taskId} has unresolved blocking findings`, { recoverable: true });
-    if (!task.verification?.succeeded) throw new GuidanceError("spec_kit_task_verification_required", `${taskId} has no successful verification`, { recoverable: true });
-    const hasUnapprovedDeviations = (task.implementation.deviations ?? []).some((d) => (d as { approved?: boolean })?.approved !== true);
-    if (hasUnapprovedDeviations) throw new GuidanceError("spec_kit_plan_change_required", `${taskId} has unapproved deviations`, { recoverable: true });
+    if (!task.implementation)
+      throw new GuidanceError(
+        "spec_kit_task_review_required",
+        `${taskId} has no implementation evidence`,
+        { recoverable: true },
+      );
+    const blocking = (task.review?.findings ?? []).some(
+      (f) => f.fixRequired && !f.fixApplied,
+    );
+    if (blocking)
+      throw new GuidanceError(
+        "spec_kit_task_review_required",
+        `${taskId} has unresolved blocking findings`,
+        { recoverable: true },
+      );
+    if (!task.verification?.succeeded)
+      throw new GuidanceError(
+        "spec_kit_task_verification_required",
+        `${taskId} has no successful verification`,
+        { recoverable: true },
+      );
+    const hasUnapprovedDeviations = (task.implementation.deviations ?? []).some(
+      (d) => (d as { approved?: boolean })?.approved !== true,
+    );
+    if (hasUnapprovedDeviations)
+      throw new GuidanceError(
+        "spec_kit_plan_change_required",
+        `${taskId} has unapproved deviations`,
+        { recoverable: true },
+      );
     this.transitionTask(state, taskId, "completed");
   }
 
   // ---- Traceability (FR-071) ----
 
-  coverageSummary(state: SpecKitState): { id: string; coverage: string; linkedTaskIds: string[] }[] {
+  coverageSummary(
+    state: SpecKitState,
+  ): { id: string; coverage: string; linkedTaskIds: string[] }[] {
     return Object.values(state.criteria).map((c) => ({
       id: c.id,
       // 2d-Fix (F7): toter `&& state.tasks` Conjunct entfernt (immer truthy).
-      coverage: c.waiver ? "waived" : c.linkedTaskIds.length === 0 ? "unmapped" : c.linkedTaskIds.every((t) => state.tasks[t]?.status === "completed") && Object.values(state.tasks).filter((t) => c.linkedTaskIds.includes(t.taskId)).every((t) => t.verification?.succeeded) ? "verified" : c.linkedTaskIds.some((t) => state.tasks[t]?.status === "implemented" || state.tasks[t]?.status === "verified" || state.tasks[t]?.status === "completed") ? "partially_verified" : "planned",
+      coverage: c.waiver
+        ? "waived"
+        : c.linkedTaskIds.length === 0
+          ? "unmapped"
+          : c.linkedTaskIds.every(
+                (t) => state.tasks[t]?.status === "completed",
+              ) &&
+              Object.values(state.tasks)
+                .filter((t) => c.linkedTaskIds.includes(t.taskId))
+                .every((t) => t.verification?.succeeded)
+            ? "verified"
+            : c.linkedTaskIds.some(
+                  (t) =>
+                    state.tasks[t]?.status === "implemented" ||
+                    state.tasks[t]?.status === "verified" ||
+                    state.tasks[t]?.status === "completed",
+                )
+              ? "partially_verified"
+              : "planned",
       linkedTaskIds: c.linkedTaskIds,
     }));
   }
 
   // ---- Plan changes (FR-072) ----
 
-  classifyPlanChange(changeType: string, impact: { acceptanceCriteria: boolean; publicApi: boolean; dependencies: boolean }): "minor" | "major" {
-    const additiveNonBreaking = changeType === "add_task" && !impact.acceptanceCriteria && !impact.publicApi && !impact.dependencies;
+  classifyPlanChange(
+    changeType: string,
+    impact: {
+      acceptanceCriteria: boolean;
+      publicApi: boolean;
+      dependencies: boolean;
+    },
+  ): "minor" | "major" {
+    const additiveNonBreaking =
+      changeType === "add_task" &&
+      !impact.acceptanceCriteria &&
+      !impact.publicApi &&
+      !impact.dependencies;
     return additiveNonBreaking ? "minor" : "major";
   }
 
-  proposePlanChange(state: SpecKitState, input: { changeType: string; reason: string; affectedTasks: string[]; impact: { acceptanceCriteria: boolean; publicApi: boolean; dependencies: boolean } }): PlanChange {
-    const TRIGGERS = new Set(["add_task", "remove_task", "defer_task", "changed_requirement", "changed_acceptance_criterion", "architecture_change", "public_api_change", "dependency_change", "migration", "verification_strategy_change", "out_of_scope_work"]);
+  proposePlanChange(
+    state: SpecKitState,
+    input: {
+      changeType: string;
+      reason: string;
+      affectedTasks: string[];
+      impact: {
+        acceptanceCriteria: boolean;
+        publicApi: boolean;
+        dependencies: boolean;
+      };
+    },
+  ): PlanChange {
+    const TRIGGERS = new Set([
+      "add_task",
+      "remove_task",
+      "defer_task",
+      "changed_requirement",
+      "changed_acceptance_criterion",
+      "architecture_change",
+      "public_api_change",
+      "dependency_change",
+      "migration",
+      "verification_strategy_change",
+      "out_of_scope_work",
+    ]);
     if (!TRIGGERS.has(input.changeType)) {
-      throw new GuidanceError("spec_kit_plan_change_required", `unknown plan-change type ${input.changeType}`, { recoverable: true });
+      throw new GuidanceError(
+        "spec_kit_plan_change_required",
+        `unknown plan-change type ${input.changeType}`,
+        { recoverable: true },
+      );
     }
-    const classification = this.classifyPlanChange(input.changeType, input.impact);
+    const classification = this.classifyPlanChange(
+      input.changeType,
+      input.impact,
+    );
     const change: PlanChange = {
       changeId: `change-${randomUUID()}`,
       changeType: input.changeType,
@@ -548,12 +984,21 @@ export class SpecKitEngine {
   }
 
   hasPendingPlanChanges(state: SpecKitState): boolean {
-    return Object.values(state.planChanges).some((c) => c.status !== "applied" && c.status !== "rejected");
+    return Object.values(state.planChanges).some(
+      (c) => c.status !== "applied" && c.status !== "rejected",
+    );
   }
 
   /** FR-073: reconciliation diff — pure. */
-  reconcile(prevTasks: Record<string, SpecTask>, nextTasks: Record<string, SpecTask>): {
-    added: string[]; removed: string[]; changed: string[]; evidencePreserved: string[]; flaggedForReview: string[];
+  reconcile(
+    prevTasks: Record<string, SpecTask>,
+    nextTasks: Record<string, SpecTask>,
+  ): {
+    added: string[];
+    removed: string[];
+    changed: string[];
+    evidencePreserved: string[];
+    flaggedForReview: string[];
   } {
     const added = Object.keys(nextTasks).filter((id) => !prevTasks[id]);
     const removed = Object.keys(prevTasks).filter((id) => !nextTasks[id]);
@@ -563,12 +1008,22 @@ export class SpecKitEngine {
     for (const [id, prev] of Object.entries(prevTasks)) {
       const next = nextTasks[id];
       if (!next) continue;
-      const prevSig = JSON.stringify({ d: prev.dependencies, t: prev.title, desc: prev.description });
-      const nextSig = JSON.stringify({ d: next.dependencies, t: next.title, desc: next.description });
+      const prevSig = JSON.stringify({
+        d: prev.dependencies,
+        t: prev.title,
+        desc: prev.description,
+      });
+      const nextSig = JSON.stringify({
+        d: next.dependencies,
+        t: next.title,
+        desc: next.description,
+      });
       if (prevSig !== nextSig) {
         changed.push(id);
-        if (prev.status === "pending" || prev.status === "ready") { /* re-normalize */ }
-        else if (prev.status !== "completed" && prev.status !== "cancelled") flaggedForReview.push(id);
+        if (prev.status === "pending" || prev.status === "ready") {
+          /* re-normalize */
+        } else if (prev.status !== "completed" && prev.status !== "cancelled")
+          flaggedForReview.push(id);
         else flaggedForReview.push(id); // completed changed ⇒ impact review
       } else {
         evidencePreserved.push(id);
@@ -580,62 +1035,130 @@ export class SpecKitEngine {
   /** FR-074: completion invariants evaluation.
    *  2a: snapshot freshness is RECOMPUTED internally (hash comparison via
    *  isSnapshotStale) instead of trusting a caller-supplied flag. */
-  evaluateCompletionInvariants(state: SpecKitState, opts: { requiredVerificationSucceeded: boolean; completionOpsSucceeded: boolean }): { satisfied: boolean; violations: string[] } {
+  evaluateCompletionInvariants(
+    state: SpecKitState,
+    opts: {
+      requiredVerificationSucceeded: boolean;
+      completionOpsSucceeded: boolean;
+    },
+  ): { satisfied: boolean; violations: string[] } {
     const violations: string[] = [];
     if (!state.validation.valid) violations.push("artifacts_invalid");
-    const snapshotCurrent = state.activeSnapshotId !== null && !this.isSnapshotStale(state, state.featureDirectory);
-    if (!state.activeSnapshotId || !snapshotCurrent) violations.push("snapshot_stale");
+    const snapshotCurrent =
+      state.activeSnapshotId !== null &&
+      !this.isSnapshotStale(state, state.featureDirectory);
+    if (!state.activeSnapshotId || !snapshotCurrent)
+      violations.push("snapshot_stale");
     const required = Object.values(state.tasks).filter((t) => t.required);
-    if (required.some((t) => t.status !== "completed")) violations.push("required_tasks_incomplete");
-    if (required.some((t) => t.status === "blocked")) violations.push("required_tasks_blocked");
-    if (Object.values(state.tasks).some((t) => t.status === "in_progress" || t.status === "ready")) violations.push("active_tasks");
-    const uncovered = this.coverageSummary(state).filter((c) => c.coverage !== "verified" && c.coverage !== "waived");
+    if (required.some((t) => t.status !== "completed"))
+      violations.push("required_tasks_incomplete");
+    if (required.some((t) => t.status === "blocked"))
+      violations.push("required_tasks_blocked");
+    if (
+      Object.values(state.tasks).some(
+        (t) => t.status === "in_progress" || t.status === "ready",
+      )
+    )
+      violations.push("active_tasks");
+    const uncovered = this.coverageSummary(state).filter(
+      (c) => c.coverage !== "verified" && c.coverage !== "waived",
+    );
     if (uncovered.length > 0) violations.push("acceptance_criteria_unverified");
-    if (this.hasPendingPlanChanges(state)) violations.push("pending_plan_changes");
-    if (!opts.requiredVerificationSucceeded) violations.push("verification_failed");
-    if (!opts.completionOpsSucceeded) violations.push("completion_operations_failed");
+    if (this.hasPendingPlanChanges(state))
+      violations.push("pending_plan_changes");
+    if (!opts.requiredVerificationSucceeded)
+      violations.push("verification_failed");
+    if (!opts.completionOpsSucceeded)
+      violations.push("completion_operations_failed");
     return { satisfied: violations.length === 0, violations };
   }
 
-
   // ---- Phase 8/9 completion APIs ----
 
-  waiveCriterion(state: SpecKitState, criterionId: string, reason: string): void {
+  waiveCriterion(
+    state: SpecKitState,
+    criterionId: string,
+    reason: string,
+  ): void {
     const criterion = state.criteria[criterionId];
-    if (!criterion) throw new GuidanceError("spec_kit_task_not_found", `unknown criterion ${criterionId}`, { recoverable: true });
+    if (!criterion)
+      throw new GuidanceError(
+        "spec_kit_task_not_found",
+        `unknown criterion ${criterionId}`,
+        { recoverable: true },
+      );
     const at = new Date().toISOString();
     criterion.waiver = { reason, approvedBy: "user", at };
     // F5: dedizierter Event-Typ statt plan_change_approved (F8-Felder von 2e).
-    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_criterion_waived", data: { criterionId, waiver: reason, approvedBy: "user", at } });
+    this.audit({
+      sessionId: this.sessionId,
+      eventType: "spec_kit_criterion_waived",
+      data: { criterionId, waiver: reason, approvedBy: "user", at },
+    });
   }
 
-  approvePlanChange(state: SpecKitState, changeId: string, decision: "approved" | "rejected"): void {
+  approvePlanChange(
+    state: SpecKitState,
+    changeId: string,
+    decision: "approved" | "rejected",
+  ): void {
     const change = state.planChanges[changeId];
-    if (!change) throw new GuidanceError("spec_kit_plan_change_required", `unknown change ${changeId}`, { recoverable: true });
+    if (!change)
+      throw new GuidanceError(
+        "spec_kit_plan_change_required",
+        `unknown change ${changeId}`,
+        { recoverable: true },
+      );
     // F6: Terminalität — angewendete/abgelehnte Changes sind unveränderlich.
     if (change.status === "applied" || change.status === "rejected") {
-      throw new GuidanceError("spec_kit_plan_change_required", `change ${changeId} is already ${change.status}`, { recoverable: true });
+      throw new GuidanceError(
+        "spec_kit_plan_change_required",
+        `change ${changeId} is already ${change.status}`,
+        { recoverable: true },
+      );
     }
     change.status = decision === "approved" ? "approved" : "rejected";
-    this.audit({ sessionId: this.sessionId, eventType: decision === "approved" ? "spec_kit_plan_change_approved" : "spec_kit_plan_change_rejected", data: { changeId } });
+    this.audit({
+      sessionId: this.sessionId,
+      eventType:
+        decision === "approved"
+          ? "spec_kit_plan_change_approved"
+          : "spec_kit_plan_change_rejected",
+      data: { changeId },
+    });
   }
 
   markPlanChangeApplied(state: SpecKitState, changeId: string): void {
     const change = state.planChanges[changeId];
-    if (!change) throw new GuidanceError("spec_kit_plan_change_required", `unknown change ${changeId}`, { recoverable: true });
+    if (!change)
+      throw new GuidanceError(
+        "spec_kit_plan_change_required",
+        `unknown change ${changeId}`,
+        { recoverable: true },
+      );
     // F6: nur freigegebene Changes dürfen applied werden (kein TypeError bei
     // unbekannter Id, keine Umgehung des Approval-Gates).
     if (change.status !== "approved") {
-      throw new GuidanceError("spec_kit_plan_change_required", `change ${changeId} must be approved before it can be applied (current: ${change.status})`, { recoverable: true });
+      throw new GuidanceError(
+        "spec_kit_plan_change_required",
+        `change ${changeId} must be approved before it can be applied (current: ${change.status})`,
+        { recoverable: true },
+      );
     }
     change.status = "applied";
-    this.audit({ sessionId: this.sessionId, eventType: "spec_kit_plan_change_applied", data: { changeId } });
+    this.audit({
+      sessionId: this.sessionId,
+      eventType: "spec_kit_plan_change_applied",
+      data: { changeId },
+    });
   }
 
   /** FR-064 staleness: recompute artifact hashes vs the active snapshot. */
   isSnapshotStale(state: SpecKitState, featureDirectory: string): boolean {
     if (!state.activeSnapshotId) return true;
-    const snapshot = state.snapshots.find((s) => s.snapshotId === state.activeSnapshotId);
+    const snapshot = state.snapshots.find(
+      (s) => s.snapshotId === state.activeSnapshotId,
+    );
     if (!snapshot) return true;
     for (const artifact of snapshot.artifacts) {
       const path = join(featureDirectory, artifact.relativePath);
@@ -647,7 +1170,10 @@ export class SpecKitEngine {
   }
 
   /** FR-073 apply: build the reconciled state in memory, caller persists atomically. */
-  buildReconciledState(previous: SpecKitState, nextImport: SpecKitState): SpecKitState {
+  buildReconciledState(
+    previous: SpecKitState,
+    nextImport: SpecKitState,
+  ): SpecKitState {
     const diff = this.reconcile(previous.tasks, nextImport.tasks);
     const tasks: Record<string, SpecTask> = {};
     for (const [id, prev] of Object.entries(previous.tasks)) {
@@ -662,7 +1188,11 @@ export class SpecKitEngine {
           status: prev.status === "completed" ? "completed" : "cancelled",
           required: prev.status === "completed" ? prev.required : false,
         };
-        this.audit({ sessionId: this.sessionId, eventType: "spec_kit_task_superseded", data: { taskId: id, previousStatus: prev.status } });
+        this.audit({
+          sessionId: this.sessionId,
+          eventType: "spec_kit_task_superseded",
+          data: { taskId: id, previousStatus: prev.status },
+        });
         continue;
       }
       const changed = diff.changed.includes(id);
@@ -688,18 +1218,25 @@ export class SpecKitEngine {
       // mit leerer Map — ohne Merge würden sie stillschweigend verworfen).
       planChanges: { ...previous.planChanges, ...nextImport.planChanges },
     } as SpecKitState;
-  }}
+  }
+}
 
+function patternOf(p: string): string {
+  return p;
+}
 
-function patternOf(p: string): string { return p; }
-
-function parseCriteria(content: string): { id: string; text: string; linkedTasks: string[] }[] {
+function parseCriteria(
+  content: string,
+): { id: string; text: string; linkedTasks: string[] }[] {
   const out: { id: string; text: string; linkedTasks: string[] }[] = [];
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   for (const line of lines) {
     // 2d-Fix: Bold- UND Plain-Listenform (wie parser.ts parseTasks).
-    const m = line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i) ?? line.match(/- \*?\*?((?:AC|SC)-\d+)\*?\*?:?\s*(.*)/i);
-    if (m) out.push({ id: m[1]!.toUpperCase(), text: m[2] ?? "", linkedTasks: [] });
+    const m =
+      line.match(/\*\*((?:AC|SC)-\d+)\*\*:?\s*(.*)/i) ??
+      line.match(/- \*?\*?((?:AC|SC)-\d+)\*?\*?:?\s*(.*)/i);
+    if (m)
+      out.push({ id: m[1]!.toUpperCase(), text: m[2] ?? "", linkedTasks: [] });
   }
   return out;
 }
