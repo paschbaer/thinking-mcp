@@ -77,8 +77,9 @@ Escalation-Untergrenze ≥ 5,5 s).
   `recordConnection(serverId, status)` mit `lastSuccessfulRequestAt`
   aufgerufen; `ConnectionSnapshot` um das Feld erweitert.
 - **FR-705** Lock-Härtung: Lock-Key via `realpathSync` (Fallback
-  `resolve`); `workspaceLocks`-Map auf 64 Einträge cap (ältester Eintrag
-  wird entfernt).
+  `resolve`); `workspaceLocks`-Map mit **soft cap 64**: unheld Einträge
+  werden nach Alter evicted — **held Locks werden nie evicted**, daher
+  darf die Map unter Contention temporär den Cap überschreiten.
 - **FR-706** Test-Robustheit (L-2): ps-Liveness per Polling (bis 5 s),
   Eskalations-Test-Untergrenze ≥ 5,5 s.
 - **FR-707** Doku: README-Abschnitt „Remote sessions & downstream
