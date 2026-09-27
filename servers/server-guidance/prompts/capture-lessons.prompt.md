@@ -1,4 +1,4 @@
-<!-- MASTER: .github/prompts/capture-lessons.prompt.md — keep in sync when the master changes (L253-Ersatz, spec 008 FR-804). -->
+<!-- MASTER: .github/prompts/capture-lessons.prompt.md — keep in sync when the master changes (L253-Ersatz, LR-4; "FR-804" war eine Nummernkollision mit specs/008 und wurde zu LR-4 umetikettiert). -->
 
 ---
 description: Capture session lessons as EMMS experience episodes

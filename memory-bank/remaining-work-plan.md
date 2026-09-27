@@ -854,9 +854,9 @@ Branch feature/remote-downstream-execution. Suite 312/312 + tsc + build grün (C
 
 ## Getrackte Follow-ups (2026-09-26, Feature 005 Final-Review — Reste)
 Final-Review (fresh subagent 35f63807) über f300cf9..98c4d62: 1 HIGH (F1 metrics.jsonl exponentielles Wachstum durch Replay-Re-Persist) — GEFIXT (replaying-Flag) + Replay-Größen-Regressionstest; F2 SC-401-Integrationstest nachgereicht; F6 catch-Recording; F9 defensive copies. 0 HIGH/CRITICAL offen nach Fixes (304/304 + tsc grün).
-- [ ] F3 LOW: ClientManager-Hook für Verbindungs-Historie zwischen get_metrics-Abrufen fehlt (Live-Merge deckt aktuellen Status); lastSuccessfulRequestAt nicht im Snapshot-Shape. Trigger: Metrics-Ausbau. Action required.
-- [ ] F5 LOW: FR-404-Wortlaut (HMAC bei Key-Auth) vs. Implementierung (Opak-Token, HMAC vertagt) — Spec-Wortlaut nachziehen. Trigger: nächste specs/005-Änderung. Action required.
-- [ ] F7 LOW: Token-Burn vor Persist — Crash-Fenster macht akzeptierten Report einmal replay-bar (128-bit Token, praxisnah). Akzeptiert/dokumentiert.
+- [x] F3 GELÖST (Feature 007, d19fdc4/9434e54): recordConnection nach jedem Downstream-Invoke; ConnectionSnapshot.lastSuccessfulRequestAt + Live-Merge-Fix (L1 im 007-Final-Review).
+- [x] F5 GELÖST (Feature 007 Final-Review M1, 9434e54): FR-404-Wortlaut in specs/005 angepasst (Opak-Token; optionale Härtung getrackt).
+- [x] F7 GELÖST by design (siehe Feature-006-Abschnitt): FR-501/SC-502 decken das Crash-Fenster.
 - [ ] F8 LOW: Scaffold-Detection false positive (pyproject.toml in JS-Monorepo). Akzeptiert spec-konform; Trigger: Feedback aus Praxis.
 - [x] F4 MEDIUM: tasks.md-Checkboxen mit diesem Commit gesetzt (Hygiene-Regel).
 
@@ -869,13 +869,16 @@ Anlass: Nutzer-Befund am Niyama-Beispiel — guidance ist aktuell single-repo ve
 - [x] M1 GELÖST: F5-Wortlaut tatsächlich angepasst (specs/005 FR-404: Opak-Token, HMAC entfällt/optional getrackt); falscher GELÖST-Claim aus d19fdc4 korrigiert.
 - [x] M2 GELÖST: Remote-Metrics-Lücke executeRequired — downstreamEngine.execute wird mit Metrics-Recording gewrappt (Lifecycle/Composite zählt remote jetzt).
 - [x] L1 GELÖST: getMetrics-Live-Merge erhält lastSuccessfulRequestAt (überschreibt nicht mehr mit undefined).
-- [ ] L2 LOW: Lock-Map-Cap 64 nicht strikt (held Entries werden nicht evicted — bewusst sicher); FR-705-Wortlaut präzisieren. Trigger: Multi-Workspace > 64.
-- [ ] L3 LOW: Router-Objekt per Cast als OperationEngine — künftige Member-Zugriffe zur Laufzeit ungeschützt. Trigger: neue Engine-Member-Nutzung.
+- [x] L2 GELÖST (LR-3, 56ecf1d): FR-705 auf Soft-Cap-Semantik präzisiert (held nie evicted, temporäres Überschreiten unter Contention dokumentiert).
+- [x] L3 GELÖST (LR-2, 8afc15f): Router als Proxy statt Cast — unbekannte Member funktionsgebunden an Downstream-Engine, Regressionstest vorhanden.
 - [ ] L4 INFO: SC-604 Remote-Parallelität nur lokal getestet (SC-503); Remote-Level-Parallelitätstest bei Bedarf. SIGKILL-Observation bleibt getrackt (siehe Feature 004-Rest).
 
 ## Getrackte Follow-ups (2026-09-27, Feature 008 LOW-Residue Closure — GELÖST)
+> Namespace-Bereinigung (2026-09-27): Die ursprünglichen Label FR-801…804
+> kollidierten mit specs/008 (FR-801…808) und wurden zu **LR-1…LR-4**
+> umetikettiert (Code-Kommentare, Testnamen, Prompt-Header inklusive).
 Branch feature/low-residue-closure. Suite 314/314 + tsc + build grün (Container).
-- [x] Interleaving-Parität GELÖST (FR-801, Doku+Test): getrennte Stream-Erfassung dokumentiert (keine Cross-Stream-Ordering-Garantie, POSIX); pinning test (alternierender out/err-Child) in operation-engine-async.test.ts.
-- [x] Router-Cast-Robustheit GELÖST (FR-802): Router als Proxy — unbekannte Member werden funktionsgebunden an die Downstream-Engine weitergeleitet; then/catch/finally + Target-Properties ausgenommen; Regressionstest in tools-run-operation.test.ts.
-- [x] Lock-Cap-Wortlaut GELÖST (FR-803): specs/007 FR-705 = soft cap 64, held nie evicted, temporäres Überschreiten unter Contention möglich; memory-bank L-2-Rest synchronisiert.
-- [x] L253-Ersatz GELÖST (FR-804): prompts/capture-lessons.prompt.md im Paket (files-Eintrag, Master-Header-Verweis), README-Nutzungsabschnitt. L253 bleibt obsolet-closed mit Verweis auf FR-804.
+- [x] Interleaving-Parität GELÖST (LR-1, Doku+Test): getrennte Stream-Erfassung dokumentiert (keine Cross-Stream-Ordering-Garantie, POSIX); pinning test (alternierender out/err-Child) in operation-engine-async.test.ts.
+- [x] Router-Cast-Robustheit GELÖST (LR-2): Router als Proxy — unbekannte Member werden funktionsgebunden an die Downstream-Engine weitergeleitet; then/catch/finally + Target-Properties ausgenommen; Regressionstest in tools-run-operation.test.ts.
+- [x] Lock-Cap-Wortlaut GELÖST (LR-3): specs/007 FR-705 = soft cap 64, held nie evicted, temporäres Überschreiten unter Contention möglich; memory-bank L-2-Rest synchronisiert.
+- [x] L253-Ersatz GELÖST (LR-4): prompts/capture-lessons.prompt.md im Paket (files-Eintrag, Master-Header-Verweis), README-Nutzungsabschnitt. L253 bleibt obsolet-closed mit Verweis auf LR-4.

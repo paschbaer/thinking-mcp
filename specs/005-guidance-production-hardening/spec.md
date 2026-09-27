@@ -3,7 +3,7 @@
 **Feature ID:** `005-guidance-production-hardening`
 **Namespace:** FR-401+, SC-401+ (per the numbering-collision lesson; spec 003 will move to FR-301+ in US5)
 **Closes tracks:** PLAN-CLEANUP · L260/FR-059 · FR-104.5 · TRACK-Venv-C · TRACK-NS · TRACK-Scaffold
-**Status:** Draft
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-26
 
 ## Overview

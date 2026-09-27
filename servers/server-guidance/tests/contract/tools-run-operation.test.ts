@@ -227,7 +227,7 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     expect(res.summary).toMatch(/cancel/i);
   }, 15_000);
 
-  it("FR-802: router proxies unknown members to the downstream engine (robustness)", async () => {
+  it("LR-2: router proxies unknown members to the downstream engine (robustness)", async () => {
     const downstreamCfgDir = join(ws, ".guidance-down");
     mkdirSync(downstreamCfgDir, { recursive: true });
     for (const f of ["guidance.json", "workflow.json", "responses.json", "operations.json", "downstream-servers.json", "policies.json"]) {

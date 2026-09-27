@@ -10,16 +10,25 @@
 
 ## Phase 1 — US1: Remote-Downstream-Routing (P1)
 
-- [ ] T001 [US1] Write failing tests in `tests/contract/remote-downstream.test.ts`: echter zweiter MCP-HTTP-Server (SDK-Stub mit `echo`-Tool) als Downstream; Remote-Session führt `mcpTool`-Op serverseitig aus (`succeeded`, kein awaiting_client, SC-601); Egress-Verstoß (Allowlist ohne Stub-Host) → strukturiert fehlgeschlagen (SC-602); Client-Op in derselben Session bleibt token-gebunden (SC-603); `get_metrics` enthält Stub-Connection mit `lastSuccessfulRequestAt` (FR-704)
-- [ ] T002 [US1] Implement: `buildDownstreamInvoker`-Fabrik (aus dem WorkflowEngine-Konstruktor extrahiert, FR-702); Remote-Komposition (remote-session-manager `initSession`/`restore`) injiziert Router-Executor — `server`-Ops → Downstream-Pfad, client-seitige Ops → ClientOpEngine (FR-701); `required` blockiert (FR-703/Q1/Q2); isolierter ClientManager je Session (Q3) — make T001 pass
+- [x] T001 [US1] Write failing tests in `tests/contract/remote-downstream.test.ts`: echter zweiter MCP-HTTP-Server (SDK-Stub mit `echo`-Tool) als Downstream; Remote-Session führt `mcpTool`-Op serverseitig aus (`succeeded`, kein awaiting_client, SC-601); Egress-Verstoß (Allowlist ohne Stub-Host) → strukturiert fehlgeschlagen (SC-602); Client-Op in derselben Session bleibt token-gebunden (SC-603); `get_metrics` enthält Stub-Connection mit `lastSuccessfulRequestAt` (FR-704)
+- [x] T002 [US1] Implement: `buildDownstreamInvoker`-Fabrik (aus dem WorkflowEngine-Konstruktor extrahiert, FR-702); Remote-Komposition (remote-session-manager `initSession`/`restore`) injiziert Router-Executor — `server`-Ops → Downstream-Pfad, client-seitige Ops → ClientOpEngine (FR-701); `required` blockiert (FR-703/Q1/Q2); isolierter ClientManager je Session (Q3) — make T001 pass
 
 ## Phase 2 — US2 + US3 (P2/P3)
 
-- [ ] T003 [US2] F3: `recordConnection` nach jedem Downstream-Invoke (Status + `lastSuccessfulRequestAt` aus ClientManager-Status); `ConnectionSnapshot.lastSuccessfulRequestAt?` erweitern — Teil von T001-Tests (FR-704)
+- [x] T003 [US2] F3: `recordConnection` nach jedem Downstream-Invoke (Status + `lastSuccessfulRequestAt` aus ClientManager-Status); `ConnectionSnapshot.lastSuccessfulRequestAt?` erweitern — Teil von T001-Tests (FR-704)
 - [x] T004 [F5] Spec-005 FR-404-Wortlaut angepasst (Opak-Token; HMAC entfällt — Transport key-authentifiziert, optionale Härtung getrackt) + F7-Plan-Closure (Verweis FR-501/SC-502) — docs-only
-- [ ] T005 [L-4/L-5] `workspaceLockFile` via `realpathSync` (Fallback resolve); `workspaceLocks`-Cap 64 mit Eviction (ältester Key) — Tests: Cap-Verhalten
-- [ ] T006 [L-2] ps-/Eskalations-Tests robust: Polling bis Marker sichtbar (≤ 5 s), Eskalations-Untergrenze ≥ 5,5 s (FR-706)
+- [x] T005 [L-4/L-5] `workspaceLockFile` via `realpathSync` (Fallback resolve); `workspaceLocks`-Cap 64 mit Eviction (ältester Key) — Tests: Cap-Verhalten
+- [x] T006 [L-2] ps-/Eskalations-Tests robust: Polling bis Marker sichtbar (≤ 5 s), Eskalations-Untergrenze ≥ 5,5 s (FR-706)
 
 ## Phase 3 — Abschluss
 
-- [ ] T007 Full regression + typecheck + build (SC-605); README „Remote sessions & downstream operations" (FR-707); Memory-Bank (F3/F5/F7/L-2/L-4/L-5 closures, Amendment-004-Status DRAFT→IMPLEMENTED); final review per Protokoll (fresh sub-agent); merge to develop
+- [x] T007 Full regression + typecheck + build (SC-605); README „Remote sessions & downstream operations" (FR-707); Memory-Bank (F3/F5/F7/L-2/L-4/L-5 closures, Amendment-004-Status DRAFT→IMPLEMENTED); final review per Protokoll (fresh sub-agent); merge to develop
+
+## Evidence-Nachtrag (Hygiene-Sync 2026-09-27)
+
+- T001: tests/contract/remote-downstream.test.ts (225 Zeilen, Stub-MCP-Downstream, SC-601…603) — d19fdc4.
+- T002: buildDownstreamInvoker/Router-Umbau WorkflowEngine.ts (±255 Zeilen), remote-session-manager injiziert Router-Executor — d19fdc4.
+- T003: recordConnection + ConnectionSnapshot.lastSuccessfulRequestAt (Live-Merge-Fix L1 im Final-Review) — d19fdc4/9434e54.
+- T005: workspaceLockFile via realpathSync (L-4) — d19fdc4; Cap-Semantik als FR-705 soft cap präzisiert (56ecf1d).
+- T006: Polling-basierte ps-/Eskalations-Tests, Eskalations-Untergrenze 5,5 s (L-2 GELÖST).
+- T007: Suite 314/314 + tsc + build grün (Container-Angabe Memory-Bank); README erweitert; Final-Review 0 HIGH/CRIT (2 MEDIUM sofort gefixt); gemerged nach develop (d19fdc4, 9434e54) und gepusht.

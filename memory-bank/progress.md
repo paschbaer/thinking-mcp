@@ -435,3 +435,10 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 ## 2026-09-27: Spec-Kit-Prompt fuer Feature 008 erstellt
 - .github/prompts/spec-008-multi-workspace.implement.prompt.md (Konvention wie capture-lessons.prompt.md: Front-matter + Procedure).
 - Inhalt: Kontext (Artefakte + Schlüsselstellen index.ts/register-tools.ts/SpecKitEngine/workspace-lock), AGENTS.md-Regeln (Feature-Branch, GitNexus impact/detect_changes, Clearthought, Review Evidence Protocol), Phasen P1-P7 mit Task-Referenzen, Evidence-gebundene Checkbox-Pflege, Acceptance AC-1..AC-5.
+
+## 2026-09-27: Hygiene-Sync + FR-Namespace-Bereinigung (pre-008)
+- LOW-Closure-Labels FR-801..804 → LR-1..LR-4 umetikettiert (Code-Kommentare, 2 Testnamen, Prompt-Header, memory-bank) — Kollision mit specs/008 FR-801..808 bereinigt.
+- 006/007 tasks.md: alle Checkboxen [x] + Evidence-Nachträge; Status 005/006/007 → Implemented (2026-09-27).
+- memory-bank: F3/F5/F7 (2026-09-26-Sektion) + L2/L3 auf [x] mit Evidence; L4 INFO bleibt offen (bei Bedarf).
+- detect_changes: GitNexus 2x Timeout — Ersatz via git diff (nur Kommentare/Testnamen, kein Verhalten). SUITE NICHT LOKAL GELAUFEN (kein Node auf Host); Testnamen-Renames sind string-safe.
+- LESSON: sed -i auf CRLF-Dateien (specs/005,006) hat Whole-File-Rewrite erzeugt (132/132 lines) — mit git checkout wiederhergestellt und perl -pi -e (CRLF-erhaltend) verwendet. Künftig Status-Edits in CRLF-Dateien nur mit perl oder edit_file.
