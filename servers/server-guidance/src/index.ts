@@ -13,14 +13,25 @@ export const SERVER_VERSION = "0.1.0";
 
 async function main(): Promise<void> {
   const workspaceRoot = process.cwd();
-  const app = composeApplication(workspaceRoot, join(workspaceRoot, ".guidance"), join(workspaceRoot, ".guidance", "state"));
+  const app = composeApplication(
+    workspaceRoot,
+    join(workspaceRoot, ".guidance"),
+    join(workspaceRoot, ".guidance", "state"),
+  );
   const server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, workspaceRoot, app.config.workspaces);
+  registerWorkflowTools(
+    server,
+    app.tools,
+    workspaceRoot,
+    app.config.workspaces,
+  );
   registerSetupTools(server);
   // Option C (Review Finding 7): Spec-Kit-Tools nur bei Profil "spec-kit".
   if (app.config.profile === "spec-kit") {
     if (!app.config.specKit) {
-      throw new Error("configuration_invalid: profile spec-kit requires specKit integration config");
+      throw new Error(
+        "configuration_invalid: profile spec-kit requires specKit integration config",
+      );
     }
     const audit = new AuditRepository(join(app.stateDir, "history"));
     registerSpecKitTools(server, {
@@ -35,15 +46,25 @@ async function main(): Promise<void> {
           return undefined;
         }
       },
-      audit: (event) => audit.append({ sessionId: event.sessionId, eventType: event.eventType, phase: event.phase, data: event.data }),
+      audit: (event) =>
+        audit.append({
+          sessionId: event.sessionId,
+          eventType: event.eventType,
+          phase: event.phase,
+          data: event.data,
+        }),
     });
   }
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write(`[${GUIDANCE_SERVER_NAME}] v${SERVER_VERSION} ready (stdio, profile: ${app.config.profile})\n`);
+  process.stderr.write(
+    `[${GUIDANCE_SERVER_NAME}] v${SERVER_VERSION} ready (stdio, profile: ${app.config.profile})\n`,
+  );
 }
 
 main().catch((err: unknown) => {
-  process.stderr.write(`fatal: ${err instanceof Error ? err.message : String(err)}\n`);
+  process.stderr.write(
+    `fatal: ${err instanceof Error ? err.message : String(err)}\n`,
+  );
   process.exitCode = 1;
 });

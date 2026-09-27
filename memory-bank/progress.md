@@ -474,3 +474,12 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - What works: T5 Verdrahtung (docs-drift-Op required/read_only/60s in operations.json; workflow.json complete.beforeExit VOR final-review-gate — headCommit-Schutz); T6 docsImpact-Pflicht in submit_task_implementation-Evidence (DOCS_RELEVANT_PATTERNS: src/mcp-server/, src/setup/, src/config.ts, src/types/errors.ts, specs/, README.md; "updated: <file>"|\"none: <reason>\", sonst submission_invalid; Default none); T7 lifecycle-Tests (3 neue, fehlt/none/updated); T8 README-009-Kapitel durch Vorgängersession abgedeckt (verifiziert); T9 Q3-Sanierung verifiziert (005/006/007 Implemented, 006/007 0 offene Checkboxen); T10 Regression: 344/344 Tests, tsc, build grün; Gate Exit 0.
 - What's left: Commit + Push auf develop; GitNexus-Index-Refresh vor complete_workflow (Completion-Gate index-freshness).
 - Current State: specs/010 implementierungsmäßig abgeschlossen; Batch-/Task-Lifecycle per dokumentiertem State-Injection-Workaround gesetzt (Client ohne release_batch/verify_task); Inject-Skript nach Lauf gelöscht.
+
+## 2026-09-27: Rest-Findings-Batch (Guidance-Session session-4e4471f2, feature/rest-findings-batch)
+- T1 FR2-L1: docsImpact bare-prefix ("updated:"/"none:" mit leerem Rest) → submission_invalid; Tests ergänzt.
+- T2 FR2-L2: Case-sensitives README-Toolzeilen-Matching per Test verankert (Contract bereits dokumentiert).
+- T3 Ops-Hygiene: repo-weite Prettier-Normalisierung (149 Dateien, Format-only, git diff -w verifiziert) — lint-Op grün; operations.json lint/test-Beschreibungen mit Konvergenzpfad.
+- T4 AD-1: Adopt übernimmt nicht-generische Referenz-Ops in operations.json ([adopted from reference]-Marker im description); Coherence-Check bleibt strikt; Repro-Regressionstest mit realistischer Referenz (beforeExit mit Gates) grün; alter N-2-Test angepasst (Op fehlt in Referenz → fail-closed).
+- T5 AD-2: referencePath-Help + README erwähnen builtin-Referenz examples/default-guidance.
+- T6 N-D1/N-D4 bereits gefixt (verifiziert); N-D3: FR-909-Block in spec.md 009 ergänzt.
+- Verification: 360/360 + 24 fokussiert nach Prettier, tsc, build, docs-drift Gate, prettier --check grün.

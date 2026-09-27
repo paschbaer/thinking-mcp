@@ -2,28 +2,40 @@
  * Configuration schema and types for the Clear Thought MCP server
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Configuration schema for the Clear Thought MCP server
- * 
+ *
  * @property debug - Enable debug logging (default: false)
  * @property maxThoughtsPerSession - Maximum number of thoughts allowed per session (default: 100)
  * @property sessionTimeout - Session timeout in milliseconds (default: 3600000 - 1 hour)
  * @property enableMetrics - Enable metrics collection (default: false)
  */
 export const ServerConfigSchema = z.object({
-  debug: z.boolean().default(false).describe('Enable debug logging'),
-  maxThoughtsPerSession: z.number().min(1).max(1000).default(100).describe('Maximum number of thoughts allowed per session'),
-  sessionTimeout: z.number().min(60000).default(3600000).describe('Session timeout in milliseconds'),
-  enableMetrics: z.boolean().default(false).describe('Enable metrics collection'),
+  debug: z.boolean().default(false).describe("Enable debug logging"),
+  maxThoughtsPerSession: z
+    .number()
+    .min(1)
+    .max(1000)
+    .default(100)
+    .describe("Maximum number of thoughts allowed per session"),
+  sessionTimeout: z
+    .number()
+    .min(60000)
+    .default(3600000)
+    .describe("Session timeout in milliseconds"),
+  enableMetrics: z
+    .boolean()
+    .default(false)
+    .describe("Enable metrics collection"),
   dataDir: z
     .string()
     .min(1)
     .optional()
     .describe(
-      'Directory for session persistence files — enables the session_save/session_load tools'
-    )
+      "Directory for session persistence files — enables the session_save/session_load tools",
+    ),
 });
 
 /**
@@ -38,7 +50,7 @@ export const defaultConfig: ServerConfig = {
   debug: false,
   maxThoughtsPerSession: 100,
   sessionTimeout: 3600000, // 1 hour
-  enableMetrics: false
+  enableMetrics: false,
 };
 
 /**
@@ -61,7 +73,10 @@ export function safeParseConfig(config: unknown): ServerConfig {
   if (result.success) {
     return result.data;
   }
-  
-  console.warn('Invalid configuration provided, using defaults:', result.error.issues);
+
+  console.warn(
+    "Invalid configuration provided, using defaults:",
+    result.error.issues,
+  );
   return defaultConfig;
 }

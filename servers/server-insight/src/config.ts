@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Server configuration schema for the Experience Memory MCP Server (EMMS).
@@ -12,15 +12,19 @@ export const ServerConfigSchema = z.object({
 });
 
 /** Env fallback (Docker/compose sets EMMS_STORAGE_PATH). */
-export function resolveConfig(raw: Partial<{ storagePath: string }> = {}): ServerConfig {
+export function resolveConfig(
+  raw: Partial<{ storagePath: string }> = {},
+): ServerConfig {
   return {
     storagePath: raw.storagePath ?? process.env.EMMS_STORAGE_PATH,
   };
 }
 
 /** Storage backend selection: 'sqlite' (default) | 'postgres'. */
-export function resolveStorageBackend(): 'sqlite' | 'postgres' {
-  return process.env.EMMS_STORAGE_BACKEND === 'postgres' ? 'postgres' : 'sqlite';
+export function resolveStorageBackend(): "sqlite" | "postgres" {
+  return process.env.EMMS_STORAGE_BACKEND === "postgres"
+    ? "postgres"
+    : "sqlite";
 }
 
 /** Postgres connection string (required when backend = postgres). */
@@ -36,9 +40,9 @@ export function resolvePostgresConnectionString(): string | undefined {
  */
 export function resolveFtsRelevanceBoost(): number {
   const env = process.env.EMMS_FTS_RELEVANCE_BOOST;
-  if (env === undefined || env.trim() === '') return 0.30;
+  if (env === undefined || env.trim() === "") return 0.3;
   const raw = Number(env);
-  if (!Number.isFinite(raw)) return 0.30;
+  if (!Number.isFinite(raw)) return 0.3;
   return Math.min(Math.max(raw, 0), 0.39);
 }
 

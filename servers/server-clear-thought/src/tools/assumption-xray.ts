@@ -1,6 +1,6 @@
-import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { SessionState } from '../state/SessionState.js';
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SessionState } from "../state/SessionState.js";
 
 interface Heuristic {
   kind: string;
@@ -12,33 +12,41 @@ interface Heuristic {
 
 const HEURISTICS: Heuristic[] = [
   {
-    kind: 'universal',
+    kind: "universal",
     re: /\b(all|every|always|never|none|no one|nobody|everyone)\b/i,
     confidence: 0.7,
-    falsification_test: 'Find a single counterexample that violates the universal claim.',
-    label: (evidence) => `Universality assumption around "${evidence}" — does it really hold in every case?`
+    falsification_test:
+      "Find a single counterexample that violates the universal claim.",
+    label: (evidence) =>
+      `Universality assumption around "${evidence}" — does it really hold in every case?`,
   },
   {
-    kind: 'causal',
+    kind: "causal",
     re: /\b(because|cause|causes|due to|leads? to|results? in|therefore|thus)\b/i,
     confidence: 0.6,
-    falsification_test: 'Run an experiment that isolates the alleged cause from confounders.',
-    label: (evidence) => `Causal assumption around "${evidence}" — is the causality proven or only correlated?`
+    falsification_test:
+      "Run an experiment that isolates the alleged cause from confounders.",
+    label: (evidence) =>
+      `Causal assumption around "${evidence}" — is the causality proven or only correlated?`,
   },
   {
-    kind: 'necessity',
+    kind: "necessity",
     re: /\b(must|should|will|cannot|can't|impossible|required)\b/i,
     confidence: 0.55,
-    falsification_test: 'Check whether the necessity still holds under changed constraints.',
-    label: (evidence) => `Necessity/modality assumption around "${evidence}" — is it truly necessary?`
+    falsification_test:
+      "Check whether the necessity still holds under changed constraints.",
+    label: (evidence) =>
+      `Necessity/modality assumption around "${evidence}" — is it truly necessary?`,
   },
   {
-    kind: 'comparative',
+    kind: "comparative",
     re: /\b(best|worst|faster|slower|cheaper|more than|less than|most|least)\b/i,
     confidence: 0.5,
-    falsification_test: 'Benchmark quantitatively against the alternative being implicitly excluded.',
-    label: (evidence) => `Comparative assumption around "${evidence}" — measured against what baseline?`
-  }
+    falsification_test:
+      "Benchmark quantitatively against the alternative being implicitly excluded.",
+    label: (evidence) =>
+      `Comparative assumption around "${evidence}" — measured against what baseline?`,
+  },
 ];
 
 function extractContext(claim: string, match: RegExpExecArray): string {
@@ -48,15 +56,27 @@ function extractContext(claim: string, match: RegExpExecArray): string {
   return start > 0 ? `…${snippet}` : snippet;
 }
 
-export function registerAssumptionXray(server: McpServer, _sessionState: SessionState) {
+export function registerAssumptionXray(
+  server: McpServer,
+  _sessionState: SessionState,
+) {
   server.tool(
-    'assumption_xray',
-    'Surface assumptions in a claim via heuristic extraction (universality, ' +
-      'causality, necessity, comparatives) with matched evidence, heuristic ' +
-      'confidence and falsification tests for each',
+    "assumption_xray",
+    "Surface assumptions in a claim via heuristic extraction (universality, " +
+      "causality, necessity, comparatives) with matched evidence, heuristic " +
+      "confidence and falsification tests for each",
     {
-      claim: z.string().trim().min(1).describe('The claim to analyze for hidden assumptions'),
-      context: z.string().trim().min(1).optional().describe('Context surrounding the claim')
+      claim: z
+        .string()
+        .trim()
+        .min(1)
+        .describe("The claim to analyze for hidden assumptions"),
+      context: z
+        .string()
+        .trim()
+        .min(1)
+        .optional()
+        .describe("Context surrounding the claim"),
     },
     async ({ claim, context }) => {
       const assumptions: Array<{
@@ -68,7 +88,7 @@ export function registerAssumptionXray(server: McpServer, _sessionState: Session
       }> = [];
 
       for (const heuristic of HEURISTICS) {
-        const re = new RegExp(heuristic.re.source, 'gi');
+        const re = new RegExp(heuristic.re.source, "gi");
         let match: RegExpExecArray | null;
         while ((match = re.exec(claim)) !== null && assumptions.length < 6) {
           const evidence = extractContext(claim, match);
@@ -77,23 +97,23 @@ export function registerAssumptionXray(server: McpServer, _sessionState: Session
             assumption: heuristic.label(match[0]),
             evidence,
             confidence: heuristic.confidence,
-            falsification_test: heuristic.falsification_test
+            falsification_test: heuristic.falsification_test,
           });
         }
         if (assumptions.length >= 6) break;
       }
 
-      const mode = assumptions.length > 0 ? 'analysis' : 'no_marker';
+      const mode = assumptions.length > 0 ? "analysis" : "no_marker";
       const probing_questions = [
-        'What must be true for this claim to hold?',
-        'Which term is doing the most work, and how would you define it precisely?',
-        'What evidence would change your mind about this claim?'
+        "What must be true for this claim to hold?",
+        "Which term is doing the most work, and how would you define it precisely?",
+        "What evidence would change your mind about this claim?",
       ];
 
       return {
         content: [
           {
-            type: 'text',
+            type: "text",
             text: JSON.stringify(
               {
                 mode,
@@ -101,28 +121,33 @@ export function registerAssumptionXray(server: McpServer, _sessionState: Session
                 context: context ?? null,
                 assumptions,
                 confidence: assumptions.length
-                  ? Number((assumptions.reduce((s, a) => s + a.confidence, 0) / assumptions.length).toFixed(2))
+                  ? Number(
+                      (
+                        assumptions.reduce((s, a) => s + a.confidence, 0) /
+                        assumptions.length
+                      ).toFixed(2),
+                    )
                   : 0,
-                ...(mode === 'no_marker'
+                ...(mode === "no_marker"
                   ? {
                       probing_questions,
-                      note: 'No strong assumption markers (quantifiers, causality, necessity, comparatives) found. Use the probing questions to dig manually.'
+                      note: "No strong assumption markers (quantifiers, causality, necessity, comparatives) found. Use the probing questions to dig manually.",
                     }
                   : {}),
                 nextSteps: assumptions.length
                   ? [
-                      'Work through the falsification_test of each assumption, weakest confidence first.',
-                      'Explicitly confirm or reject each assumption before acting on the claim.'
+                      "Work through the falsification_test of each assumption, weakest confidence first.",
+                      "Explicitly confirm or reject each assumption before acting on the claim.",
                     ]
                   : [],
-                status: 'success'
+                status: "success",
               },
               null,
-              2
-            )
-          }
-        ]
+              2,
+            ),
+          },
+        ],
       };
-    }
+    },
   );
 }

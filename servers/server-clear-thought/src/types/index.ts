@@ -1,6 +1,6 @@
 /**
  * Type definitions for the Clear Thought MCP server
- * 
+ *
  * This file contains all the data structures used by the various thinking tools
  * in the Clear Thought MCP server.
  */
@@ -40,8 +40,13 @@ export interface ThoughtData {
  */
 export interface MentalModelData {
   /** Name of the mental model being applied */
-  modelName: 'first_principles' | 'opportunity_cost' | 'error_propagation' | 
-             'rubber_duck' | 'pareto_principle' | 'occams_razor';
+  modelName:
+    | "first_principles"
+    | "opportunity_cost"
+    | "error_propagation"
+    | "rubber_duck"
+    | "pareto_principle"
+    | "occams_razor";
   /** The problem being analyzed */
   problem: string;
   /** Steps taken to apply the model */
@@ -58,10 +63,19 @@ export interface MentalModelData {
  */
 export interface DebuggingApproachData {
   /** The debugging approach being used */
-  approachName: 'binary_search' | 'reverse_engineering' | 'divide_conquer' |
-                'backtracking' | 'cause_elimination' | 'program_slicing' |
-                'log_analysis' | 'static_analysis' | 'root_cause_analysis' |
-                'delta_debugging' | 'fuzzing' | 'incremental_testing';
+  approachName:
+    | "binary_search"
+    | "reverse_engineering"
+    | "divide_conquer"
+    | "backtracking"
+    | "cause_elimination"
+    | "program_slicing"
+    | "log_analysis"
+    | "static_analysis"
+    | "root_cause_analysis"
+    | "delta_debugging"
+    | "fuzzing"
+    | "incremental_testing";
   /** Description of the issue being debugged */
   issue: string;
   /** Steps taken during debugging */
@@ -100,9 +114,9 @@ export interface PersonaData {
   /** Communication preferences */
   communication: {
     /** Communication style */
-    style: 'formal' | 'casual' | 'technical' | 'creative';
+    style: "formal" | "casual" | "technical" | "creative";
     /** Tone of communication */
-    tone: 'analytical' | 'supportive' | 'challenging' | 'neutral';
+    tone: "analytical" | "supportive" | "challenging" | "neutral";
   };
 }
 
@@ -115,8 +129,14 @@ export interface ContributionData {
   /** Content of the contribution */
   content: string;
   /** Type of contribution */
-  type: 'observation' | 'question' | 'insight' | 'concern' | 
-        'suggestion' | 'challenge' | 'synthesis';
+  type:
+    | "observation"
+    | "question"
+    | "insight"
+    | "concern"
+    | "suggestion"
+    | "challenge"
+    | "synthesis";
   /** Confidence level (0.0-1.0) */
   confidence: number;
   /** IDs of previous contributions this builds upon */
@@ -140,7 +160,7 @@ export interface DisagreementPosition {
  */
 export interface DisagreementResolution {
   /** Type of resolution reached */
-  type: 'consensus' | 'compromise' | 'integration' | 'tabled';
+  type: "consensus" | "compromise" | "integration" | "tabled";
   /** Description of the resolution */
   description: string;
 }
@@ -168,8 +188,13 @@ export interface CollaborativeSession {
   /** All contributions made */
   contributions: ContributionData[];
   /** Current stage of the process */
-  stage: 'problem-definition' | 'ideation' | 'critique' | 
-         'integration' | 'decision' | 'reflection';
+  stage:
+    | "problem-definition"
+    | "ideation"
+    | "critique"
+    | "integration"
+    | "decision"
+    | "reflection";
   /** Currently active persona ID */
   activePersonaId: string;
   /** Next persona ID if determined */
@@ -189,7 +214,7 @@ export interface CollaborativeSession {
   /** Current iteration number */
   iteration: number;
   /** Suggested types for next contribution */
-  suggestedContributionTypes?: ContributionData['type'][];
+  suggestedContributionTypes?: ContributionData["type"][];
   /** Whether next contribution is needed */
   nextContributionNeeded: boolean;
 }
@@ -223,7 +248,7 @@ export interface DecisionCriterion {
   /** Weight (0.0-1.0) */
   weight: number;
   /** How to evaluate this criterion */
-  evaluationMethod: 'quantitative' | 'qualitative' | 'boolean';
+  evaluationMethod: "quantitative" | "qualitative" | "boolean";
 }
 
 /**
@@ -287,7 +312,7 @@ export interface DecisionData {
   /** Time horizon for the decision */
   timeHorizon?: string;
   /** Risk tolerance level */
-  riskTolerance?: 'risk-averse' | 'risk-neutral' | 'risk-seeking';
+  riskTolerance?: "risk-averse" | "risk-neutral" | "risk-seeking";
   /** Possible outcomes */
   possibleOutcomes?: PossibleOutcome[];
   /** Criteria evaluations */
@@ -295,11 +320,20 @@ export interface DecisionData {
   /** Information gaps identified */
   informationGaps?: InformationGap[];
   /** Type of analysis being performed */
-  analysisType: 'expected-utility' | 'multi-criteria' | 'maximin' | 
-                'minimax-regret' | 'satisficing';
+  analysisType:
+    | "expected-utility"
+    | "multi-criteria"
+    | "maximin"
+    | "minimax-regret"
+    | "satisficing";
   /** Current stage of the process */
-  stage: 'problem-definition' | 'options' | 'criteria' | 
-         'evaluation' | 'analysis' | 'recommendation';
+  stage:
+    | "problem-definition"
+    | "options"
+    | "criteria"
+    | "evaluation"
+    | "analysis"
+    | "recommendation";
   /** Final recommendation */
   recommendation?: string;
   /** Sensitivity analysis insights */
@@ -329,8 +363,8 @@ export interface KnowledgeAssessment {
   /** Domain being assessed */
   domain: string;
   /** Level of knowledge */
-  knowledgeLevel: 'expert' | 'proficient' | 'familiar' | 
-                  'basic' | 'minimal' | 'none';
+  knowledgeLevel:
+    "expert" | "proficient" | "familiar" | "basic" | "minimal" | "none";
   /** Confidence score (0.0-1.0) */
   confidenceScore: number;
   /** Evidence supporting the assessment */
@@ -348,7 +382,7 @@ export interface ClaimAssessment {
   /** The claim being assessed */
   claim: string;
   /** Status of the claim */
-  status: 'fact' | 'inference' | 'speculation' | 'uncertain';
+  status: "fact" | "inference" | "speculation" | "uncertain";
   /** Confidence score (0.0-1.0) */
   confidenceScore: number;
   /** Basis for the evidence */
@@ -382,8 +416,13 @@ export interface MetacognitiveData {
   /** Task being monitored */
   task: string;
   /** Current stage */
-  stage: 'knowledge-assessment' | 'planning' | 'execution' | 
-         'monitoring' | 'evaluation' | 'reflection';
+  stage:
+    | "knowledge-assessment"
+    | "planning"
+    | "execution"
+    | "monitoring"
+    | "evaluation"
+    | "reflection";
   /** Knowledge assessment */
   knowledgeAssessment?: KnowledgeAssessment;
   /** Claims made */
@@ -401,7 +440,7 @@ export interface MetacognitiveData {
   /** Current iteration */
   iteration: number;
   /** Suggested assessments */
-  suggestedAssessments?: ('knowledge' | 'claim' | 'reasoning' | 'overall')[];
+  suggestedAssessments?: ("knowledge" | "claim" | "reasoning" | "overall")[];
   /** Whether next assessment is needed */
   nextAssessmentNeeded: boolean;
 }
@@ -417,7 +456,7 @@ export interface Variable {
   /** Name of the variable */
   name: string;
   /** Type of variable */
-  type: 'independent' | 'dependent' | 'controlled' | 'confounding';
+  type: "independent" | "dependent" | "controlled" | "confounding";
   /** How the variable is operationalized */
   operationalization?: string;
 }
@@ -445,7 +484,7 @@ export interface HypothesisData {
   /** If this refines another hypothesis */
   refinementOf?: string;
   /** Current status */
-  status: 'proposed' | 'testing' | 'supported' | 'refuted' | 'refined';
+  status: "proposed" | "testing" | "supported" | "refuted" | "refined";
 }
 
 /**
@@ -493,8 +532,14 @@ export interface ExperimentData {
  */
 export interface ScientificInquiryData {
   /** Current stage */
-  stage: 'observation' | 'question' | 'hypothesis' | 
-         'experiment' | 'analysis' | 'conclusion' | 'iteration';
+  stage:
+    | "observation"
+    | "question"
+    | "hypothesis"
+    | "experiment"
+    | "analysis"
+    | "conclusion"
+    | "iteration";
   /** Initial observation */
   observation?: string;
   /** Research question */
@@ -532,7 +577,7 @@ export interface ArgumentData {
   /** Argument ID */
   argumentId?: string;
   /** Type of argument */
-  argumentType: 'deductive' | 'inductive' | 'abductive' | 'analogical';
+  argumentType: "deductive" | "inductive" | "abductive" | "analogical";
   /** Confidence (0.0-1.0) */
   confidence: number;
   /** What this responds to */
@@ -552,7 +597,7 @@ export interface ArgumentData {
   /** Current iteration */
   iteration: number;
   /** Suggested next argument types */
-  suggestedNextTypes?: ArgumentData['argumentType'][];
+  suggestedNextTypes?: ArgumentData["argumentType"][];
   /** Whether next argument is needed */
   nextArgumentNeeded: boolean;
 }
@@ -564,8 +609,13 @@ export interface SocraticData extends ArgumentData {
   /** Question being explored */
   question?: string;
   /** Method stage */
-  stage?: 'clarification' | 'assumptions' | 'evidence' | 
-          'perspectives' | 'implications' | 'questions';
+  stage?:
+    | "clarification"
+    | "assumptions"
+    | "evidence"
+    | "perspectives"
+    | "implications"
+    | "questions";
 }
 
 // ============================================================================
@@ -618,7 +668,7 @@ export interface SystemsData {
   /** Feedback loops identified */
   feedbackLoops: Array<{
     components: string[];
-    type: 'positive' | 'negative';
+    type: "positive" | "negative";
     description: string;
   }>;
   /** Emergent properties */
@@ -644,7 +694,7 @@ export interface VisualElement {
   /** Element ID */
   id: string;
   /** Type of element */
-  type: 'node' | 'edge' | 'container' | 'annotation';
+  type: "node" | "edge" | "container" | "annotation";
   /** Element label */
   label?: string;
   /** Additional properties */
@@ -662,15 +712,15 @@ export interface VisualElement {
  */
 export interface VisualData {
   /** Operation being performed */
-  operation: 'create' | 'update' | 'delete' | 'transform' | 'observe';
+  operation: "create" | "update" | "delete" | "transform" | "observe";
   /** Elements involved */
   elements?: VisualElement[];
   /** Type of transformation */
-  transformationType?: 'rotate' | 'move' | 'resize' | 'recolor' | 'regroup';
+  transformationType?: "rotate" | "move" | "resize" | "recolor" | "regroup";
   /** Diagram ID */
   diagramId: string;
   /** Type of diagram */
-  diagramType: 'concept-map' | 'flowchart' | 'mind-map' | 'timeline' | 'custom';
+  diagramType: "concept-map" | "flowchart" | "mind-map" | "timeline" | "custom";
   /** Current iteration */
   iteration: number;
   /** Observation made */
@@ -698,13 +748,31 @@ export interface SessionExport {
   /** Session ID */
   sessionId: string;
   /** Type of thinking session */
-  sessionType: 'sequential' | 'mental-model' | 'debugging' | 'collaborative' |
-               'decision' | 'metacognitive' | 'scientific' | 'socratic' |
-               'creative' | 'systems' | 'visual';
+  sessionType:
+    | "sequential"
+    | "mental-model"
+    | "debugging"
+    | "collaborative"
+    | "decision"
+    | "metacognitive"
+    | "scientific"
+    | "socratic"
+    | "creative"
+    | "systems"
+    | "visual";
   /** Session data (varies by type) */
-  data: ThoughtData | MentalModelData | DebuggingSession | CollaborativeSession |
-        DecisionData | MetacognitiveData | ScientificInquiryData | SocraticData |
-        CreativeData | SystemsData | VisualData;
+  data:
+    | ThoughtData
+    | MentalModelData
+    | DebuggingSession
+    | CollaborativeSession
+    | DecisionData
+    | MetacognitiveData
+    | ScientificInquiryData
+    | SocraticData
+    | CreativeData
+    | SystemsData
+    | VisualData;
   /** Session metadata */
   metadata?: {
     /** User who created the session */
@@ -726,7 +794,7 @@ export interface ProcessResult {
   success: boolean;
   /** Content to return */
   content: Array<{
-    type: 'text';
+    type: "text";
     text: string;
   }>;
   /** Error information if failed */

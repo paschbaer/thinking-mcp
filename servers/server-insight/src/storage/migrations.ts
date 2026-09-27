@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type Database from "better-sqlite3";
 
 /**
  * Schema migrations (FR-009 durable schema; FR-020 append-only events;
@@ -180,10 +180,14 @@ export const MIGRATIONS: string[] = [
 
 export function runMigrations(db: Database.Database): void {
   const available = db
-    .prepare("SELECT COUNT(*) AS n FROM pragma_compile_options WHERE compile_options LIKE 'ENABLE_FTS5'")
+    .prepare(
+      "SELECT COUNT(*) AS n FROM pragma_compile_options WHERE compile_options LIKE 'ENABLE_FTS5'",
+    )
     .get() as { n: number };
   if (!available.n) {
-    throw new Error('SQLite build lacks FTS5 — required for full-text retrieval. Use a SQLite build with FTS5 enabled.');
+    throw new Error(
+      "SQLite build lacks FTS5 — required for full-text retrieval. Use a SQLite build with FTS5 enabled.",
+    );
   }
   for (const migration of MIGRATIONS) {
     db.exec(migration);

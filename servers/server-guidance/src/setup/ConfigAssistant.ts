@@ -42,7 +42,8 @@ const QUESTIONS: SetupQuestion[] = [
   },
   {
     id: "projectName",
-    question: "What is the project name (used as project.name and in gate descriptions)?",
+    question:
+      "What is the project name (used as project.name and in gate descriptions)?",
     help: "Free text, kebab-case recommended. Referenced by gates and instructions.",
     required: true,
   },
@@ -55,8 +56,9 @@ const QUESTIONS: SetupQuestion[] = [
   },
   {
     id: "referencePath",
-    question: "Adopt: path to the reference .guidance/ directory (container path, e.g. /workspace/.guidance)?",
-    help: "Required when configSource=adopt. Validated fail-closed (all files present + parseable). Adopt locks profile/insight/gitnexus/gates to the reference.",
+    question:
+      "Adopt: path to the reference .guidance/ directory (container path, e.g. /workspace/.guidance)?",
+    help: "Required when configSource=adopt. Validated fail-closed (all files present + parseable). Adopt locks profile/insight/gitnexus/gates to the reference. A proven builtin reference ships in the guidance package: /examples/default-guidance (container: /workspace/servers/server-guidance/examples/default-guidance or the package-relative path).",
     required: false,
   },
   {
@@ -69,14 +71,16 @@ const QUESTIONS: SetupQuestion[] = [
   },
   {
     id: "shell",
-    question: "Terminal shell the agent should use (optional, agent-facing only)?",
+    question:
+      "Terminal shell the agent should use (optional, agent-facing only)?",
     help: "Free text, e.g. 'wsl.exe -e bash'. Embedded as a setup sentence in the understand instruction. Leave empty for none. NOTE: FR-904 — the answer is placed in workflow.json instructions.global and injected into EVERY phase instruction.",
     required: false,
     default: "",
   },
   {
     id: "insight",
-    question: "Enable the Insight downstream (insight queries + capture-session-lessons gate)?",
+    question:
+      "Enable the Insight downstream (insight queries + capture-session-lessons gate)?",
     help: "yes = insight ops and the blocking capture gate are generated. no = those operations are omitted.",
     options: ["yes", "no"],
     required: true,
@@ -84,7 +88,8 @@ const QUESTIONS: SetupQuestion[] = [
   },
   {
     id: "gitnexus",
-    question: "Enable the GitNexus downstream (blocking repository-analysis gate)?",
+    question:
+      "Enable the GitNexus downstream (blocking repository-analysis gate)?",
     help: "yes = repository-analysis gate (MCP check + CLI fallback) and downstream entry are generated.",
     options: ["yes", "no"],
     required: true,
@@ -92,7 +97,8 @@ const QUESTIONS: SetupQuestion[] = [
   },
   {
     id: "gates",
-    question: "Gate preset: standard (lint opt + test opt + build REQ) or minimal (build REQ only)?",
+    question:
+      "Gate preset: standard (lint opt + test opt + build REQ) or minimal (build REQ only)?",
     help: "standard matches this repository's own working sample. minimal suits fresh projects without a test/lint setup.",
     options: ["standard", "minimal"],
     required: true,
@@ -126,7 +132,8 @@ export function catalogOverview(answers: SetupAnswers): {
     nextQuestion: next,
     questions: QUESTIONS,
     received: answers,
-    nextTool: next === null ? "setup_guidance_generate" : "setup_guidance_answer",
+    nextTool:
+      next === null ? "setup_guidance_generate" : "setup_guidance_answer",
   };
 }
 
@@ -135,26 +142,44 @@ function requireCompleted(answers: SetupAnswers): void {
   // configuration (profile/insight/gitnexus/gates) and are NOT required.
   const derivedInAdopt = new Set(["profile", "insight", "gitnexus", "gates"]);
   const adopt = answers.configSource === "adopt";
-  const missing = QUESTIONS.filter((q) => q.required && !isAnswered(q, answers) && !(adopt && derivedInAdopt.has(q.id))).map((q) => q.id);
+  const missing = QUESTIONS.filter(
+    (q) =>
+      q.required &&
+      !isAnswered(q, answers) &&
+      !(adopt && derivedInAdopt.has(q.id)),
+  ).map((q) => q.id);
   if (missing.length > 0) {
-    throw new GuidanceError("configuration_invalid", `setup answers incomplete, missing: ${missing.join(", ")}`, { recoverable: true });
+    throw new GuidanceError(
+      "configuration_invalid",
+      `setup answers incomplete, missing: ${missing.join(", ")}`,
+      { recoverable: true },
+    );
   }
 }
 
 function insightUrl(transport: string): string {
-  return transport === "http-docker" ? "http://host.docker.internal:3002/mcp" : "http://localhost:3002/mcp";
+  return transport === "http-docker"
+    ? "http://host.docker.internal:3002/mcp"
+    : "http://localhost:3002/mcp";
 }
 
 function gitnexusUrl(transport: string): string {
-  return transport === "http-docker" ? "http://host.docker.internal:4747/api/mcp" : "http://localhost:4747/api/mcp";
+  return transport === "http-docker"
+    ? "http://host.docker.internal:4747/api/mcp"
+    : "http://localhost:4747/api/mcp";
 }
 
 function emmsUrl(transport: string): string {
-  return transport === "http-docker" ? "http://host.docker.internal:3002/mcp" : "http://localhost:3002/mcp";
+  return transport === "http-docker"
+    ? "http://host.docker.internal:3002/mcp"
+    : "http://localhost:3002/mcp";
 }
 
 function buildPolicies(transport: string): string {
-  const hosts = transport === "http-docker" ? ["host.docker.internal:3002", "host.docker.internal:4747"] : ["localhost:3002", "localhost:4747"];
+  const hosts =
+    transport === "http-docker"
+      ? ["host.docker.internal:3002", "host.docker.internal:4747"]
+      : ["localhost:3002", "localhost:4747"];
   const policies = {
     version: 2,
     egress: { httpHostAllowlist: hosts },
@@ -173,7 +198,13 @@ function buildPolicies(transport: string): string {
     },
     reviewFindings: { blockingSeverities: ["high", "critical"] },
     redaction: {
-      patterns: ["\\bapi[_-]?key\\b", "\\btoken\\b", "\\bsecret\\b", "\\bpassword\\b", "\\bauthorization\\b"],
+      patterns: [
+        "\\bapi[_-]?key\\b",
+        "\\btoken\\b",
+        "\\bsecret\\b",
+        "\\bpassword\\b",
+        "\\bauthorization\\b",
+      ],
     },
     outputDefaults: {
       returnToAgent: "summary_and_errors",
@@ -186,8 +217,13 @@ function buildPolicies(transport: string): string {
   return JSON.stringify(policies, null, 2) + "\n";
 }
 
-function buildWorkflow(gates: string, gitnexus: boolean, insight: boolean): string {
-  const verifyGates = gates === "standard" ? ["lint", "test", "build"] : ["build"];
+function buildWorkflow(
+  gates: string,
+  gitnexus: boolean,
+  insight: boolean,
+): string {
+  const verifyGates =
+    gates === "standard" ? ["lint", "test", "build"] : ["build"];
   const completeGates: string[] = [];
   if (gitnexus) completeGates.push("repository-analysis");
   if (insight) completeGates.push("capture-session-lessons");
@@ -204,12 +240,16 @@ function buildWorkflow(gates: string, gitnexus: boolean, insight: boolean): stri
         response: "understand",
         submissionSchema: "schemas/understand.schema.json",
         transitions: [{ to: "plan", when: "submission_valid" }],
-        lifecycle: insight ? { afterEnter: ["query-project-insights"] } : undefined,
+        lifecycle: insight
+          ? { afterEnter: ["query-project-insights"] }
+          : undefined,
       },
       plan: {
         response: "plan",
         submissionSchema: "schemas/plan.schema.json",
-        transitions: [{ to: "review_and_adjust_plan", when: "submission_valid" }],
+        transitions: [
+          { to: "review_and_adjust_plan", when: "submission_valid" },
+        ],
       },
       review_and_adjust_plan: {
         response: "review_and_adjust_plan",
@@ -240,7 +280,10 @@ function buildWorkflow(gates: string, gitnexus: boolean, insight: boolean): stri
         submissionSchema: "schemas/verify.schema.json",
         lifecycle: { beforeExit: verifyGates },
         transitions: [
-          { to: "review_and_fix_implementation", reason: "verification_failed" },
+          {
+            to: "review_and_fix_implementation",
+            reason: "verification_failed",
+          },
           { to: "complete", when: "required_operations_succeeded" },
         ],
       },
@@ -248,7 +291,9 @@ function buildWorkflow(gates: string, gitnexus: boolean, insight: boolean): stri
         response: "complete",
         submissionSchema: "schemas/complete.schema.json",
         lifecycle: { beforeExit: completeGates },
-        transitions: [{ to: "completed", when: "required_operations_succeeded" }],
+        transitions: [
+          { to: "completed", when: "required_operations_succeeded" },
+        ],
       },
     },
     states: {
@@ -265,14 +310,16 @@ function questionsSentence(field: string): string {
 }
 
 function buildResponses(shell: string): string {
-  const shellSentence = shell ? ` Set up your terminal shell first: run all commands through ${shell}.` : "";
+  const shellSentence = shell
+    ? ` Set up your terminal shell first: run all commands through ${shell}.`
+    : "";
   const responses = {
     understand: {
       title: "Understand the Request",
       instruction:
-        "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least one sequential_thinking pass to structure the analysis and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. Do not create an implementation plan yet."
-        + shellSentence
-        + questionsSentence("openQuestions"),
+        "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least one sequential_thinking pass to structure the analysis and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. Do not create an implementation plan yet." +
+        shellSentence +
+        questionsSentence("openQuestions"),
       requiredActions: [
         "Inspect the relevant repository context.",
         "Run at least one Clear-Thought sequential_thinking pass and reference its conclusions in the submission.",
@@ -283,8 +330,8 @@ function buildResponses(shell: string): string {
     plan: {
       title: "Create the Implementation Plan",
       instruction:
-        "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. Do not start implementation yet."
-        + questionsSentence("openQuestions"),
+        "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. Do not start implementation yet." +
+        questionsSentence("openQuestions"),
       requiredActions: [
         "Run at least one Clear-Thought sequential_thinking or decision_framework pass for decomposition/prioritization and reference its results in the plan submission.",
       ],
@@ -292,8 +339,8 @@ function buildResponses(shell: string): string {
     review_and_adjust_plan: {
       title: "Review and Adjust the Plan",
       instruction:
-        "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives, using the Clear-Thought tools: stress-test the plan's assumptions with assumption_xray, socratic_method, or argument_map, and reference the reasoning results in the findings. Submit the complete adjusted plan."
-        + questionsSentence("remainingConcerns"),
+        "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives, using the Clear-Thought tools: stress-test the plan's assumptions with assumption_xray, socratic_method, or argument_map, and reference the reasoning results in the findings. Submit the complete adjusted plan." +
+        questionsSentence("remainingConcerns"),
       requiredActions: [
         "Run at least one Clear-Thought stress-test pass (assumption_xray, socratic_method, or argument_map) and reference its results in the findings.",
       ],
@@ -301,37 +348,51 @@ function buildResponses(shell: string): string {
     implement: {
       title: "Implement the Approved Plan",
       instruction:
-        "Implement the approved plan. Follow the approved task identifiers, avoid unrelated changes, and report all changed, created, and deleted files plus deviations. FIRST step: verify you are on the branch you expect (git status), then create a feature branch (feature/<meaningful-name>). LAST step: update the documentation (README.md) and the memory-bank files."
-        + questionsSentence("unresolvedIssues"),
+        "Implement the approved plan. Follow the approved task identifiers, avoid unrelated changes, and report all changed, created, and deleted files plus deviations. FIRST step: verify you are on the branch you expect (git status), then create a feature branch (feature/<meaningful-name>). LAST step: update the documentation (README.md) and the memory-bank files." +
+        questionsSentence("unresolvedIssues"),
       requiredActions: [],
     },
     review_and_fix_implementation: {
       title: "Review and Fix the Implementation",
       instruction:
-        "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting, using the Clear-Thought tools: run metacognitive_monitoring as a final confidence check before submitting, and debugging_approach for non-trivial findings — reference the results in the findings."
-        + questionsSentence("unresolvedFindings"),
+        "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting, using the Clear-Thought tools: run metacognitive_monitoring as a final confidence check before submitting, and debugging_approach for non-trivial findings — reference the results in the findings." +
+        questionsSentence("unresolvedFindings"),
       requiredActions: [
         "Run Clear-Thought metacognitive_monitoring as a final confidence check before submitting; when findings are non-trivial, additionally apply debugging_approach and reference its results in the findings.",
       ],
     },
     verify: {
       title: "Verify the Implementation",
-      instruction: "Guidance will execute the configured verification operations. Analyze failures and return to implementation review when code changes are required. Do not claim success while a mandatory operation is failing.",
+      instruction:
+        "Guidance will execute the configured verification operations. Analyze failures and return to implementation review when code changes are required. Do not claim success while a mandatory operation is failing.",
       requiredActions: [],
     },
     complete: {
       title: "Complete the Workflow",
       instruction:
-        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to the lessons file (see capture-session-lessons contract)."
-        + questionsSentence("deferredWork/nextSteps"),
+        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to the lessons file (see capture-session-lessons contract)." +
+        questionsSentence("deferredWork/nextSteps"),
       requiredActions: [],
     },
   };
   return JSON.stringify({ version: 2, responses }, null, 2) + "\n";
 }
 
-function buildOperations(gates: string, gitnexus: boolean, insight: boolean, projectName: string, transport: string): string {
-  const proc = (description: string, executable: string, args: string[], required: boolean, timeout: number, risk: string) => ({
+function buildOperations(
+  gates: string,
+  gitnexus: boolean,
+  insight: boolean,
+  projectName: string,
+  transport: string,
+): string {
+  const proc = (
+    description: string,
+    executable: string,
+    args: string[],
+    required: boolean,
+    timeout: number,
+    risk: string,
+  ) => ({
     description,
     type: "process",
     executable,
@@ -343,7 +404,14 @@ function buildOperations(gates: string, gitnexus: boolean, insight: boolean, pro
     output: { returnToAgent: "summary_and_errors", retainRawResult: true },
   });
   const operations: Record<string, unknown> = {
-    build: proc("Build the project.", "npm", ["run", "build"], true, 600, "workspace_write"),
+    build: proc(
+      "Build the project.",
+      "npm",
+      ["run", "build"],
+      true,
+      600,
+      "workspace_write",
+    ),
   };
   if (gates === "standard") {
     operations.lint = proc(
@@ -354,55 +422,102 @@ function buildOperations(gates: string, gitnexus: boolean, insight: boolean, pro
       300,
       "read_only",
     );
-    operations.test = proc("Run the automated test suite.", "npm", ["test"], false, 900, "read_only");
+    operations.test = proc(
+      "Run the automated test suite.",
+      "npm",
+      ["test"],
+      false,
+      900,
+      "read_only",
+    );
   }
   if (gitnexus) {
     operations["repository-analysis"] = {
-      description: "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh). The index REFRESH itself stays a host-side pre-complete step: the HTTP server exposes no analyze tool.",
+      description:
+        "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh). The index REFRESH itself stays a host-side pre-complete step: the HTTP server exposes no analyze tool.",
       type: "composite",
       strategy: "firstAvailable",
       required: true,
       timeoutSeconds: 900,
       riskClass: "read_only",
       steps: [
-        { type: "mcpTool", server: "gitnexus", capability: "check", arguments: { mode: "fixed", value: { repo: projectName } } },
-        { type: "process", executable: "gitnexus", args: ["analyze", "--no-stats"] },
+        {
+          type: "mcpTool",
+          server: "gitnexus",
+          capability: "check",
+          arguments: { mode: "fixed", value: { repo: projectName } },
+        },
+        {
+          type: "process",
+          executable: "gitnexus",
+          args: ["analyze", "--no-stats"],
+        },
       ],
-      validation: { protocolRequestMustSucceed: true, toolResultMustNotBeError: true, requiredContent: true },
+      validation: {
+        protocolRequestMustSucceed: true,
+        toolResultMustNotBeError: true,
+        requiredContent: true,
+      },
       output: { returnToAgent: "summary_and_errors", retainRawResult: true },
-      failure: { remainInPhase: true, allowManualRetry: true, reportToAgent: true },
+      failure: {
+        remainInPhase: true,
+        allowManualRetry: true,
+        reportToAgent: true,
+      },
     };
   }
   if (insight) {
     operations["query-project-insights"] = {
-      description: "Retrieve existing development insights (experience_search).",
+      description:
+        "Retrieve existing development insights (experience_search).",
       type: "mcpTool",
       server: "insight",
       capability: "experience_search",
       required: false,
       timeoutSeconds: 60,
       riskClass: "read_only",
-      arguments: { mode: "template", value: { query: "${session.request}", scope_id: projectName } },
-      validation: { protocolRequestMustSucceed: true, toolResultMustNotBeError: true },
+      arguments: {
+        mode: "template",
+        value: { query: "${session.request}", scope_id: projectName },
+      },
+      validation: {
+        protocolRequestMustSucceed: true,
+        toolResultMustNotBeError: true,
+      },
       output: { returnToAgent: "normalized", retainRawResult: false },
     };
     operations["capture-session-lessons"] = {
-      description: "Seed validated session lessons. The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow ([{slug, observation, cause, fix}]; empty array = no-op success; redact secrets — the script bypasses Guidance pattern redaction). Idempotent per slug.",
+      description:
+        "Seed validated session lessons. The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow ([{slug, observation, cause, fix}]; empty array = no-op success; redact secrets — the script bypasses Guidance pattern redaction). Idempotent per slug.",
       type: "process",
       executable: "sh",
-      args: ["-c", `EMMS_HTTP_URL=${emmsUrl(transport)} EMMS_LESSON_SCOPE=thinking-mcp-lessons node servers/server-insight/scripts/seed-lessons.mjs .guidance/state/session-lessons.json`],
+      args: [
+        "-c",
+        `EMMS_HTTP_URL=${emmsUrl(transport)} EMMS_LESSON_SCOPE=thinking-mcp-lessons node servers/server-insight/scripts/seed-lessons.mjs .guidance/state/session-lessons.json`,
+      ],
       required: false,
       timeoutSeconds: 120,
       riskClass: "external_write",
-      validation: { protocolRequestMustSucceed: true, exitCodeMustBeZero: true },
+      validation: {
+        protocolRequestMustSucceed: true,
+        exitCodeMustBeZero: true,
+      },
       output: { returnToAgent: "summary_and_errors", retainRawResult: true },
-      failure: { remainInPhase: true, allowManualRetry: true, reportToAgent: true },
+      failure: {
+        remainInPhase: true,
+        allowManualRetry: true,
+        reportToAgent: true,
+      },
     };
   }
   return JSON.stringify({ version: 2, operations }, null, 2) + "\n";
 }
 
-function buildDownstream(insight: boolean, gitnexus: boolean, transport: string): string {
+function buildDownstream(
+  insight: boolean,
+  gitnexus: boolean,
+  transport: string,
+): string {
   const conn = (timeout: number) => ({
     startupTimeoutSeconds: 30,
     requestTimeoutSeconds: timeout,
@@ -416,7 +531,13 @@ function buildDownstream(insight: boolean, gitnexus: boolean, transport: string)
       required: true,
       trustLevel: "trusted",
       transport: { type: "http", http: { url: gitnexusUrl(transport) } },
-      capabilities: { allow: { tools: ["check", "query", "detect_changes", "list_repos"], resources: [], prompts: [] } },
+      capabilities: {
+        allow: {
+          tools: ["check", "query", "detect_changes", "list_repos"],
+          resources: [],
+          prompts: [],
+        },
+      },
       connection: conn(300),
     };
   }
@@ -428,7 +549,11 @@ function buildDownstream(insight: boolean, gitnexus: boolean, transport: string)
       trustLevel: "trusted",
       transport: { type: "http", http: { url: insightUrl(transport) } },
       capabilities: {
-        allow: { tools: ["experience_search", "experience_record_observation"], resources: ["insight://project/*"], prompts: [] },
+        allow: {
+          tools: ["experience_search", "experience_record_observation"],
+          resources: ["insight://project/*"],
+          prompts: [],
+        },
       },
       connection: conn(120),
     };
@@ -437,13 +562,19 @@ function buildDownstream(insight: boolean, gitnexus: boolean, transport: string)
 }
 
 /** Generates the complete `.guidance/` file set for the collected answers. */
-export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; notes: string[] } {
+export function generateFiles(answers: SetupAnswers): {
+  files: GeneratedFile[];
+  notes: string[];
+} {
   requireCompleted(answers);
   const name = String(answers.projectName);
   const transport = String(answers.transport);
   const configSource = String(answers.configSource ?? "fresh");
   const adopt = configSource === "adopt";
-  const referencePath = answers.referencePath !== undefined && answers.referencePath !== "" ? String(answers.referencePath) : undefined;
+  const referencePath =
+    answers.referencePath !== undefined && answers.referencePath !== ""
+      ? String(answers.referencePath)
+      : undefined;
   let profile = String(answers.profile ?? "plain");
   const shell = String(answers.shell ?? "");
   let insight = answers.insight === "yes" || answers.insight === true;
@@ -456,19 +587,37 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
   let policiesOverride: string | undefined;
   let downstreamOverride: string | undefined;
   let adoptionBlock: Record<string, unknown> | undefined;
+  let nonGenericRefOps: Record<string, Record<string, unknown>> = {};
   if (adopt) {
     if (!referencePath) {
-      throw new GuidanceError("configuration_invalid", "adopt requires referencePath (path to the reference .guidance directory)", { recoverable: true });
+      throw new GuidanceError(
+        "configuration_invalid",
+        "adopt requires referencePath (path to the reference .guidance directory)",
+        { recoverable: true },
+      );
     }
     validateAdoptReference(referencePath);
-    const refGuidance = JSON.parse(readFileSync(join(referencePath, "guidance.json"), "utf8")) as Record<string, unknown>;
-    profile = typeof refGuidance.profile === "string" ? refGuidance.profile : "plain";
-    const refOps = JSON.parse(readFileSync(join(referencePath, "operations.json"), "utf8")) as { operations?: Record<string, Record<string, unknown>> };
+    const refGuidance = JSON.parse(
+      readFileSync(join(referencePath, "guidance.json"), "utf8"),
+    ) as Record<string, unknown>;
+    profile =
+      typeof refGuidance.profile === "string" ? refGuidance.profile : "plain";
+    const refOps = JSON.parse(
+      readFileSync(join(referencePath, "operations.json"), "utf8"),
+    ) as { operations?: Record<string, Record<string, unknown>> };
     const refOpsMap = refOps.operations ?? {};
-    const genericPreset = new Set(["lint", "test", "build", "repository-analysis", "query-project-insights", "capture-session-lessons"]);
+    const genericPreset = new Set([
+      "lint",
+      "test",
+      "build",
+      "repository-analysis",
+      "query-project-insights",
+      "capture-session-lessons",
+    ]);
     for (const [opId, op] of Object.entries(refOpsMap)) {
       const argsText = JSON.stringify((op as { args?: unknown }).args ?? "");
-      if (!genericPreset.has(opId) || argsText.includes('"repo"')) nonGenericOps.push(opId);
+      if (!genericPreset.has(opId) || argsText.includes('"repo"'))
+        nonGenericOps.push(opId);
       else adaptedOps.push(opId);
     }
     insight = "capture-session-lessons" in refOpsMap;
@@ -483,11 +632,29 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
     workflowOverride = wfText;
     policiesOverride = buildPolicies(transport);
     downstreamOverride = buildDownstream(insight, gitnexus, transport);
-    adoptionBlock = { source: referencePath, strategy: "adopt", date: new Date().toISOString(), nonGenericOps, adaptedOps, shellSource: "answer" };
+    adoptionBlock = {
+      source: referencePath,
+      strategy: "adopt",
+      date: new Date().toISOString(),
+      nonGenericOps,
+      adaptedOps,
+      shellSource: "answer",
+    };
+    // AD-1 (specs/009 follow-up): non-generic reference ops are COPIED into the
+    // regenerated operations.json (marked in description) instead of being
+    // discarded — otherwise the copied workflow.json can reference ops the
+    // coherence check below would reject (configuration_invalid).
+    nonGenericRefOps = refOpsMap;
   }
   const notes: string[] = [];
   if (adopt) {
-    notes.push("adopt: based on reference " + (adoptionBlock ? String(adoptionBlock.source) : "") + " — non-generic operations NOT regenerated: " + (nonGenericOps.join(", ") || "(none)") + ". Adapt these manually.");
+    notes.push(
+      "adopt: based on reference " +
+        (adoptionBlock ? String(adoptionBlock.source) : "") +
+        " — non-generic operations copied from the reference with [adopted] markers: " +
+        (nonGenericOps.join(", ") || "(none)") +
+        ". Review their args/paths before use.",
+    );
   }
   const guidance = {
     version: 2,
@@ -511,37 +678,97 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
       restrictWorkingDirectory: true,
       redactSensitiveOutput: true,
     },
-      ...(adoptionBlock ? { adoption: adoptionBlock } : {}),
+    ...(adoptionBlock ? { adoption: adoptionBlock } : {}),
   };
   const files: GeneratedFile[] = [
-    { path: "guidance.json", content: JSON.stringify(guidance, null, 2) + "\n" },
-    { path: "workflow.json", content: workflowOverride ?? buildWorkflow(gates, gitnexus, insight) },
+    {
+      path: "guidance.json",
+      content: JSON.stringify(guidance, null, 2) + "\n",
+    },
+    {
+      path: "workflow.json",
+      content: workflowOverride ?? buildWorkflow(gates, gitnexus, insight),
+    },
     { path: "responses.json", content: buildResponses("") },
-    { path: "operations.json", content: buildOperations(gates, gitnexus, insight, name, transport) },
-    { path: "downstream-servers.json", content: downstreamOverride ?? buildDownstream(insight, gitnexus, transport) },
-    { path: "policies.json", content: policiesOverride ?? buildPolicies(transport) },
+    {
+      path: "operations.json",
+      content: buildOperations(gates, gitnexus, insight, name, transport),
+    },
+    {
+      path: "downstream-servers.json",
+      content:
+        downstreamOverride ?? buildDownstream(insight, gitnexus, transport),
+    },
+    {
+      path: "policies.json",
+      content: policiesOverride ?? buildPolicies(transport),
+    },
   ];
   if (profile === "spec-kit") {
-    files.push({ path: "profiles/spec-kit.json", content: JSON.stringify({ profile: "spec-kit" }, null, 2) + "\n" });
-    notes.push("spec-kit profile: copy the integrations block and spec-kit-specific questions from examples/default-guidance/profiles — the wizard does not interview for spec-kit specifics in v1.");
+    files.push({
+      path: "profiles/spec-kit.json",
+      content: JSON.stringify({ profile: "spec-kit" }, null, 2) + "\n",
+    });
+    notes.push(
+      "spec-kit profile: copy the integrations block and spec-kit-specific questions from examples/default-guidance/profiles — the wizard does not interview for spec-kit specifics in v1.",
+    );
   }
   const schemasDir = join(PKG_ROOT, "examples", "default-guidance", "schemas");
-  const schemaFiles = ["understand", "plan", "review-plan", "implement", "review-implementation", "verify", "complete"];
+  const schemaFiles = [
+    "understand",
+    "plan",
+    "review-plan",
+    "implement",
+    "review-implementation",
+    "verify",
+    "complete",
+  ];
   let schemasEmbedded = true;
   for (const s of schemaFiles) {
     try {
-      files.push({ path: `schemas/${s}.schema.json`, content: readFileSync(join(schemasDir, `${s}.schema.json`), "utf8") });
+      files.push({
+        path: `schemas/${s}.schema.json`,
+        content: readFileSync(join(schemasDir, `${s}.schema.json`), "utf8"),
+      });
     } catch {
       schemasEmbedded = false;
       break;
     }
   }
   if (!schemasEmbedded) {
-    notes.push(`Schemas could not be read from ${schemasDir.replace(/\\/g, "/")} — copy them manually from examples/default-guidance/schemas of the guidance package.`);
+    notes.push(
+      `Schemas could not be read from ${schemasDir.replace(/\\/g, "/")} — copy them manually from examples/default-guidance/schemas of the guidance package.`,
+    );
   }
-  notes.push("After writing the files, restart the Guidance server or start a new session: the configuration is snapshotted per session (configurationVersion).");
+  notes.push(
+    "After writing the files, restart the Guidance server or start a new session: the configuration is snapshotted per session (configurationVersion).",
+  );
   if (transport === "http-docker") {
-    notes.push("http-docker: downstream URLs use host.docker.internal — ensure those servers are reachable from the container (allowlist already generated).");
+    notes.push(
+      "http-docker: downstream URLs use host.docker.internal — ensure those servers are reachable from the container (allowlist already generated).",
+    );
+  }
+  // AD-1 (specs/009 follow-up): merge non-generic reference ops into the
+  // regenerated operations.json, marked in their description — the copied
+  // workflow.json may reference them and the coherence check below stays strict.
+  if (adopt && nonGenericOps.length > 0) {
+    const opsFile = files.find((f) => f.path === "operations.json");
+    if (opsFile) {
+      const ops = JSON.parse(opsFile.content) as {
+        operations: Record<string, Record<string, unknown>>;
+      };
+      for (const opId of nonGenericOps) {
+        const refOp = nonGenericRefOps[opId];
+        if (!refOp) continue;
+        const desc =
+          typeof refOp.description === "string" ? refOp.description : "";
+        ops.operations[opId] = {
+          ...refOp,
+          description: desc + " [adopted from reference — review args/paths]",
+        };
+      }
+      opsFile.content = JSON.stringify(ops, null, 2) + "\n";
+    }
   }
   // specs/009 FR-901 Post-Adopt-Kohärenz (N-2): jede im kopierten workflow.json
   // referenzierte Op muss in der regenerierten operations.json existieren.
@@ -551,7 +778,15 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
     };
     const opsFile = files.find((f) => f.path === "operations.json");
     const availableOps = new Set(
-      Object.keys(opsFile ? (JSON.parse(opsFile.content) as { operations?: Record<string, unknown> }).operations ?? {} : []),
+      Object.keys(
+        opsFile
+          ? ((
+              JSON.parse(opsFile.content) as {
+                operations?: Record<string, unknown>;
+              }
+            ).operations ?? {})
+          : [],
+      ),
     );
     for (const ph of Object.values(wfFinal.phases ?? {})) {
       for (const op of ph.lifecycle?.beforeExit ?? []) {
@@ -614,9 +849,15 @@ export function validateAdoptReference(referenceDir: string): void {
   // profile is declared — the adopted workflow may depend on its gates.
   let guidance: Record<string, unknown>;
   try {
-    guidance = JSON.parse(readFileSync(join(referenceDir, "guidance.json"), "utf-8")) as Record<string, unknown>;
+    guidance = JSON.parse(
+      readFileSync(join(referenceDir, "guidance.json"), "utf-8"),
+    ) as Record<string, unknown>;
   } catch {
-    throw new GuidanceError("configuration_invalid", "adopt source: unreadable file guidance.json", { recoverable: true });
+    throw new GuidanceError(
+      "configuration_invalid",
+      "adopt source: unreadable file guidance.json",
+      { recoverable: true },
+    );
   }
   const profile = guidance["profile"];
   if (typeof profile === "string" && profile !== "plain") {

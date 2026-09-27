@@ -3,11 +3,20 @@
  * nur wenn das Profil "spec-kit" aktiv ist (R17), mit vollen zod-Schemas und
  * einem lazy SpecKitEngine-Cache je Session. Registrierung VOR connect().
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SpecKitEngine, type SpecKitState } from "../integrations/spec-kit/SpecKitEngine.js";
+import {
+  SpecKitEngine,
+  type SpecKitState,
+} from "../integrations/spec-kit/SpecKitEngine.js";
 import { GuidanceError } from "../types/errors.js";
 import { SPEC_KIT_TOOL_NAMES } from "./register-tools.js";
 import type { SpecKitConfig as ConfigSpecKitConfig } from "../config.js";
@@ -17,13 +26,18 @@ import type { SpecKitConfig as ConfigSpecKitConfig } from "../config.js";
  * (SpecKitEngine.ts). Entities-/Excerpt-Limits sind bewusst großzügige
  * Konstanten (kein Konfigurationsfeld im downstream contract).
  */
-export function toEngineSpecKitConfig(cfg: ConfigSpecKitConfig): ConstructorParameters<typeof SpecKitEngine>[3] {
+export function toEngineSpecKitConfig(
+  cfg: ConfigSpecKitConfig,
+): ConstructorParameters<typeof SpecKitEngine>[3] {
   return {
     featureRoot: cfg.discovery.featureRoot,
     strategy: cfg.discovery.strategy,
     requireUniqueMatch: cfg.discovery.requireUniqueMatch,
     artifactPatterns: Object.fromEntries(
-      Object.entries(cfg.artifacts).map(([k, v]) => [k, { required: v.required, patterns: v.patterns }]),
+      Object.entries(cfg.artifacts).map(([k, v]) => [
+        k,
+        { required: v.required, patterns: v.patterns },
+      ]),
     ),
     maxTasks: cfg.taskExecution.batch.maximumTasks,
     maxEntities: 1_000,
@@ -40,7 +54,11 @@ const SESSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 /** Wirft bei pfad-traversierenden oder formatwidrigen Session-IDs (Path Safety). */
 export function assertSafeSessionId(sessionId: string): void {
   if (!SESSION_ID_PATTERN.test(sessionId)) {
-    throw new GuidanceError("configuration_invalid", `invalid sessionId: ${JSON.stringify(sessionId.slice(0, 32))}`, { recoverable: true });
+    throw new GuidanceError(
+      "configuration_invalid",
+      `invalid sessionId: ${JSON.stringify(sessionId.slice(0, 32))}`,
+      { recoverable: true },
+    );
   }
 }
 
@@ -56,7 +74,11 @@ export class SpecKitStateStore {
   load(sessionId: string): SpecKitState {
     const p = this.path(sessionId);
     if (!existsSync(p)) {
-      throw new GuidanceError("spec_kit_artifact_missing", "no imported spec-kit state for this session; call import_spec_kit_artifacts first", { recoverable: true });
+      throw new GuidanceError(
+        "spec_kit_artifact_missing",
+        "no imported spec-kit state for this session; call import_spec_kit_artifacts first",
+        { recoverable: true },
+      );
     }
     return JSON.parse(readFileSync(p, "utf-8")) as SpecKitState;
   }
@@ -81,7 +103,12 @@ export interface SpecKitToolOptions {
   stateDir: string;
   configVersion: string;
   specKitConfig: ConstructorParameters<typeof SpecKitEngine>[3];
-  audit: (event: { sessionId: string; eventType: string; phase?: string; data?: Record<string, unknown> }) => void;
+  audit: (event: {
+    sessionId: string;
+    eventType: string;
+    phase?: string;
+    data?: Record<string, unknown>;
+  }) => void;
 }
 
 /**
@@ -137,9 +164,16 @@ export class SpecKitEngineResolver {
 }
 
 /** Wirft, wenn das Profil/Integration nicht freigeschaltet ist (fail-closed). */
-export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions): void {
+export function registerSpecKitTools(
+  server: McpServer,
+  opts: SpecKitToolOptions,
+): void {
   if (!opts.specKitConfig) {
-    throw new GuidanceError("spec_kit_not_enabled", "spec-kit profile not enabled; refusing to register spec-kit tools", { recoverable: false });
+    throw new GuidanceError(
+      "spec_kit_not_enabled",
+      "spec-kit profile not enabled; refusing to register spec-kit tools",
+      { recoverable: false },
+    );
   }
   const resolver = new SpecKitEngineResolver(opts);
   const sessionId = { sessionId: z.string().min(1) };
@@ -149,13 +183,22 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
   // Per-Session-Mutex: serialisiert read-modify-write über StateStore, auch
   // falls ein Handler künftig async wird (Lost-Update-Schutz, vgl. withLock).
   const sessionLocks = new Map<string, Promise<unknown>>();
-  const withLock = async <T>(sessionIdValue: string, fn: () => T): Promise<T> => {
+  const withLock = async <T>(
+    sessionIdValue: string,
+    fn: () => T,
+  ): Promise<T> => {
     const previous = sessionLocks.get(sessionIdValue) ?? Promise.resolve();
     const run = previous.then(fn, fn);
-    sessionLocks.set(sessionIdValue, run.catch(() => {}));
+    sessionLocks.set(
+      sessionIdValue,
+      run.catch(() => {}),
+    );
     return await run;
   };
-  const withState = async (sessionIdValue: string, fn: (engine: SpecKitEngine, state: SpecKitState) => SpecKitState | void) =>
+  const withState = async (
+    sessionIdValue: string,
+    fn: (engine: SpecKitEngine, state: SpecKitState) => SpecKitState | void,
+  ) =>
     withLock(sessionIdValue, () => {
       const engine = resolver.resolve(sessionIdValue);
       const state = resolver.store.load(sessionIdValue);
@@ -181,7 +224,12 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
       const feature = engine.discoverFeature(fid);
       const state = engine.importArtifacts(feature);
       resolver.store.save(sid, state);
-      return toJson({ featureId: state.featureId, activeSnapshotId: state.activeSnapshotId, validation: state.validation, taskCount: Object.keys(state.tasks).length });
+      return toJson({
+        featureId: state.featureId,
+        activeSnapshotId: state.activeSnapshotId,
+        validation: state.validation,
+        taskCount: Object.keys(state.tasks).length,
+      });
     },
   );
 
@@ -196,9 +244,18 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
         activeSnapshotId: state.activeSnapshotId,
         activeBatchId: state.activeBatchId,
         validation: state.validation,
-        tasks: Object.values(state.tasks).reduce<Record<string, number>>((acc, t) => { acc[t.status] = (acc[t.status] ?? 0) + 1; return acc; }, {}),
+        tasks: Object.values(state.tasks).reduce<Record<string, number>>(
+          (acc, t) => {
+            acc[t.status] = (acc[t.status] ?? 0) + 1;
+            return acc;
+          },
+          {},
+        ),
         // offen = noch nicht entschieden/appliziert (proposed | artifact_update_required)
-        pendingPlanChanges: Object.values(state.planChanges).filter((p) => p.status === "proposed" || p.status === "artifact_update_required").length,
+        pendingPlanChanges: Object.values(state.planChanges).filter(
+          (p) =>
+            p.status === "proposed" || p.status === "artifact_update_required",
+        ).length,
       });
     },
   );
@@ -217,11 +274,22 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
   server.tool(
     "release_batch",
     "Löst die nächsten ablaufbereiten Aufgaben als Batch frei (single|batch|allReady|phaseGroup) — Voraussetzung für start_task (FR-066/069-Lifecycle)",
-    { ...sessionId, ...batchId, mode: z.enum(["single", "batch", "allReady", "phaseGroup"]).optional() },
+    {
+      ...sessionId,
+      ...batchId,
+      mode: z.enum(["single", "batch", "allReady", "phaseGroup"]).optional(),
+    },
     async ({ sessionId: sid, batchId: bid, mode }) => {
-      let payload: { batchId: string | null; taskIds: string[] } = { batchId: null, taskIds: [] };
+      let payload: { batchId: string | null; taskIds: string[] } = {
+        batchId: null,
+        taskIds: [],
+      };
       await withState(sid, (engine, state) => {
-        const selected = engine.releaseBatch(state, mode ?? "batch", bid ?? `batch-${Object.keys(state.batches).length + 1}`);
+        const selected = engine.releaseBatch(
+          state,
+          mode ?? "batch",
+          bid ?? `batch-${Object.keys(state.batches).length + 1}`,
+        );
         payload = { batchId: state.activeBatchId, taskIds: selected };
       });
       return toJson(payload);
@@ -233,11 +301,18 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Startet Aufgaben in einem Batch (Status → in_progress)",
     { ...sessionId, ...batchId, taskIds: z.array(z.string().min(1)).min(1) },
     async ({ sessionId: sid, batchId: bid, taskIds }) =>
-      toJson(await withState(sid, (engine, state) => {
-        const target = bid ?? state.activeBatchId;
-        if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
-        engine.startTask(state, target, taskIds);
-      })),
+      toJson(
+        await withState(sid, (engine, state) => {
+          const target = bid ?? state.activeBatchId;
+          if (!target)
+            throw new GuidanceError(
+              "spec_kit_task_not_released",
+              "no batchId supplied and no active batch",
+              { recoverable: true },
+            );
+          engine.startTask(state, target, taskIds);
+        }),
+      ),
   );
 
   server.tool(
@@ -245,11 +320,22 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Reicht Implementierungsnachweise für Aufgaben ein",
     { ...sessionId, ...batchId, evidence: z.array(z.record(z.unknown())) },
     async ({ sessionId: sid, batchId: bid, evidence }) =>
-      toJson(await withState(sid, (engine, state) => {
-        const target = bid ?? state.activeBatchId;
-        if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
-        engine.submitImplementation(state, target, evidence as Parameters<SpecKitEngine["submitImplementation"]>[2]);
-      })),
+      toJson(
+        await withState(sid, (engine, state) => {
+          const target = bid ?? state.activeBatchId;
+          if (!target)
+            throw new GuidanceError(
+              "spec_kit_task_not_released",
+              "no batchId supplied and no active batch",
+              { recoverable: true },
+            );
+          engine.submitImplementation(
+            state,
+            target,
+            evidence as Parameters<SpecKitEngine["submitImplementation"]>[2],
+          );
+        }),
+      ),
   );
 
   server.tool(
@@ -257,22 +343,51 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Reicht Review-Findings für Aufgaben ein",
     { ...sessionId, ...batchId, findings: z.array(z.record(z.unknown())) },
     async ({ sessionId: sid, batchId: bid, findings }) =>
-      toJson(await withState(sid, (engine, state) => {
-        const target = bid ?? state.activeBatchId;
-        if (!target) throw new GuidanceError("spec_kit_task_not_released", "no batchId supplied and no active batch", { recoverable: true });
-        engine.submitReview(state, target, findings as Parameters<SpecKitEngine["submitReview"]>[2]);
-      })),
+      toJson(
+        await withState(sid, (engine, state) => {
+          const target = bid ?? state.activeBatchId;
+          if (!target)
+            throw new GuidanceError(
+              "spec_kit_task_not_released",
+              "no batchId supplied and no active batch",
+              { recoverable: true },
+            );
+          engine.submitReview(
+            state,
+            target,
+            findings as Parameters<SpecKitEngine["submitReview"]>[2],
+          );
+        }),
+      ),
   );
 
   server.tool(
     "verify_task",
     "Verifiziert eine implementierte Aufgabe (Setzt task.verification; Voraussetzung für complete_task)",
-    { ...sessionId, ...batchId, taskId: z.string().min(1), succeeded: z.boolean().optional(), executions: z.array(z.string()).optional() },
-    async ({ sessionId: sid, batchId: bid, taskId, succeeded = true, executions = [] }) => {
-      let payload: { taskId: string; verification: unknown } = { taskId, verification: null };
+    {
+      ...sessionId,
+      ...batchId,
+      taskId: z.string().min(1),
+      succeeded: z.boolean().optional(),
+      executions: z.array(z.string()).optional(),
+    },
+    async ({
+      sessionId: sid,
+      batchId: bid,
+      taskId,
+      succeeded = true,
+      executions = [],
+    }) => {
+      let payload: { taskId: string; verification: unknown } = {
+        taskId,
+        verification: null,
+      };
       await withState(sid, (engine, state) => {
         engine.verifyTask(state, taskId, executions, succeeded);
-        payload = { taskId, verification: state.tasks[taskId]?.verification ?? null };
+        payload = {
+          taskId,
+          verification: state.tasks[taskId]?.verification ?? null,
+        };
       });
       return toJson(payload);
     },
@@ -283,7 +398,11 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Markiert eine verifizierte Aufgabe als completed",
     { ...sessionId, taskId: z.string().min(1) },
     async ({ sessionId: sid, taskId }) =>
-      toJson(await withState(sid, (engine, state) => { engine.completeTask(state, taskId); })),
+      toJson(
+        await withState(sid, (engine, state) => {
+          engine.completeTask(state, taskId);
+        }),
+      ),
   );
 
   server.tool(
@@ -294,12 +413,23 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
       changeType: z.string().min(1),
       reason: z.string().min(1),
       affectedTasks: z.array(z.string()),
-      impact: z.object({ acceptanceCriteria: z.boolean(), publicApi: z.boolean(), dependencies: z.boolean() }),
+      impact: z.object({
+        acceptanceCriteria: z.boolean(),
+        publicApi: z.boolean(),
+        dependencies: z.boolean(),
+      }),
     },
     async ({ sessionId: sid, changeType, reason, affectedTasks, impact }) =>
-      toJson(await withState(sid, (engine, state) => {
-        engine.proposePlanChange(state, { changeType, reason, affectedTasks, impact });
-      })),
+      toJson(
+        await withState(sid, (engine, state) => {
+          engine.proposePlanChange(state, {
+            changeType,
+            reason,
+            affectedTasks,
+            impact,
+          });
+        }),
+      ),
   );
 
   server.tool(
@@ -316,16 +446,28 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
       // Task-Fortschritt (completed/unchanged) überlebt den Refresh.
       const state = engine.buildReconciledState(previous, imported);
       resolver.store.save(sid, state);
-      return toJson({ activeSnapshotId: state.activeSnapshotId, previousSnapshotId: previous.activeSnapshotId, validation: state.validation });
+      return toJson({
+        activeSnapshotId: state.activeSnapshotId,
+        previousSnapshotId: previous.activeSnapshotId,
+        validation: state.validation,
+      });
     },
   );
 
   server.tool(
     "approve_plan_change",
     "Gibt einen Plan-Change frei oder lehnt ihn ab (terminal)",
-    { ...sessionId, changeId: z.string().min(1), decision: z.enum(["approved", "rejected"]) },
+    {
+      ...sessionId,
+      changeId: z.string().min(1),
+      decision: z.enum(["approved", "rejected"]),
+    },
     async ({ sessionId: sid, changeId, decision }) =>
-      toJson(await withState(sid, (engine, state) => { engine.approvePlanChange(state, changeId, decision); })),
+      toJson(
+        await withState(sid, (engine, state) => {
+          engine.approvePlanChange(state, changeId, decision);
+        }),
+      ),
   );
 
   server.tool(
@@ -333,7 +475,11 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Markiert einen freigegebenen Plan-Change als angewendet",
     { ...sessionId, changeId: z.string().min(1) },
     async ({ sessionId: sid, changeId }) =>
-      toJson(await withState(sid, (engine, state) => { engine.markPlanChangeApplied(state, changeId); })),
+      toJson(
+        await withState(sid, (engine, state) => {
+          engine.markPlanChangeApplied(state, changeId);
+        }),
+      ),
   );
 
   server.tool(
@@ -341,7 +487,11 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
     "Liefert den Kriterien-Abdeckungsreport (read-only)",
     sessionId,
     async ({ sessionId: sid }) =>
-      toJson({ coverage: resolver.resolve(sid).coverageSummary(resolver.store.load(sid)) }),
+      toJson({
+        coverage: resolver
+          .resolve(sid)
+          .coverageSummary(resolver.store.load(sid)),
+      }),
   );
 
   server.tool(
@@ -352,8 +502,19 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
       requiredVerificationSucceeded: z.boolean(),
       completionOpsSucceeded: z.boolean(),
     },
-    async ({ sessionId: sid, requiredVerificationSucceeded, completionOpsSucceeded }) =>
-      toJson(resolver.resolve(sid).evaluateCompletionInvariants(resolver.store.load(sid), { requiredVerificationSucceeded, completionOpsSucceeded })),
+    async ({
+      sessionId: sid,
+      requiredVerificationSucceeded,
+      completionOpsSucceeded,
+    }) =>
+      toJson(
+        resolver
+          .resolve(sid)
+          .evaluateCompletionInvariants(resolver.store.load(sid), {
+            requiredVerificationSucceeded,
+            completionOpsSucceeded,
+          }),
+      ),
   );
 }
 

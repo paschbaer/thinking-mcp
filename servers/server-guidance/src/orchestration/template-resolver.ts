@@ -43,9 +43,12 @@ export function resolveTemplate(node: unknown, ctx: TemplateContext): unknown {
       return JSON.stringify(value);
     });
   }
-  if (Array.isArray(node)) return node.map((item) => resolveTemplate(item, ctx));
+  if (Array.isArray(node))
+    return node.map((item) => resolveTemplate(item, ctx));
   if (node !== null && typeof node === "object") {
-    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, resolveTemplate(v, ctx)]));
+    return Object.fromEntries(
+      Object.entries(node).map(([k, v]) => [k, resolveTemplate(v, ctx)]),
+    );
   }
   return node;
 }

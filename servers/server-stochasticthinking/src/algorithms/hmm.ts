@@ -4,7 +4,7 @@
  * posteriors + log-likelihood). Numbers are measured, not framed.
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 export const hmmParamsSchema = z.object({
   states: z.array(z.string().min(1)).min(2),
@@ -18,7 +18,7 @@ export const hmmParamsSchema = z.object({
   emissions: z.array(z.array(z.number().min(0).max(1))),
   /** Initial state distribution pi. */
   initial: z.array(z.number().min(0).max(1)),
-  algorithm: z.enum(['viterbi', 'forward-backward', 'both']).default('both')
+  algorithm: z.enum(["viterbi", "forward-backward", "both"]).default("both"),
 });
 
 export type HmmParams = z.infer<typeof hmmParamsSchema>;
@@ -38,38 +38,52 @@ export interface HmmResult {
 const ROW_SUM_TOLERANCE = 1e-6;
 const NEG_INF = Number.NEGATIVE_INFINITY;
 
-function validateStochastic(name: string, matrix: number[][], rows: number, cols: number): void {
+function validateStochastic(
+  name: string,
+  matrix: number[][],
+  rows: number,
+  cols: number,
+): void {
   if (matrix.length !== rows) {
     throw new Error(`${name} has ${matrix.length} rows, expected ${rows}`);
   }
   for (let i = 0; i < rows; i++) {
     if (matrix[i].length !== cols) {
-      throw new Error(`${name}[${i}] has ${matrix[i].length} columns, expected ${cols}`);
+      throw new Error(
+        `${name}[${i}] has ${matrix[i].length} columns, expected ${cols}`,
+      );
     }
     const sum = matrix[i].reduce((acc, p) => acc + p, 0);
     if (Math.abs(sum - 1) > ROW_SUM_TOLERANCE) {
       throw new Error(
-        `${name}[${i}] is not row-stochastic (sum=${sum.toFixed(8)}, tolerance=${ROW_SUM_TOLERANCE})`
+        `${name}[${i}] is not row-stochastic (sum=${sum.toFixed(8)}, tolerance=${ROW_SUM_TOLERANCE})`,
       );
     }
   }
 }
 
 export function inferHmm(params: HmmParams): HmmResult {
-  const { states, observationSymbols, observations, transitions, emissions, initial, algorithm } =
-    params;
+  const {
+    states,
+    observationSymbols,
+    observations,
+    transitions,
+    emissions,
+    initial,
+    algorithm,
+  } = params;
 
   const nStates = states.length;
   const nSymbols = observationSymbols.length;
 
-  validateStochastic('transitions', transitions, nStates, nStates);
-  validateStochastic('emissions', emissions, nStates, nSymbols);
-  validateStochastic('initial', [initial], 1, nStates);
+  validateStochastic("transitions", transitions, nStates, nStates);
+  validateStochastic("emissions", emissions, nStates, nSymbols);
+  validateStochastic("initial", [initial], 1, nStates);
 
   const initialSum = initial.reduce((acc, p) => acc + p, 0);
   if (Math.abs(initialSum - 1) > ROW_SUM_TOLERANCE) {
     throw new Error(
-      `initial is not a distribution (sum=${initialSum.toFixed(8)}, tolerance=${ROW_SUM_TOLERANCE})`
+      `initial is not a distribution (sum=${initialSum.toFixed(8)}, tolerance=${ROW_SUM_TOLERANCE})`,
     );
   }
 
@@ -79,7 +93,7 @@ export function inferHmm(params: HmmParams): HmmResult {
     const idx = symbolIndex.get(o);
     if (idx === undefined) {
       throw new Error(
-        `observation "${o}" is not in observationSymbols [${observationSymbols.join(', ')}]`
+        `observation "${o}" is not in observationSymbols [${observationSymbols.join(", ")}]`,
       );
     }
     return idx;
@@ -89,11 +103,15 @@ export function inferHmm(params: HmmParams): HmmResult {
 
   const result: HmmResult = {};
 
-  if (algorithm === 'viterbi' || algorithm === 'both') {
+  if (algorithm === "viterbi" || algorithm === "both") {
     // Viterbi in log space
     const T = obsIdx.length;
-    const delta: number[][] = Array.from({ length: T }, () => new Array<number>(nStates).fill(NEG_INF));
-    const psi: number[][] = Array.from({ length: T }, () => new Array<number>(nStates).fill(0));
+    const delta: number[][] = Array.from({ length: T }, () =>
+      new Array<number>(nStates).fill(NEG_INF),
+    );
+    const psi: number[][] = Array.from({ length: T }, () =>
+      new Array<number>(nStates).fill(0),
+    );
 
     for (let i = 0; i < nStates; i++) {
       delta[0][i] = safeLog(initial[i]) + safeLog(emissions[i][obsIdx[0]]);
@@ -124,30 +142,38 @@ export function inferHmm(params: HmmParams): HmmResult {
     }
     result.viterbi = {
       path: pathIdx.map((i) => states[i]),
-      logProbability: delta[T - 1][bestLast]
+      logProbability: delta[T - 1][bestLast],
     };
   }
 
-  if (algorithm === 'forward-backward' || algorithm === 'both') {
+  if (algorithm === "forward-backward" || algorithm === "both") {
     // Scaled forward-backward
     const T = obsIdx.length;
-    const alpha: number[][] = Array.from({ length: T }, () => new Array<number>(nStates).fill(0));
-    const beta: number[][] = Array.from({ length: T }, () => new Array<number>(nStates).fill(0));
+    const alpha: number[][] = Array.from({ length: T }, () =>
+      new Array<number>(nStates).fill(0),
+    );
+    const beta: number[][] = Array.from({ length: T }, () =>
+      new Array<number>(nStates).fill(0),
+    );
     const scales = new Array<number>(T).fill(0);
 
-    for (let i = 0; i < nStates; i++) alpha[0][i] = initial[i] * emissions[i][obsIdx[0]];
+    for (let i = 0; i < nStates; i++)
+      alpha[0][i] = initial[i] * emissions[i][obsIdx[0]];
     scales[0] = alpha[0].reduce((acc, x) => acc + x, 0);
-    if (scales[0] <= 0) throw new Error('forward pass collapsed: zero probability at t=0');
+    if (scales[0] <= 0)
+      throw new Error("forward pass collapsed: zero probability at t=0");
     for (let i = 0; i < nStates; i++) alpha[0][i] /= scales[0];
 
     for (let t = 1; t < T; t++) {
       for (let j = 0; j < nStates; j++) {
         let acc = 0;
-        for (let i = 0; i < nStates; i++) acc += alpha[t - 1][i] * transitions[i][j];
+        for (let i = 0; i < nStates; i++)
+          acc += alpha[t - 1][i] * transitions[i][j];
         alpha[t][j] = acc * emissions[j][obsIdx[t]];
       }
       scales[t] = alpha[t].reduce((acc, x) => acc + x, 0);
-      if (scales[t] <= 0) throw new Error(`forward pass collapsed: zero probability at t=${t}`);
+      if (scales[t] <= 0)
+        throw new Error(`forward pass collapsed: zero probability at t=${t}`);
       for (let j = 0; j < nStates; j++) alpha[t][j] /= scales[t];
     }
 
@@ -156,13 +182,16 @@ export function inferHmm(params: HmmParams): HmmResult {
       for (let i = 0; i < nStates; i++) {
         let acc = 0;
         for (let j = 0; j < nStates; j++) {
-          acc += transitions[i][j] * emissions[j][obsIdx[t + 1]] * beta[t + 1][j];
+          acc +=
+            transitions[i][j] * emissions[j][obsIdx[t + 1]] * beta[t + 1][j];
         }
         beta[t][i] = acc / scales[t + 1];
       }
     }
 
-    const gamma: number[][] = Array.from({ length: T }, () => new Array<number>(nStates).fill(0));
+    const gamma: number[][] = Array.from({ length: T }, () =>
+      new Array<number>(nStates).fill(0),
+    );
     for (let t = 0; t < T; t++) {
       for (let i = 0; i < nStates; i++) gamma[t][i] = alpha[t][i] * beta[t][i];
     }
@@ -177,10 +206,14 @@ export function inferHmm(params: HmmParams): HmmResult {
 export function formatHmmSummary(result: HmmResult): string {
   const parts: string[] = [];
   if (result.viterbi) {
-    parts.push(`Viterbi path ${result.viterbi.path.join('→')} (log P=${result.viterbi.logProbability.toFixed(3)})`);
+    parts.push(
+      `Viterbi path ${result.viterbi.path.join("→")} (log P=${result.viterbi.logProbability.toFixed(3)})`,
+    );
   }
   if (result.forwardBackward) {
-    parts.push(`forward-backward log-likelihood=${result.forwardBackward.logLikelihood.toFixed(3)}`);
+    parts.push(
+      `forward-backward log-likelihood=${result.forwardBackward.logLikelihood.toFixed(3)}`,
+    );
   }
-  return `HMM inference: ${parts.join('; ')}`;
+  return `HMM inference: ${parts.join("; ")}`;
 }

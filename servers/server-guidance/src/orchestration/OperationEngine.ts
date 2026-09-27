@@ -30,7 +30,12 @@ export interface CompositeStep {
 
 interface CompositeConfig extends OperationConfig {
   steps?: CompositeStep[];
-  strategy?: "sequential" | "parallel" | "dependencyGraph" | "firstSuccessful" | "firstAvailable";
+  strategy?:
+    | "sequential"
+    | "parallel"
+    | "dependencyGraph"
+    | "firstSuccessful"
+    | "firstAvailable";
 }
 
 export type ExecuteFn = (
@@ -45,7 +50,11 @@ export type ExecuteFn = (
  * ctx.templateVars. Unknown tokens fail fast (operation_arguments_invalid) —
  * literal passthrough previously masked broken gates (repo="${project.name}").
  */
-function resolveTemplateValue(value: unknown, vars: Record<string, string> | undefined, operationId: string): unknown {
+function resolveTemplateValue(
+  value: unknown,
+  vars: Record<string, string> | undefined,
+  operationId: string,
+): unknown {
   if (typeof value === "string") {
     return value.replace(/\$\{([^}]+)\}/g, (_m, token: string) => {
       const v = vars?.[token];
@@ -94,14 +103,23 @@ export type DownstreamInvokerResult =
   | { kind: "transport"; message: string };
 
 export interface DownstreamInvoker {
-  invokeTool(serverId: string, toolName: string, args: Record<string, unknown>): Promise<DownstreamInvokerResult>;
+  invokeTool(
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+  ): Promise<DownstreamInvokerResult>;
 }
 
 export class OperationEngine {
   /** Overridable for tests. The optional signal carries hard-cancellation
    *  (spec 004 FR-202): aborting it kills the child (SIGTERM). */
   execute: ExecuteFn = (config, ctx, attempt, signal) =>
-    this.executeOperation(config, ctx, attempt, signal) as unknown as Promise<NormalizedResult>;
+    this.executeOperation(
+      config,
+      ctx,
+      attempt,
+      signal,
+    ) as unknown as Promise<NormalizedResult>;
 
   private downstreamInvoker: DownstreamInvoker | null = null;
 
@@ -109,7 +127,10 @@ export class OperationEngine {
     this.downstreamInvoker = invoker;
   }
 
-  async executeRequired(configs: OperationConfig[], ctx: OperationContext): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> {
+  async executeRequired(
+    configs: OperationConfig[],
+    ctx: OperationContext,
+  ): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> {
     const results: NormalizedResult[] = [];
     let allSucceeded = true;
     for (const config of configs) {
@@ -147,7 +168,17 @@ export class OperationEngine {
       const strategy = composite.strategy ?? "sequential";
       const errors: string[] = [];
       for (const step of composite.steps ?? []) {
-        const stepResult = await this.executeSync({ ...config, ...step, operationId: config.operationId, required: true } as OperationConfig, ctx, attempt, signal);
+        const stepResult = await this.executeSync(
+          {
+            ...config,
+            ...step,
+            operationId: config.operationId,
+            required: true,
+          } as OperationConfig,
+          ctx,
+          attempt,
+          signal,
+        );
         if (stepResult.status === "succeeded") {
           return {
             ...base,
@@ -158,7 +189,8 @@ export class OperationEngine {
           };
         }
         errors.push(...stepResult.errors.map((e) => e.message));
-        if (strategy !== "firstAvailable" && strategy !== "firstSuccessful") break;
+        if (strategy !== "firstAvailable" && strategy !== "firstSuccessful")
+          break;
       }
       return {
         ...base,
@@ -170,30 +202,75 @@ export class OperationEngine {
     if (config.type === "mcpTool") {
       const invoker = this.downstreamInvoker;
       if (!invoker) {
-        return { ...base, errors: [{ code: "downstream_connection_failed", message: "downstream invoker not configured" }], summary: "downstream invoker not configured" };
+        return {
+          ...base,
+          errors: [
+            {
+              code: "downstream_connection_failed",
+              message: "downstream invoker not configured",
+            },
+          ],
+          summary: "downstream invoker not configured",
+        };
       }
       const rawArgs = config.arguments?.value ?? {};
       let args: Record<string, unknown>;
       try {
-        args = (config.arguments?.mode === "template"
-          ? resolveTemplateValue(rawArgs, ctx.templateVars, config.operationId)
-          : rawArgs) as Record<string, unknown>;
+        args = (
+          config.arguments?.mode === "template"
+            ? resolveTemplateValue(
+                rawArgs,
+                ctx.templateVars,
+                config.operationId,
+              )
+            : rawArgs
+        ) as Record<string, unknown>;
       } catch (err) {
-        return { ...base, errors: [{ code: "operation_arguments_invalid", message: String(err instanceof GuidanceError ? err.message : err) }], summary: "template arguments invalid" };
+        return {
+          ...base,
+          errors: [
+            {
+              code: "operation_arguments_invalid",
+              message: String(err instanceof GuidanceError ? err.message : err),
+            },
+          ],
+          summary: "template arguments invalid",
+        };
       }
       let outcome: Awaited<ReturnType<typeof invoker.invokeTool>>;
       try {
-        outcome = await invoker.invokeTool(config.server ?? "", config.capability ?? "", args);
+        outcome = await invoker.invokeTool(
+          config.server ?? "",
+          config.capability ?? "",
+          args,
+        );
       } catch (err) {
         // Policy rejections (e.g. allowlist) and invoker crashes fail the
         // operation deterministically instead of leaking exceptions.
-        return { ...base, errors: [{ code: "operation_result_invalid", message: String(err) }], summary: "invoker rejected the operation" };
+        return {
+          ...base,
+          errors: [{ code: "operation_result_invalid", message: String(err) }],
+          summary: "invoker rejected the operation",
+        };
       }
       if (outcome.kind === "transport") {
-        return { ...base, errors: [{ code: "downstream_connection_failed", message: outcome.message }], summary: "transport failure" };
+        return {
+          ...base,
+          errors: [
+            { code: "downstream_connection_failed", message: outcome.message },
+          ],
+          summary: "transport failure",
+        };
       }
       if (outcome.kind === "tool_reported") {
-        return { ...base, errors: [{ code: "operation_result_invalid", message: outcome.message }], summary: "tool reported an error", content: redactUnknown(outcome.content) as typeof base.content };
+        return {
+          ...base,
+          errors: [
+            { code: "operation_result_invalid", message: outcome.message },
+          ],
+          summary: "tool reported an error",
+          content: redactUnknown(outcome.content) as typeof base.content,
+        };
       }
       return {
         ...base,
@@ -204,17 +281,36 @@ export class OperationEngine {
         // previously returned verbatim via protocolMetadata).
         content: redactUnknown(outcome.content) as typeof base.content,
         protocolMetadata: {
-          structuredContent: outcome.structuredContent !== undefined && outcome.structuredContent !== null
-            ? redactUnknown(outcome.structuredContent)
-            : null,
+          structuredContent:
+            outcome.structuredContent !== undefined &&
+            outcome.structuredContent !== null
+              ? redactUnknown(outcome.structuredContent)
+              : null,
         },
       };
     }
 
     if (config.type === "sampling") {
-      const sampling = (config as unknown as { sampling?: { purpose?: string; maxOutputTokens?: number; maximumAttempts?: number } }).sampling;
+      const sampling = (
+        config as unknown as {
+          sampling?: {
+            purpose?: string;
+            maxOutputTokens?: number;
+            maximumAttempts?: number;
+          };
+        }
+      ).sampling;
       if (!sampling?.purpose) {
-        return { ...base, errors: [{ code: "operation_arguments_invalid", message: "sampling requires a purpose" }], summary: "sampling misconfigured" };
+        return {
+          ...base,
+          errors: [
+            {
+              code: "operation_arguments_invalid",
+              message: "sampling requires a purpose",
+            },
+          ],
+          summary: "sampling misconfigured",
+        };
       }
       // Phase 3+ engines without an upstream sampling capability degrade to a
       // warning: sampling is advisory-only and never transition-authoritative.
@@ -222,7 +318,12 @@ export class OperationEngine {
         ...base,
         status: "succeeded",
         validated: true,
-        warnings: [{ code: "sampling_degraded", message: "upstream sampling unavailable — advisory result omitted" }],
+        warnings: [
+          {
+            code: "sampling_degraded",
+            message: "upstream sampling unavailable — advisory result omitted",
+          },
+        ],
         summary: `sampling (advisory, purpose: ${sampling.purpose}) degraded per policy`,
       };
     }
@@ -243,14 +344,22 @@ export class OperationEngine {
       // Downstream MCP operations require the client manager (Phase 5, FR-031).
       return {
         ...base,
-        errors: [{ code: "downstream_connection_failed", message: `operation type ${config.type} requires the downstream MCP client (Phase 5)` }],
+        errors: [
+          {
+            code: "downstream_connection_failed",
+            message: `operation type ${config.type} requires the downstream MCP client (Phase 5)`,
+          },
+        ],
         summary: "downstream client not available",
       };
     }
 
     const timeoutMs = (config.timeoutSeconds ?? 120) * 1000;
     const maxBuffer = config.output?.maximumBytes ?? 1_048_576;
-    const procConfig = config as { env?: Record<string, string>; shell?: boolean | string };
+    const procConfig = config as {
+      env?: Record<string, string>;
+      shell?: boolean | string;
+    };
     const run = await this.runProcessAsync(
       config.executable ?? "",
       config.args ?? [],
@@ -260,24 +369,35 @@ export class OperationEngine {
         maxBuffer,
         // GUID-5: per-operation environment (merged over the inherited
         // container/host environment) and optional shell execution.
-        env: procConfig.env ? ({ ...process.env, ...procConfig.env } as Record<string, string>) : undefined,
+        env: procConfig.env
+          ? ({ ...process.env, ...procConfig.env } as Record<string, string>)
+          : undefined,
         shell: procConfig.shell,
         signal,
       },
     );
     if (run.error) {
       const cancelled = run.cancelled === true;
-      const timedOut = (run.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
+      const timedOut =
+        (run.error as NodeJS.ErrnoException).code === "ETIMEDOUT";
       return {
         ...base,
         status: cancelled ? "cancelled" : timedOut ? "timed_out" : "failed",
         errors: [
           {
-            code: cancelled ? "operation_cancelled" : timedOut ? "operation_timed_out" : "downstream_connection_failed",
+            code: cancelled
+              ? "operation_cancelled"
+              : timedOut
+                ? "operation_timed_out"
+                : "downstream_connection_failed",
             message: String(run.error),
           },
         ],
-        summary: cancelled ? "operation cancelled" : timedOut ? "operation timed out" : "process failed to start",
+        summary: cancelled
+          ? "operation cancelled"
+          : timedOut
+            ? "operation timed out"
+            : "process failed to start",
       };
     }
     const redactor = createRedactor(ctx.redactionPatterns);
@@ -287,8 +407,18 @@ export class OperationEngine {
       ...base,
       status: ok ? "succeeded" : "failed",
       validated: ok,
-      summary: ok ? `${config.operationId} succeeded` : `${config.operationId} failed with exit code ${exitCode}`,
-      errors: ok ? [] : [{ message: (redactor.redact((run.stderr ?? "") || `exit code ${exitCode}`)).slice(0, maxBuffer) }],
+      summary: ok
+        ? `${config.operationId} succeeded`
+        : `${config.operationId} failed with exit code ${exitCode}`,
+      errors: ok
+        ? []
+        : [
+            {
+              message: redactor
+                .redact((run.stderr ?? "") || `exit code ${exitCode}`)
+                .slice(0, maxBuffer),
+            },
+          ],
       data: { exitCode },
     };
   }
@@ -336,7 +466,13 @@ export class OperationEngine {
       };
       // Pre-aborted signal: fail fast without spawning (final review LOW).
       if (opts.signal?.aborted) {
-        settle({ status: null, stdout: "", stderr: "", error: new Error("operation cancelled"), cancelled: true });
+        settle({
+          status: null,
+          stdout: "",
+          stderr: "",
+          error: new Error("operation cancelled"),
+          cancelled: true,
+        });
         return;
       }
       try {
@@ -369,7 +505,10 @@ export class OperationEngine {
           escalation.unref?.();
         }
       };
-      const onOutput = (buf: { toString(): string }, target: "stdout" | "stderr"): void => {
+      const onOutput = (
+        buf: { toString(): string },
+        target: "stdout" | "stderr",
+      ): void => {
         // LR-1 (LOW-Residue-Closure 2026-09-27, ex-"FR-801" — Nummern-
         // kreisung mit specs/008 bereinigt): stdout und stderr werden in
         // getrennten Puffern erfasst — eine quergestreamte Reihenfolge
@@ -383,13 +522,20 @@ export class OperationEngine {
         } else {
           if (stderr.length <= opts.maxBuffer) stderr += buf.toString();
         }
-        if (!exceeded && (stdout.length > opts.maxBuffer || stderr.length > opts.maxBuffer)) {
+        if (
+          !exceeded &&
+          (stdout.length > opts.maxBuffer || stderr.length > opts.maxBuffer)
+        ) {
           exceeded = true;
           killWithEscalation("SIGTERM");
         }
       };
-      child.stdout?.on("data", (buf: { toString(): string }) => onOutput(buf, "stdout"));
-      child.stderr?.on("data", (buf: { toString(): string }) => onOutput(buf, "stderr"));
+      child.stdout?.on("data", (buf: { toString(): string }) =>
+        onOutput(buf, "stdout"),
+      );
+      child.stderr?.on("data", (buf: { toString(): string }) =>
+        onOutput(buf, "stderr"),
+      );
       const timeout = setTimeout(() => {
         timedOut = true;
         killWithEscalation("SIGTERM");
@@ -399,14 +545,25 @@ export class OperationEngine {
         clearTimeout(timeout);
         if (opts.signal?.aborted) {
           // FR-202: aborted execution — distinguishable from timeout/failure.
-          settle({ status: null, stdout: stdout.slice(0, opts.maxBuffer), stderr: stderr.slice(0, opts.maxBuffer), error: new Error("operation cancelled"), cancelled: true });
+          settle({
+            status: null,
+            stdout: stdout.slice(0, opts.maxBuffer),
+            stderr: stderr.slice(0, opts.maxBuffer),
+            error: new Error("operation cancelled"),
+            cancelled: true,
+          });
           return;
         }
         if (timedOut) {
           // Parity with spawnSync's ETIMEDOUT behaviour.
           const err = new Error("operation timed out") as NodeJS.ErrnoException;
           err.code = "ETIMEDOUT";
-          settle({ status: null, stdout: stdout.slice(0, opts.maxBuffer), stderr: stderr.slice(0, opts.maxBuffer), error: err });
+          settle({
+            status: null,
+            stdout: stdout.slice(0, opts.maxBuffer),
+            stderr: stderr.slice(0, opts.maxBuffer),
+            error: err,
+          });
           return;
         }
         if (exceeded) {
@@ -418,12 +575,22 @@ export class OperationEngine {
           });
           return;
         }
-        settle({ status: code, stdout: stdout.slice(0, opts.maxBuffer), stderr: stderr.slice(0, opts.maxBuffer) });
+        settle({
+          status: code,
+          stdout: stdout.slice(0, opts.maxBuffer),
+          stderr: stderr.slice(0, opts.maxBuffer),
+        });
       });
       child.once("error", (err: NodeJS.ErrnoException) => {
         clearTimeout(timeout);
         if (opts.signal?.aborted) {
-          settle({ status: null, stdout, stderr, error: new Error("operation cancelled"), cancelled: true });
+          settle({
+            status: null,
+            stdout,
+            stderr,
+            error: new Error("operation cancelled"),
+            cancelled: true,
+          });
           return;
         }
         settle({ status: null, stdout, stderr, error: err });

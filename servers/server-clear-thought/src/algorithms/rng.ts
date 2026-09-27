@@ -30,7 +30,7 @@ export function createRng(seed: number): SeededRng {
     },
     setState(next: number): void {
       a = next >>> 0;
-    }
+    },
   };
 }
 
@@ -72,7 +72,11 @@ export function sampleGamma(rng: SeededRng, d: number): number {
 }
 
 /** Beta(a, b) sample via two normalized Gamma draws. */
-export function sampleBeta(rng: SeededRng, alpha: number, beta: number): number {
+export function sampleBeta(
+  rng: SeededRng,
+  alpha: number,
+  beta: number,
+): number {
   const x = sampleGamma(rng, alpha);
   const y = sampleGamma(rng, beta);
   const sum = x + y;

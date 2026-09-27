@@ -3,7 +3,7 @@
  * Mutation pipeline order (guidance.md invariant 9): idempotency BEFORE
  * revision; every mutation bumps revision, appends an event, returns guidance.
  */
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 import type {
   Attempt,
   AttemptClassification,
@@ -12,26 +12,39 @@ import type {
   ObservationKind,
   ValidationCheck,
   Workflow,
-} from './domain/types.js';
-import type { SearchRow } from './storage/adapter.js';
-import { assertTransition, isTerminal } from './domain/state-machine.js';
-import { assertExpectedRevision, nextRevision, StaleRevisionError } from './domain/revision.js';
-import { EmmsError, duplicateIdempotency, missingEvidence, artifactRejected } from './domain/errors.js';
-import type { StorageAdapter } from './storage/adapter.js';
-import { EvidenceStore } from './evidence/store.js';
-import { redact } from './evidence/redact.js';
-import { normalizeFailure } from './domain/normalize.js';
-import { buildGuidance, allowedToolsForState } from './guidance/engine.js';
-import { TransformersEmbedding, cosineSimilarity, type EmbeddingProvider } from './retrieval/semantic.js';
-import { LessonService } from './domain/lesson-service.js';
-import { assessLimits } from './guidance/limits.js';
-import { resolveFtsRelevanceBoost } from './config.js';
-import type { GuidanceEnvelope } from './guidance/envelope.js';
+} from "./domain/types.js";
+import type { SearchRow } from "./storage/adapter.js";
+import { assertTransition, isTerminal } from "./domain/state-machine.js";
+import {
+  assertExpectedRevision,
+  nextRevision,
+  StaleRevisionError,
+} from "./domain/revision.js";
+import {
+  EmmsError,
+  duplicateIdempotency,
+  missingEvidence,
+  artifactRejected,
+} from "./domain/errors.js";
+import type { StorageAdapter } from "./storage/adapter.js";
+import { EvidenceStore } from "./evidence/store.js";
+import { redact } from "./evidence/redact.js";
+import { normalizeFailure } from "./domain/normalize.js";
+import { buildGuidance, allowedToolsForState } from "./guidance/engine.js";
+import {
+  TransformersEmbedding,
+  cosineSimilarity,
+  type EmbeddingProvider,
+} from "./retrieval/semantic.js";
+import { LessonService } from "./domain/lesson-service.js";
+import { assessLimits } from "./guidance/limits.js";
+import { resolveFtsRelevanceBoost } from "./config.js";
+import type { GuidanceEnvelope } from "./guidance/envelope.js";
 
 /** Config-driven FTS relevance boost (EMMS_FTS_RELEVANCE_BOOST, default 0.30). */
 const FTS_RELEVANCE_BOOST = resolveFtsRelevanceBoost();
 
-export const POLICY_VERSION = 'emms-policy-2026-09-01';
+export const POLICY_VERSION = "emms-policy-2026-09-01";
 
 export interface ClientContext {
   scope_id: string;
@@ -52,7 +65,11 @@ interface Ctx {
   observations: Observation[];
   attempts: Attempt[];
   plan?: { checks: ValidationCheck[] };
-  runs: { check_index: number; status: string; evidence_artifact_id?: string }[];
+  runs: {
+    check_index: number;
+    status: string;
+    evidence_artifact_id?: string;
+  }[];
 }
 
 export class EmmsService {
@@ -64,8 +81,11 @@ export class EmmsService {
   constructor(
     private readonly adapter: StorageAdapter,
     artifactsDir: string,
-    private readonly limits = { maxAttempts: 12, maxRepeatedIdenticalAttempts: 2 },
-    embedding?: EmbeddingProvider
+    private readonly limits = {
+      maxAttempts: 12,
+      maxRepeatedIdenticalAttempts: 2,
+    },
+    embedding?: EmbeddingProvider,
   ) {
     this.evidence = new EvidenceStore(artifactsDir);
     this.embedding = embedding ?? null;
@@ -77,16 +97,30 @@ export class EmmsService {
     return new Date().toISOString();
   }
 
-  private async requireWorkflow(workflow_id: string, ctx: ClientContext): Promise<Workflow> {
+  private async requireWorkflow(
+    workflow_id: string,
+    ctx: ClientContext,
+  ): Promise<Workflow> {
     const wf = await this.adapter.getWorkflow(workflow_id, ctx.scope_id);
-    if (!wf) throw new EmmsError('INVALID_REQUEST', 'Workflow not found in scope', false, { workflow_id });
+    if (!wf)
+      throw new EmmsError(
+        "INVALID_REQUEST",
+        "Workflow not found in scope",
+        false,
+        { workflow_id },
+      );
     return wf;
   }
 
   private async loadCtx(workflow_id: string, ctx: ClientContext): Promise<Ctx> {
     const workflow = await this.requireWorkflow(workflow_id, ctx);
-    const episode = workflow.experience_id ? await this.adapter.getEpisode(workflow.experience_id, ctx.scope_id) : undefined;
-    if (!episode) throw new EmmsError('INVALID_REQUEST', 'Episode not found', false, { workflow_id });
+    const episode = workflow.experience_id
+      ? await this.adapter.getEpisode(workflow.experience_id, ctx.scope_id)
+      : undefined;
+    if (!episode)
+      throw new EmmsError("INVALID_REQUEST", "Episode not found", false, {
+        workflow_id,
+      });
     const [observations, attempts, plan, runs] = await Promise.all([
       this.adapter.listObservations(episode.experience_id),
       this.adapter.listAttempts(episode.experience_id),
@@ -96,16 +130,29 @@ export class EmmsService {
     return { workflow, episode, observations, attempts, plan, runs };
   }
 
-  private async guidanceFor(c: Ctx, extraWarnings?: Parameters<typeof buildGuidance>[0]['warnings']): Promise<GuidanceEnvelope> {
+  private async guidanceFor(
+    c: Ctx,
+    extraWarnings?: Parameters<typeof buildGuidance>[0]["warnings"],
+  ): Promise<GuidanceEnvelope> {
     const limits = assessLimits(c.attempts, this.limits);
     const verified = (idx: number) =>
-      c.runs.some((r) => r.check_index === idx && r.status === 'passed' && !!r.evidence_artifact_id);
-    const originalIdx = c.plan?.checks.findIndex((ch) => ch.targets_original_failure) ?? -1;
+      c.runs.some(
+        (r) =>
+          r.check_index === idx &&
+          r.status === "passed" &&
+          !!r.evidence_artifact_id,
+      );
+    const originalIdx =
+      c.plan?.checks.findIndex((ch) => ch.targets_original_failure) ?? -1;
     return buildGuidance({
       workflow: c.workflow,
       episode: c.episode,
-      hasFailureObservation: c.observations.some((o) => o.kind === 'failure_output'),
-      hasEnvironmentFact: c.observations.some((o) => o.kind === 'environment_fact'),
+      hasFailureObservation: c.observations.some(
+        (o) => o.kind === "failure_output",
+      ),
+      hasEnvironmentFact: c.observations.some(
+        (o) => o.kind === "environment_fact",
+      ),
       hasAttempt: c.attempts.length > 0,
       hasSolution: !!c.plan, // solution proposed == plan exists (tool-contract coupling)
       hasValidationPlan: !!c.plan,
@@ -115,7 +162,11 @@ export class EmmsService {
         : false,
       warnings: [
         ...(extraWarnings ?? []),
-        ...limits.warnings.map((w) => ({ code: w.code, severity: 'medium' as const, message: w.message })),
+        ...limits.warnings.map((w) => ({
+          code: w.code,
+          severity: "medium" as const,
+          message: w.message,
+        })),
       ],
       stopConditions: limits.stop_conditions,
     });
@@ -130,7 +181,7 @@ export class EmmsService {
     tool: string,
     event: { type: string; payload: unknown },
     mutator: (c: Ctx) => Promise<Record<string, unknown>>,
-    extraWarnings?: Parameters<typeof buildGuidance>[0]['warnings']
+    extraWarnings?: Parameters<typeof buildGuidance>[0]["warnings"],
   ): Promise<ToolResult> {
     const request_id = randomUUID();
     if (idempotency_key) {
@@ -138,7 +189,12 @@ export class EmmsService {
       if (existing) {
         const original = JSON.parse(existing.result_json);
         if (existing.tool !== tool) {
-          throw new EmmsError('DUPLICATE_IDEMPOTENCY', 'Idempotency key reused with different tool', false, { tool });
+          throw new EmmsError(
+            "DUPLICATE_IDEMPOTENCY",
+            "Idempotency key reused with different tool",
+            false,
+            { tool },
+          );
         }
         return original as ToolResult; // FR-028: replay returns original result
       }
@@ -159,9 +215,18 @@ export class EmmsService {
       recorded_at: this.now(),
     });
     const guidance = await this.guidanceFor(c, extraWarnings);
-    const out: ToolResult = { result: { ...result, new_revision: c.workflow.revision }, guidance };
+    const out: ToolResult = {
+      result: { ...result, new_revision: c.workflow.revision },
+      guidance,
+    };
     if (idempotency_key) {
-      await this.adapter.putIdempotency({ key: idempotency_key, actor_id: ctx.agent_id ?? 'local-agent', tool, request_id, result_json: JSON.stringify(out) });
+      await this.adapter.putIdempotency({
+        key: idempotency_key,
+        actor_id: ctx.agent_id ?? "local-agent",
+        tool,
+        request_id,
+        result_json: JSON.stringify(out),
+      });
     }
     return out;
   }
@@ -184,7 +249,10 @@ export class EmmsService {
         // so addendum runs proceed against the right revision instead of
         // crashing with STALE_REVISION (reported by Niyama capture session).
         const wf = replayed.result?.workflow_id
-          ? await this.adapter.getWorkflow(replayed.result.workflow_id as string, args.client_context.scope_id)
+          ? await this.adapter.getWorkflow(
+              replayed.result.workflow_id as string,
+              args.client_context.scope_id,
+            )
           : undefined;
         if (wf) {
           return {
@@ -196,8 +264,8 @@ export class EmmsService {
         return replayed;
       }
     }
-    const workflow_id = 'wf_' + randomUUID().slice(0, 12);
-    const experience_id = 'exp_' + randomUUID().slice(0, 12);
+    const workflow_id = "wf_" + randomUUID().slice(0, 12);
+    const experience_id = "exp_" + randomUUID().slice(0, 12);
     const now = this.now();
     const workflow: Workflow = {
       workflow_id,
@@ -205,9 +273,9 @@ export class EmmsService {
       goal: args.goal,
       scope_id: args.scope_id,
       scope_fingerprint: args.scope_fingerprint,
-      state: 'DRAFT',
+      state: "DRAFT",
       revision: 1,
-      actor_id: args.client_context.agent_id ?? 'local-agent',
+      actor_id: args.client_context.agent_id ?? "local-agent",
       created_at: now,
     };
     await this.adapter.createWorkflow(workflow);
@@ -216,23 +284,37 @@ export class EmmsService {
       workflow_id,
       scope_id: args.scope_id,
       scope_fingerprint: args.scope_fingerprint,
-      visibility: 'repository',
+      visibility: "repository",
       goal_summary: args.goal,
       acceptance_criteria: [],
-      problem_summary: args.problem_summary ?? '',
-      state: 'DRAFT',
+      problem_summary: args.problem_summary ?? "",
+      state: "DRAFT",
       created_at: now,
     };
     await this.adapter.createEpisode(episode);
     await this.adapter.appendEvent({
-      event_id: randomUUID(), workflow_id, episode_id: experience_id,
-      type: 'workflow.started', payload: { goal: args.goal }, seq: 0, recorded_at: now,
+      event_id: randomUUID(),
+      workflow_id,
+      episode_id: experience_id,
+      type: "workflow.started",
+      payload: { goal: args.goal },
+      seq: 0,
+      recorded_at: now,
     });
     const c = await this.loadCtx(workflow_id, args.client_context);
     const guidance = await this.guidanceFor(c);
-    const out: ToolResult = { result: { workflow_id, experience_id, revision: 1 }, guidance };
+    const out: ToolResult = {
+      result: { workflow_id, experience_id, revision: 1 },
+      guidance,
+    };
     if (args.idempotency_key) {
-      await this.adapter.putIdempotency({ key: args.idempotency_key, actor_id: workflow.actor_id, tool: 'workflow_start', request_id: randomUUID(), result_json: JSON.stringify(out) });
+      await this.adapter.putIdempotency({
+        key: args.idempotency_key,
+        actor_id: workflow.actor_id,
+        tool: "workflow_start",
+        request_id: randomUUID(),
+        result_json: JSON.stringify(out),
+      });
     }
     return out;
   }
@@ -245,55 +327,78 @@ export class EmmsService {
         state: c.workflow.state,
         revision: c.workflow.revision,
         missing_information: guidance.missing_information,
-        recent_transitions: (await this.adapter.listEvents(workflow_id)).slice(-5).map((e) => e.type),
+        recent_transitions: (await this.adapter.listEvents(workflow_id))
+          .slice(-5)
+          .map((e) => e.type),
       },
       guidance,
     };
   }
 
-  async abandon(workflow_id: string, ctx: ClientContext, expected_revision: number | undefined, reason: string): Promise<ToolResult> {
+  async abandon(
+    workflow_id: string,
+    ctx: ClientContext,
+    expected_revision: number | undefined,
+    reason: string,
+  ): Promise<ToolResult> {
     return this.mutate(
-      workflow_id, ctx, expected_revision, undefined, 'workflow_abandon',
-      { type: 'workflow.abandoned', payload: { reason } },
+      workflow_id,
+      ctx,
+      expected_revision,
+      undefined,
+      "workflow_abandon",
+      { type: "workflow.abandoned", payload: { reason } },
       async (c) => {
-        assertTransition(c.episode!.state, 'UNRESOLVED');
-        c.episode!.state = 'UNRESOLVED';
+        assertTransition(c.episode!.state, "UNRESOLVED");
+        c.episode!.state = "UNRESOLVED";
         await this.adapter.saveEpisode(c.episode!);
-        assertTransition(c.workflow.state, 'UNRESOLVED');
-        c.workflow.state = 'UNRESOLVED';
+        assertTransition(c.workflow.state, "UNRESOLVED");
+        c.workflow.state = "UNRESOLVED";
         await this.adapter.insertAudit({
           event_id: randomUUID(),
-          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
-          action: 'workflow.abandon', target: workflow_id,
-          before_revision: c.workflow.revision, after_revision: c.workflow.revision + 1,
-          timestamp: this.now(), policy_version: POLICY_VERSION, reason,
+          actor: { actor_type: "agent", actor_id: c.workflow.actor_id },
+          action: "workflow.abandon",
+          target: workflow_id,
+          before_revision: c.workflow.revision,
+          after_revision: c.workflow.revision + 1,
+          timestamp: this.now(),
+          policy_version: POLICY_VERSION,
+          reason,
         });
-        return { final_state: 'UNRESOLVED' };
-      }
+        return { final_state: "UNRESOLVED" };
+      },
     );
   }
 
   // ---------- capture ----------
   async recordObservation(args: {
-    workflow_id: string; kind: ObservationKind; content: string; exit_code?: number;
-    evidence_artifact_id?: string; expected_revision?: number; idempotency_key?: string;
+    workflow_id: string;
+    kind: ObservationKind;
+    content: string;
+    exit_code?: number;
+    evidence_artifact_id?: string;
+    expected_revision?: number;
+    idempotency_key?: string;
     client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'experience.record_observation',
-      { type: 'observation.recorded', payload: { kind: args.kind } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "experience.record_observation",
+      { type: "observation.recorded", payload: { kind: args.kind } },
       async (c) => {
         const provenance = {
-          actor_type: 'agent' as const,
+          actor_type: "agent" as const,
           actor_id: c.workflow.actor_id,
           source_type: args.kind,
           recorded_at: this.now(),
-          derivation: 'observed' as const,
+          derivation: "observed" as const,
           trace_id: args.client_context.trace_id,
         };
         const observation: Observation = {
-          observation_id: 'obs_' + randomUUID().slice(0, 12),
+          observation_id: "obs_" + randomUUID().slice(0, 12),
           episode_id: c.episode!.experience_id,
           kind: args.kind,
           content: args.content,
@@ -303,51 +408,68 @@ export class EmmsService {
           seq: 0,
         };
         await this.adapter.insertObservation(observation);
-        if (args.kind === 'failure_output') {
+        if (args.kind === "failure_output") {
           const norm = normalizeFailure(args.content, [], args.exit_code);
-          await this.adapter.putSignature(c.episode!.experience_id, norm.normalized_hash, JSON.stringify(norm.exact_tokens), 'failure_output', args.exit_code);
+          await this.adapter.putSignature(
+            c.episode!.experience_id,
+            norm.normalized_hash,
+            JSON.stringify(norm.exact_tokens),
+            "failure_output",
+            args.exit_code,
+          );
         }
-        if (args.kind === 'environment_fact') {
+        if (args.kind === "environment_fact") {
           try {
             const dims = JSON.parse(args.content) as Record<string, string>;
-            if (dims && typeof dims === 'object' && !Array.isArray(dims)) {
+            if (dims && typeof dims === "object" && !Array.isArray(dims)) {
               await this.adapter.putEnvironment(
                 c.episode!.experience_id,
-                Object.entries(dims).map(([key, value]) => ({ key, value: String(value) }))
+                Object.entries(dims).map(([key, value]) => ({
+                  key,
+                  value: String(value),
+                })),
               );
             }
           } catch {
             // non-JSON environment fact: stored as observation only
           }
         }
-        if (c.episode!.state === 'DRAFT') {
-          assertTransition(c.episode!.state, 'OBSERVED');
-          c.episode!.state = 'OBSERVED';
-          c.workflow.state = 'OBSERVED';
+        if (c.episode!.state === "DRAFT") {
+          assertTransition(c.episode!.state, "OBSERVED");
+          c.episode!.state = "OBSERVED";
+          c.workflow.state = "OBSERVED";
           await this.adapter.saveEpisode(c.episode!);
         }
         return { observation_id: observation.observation_id };
-      }
+      },
     );
   }
 
   async recordAttempt(args: {
-    workflow_id: string; intent: string; risk_classification?: string; rationale?: string;
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    intent: string;
+    risk_classification?: string;
+    rationale?: string;
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'experience.record_attempt',
-      { type: 'attempt.proposed', payload: { intent: args.intent } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "experience.record_attempt",
+      { type: "attempt.proposed", payload: { intent: args.intent } },
       async (c) => {
-        if (c.episode!.state === 'OBSERVED') {
-          assertTransition(c.episode!.state, 'DIAGNOSING');
-          c.episode!.state = 'DIAGNOSING';
-          c.workflow.state = 'DIAGNOSING';
+        if (c.episode!.state === "OBSERVED") {
+          assertTransition(c.episode!.state, "DIAGNOSING");
+          c.episode!.state = "DIAGNOSING";
+          c.workflow.state = "DIAGNOSING";
           await this.adapter.saveEpisode(c.episode!);
         }
         const attempt: Attempt = {
-          attempt_id: 'att_' + randomUUID().slice(0, 12),
+          attempt_id: "att_" + randomUUID().slice(0, 12),
           episode_id: c.episode!.experience_id,
           intent: args.intent,
           risk_classification: args.risk_classification,
@@ -356,138 +478,207 @@ export class EmmsService {
         };
         await this.adapter.insertAttempt(attempt);
         return { attempt_id: attempt.attempt_id };
-      }
+      },
     );
   }
 
   async completeAttempt(args: {
-    workflow_id: string; attempt_id: string; outcome: string;
-    classification: AttemptClassification; side_effects?: string[];
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    attempt_id: string;
+    outcome: string;
+    classification: AttemptClassification;
+    side_effects?: string[];
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
-    const warnings: Parameters<typeof buildGuidance>[0]['warnings'] = [];
+    const warnings: Parameters<typeof buildGuidance>[0]["warnings"] = [];
     const out = await this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'experience.complete_attempt',
-      { type: 'attempt.completed', payload: { attempt_id: args.attempt_id, classification: args.classification } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "experience.complete_attempt",
+      {
+        type: "attempt.completed",
+        payload: {
+          attempt_id: args.attempt_id,
+          classification: args.classification,
+        },
+      },
       async (c) => {
-        const attempt = await this.adapter.getAttempt(args.attempt_id, c.episode!.experience_id);
-        if (!attempt) throw new EmmsError('INVALID_REQUEST', 'Attempt not found', false, { attempt_id: args.attempt_id });
+        const attempt = await this.adapter.getAttempt(
+          args.attempt_id,
+          c.episode!.experience_id,
+        );
+        if (!attempt)
+          throw new EmmsError("INVALID_REQUEST", "Attempt not found", false, {
+            attempt_id: args.attempt_id,
+          });
         attempt.fact = attempt.intent;
         attempt.outcome = args.outcome;
         attempt.side_effects = args.side_effects;
         attempt.classification = args.classification;
         await this.adapter.saveAttempt(attempt);
-        if (args.classification === 'harmful') {
-          warnings.push({ code: 'UNVERIFIED_ROOT_CAUSE', severity: 'medium', message: 'A harmful attempt was recorded; its strategy is retained as negative knowledge' });
+        if (args.classification === "harmful") {
+          warnings.push({
+            code: "UNVERIFIED_ROOT_CAUSE",
+            severity: "medium",
+            message:
+              "A harmful attempt was recorded; its strategy is retained as negative knowledge",
+          });
         }
         return { attempt_id: args.attempt_id };
       },
-      warnings
+      warnings,
     );
     return out;
   }
 
   async proposeHypothesis(args: {
-    workflow_id: string; statement: string; evidence_refs?: string[];
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    statement: string;
+    evidence_refs?: string[];
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'experience.propose_hypothesis',
-      { type: 'hypothesis.proposed', payload: { statement: args.statement } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "experience.propose_hypothesis",
+      { type: "hypothesis.proposed", payload: { statement: args.statement } },
       async (c) => {
-        const hypothesis_id = 'hyp_' + randomUUID().slice(0, 12);
+        const hypothesis_id = "hyp_" + randomUUID().slice(0, 12);
         await this.adapter.insertHypothesis({
           hypothesis_id,
           episode_id: c.episode!.experience_id,
           statement: args.statement,
-          status: 'proposed',
+          status: "proposed",
           supporting_evidence: args.evidence_refs ?? [],
           conflicting_evidence: [],
           seq: 0,
         });
         return { hypothesis_id };
-      }
+      },
     );
   }
 
   async proposeSolution(args: {
-    workflow_id: string; strategy: string; mechanism: string; prerequisites?: string[];
-    rollback?: string[]; checks?: ValidationCheck[];
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    strategy: string;
+    mechanism: string;
+    prerequisites?: string[];
+    rollback?: string[];
+    checks?: ValidationCheck[];
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'experience.propose_solution',
-      { type: 'solution.proposed', payload: { strategy: args.strategy } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "experience.propose_solution",
+      { type: "solution.proposed", payload: { strategy: args.strategy } },
       async (c) => {
-        if (c.episode!.state === 'DIAGNOSING') {
-          assertTransition(c.episode!.state, 'SOLUTION_PROPOSED');
-          c.episode!.state = 'SOLUTION_PROPOSED';
-          c.workflow.state = 'SOLUTION_PROPOSED';
+        if (c.episode!.state === "DIAGNOSING") {
+          assertTransition(c.episode!.state, "SOLUTION_PROPOSED");
+          c.episode!.state = "SOLUTION_PROPOSED";
+          c.workflow.state = "SOLUTION_PROPOSED";
           await this.adapter.saveEpisode(c.episode!);
         }
         // Solution and its validation plan are coupled (tool contract)
         const plan = {
-          validation_plan_id: 'vp_' + randomUUID().slice(0, 12),
+          validation_plan_id: "vp_" + randomUUID().slice(0, 12),
           episode_id: c.episode!.experience_id,
           checks: args.checks ?? [],
           seq: 0,
         };
         await this.adapter.insertValidationPlan(plan);
-        return { solution_id: 'sol_' + randomUUID().slice(0, 12), validation_plan_id: plan.validation_plan_id, checks_recorded: plan.checks.length };
-      }
+        return {
+          solution_id: "sol_" + randomUUID().slice(0, 12),
+          validation_plan_id: plan.validation_plan_id,
+          checks_recorded: plan.checks.length,
+        };
+      },
     );
   }
 
   // ---------- validation ----------
   async planValidation(args: {
-    workflow_id: string; checks: ValidationCheck[];
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    checks: ValidationCheck[];
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'validation.plan',
-      { type: 'validation.planned', payload: { count: args.checks.length } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "validation.plan",
+      { type: "validation.planned", payload: { count: args.checks.length } },
       async (c) => {
         if (!args.checks.some((ch) => ch.targets_original_failure)) {
-          throw missingEvidence(['checks[].targets_original_failure — at least one check must target the original failure']);
+          throw missingEvidence([
+            "checks[].targets_original_failure — at least one check must target the original failure",
+          ]);
         }
-        if (c.episode!.state === 'SOLUTION_PROPOSED') {
-          assertTransition(c.episode!.state, 'VALIDATING');
-          c.episode!.state = 'VALIDATING';
-          c.workflow.state = 'VALIDATING';
+        if (c.episode!.state === "SOLUTION_PROPOSED") {
+          assertTransition(c.episode!.state, "VALIDATING");
+          c.episode!.state = "VALIDATING";
+          c.workflow.state = "VALIDATING";
           await this.adapter.saveEpisode(c.episode!);
         }
         const plan = {
-          validation_plan_id: 'vp_' + randomUUID().slice(0, 12),
+          validation_plan_id: "vp_" + randomUUID().slice(0, 12),
           episode_id: c.episode!.experience_id,
           checks: args.checks,
           seq: 0,
         };
         await this.adapter.insertValidationPlan(plan);
         return { validation_plan_id: plan.validation_plan_id };
-      }
+      },
     );
   }
 
   async recordValidationRun(args: {
-    workflow_id: string; check_index: number; status: 'passed' | 'failed';
-    exit_code?: number; evidence_artifact_id?: string;
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    check_index: number;
+    status: "passed" | "failed";
+    exit_code?: number;
+    evidence_artifact_id?: string;
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'validation.record_run',
-      { type: 'validation.recorded', payload: { check_index: args.check_index, status: args.status } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "validation.record_run",
+      {
+        type: "validation.recorded",
+        payload: { check_index: args.check_index, status: args.status },
+      },
       async (c) => {
         const check = c.plan?.checks[args.check_index];
-        if (!check) throw new EmmsError('INVALID_REQUEST', 'Unknown check_index', false, { check_index: args.check_index });
+        if (!check)
+          throw new EmmsError("INVALID_REQUEST", "Unknown check_index", false, {
+            check_index: args.check_index,
+          });
         if (check.evidence_requirement && !args.evidence_artifact_id) {
-          throw missingEvidence([`checks[${args.check_index}].evidence_artifact_id`]);
+          throw missingEvidence([
+            `checks[${args.check_index}].evidence_artifact_id`,
+          ]);
         }
-        const run_id = 'run_' + randomUUID().slice(0, 12);
+        const run_id = "run_" + randomUUID().slice(0, 12);
         await this.adapter.insertValidationRun({
           run_id,
           episode_id: c.episode!.experience_id,
@@ -499,41 +690,56 @@ export class EmmsService {
         });
         // episode may still be SOLUTION_PROPOSED; entering validation is the
         // first run being recorded (FR-019 progression)
-        if (c.episode!.state === 'SOLUTION_PROPOSED') {
-          assertTransition(c.episode!.state, 'VALIDATING');
-          c.episode!.state = 'VALIDATING';
-          c.workflow.state = 'VALIDATING';
+        if (c.episode!.state === "SOLUTION_PROPOSED") {
+          assertTransition(c.episode!.state, "VALIDATING");
+          c.episode!.state = "VALIDATING";
+          c.workflow.state = "VALIDATING";
           await this.adapter.saveEpisode(c.episode!);
         }
-        if (c.episode!.state === 'VALIDATING') {
-          const freshRuns = await this.adapter.listValidationRuns(c.episode!.experience_id);
-          const allVerified =
-            c.plan!.checks.every((_, i) =>
-              freshRuns.some((r) => r.check_index === i && r.status === 'passed' && !!r.evidence_artifact_id)
-            );
+        if (c.episode!.state === "VALIDATING") {
+          const freshRuns = await this.adapter.listValidationRuns(
+            c.episode!.experience_id,
+          );
+          const allVerified = c.plan!.checks.every((_, i) =>
+            freshRuns.some(
+              (r) =>
+                r.check_index === i &&
+                r.status === "passed" &&
+                !!r.evidence_artifact_id,
+            ),
+          );
           if (allVerified) {
-            assertTransition(c.episode!.state, 'LOCALLY_VERIFIED');
-            c.episode!.state = 'LOCALLY_VERIFIED';
+            assertTransition(c.episode!.state, "LOCALLY_VERIFIED");
+            c.episode!.state = "LOCALLY_VERIFIED";
             c.episode!.last_verified_at = this.now();
-            c.workflow.state = 'LOCALLY_VERIFIED';
+            c.workflow.state = "LOCALLY_VERIFIED";
             await this.adapter.saveEpisode(c.episode!);
           }
         }
         return { run_id };
-      }
+      },
     );
   }
 
   // ---------- finalization ----------
   async finalize(args: {
-    workflow_id: string; requested_outcome: 'verified' | 'partially_verified' | 'unresolved';
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    requested_outcome: "verified" | "partially_verified" | "unresolved";
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
-    const warnings: Parameters<typeof buildGuidance>[0]['warnings'] = [];
+    const warnings: Parameters<typeof buildGuidance>[0]["warnings"] = [];
     const out = await this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'experience.finalize',
-      { type: 'episode.finalized', payload: { requested: args.requested_outcome } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "experience.finalize",
+      {
+        type: "episode.finalized",
+        payload: { requested: args.requested_outcome },
+      },
       async (c) => {
         const ep = c.episode!;
         // Re-read plan/runs so the just-recorded mutation counts (read-after-write)
@@ -543,17 +749,29 @@ export class EmmsService {
         // a tampered or deleted artifact blocks verification.
         for (const run of runs) {
           if (run.evidence_artifact_id) {
-            const meta = await this.adapter.getArtifactMeta(run.evidence_artifact_id, ep.scope_id);
+            const meta = await this.adapter.getArtifactMeta(
+              run.evidence_artifact_id,
+              ep.scope_id,
+            );
             if (meta) await this.evidence.read(meta.content_hash);
-            else throw missingEvidence([`artifact ${run.evidence_artifact_id} not found`]);
+            else
+              throw missingEvidence([
+                `artifact ${run.evidence_artifact_id} not found`,
+              ]);
           }
         }
         // duplicate candidate detection (D5)
         const dups = await this.detectDuplicates(ep.experience_id, ep.scope_id);
-        if (args.requested_outcome === 'verified') {
+        if (args.requested_outcome === "verified") {
           const missing: string[] = [];
-          const verified = (idx: number) => runs.some((r) => r.check_index === idx && r.status === 'passed' && !!r.evidence_artifact_id);
-          if (!plan) missing.push('validation_plan');
+          const verified = (idx: number) =>
+            runs.some(
+              (r) =>
+                r.check_index === idx &&
+                r.status === "passed" &&
+                !!r.evidence_artifact_id,
+            );
+          if (!plan) missing.push("validation_plan");
           if (plan) {
             plan.checks.forEach((_, i) => {
               if (!verified(i)) missing.push(`checks[${i}].passed_evidence`);
@@ -561,33 +779,44 @@ export class EmmsService {
           }
           // critical side effects (FR-008 criteria): harmful attempts that were
           // never resolved by a later successful attempt remain critical
-          const freshAttempts = await this.adapter.listAttempts(ep.experience_id);
-          const ordered = freshAttempts.sort((a, b) => a.seq - b.seq);
-          const harmfulOpen = ordered.some((a, i) =>
-            a.classification === 'harmful' &&
-            !ordered.slice(i + 1).some((b) => b.classification === 'successful')
+          const freshAttempts = await this.adapter.listAttempts(
+            ep.experience_id,
           );
-          if (harmfulOpen) missing.push('unresolved_critical_side_effect');
+          const ordered = freshAttempts.sort((a, b) => a.seq - b.seq);
+          const harmfulOpen = ordered.some(
+            (a, i) =>
+              a.classification === "harmful" &&
+              !ordered
+                .slice(i + 1)
+                .some((b) => b.classification === "successful"),
+          );
+          if (harmfulOpen) missing.push("unresolved_critical_side_effect");
           if (missing.length) {
-            if (dups.length) warnings.push({ code: 'DUPLICATE', severity: 'medium', message: `Duplicate candidate(s): ${dups.join(', ')}` });
+            if (dups.length)
+              warnings.push({
+                code: "DUPLICATE",
+                severity: "medium",
+                message: `Duplicate candidate(s): ${dups.join(", ")}`,
+              });
             if (isTerminal(ep.state)) return { final_state: ep.state };
             // Assessment is read-only: episode state stays VALIDATING so the
             // agent can complete the missing evidence and re-finalize.
             throw missingEvidence(missing);
           }
         }
-        let final_state: Episode['state'];
-        if (args.requested_outcome === 'verified') {
-          if (isTerminal(ep.state) || ep.state === 'LOCALLY_VERIFIED') final_state = ep.state;
+        let final_state: Episode["state"];
+        if (args.requested_outcome === "verified") {
+          if (isTerminal(ep.state) || ep.state === "LOCALLY_VERIFIED")
+            final_state = ep.state;
           else {
-            assertTransition(ep.state, 'LOCALLY_VERIFIED');
-            final_state = 'LOCALLY_VERIFIED';
+            assertTransition(ep.state, "LOCALLY_VERIFIED");
+            final_state = "LOCALLY_VERIFIED";
             ep.last_verified_at = this.now();
           }
-        } else if (args.requested_outcome === 'partially_verified') {
-          final_state = isTerminal(ep.state) ? ep.state : 'PARTIALLY_VERIFIED';
+        } else if (args.requested_outcome === "partially_verified") {
+          final_state = isTerminal(ep.state) ? ep.state : "PARTIALLY_VERIFIED";
         } else {
-          final_state = isTerminal(ep.state) ? ep.state : 'UNRESOLVED';
+          final_state = isTerminal(ep.state) ? ep.state : "UNRESOLVED";
         }
         if (final_state !== ep.state) {
           assertTransition(ep.state, final_state);
@@ -599,16 +828,20 @@ export class EmmsService {
 
         // Auto-lesson hook (Level 3): propose a lesson from verified episodes.
         // Non-blocking — errors don't prevent the finalize result.
-        if (final_state === 'LOCALLY_VERIFIED' || final_state === 'REPRODUCED') {
+        if (
+          final_state === "LOCALLY_VERIFIED" ||
+          final_state === "REPRODUCED"
+        ) {
           try {
-            const sigRow = (await this.adapter.listInScope(ep.scope_id))
-              .find((r) => r.episode_id === ep.experience_id);
+            const sigRow = (await this.adapter.listInScope(ep.scope_id)).find(
+              (r) => r.episode_id === ep.experience_id,
+            );
             if (sigRow) {
               const lesson = await this.lessons.proposeFromEpisodes(
                 sigRow.normalized_hash,
                 ep.problem_summary.slice(0, 80),
                 `Fix: ${ep.goal_summary.slice(0, 80)}`,
-                ep.problem_summary.slice(0, 80)
+                ep.problem_summary.slice(0, 80),
               );
               if (lesson) {
                 result.auto_lesson = {
@@ -616,69 +849,111 @@ export class EmmsService {
                   status: lesson.status,
                   supporting_episodes: lesson.supporting_episodes.length,
                 };
-                if (lesson.status === 'contested') {
-                  warnings.push({ code: 'CONTRADICTION', severity: 'high', message: 'Auto-proposed lesson is contested — counterexamples exist' });
+                if (lesson.status === "contested") {
+                  warnings.push({
+                    code: "CONTRADICTION",
+                    severity: "high",
+                    message:
+                      "Auto-proposed lesson is contested — counterexamples exist",
+                  });
                 }
               }
             }
           } catch (lessonErr) {
             // Non-blocking: lesson proposal failure doesn't affect finalize
-            warnings.push({ code: 'AUTO_LESSON_FAILED', severity: 'low', message: `Auto-lesson failed: ${(lessonErr as Error).message.slice(0, 100)}` });
+            warnings.push({
+              code: "AUTO_LESSON_FAILED",
+              severity: "low",
+              message: `Auto-lesson failed: ${(lessonErr as Error).message.slice(0, 100)}`,
+            });
           }
         }
         if (dups.length) {
-          warnings.push({ code: 'DUPLICATE', severity: 'medium', message: `Duplicate candidate(s): ${dups.join(', ')}` });
+          warnings.push({
+            code: "DUPLICATE",
+            severity: "medium",
+            message: `Duplicate candidate(s): ${dups.join(", ")}`,
+          });
           result.duplicate_candidates = dups;
         }
         return result;
       },
-      warnings
+      warnings,
     );
     return out;
   }
 
   // ---------- evidence ----------
   async attachArtifact(args: {
-    workflow_id: string; content_base64: string; kind: string; media_type: string;
-    expected_revision?: number; idempotency_key?: string; client_context: ClientContext;
+    workflow_id: string;
+    content_base64: string;
+    kind: string;
+    media_type: string;
+    expected_revision?: number;
+    idempotency_key?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
-    const buffer = Buffer.from(args.content_base64, 'base64');
+    const buffer = Buffer.from(args.content_base64, "base64");
     const MAX_BYTES = 1024 * 1024;
-    const ALLOWED_TYPES = ['text/plain', 'application/json', 'text/x-diff', 'application/x-ndjson'];
-    if (buffer.length > MAX_BYTES) throw artifactRejected([`size ${buffer.length} exceeds 1 MiB limit`]);
-    if (!ALLOWED_TYPES.includes(args.media_type)) throw artifactRejected([`media_type ${args.media_type} not accepted`]);
-    const r = redact(buffer.toString('utf8'));
+    const ALLOWED_TYPES = [
+      "text/plain",
+      "application/json",
+      "text/x-diff",
+      "application/x-ndjson",
+    ];
+    if (buffer.length > MAX_BYTES)
+      throw artifactRejected([`size ${buffer.length} exceeds 1 MiB limit`]);
+    if (!ALLOWED_TYPES.includes(args.media_type))
+      throw artifactRejected([`media_type ${args.media_type} not accepted`]);
+    const r = redact(buffer.toString("utf8"));
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, args.idempotency_key,
-      'artifact.attach',
-      { type: 'artifact.attached', payload: { kind: args.kind } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      args.idempotency_key,
+      "artifact.attach",
+      { type: "artifact.attached", payload: { kind: args.kind } },
       async (c) => {
-        const { content_hash, byte_size } = await this.evidence.store(Buffer.from(r.redacted, 'utf8'));
-        const artifact_id = 'art_' + randomUUID().slice(0, 12);
+        const { content_hash, byte_size } = await this.evidence.store(
+          Buffer.from(r.redacted, "utf8"),
+        );
+        const artifact_id = "art_" + randomUUID().slice(0, 12);
         await this.adapter.putArtifactMeta({
           artifact_id,
           episode_id: c.episode!.experience_id,
           scope_id: c.episode!.scope_id,
-          content_hash, kind: args.kind, media_type: args.media_type,
+          content_hash,
+          kind: args.kind,
+          media_type: args.media_type,
           byte_size,
-          redaction_status: 'completed',
+          redaction_status: "completed",
           redaction_findings: r.findings,
           redaction_ruleset_version: r.ruleset_version,
-          trust: r.flags_instruction_like ? 'untrusted_flagged_instruction_like' : 'untrusted_data',
+          trust: r.flags_instruction_like
+            ? "untrusted_flagged_instruction_like"
+            : "untrusted_data",
           created_at: this.now(),
         });
-        return { artifact_id, content_hash, redaction: { status: 'completed', findings_count: r.findings } };
-      }
+        return {
+          artifact_id,
+          content_hash,
+          redaction: { status: "completed", findings_count: r.findings },
+        };
+      },
     );
   }
 
   /** Test/fixture helper: record environment dimensions for an episode's workflow. */
-  async putEnvironmentDirect(workflow_id: string, env: Record<string, string>, scope_id: string): Promise<void> {
+  async putEnvironmentDirect(
+    workflow_id: string,
+    env: Record<string, string>,
+    scope_id: string,
+  ): Promise<void> {
     const wf = await this.adapter.getWorkflow(workflow_id, scope_id);
     if (!wf?.experience_id) return;
     await this.adapter.putEnvironment(
       wf.experience_id,
-      Object.entries(env).map(([key, value]) => ({ key, value }))
+      Object.entries(env).map(([key, value]) => ({ key, value })),
     );
   }
 
@@ -720,7 +995,10 @@ export class EmmsService {
    * with a pointer to the kept one. Append-only events + audit entries
    * preserve full history (FR-020/034: no physical deletion).
    */
-  async dedupeScope(scope_id: string, actor_id = 'local-agent'): Promise<ToolResult> {
+  async dedupeScope(
+    scope_id: string,
+    actor_id = "local-agent",
+  ): Promise<ToolResult> {
     const groups = await this.findDuplicates(scope_id);
     const merged: Array<{ kept: string; superseded: string[] }> = [];
     let auditSeq = 0;
@@ -733,27 +1011,32 @@ export class EmmsService {
       if (eps.length < 2) continue;
       // keep: verified states first, then freshest last_verified_at
       const rank = (e: Episode) =>
-        (e.state === 'LOCALLY_VERIFIED' || e.state === 'REPRODUCED' || e.state === 'CROSS_PROJECT_VERIFIED' ? 2 : 0) +
-        (e.last_verified_at ? 1 : 0);
-      eps.sort((a, b) => rank(b) - rank(a) || (a.created_at < b.created_at ? 1 : -1));
+        (e.state === "LOCALLY_VERIFIED" ||
+        e.state === "REPRODUCED" ||
+        e.state === "CROSS_PROJECT_VERIFIED"
+          ? 2
+          : 0) + (e.last_verified_at ? 1 : 0);
+      eps.sort(
+        (a, b) => rank(b) - rank(a) || (a.created_at < b.created_at ? 1 : -1),
+      );
       const kept = eps[0];
       const superseded: string[] = [];
       for (const e of eps.slice(1)) {
         if (isTerminal(e.state)) continue;
-        assertTransition(e.state, 'SUPERSEDED');
-        e.state = 'SUPERSEDED';
+        assertTransition(e.state, "SUPERSEDED");
+        e.state = "SUPERSEDED";
         await this.adapter.saveEpisode(e);
         superseded.push(e.experience_id);
       }
       if (superseded.length) {
         await this.adapter.insertAudit({
           event_id: randomUUID(),
-          actor: { actor_type: 'system', actor_id },
-          action: 'experience.dedupe_merged',
+          actor: { actor_type: "system", actor_id },
+          action: "experience.dedupe_merged",
           target: kept.experience_id,
           timestamp: this.now(),
           policy_version: POLICY_VERSION,
-          reason: `superseded: ${superseded.join(', ')}`,
+          reason: `superseded: ${superseded.join(", ")}`,
         });
         merged.push({ kept: kept.experience_id, superseded });
       }
@@ -761,53 +1044,101 @@ export class EmmsService {
     }
     void auditSeq;
     const guidance = {
-      workflow_id: 'n/a',
-      workflow_state: 'LOCALLY_VERIFIED' as const,
+      workflow_id: "n/a",
+      workflow_state: "LOCALLY_VERIFIED" as const,
       revision: 1,
       missing_information: [],
       warnings: [],
-      allowed_next_tools: ['experience_search'],
-      recommended_next_request: { tool: 'experience_search', reason: 'Verify dedup results', arguments_template: { query: '<collect value>', scope_id } },
+      allowed_next_tools: ["experience_search"],
+      recommended_next_request: {
+        tool: "experience_search",
+        reason: "Verify dedup results",
+        arguments_template: { query: "<collect value>", scope_id },
+      },
       alternative_next_requests: [],
       stop_conditions: [],
       human_approval: { required: false },
     };
-    return { result: { groups_found: groups.length, merged }, guidance: guidance as never };
+    return {
+      result: { groups_found: groups.length, merged },
+      guidance: guidance as never,
+    };
   }
 
   // ---------- lessons (FR-022: candidate-level consolidation) ----------
   async lesson_propose(args: {
-    normalized_hash: string; pattern: string; rule: string;
-    recommended_strategy: string; scope_id: string;
+    normalized_hash: string;
+    pattern: string;
+    rule: string;
+    recommended_strategy: string;
+    scope_id: string;
   }): Promise<ToolResult> {
     const record = await this.lessons.proposeFromEpisodes(
-      args.normalized_hash, args.pattern, args.rule, args.recommended_strategy
+      args.normalized_hash,
+      args.pattern,
+      args.rule,
+      args.recommended_strategy,
     );
     if (!record) {
       return {
-        result: { lesson: null, reason: 'no verified episodes for this signature' },
+        result: {
+          lesson: null,
+          reason: "no verified episodes for this signature",
+        },
         guidance: {
-          workflow_id: 'n/a', workflow_state: 'OBSERVED', revision: 1,
-          missing_information: [], warnings: [
-            { code: 'NO_SUPPORTING_EVIDENCE', severity: 'medium',
-              message: 'At least one verified episode is required before a lesson candidate can be proposed' }],
-          allowed_next_tools: ['experience_search'],
-          recommended_next_request: { tool: 'experience_search', reason: 'Find verified episodes first', arguments_template: { query: '<collect value>', scope_id: args.scope_id } },
-          alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+          workflow_id: "n/a",
+          workflow_state: "OBSERVED",
+          revision: 1,
+          missing_information: [],
+          warnings: [
+            {
+              code: "NO_SUPPORTING_EVIDENCE",
+              severity: "medium",
+              message:
+                "At least one verified episode is required before a lesson candidate can be proposed",
+            },
+          ],
+          allowed_next_tools: ["experience_search"],
+          recommended_next_request: {
+            tool: "experience_search",
+            reason: "Find verified episodes first",
+            arguments_template: {
+              query: "<collect value>",
+              scope_id: args.scope_id,
+            },
+          },
+          alternative_next_requests: [],
+          stop_conditions: [],
+          human_approval: { required: false },
         },
       };
     }
     return {
       result: { lesson: record } as unknown as Record<string, unknown>,
       guidance: {
-        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
-        missing_information: [], warnings:
-          record.status === 'contested'
-            ? [{ code: 'CONTRADICTION', severity: 'high', message: 'Lesson marked contested — counterexamples exist' }]
+        workflow_id: "n/a",
+        workflow_state: "LOCALLY_VERIFIED",
+        revision: 1,
+        missing_information: [],
+        warnings:
+          record.status === "contested"
+            ? [
+                {
+                  code: "CONTRADICTION",
+                  severity: "high",
+                  message: "Lesson marked contested — counterexamples exist",
+                },
+              ]
             : [],
-        allowed_next_tools: ['lesson_propose', 'lesson_search', 'lesson_get'],
-        recommended_next_request: { tool: 'lesson_search', reason: 'Browse consolidated lessons', arguments_template: { query: '<collect value>' } },
-        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+        allowed_next_tools: ["lesson_propose", "lesson_search", "lesson_get"],
+        recommended_next_request: {
+          tool: "lesson_search",
+          reason: "Browse consolidated lessons",
+          arguments_template: { query: "<collect value>" },
+        },
+        alternative_next_requests: [],
+        stop_conditions: [],
+        human_approval: { required: false },
       },
     };
   }
@@ -817,11 +1148,20 @@ export class EmmsService {
     return {
       result: { lessons, count: lessons.length },
       guidance: {
-        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
-        missing_information: [], warnings: [],
-        allowed_next_tools: ['lesson_get', 'lesson_propose'],
-        recommended_next_request: { tool: 'lesson_get', reason: 'Inspect a lesson', arguments_template: { lesson_id: '<collect value>' } },
-        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+        workflow_id: "n/a",
+        workflow_state: "LOCALLY_VERIFIED",
+        revision: 1,
+        missing_information: [],
+        warnings: [],
+        allowed_next_tools: ["lesson_get", "lesson_propose"],
+        recommended_next_request: {
+          tool: "lesson_get",
+          reason: "Inspect a lesson",
+          arguments_template: { lesson_id: "<collect value>" },
+        },
+        alternative_next_requests: [],
+        stop_conditions: [],
+        human_approval: { required: false },
       },
     };
   }
@@ -829,82 +1169,145 @@ export class EmmsService {
   async lesson_get(lesson_id: string): Promise<ToolResult> {
     const lesson = await this.lessons.get(lesson_id);
     return {
-      result: (lesson ?? { lesson: null, reason: 'not found' }) as Record<string, unknown>,
+      result: (lesson ?? { lesson: null, reason: "not found" }) as Record<
+        string,
+        unknown
+      >,
       guidance: {
-        workflow_id: 'n/a', workflow_state: 'LOCALLY_VERIFIED', revision: 1,
-        missing_information: [], warnings: [],
-        allowed_next_tools: ['lesson_search', 'lesson_propose'],
-        recommended_next_request: { tool: 'lesson_search', reason: 'Browse lessons', arguments_template: { query: '<collect value>' } },
-        alternative_next_requests: [], stop_conditions: [], human_approval: { required: false },
+        workflow_id: "n/a",
+        workflow_state: "LOCALLY_VERIFIED",
+        revision: 1,
+        missing_information: [],
+        warnings: [],
+        allowed_next_tools: ["lesson_search", "lesson_propose"],
+        recommended_next_request: {
+          tool: "lesson_search",
+          reason: "Browse lessons",
+          arguments_template: { query: "<collect value>" },
+        },
+        alternative_next_requests: [],
+        stop_conditions: [],
+        human_approval: { required: false },
       },
     };
   }
 
   // ---------- lesson visibility (cross-project sharing) ----------
   async lesson_publish(args: {
-    workflow_id: string; experience_id: string;
-    expected_revision?: number; client_context: ClientContext;
+    workflow_id: string;
+    experience_id: string;
+    expected_revision?: number;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, undefined,
-      'experience.lesson_publish',
-      { type: 'lesson.published', payload: { experience_id: args.experience_id } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      undefined,
+      "experience.lesson_publish",
+      {
+        type: "lesson.published",
+        payload: { experience_id: args.experience_id },
+      },
       async (c) => {
-        const ep = await this.adapter.getEpisode(args.experience_id, c.episode!.scope_id);
-        if (!ep) throw new EmmsError('INVALID_REQUEST', 'Episode not found', false, { experience_id: args.experience_id });
-        if (ep.visibility !== 'repository') {
-          return { experience_id: ep.experience_id, visibility: ep.visibility, note: 'already public' };
+        const ep = await this.adapter.getEpisode(
+          args.experience_id,
+          c.episode!.scope_id,
+        );
+        if (!ep)
+          throw new EmmsError("INVALID_REQUEST", "Episode not found", false, {
+            experience_id: args.experience_id,
+          });
+        if (ep.visibility !== "repository") {
+          return {
+            experience_id: ep.experience_id,
+            visibility: ep.visibility,
+            note: "already public",
+          };
         }
-        ep.visibility = 'public' as import('./domain/types.js').Visibility;
+        ep.visibility = "public" as import("./domain/types.js").Visibility;
         await this.adapter.saveEpisode(ep);
         await this.adapter.insertAudit({
           event_id: randomUUID(),
-          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
-          action: 'experience.lesson_publish', target: ep.experience_id,
-          timestamp: this.now(), policy_version: POLICY_VERSION,
-          reason: 'visibility widened to public — cross-project sharing',
+          actor: { actor_type: "agent", actor_id: c.workflow.actor_id },
+          action: "experience.lesson_publish",
+          target: ep.experience_id,
+          timestamp: this.now(),
+          policy_version: POLICY_VERSION,
+          reason: "visibility widened to public — cross-project sharing",
         });
-        return { experience_id: ep.experience_id, visibility: 'public' };
-      }
+        return { experience_id: ep.experience_id, visibility: "public" };
+      },
     );
   }
 
   async lesson_unpublish(args: {
-    workflow_id: string; experience_id: string;
-    expected_revision?: number; client_context: ClientContext;
+    workflow_id: string;
+    experience_id: string;
+    expected_revision?: number;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, undefined,
-      'experience.lesson_unpublish',
-      { type: 'lesson.unpublished', payload: { experience_id: args.experience_id } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      undefined,
+      "experience.lesson_unpublish",
+      {
+        type: "lesson.unpublished",
+        payload: { experience_id: args.experience_id },
+      },
       async (c) => {
-        const ep = await this.adapter.getEpisode(args.experience_id, c.episode!.scope_id);
-        if (!ep) throw new EmmsError('INVALID_REQUEST', 'Episode not found', false, { experience_id: args.experience_id });
-        ep.visibility = 'repository';
+        const ep = await this.adapter.getEpisode(
+          args.experience_id,
+          c.episode!.scope_id,
+        );
+        if (!ep)
+          throw new EmmsError("INVALID_REQUEST", "Episode not found", false, {
+            experience_id: args.experience_id,
+          });
+        ep.visibility = "repository";
         await this.adapter.saveEpisode(ep);
         await this.adapter.insertAudit({
           event_id: randomUUID(),
-          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
-          action: 'experience.lesson_unpublish', target: ep.experience_id,
-          timestamp: this.now(), policy_version: POLICY_VERSION,
+          actor: { actor_type: "agent", actor_id: c.workflow.actor_id },
+          action: "experience.lesson_unpublish",
+          target: ep.experience_id,
+          timestamp: this.now(),
+          policy_version: POLICY_VERSION,
         });
-        return { experience_id: ep.experience_id, visibility: 'repository' };
-      }
+        return { experience_id: ep.experience_id, visibility: "repository" };
+      },
     );
   }
 
   // ---------- retrieval (US1) ----------
   async search(args: {
-    query: string; scope_id: string; failure_signature_hash?: string;
-    limit?: number; environment?: Record<string, string>;
+    query: string;
+    scope_id: string;
+    failure_signature_hash?: string;
+    limit?: number;
+    environment?: Record<string, string>;
   }): Promise<ToolResult> {
     const limit = Math.min(Math.max(args.limit ?? 5, 1), 20);
-    const queryVec = this.embedding ? await this.embedding.embed(args.query) : null;
+    const queryVec = this.embedding
+      ? await this.embedding.embed(args.query)
+      : null;
     const semanticAvailable = !!(this.embedding && queryVec);
     const candidates = new Map<string, SearchRow>();
-    const add = (rows: SearchRow[]) => rows.forEach((r) => candidates.set(r.episode_id, r));
-    if (args.failure_signature_hash) add(await this.adapter.searchExact(args.failure_signature_hash, args.scope_id));
-    const ftsRows = await this.adapter.searchFullText(args.query.split(/\s+/).slice(0, 6).join(' '), args.scope_id);
+    const add = (rows: SearchRow[]) =>
+      rows.forEach((r) => candidates.set(r.episode_id, r));
+    if (args.failure_signature_hash)
+      add(
+        await this.adapter.searchExact(
+          args.failure_signature_hash,
+          args.scope_id,
+        ),
+      );
+    const ftsRows = await this.adapter.searchFullText(
+      args.query.split(/\s+/).slice(0, 6).join(" "),
+      args.scope_id,
+    );
     const ftsHitIds = new Set(ftsRows.map((r) => r.episode_id));
     add(ftsRows);
     if (this.embedding) {
@@ -915,8 +1318,11 @@ export class EmmsService {
         const scored: Array<{ row: SearchRow; sim: number }> = [];
         for (const row of inScope) {
           const cached = await this.adapter.getEmbedding(row.episode_id);
-          const vec = cached ? Float32Array.from(cached) : await this.embedding.embed(row.summary);
-          if (!cached && vec) await this.adapter.putEmbedding(row.episode_id, Array.from(vec));
+          const vec = cached
+            ? Float32Array.from(cached)
+            : await this.embedding.embed(row.summary);
+          if (!cached && vec)
+            await this.adapter.putEmbedding(row.episode_id, Array.from(vec));
           if (vec) scored.push({ row, sim: cosineSimilarity(qVec, vec) });
         }
         scored.sort((a, b) => b.sim - a.sim);
@@ -928,20 +1334,39 @@ export class EmmsService {
     const results = [];
     for (const row of candidates.values()) {
       const env = await this.adapter.getEnvironment?.(row.episode_id);
-      const { harmful, useful } = await this.adapter.getFeedbackSummary(row.episode_id);
+      const { harmful, useful } = await this.adapter.getFeedbackSummary(
+        row.episode_id,
+      );
       const stale = row.last_verified_at
         ? Date.now() - Date.parse(row.last_verified_at) > 90 * 24 * 3600 * 1000
         : true;
       const knownBad = (await this.adapter.listAttempts(row.episode_id))
-        .filter((a) => a.classification === 'harmful' || a.classification === 'ineffective')
-        .map((a) => ({ strategy: a.intent, outcome: a.outcome ?? a.classification }));
+        .filter(
+          (a) =>
+            a.classification === "harmful" ||
+            a.classification === "ineffective",
+        )
+        .map((a) => ({
+          strategy: a.intent,
+          outcome: a.outcome ?? a.classification,
+        }));
       const contradiction = await this.hasContradiction(row.episode_id);
-      const envMismatch = env ? env.filter((e) => args.environment?.[e.key] !== undefined && args.environment[e.key] !== e.value) : [];
-      const applicability = env ? Math.max(0, 1 - envMismatch.length / Math.max(env.length, 1)) : 0.5;
+      const envMismatch = env
+        ? env.filter(
+            (e) =>
+              args.environment?.[e.key] !== undefined &&
+              args.environment[e.key] !== e.value,
+          )
+        : [];
+      const applicability = env
+        ? Math.max(0, 1 - envMismatch.length / Math.max(env.length, 1))
+        : 0.5;
       let score =
-        (row.normalized_hash === args.failure_signature_hash ? 1 : 0) * 0.40 +
+        (row.normalized_hash === args.failure_signature_hash ? 1 : 0) * 0.4 +
         applicability * 0.35 +
-        (row.state === 'LOCALLY_VERIFIED' || row.state === 'REPRODUCED' ? 0.15 : 0.05) +
+        (row.state === "LOCALLY_VERIFIED" || row.state === "REPRODUCED"
+          ? 0.15
+          : 0.05) +
         Math.min(useful, 3) * 0.01;
       // Full-text matches must influence RANKING, not just candidate
       // discovery: without this, FTS hits score identically to scope-fallback
@@ -956,25 +1381,33 @@ export class EmmsService {
           score += sim * 0.24; // D6 weight redistributed: signature 0.40->0.28 effective, semantic 0.24
         }
       }
-      if (envMismatch.length > 0) score -= 0.50; // incompatibility penalty (D6)
+      if (envMismatch.length > 0) score -= 0.5; // incompatibility penalty (D6)
       if (stale) score -= 0.15;
-      if (contradiction) score -= 0.30;
-      if (harmful > 0) score -= 0.40 * harmful;
+      if (contradiction) score -= 0.3;
+      if (harmful > 0) score -= 0.4 * harmful;
       results.push({
         experience_id: row.episode_id,
         summary: row.summary,
         relevance: Math.max(0, Math.round(score * 1000) / 1000),
         applicability: {
           score: applicability,
-          matches: env ? env.filter((e) => args.environment?.[e.key] === e.value).map((e) => e.key) : [],
+          matches: env
+            ? env
+                .filter((e) => args.environment?.[e.key] === e.value)
+                .map((e) => e.key)
+            : [],
           mismatches: envMismatch.map((e) => e.key),
           unknowns: [],
           hard_exclusions: [],
         },
-        validation: { tier: row.state, last_verified_at: row.last_verified_at ?? null },
+        validation: {
+          tier: row.state,
+          last_verified_at: row.last_verified_at ?? null,
+        },
         known_bad_attempts: knownBad,
         flags: { contradiction, duplicate: false, stale },
-        recommended_use: envMismatch.length > 0 ? 'reference_only' : 'applicable',
+        recommended_use:
+          envMismatch.length > 0 ? "reference_only" : "applicable",
         excerpt: row.summary.slice(0, 2000),
       });
     }
@@ -985,13 +1418,30 @@ export class EmmsService {
         retrieval_notes: { semantic_available: semanticAvailable },
       },
       guidance: {
-        workflow_id: 'n/a',
-        workflow_state: 'OBSERVED',
+        workflow_id: "n/a",
+        workflow_state: "OBSERVED",
         revision: 1,
         missing_information: [],
-        warnings: [{ code: 'SEMANTIC_UNAVAILABLE', severity: 'low', message: 'Semantic retrieval arm not active in MVP; signature + full-text only' }],
-        allowed_next_tools: ['experience.search', 'experience.record_reuse_feedback'],
-        recommended_next_request: { tool: 'experience_search', reason: 'Narrow or broaden the query', arguments_template: { query: '<collect value>', scope_id: args.scope_id } },
+        warnings: [
+          {
+            code: "SEMANTIC_UNAVAILABLE",
+            severity: "low",
+            message:
+              "Semantic retrieval arm not active in MVP; signature + full-text only",
+          },
+        ],
+        allowed_next_tools: [
+          "experience.search",
+          "experience.record_reuse_feedback",
+        ],
+        recommended_next_request: {
+          tool: "experience_search",
+          reason: "Narrow or broaden the query",
+          arguments_template: {
+            query: "<collect value>",
+            scope_id: args.scope_id,
+          },
+        },
         alternative_next_requests: [],
         stop_conditions: [],
         human_approval: { required: false },
@@ -1002,86 +1452,140 @@ export class EmmsService {
   private async hasContradiction(episode_id: string): Promise<boolean> {
     const attempts = await this.adapter.listAttempts(episode_id);
     const withOutcome = attempts.filter((a) => a.classification);
-    const positive = withOutcome.some((a) => a.classification === 'successful');
-    const negative = withOutcome.some((a) => a.classification === 'harmful' || a.classification === 'ineffective');
+    const positive = withOutcome.some((a) => a.classification === "successful");
+    const negative = withOutcome.some(
+      (a) =>
+        a.classification === "harmful" || a.classification === "ineffective",
+    );
     return positive && negative;
   }
 
-  private async detectDuplicates(episode_id: string, scope_id: string): Promise<string[]> {
-    const row = (await this.adapter.listInScope(scope_id)).find((r) => r.episode_id === episode_id);
+  private async detectDuplicates(
+    episode_id: string,
+    scope_id: string,
+  ): Promise<string[]> {
+    const row = (await this.adapter.listInScope(scope_id)).find(
+      (r) => r.episode_id === episode_id,
+    );
     if (!row) return [];
-    const sameHash = await this.adapter.searchExact(row.normalized_hash, scope_id);
+    const sameHash = await this.adapter.searchExact(
+      row.normalized_hash,
+      scope_id,
+    );
     const dups: string[] = [];
     for (const other of sameHash) {
       if (other.episode_id === episode_id) continue;
-      if (jaccard(other.summary, row.summary) >= 0.8) dups.push(other.episode_id);
+      if (jaccard(other.summary, row.summary) >= 0.8)
+        dups.push(other.episode_id);
     }
     return dups;
   }
 
   // ---------- lifecycle (US4) ----------
   async recordRegression(args: {
-    workflow_id: string; failed_episode_id: string; reason: string;
-    expected_revision?: number; client_context: ClientContext;
+    workflow_id: string;
+    failed_episode_id: string;
+    reason: string;
+    expected_revision?: number;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, undefined,
-      'experience.mark_regression',
-      { type: 'regression.recorded', payload: { failed_episode_id: args.failed_episode_id } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      undefined,
+      "experience.mark_regression",
+      {
+        type: "regression.recorded",
+        payload: { failed_episode_id: args.failed_episode_id },
+      },
       async (c) => {
-        const failed = await this.adapter.getEpisode(args.failed_episode_id, c.episode!.scope_id);
+        const failed = await this.adapter.getEpisode(
+          args.failed_episode_id,
+          c.episode!.scope_id,
+        );
         if (failed && !isTerminal(failed.state)) {
-          assertTransition(failed.state, 'CONTRADICTED');
-          failed.state = 'CONTRADICTED';
+          assertTransition(failed.state, "CONTRADICTED");
+          failed.state = "CONTRADICTED";
           await this.adapter.saveEpisode(failed);
         }
         await this.adapter.insertAudit({
           event_id: randomUUID(),
-          actor: { actor_type: 'agent', actor_id: c.workflow.actor_id },
-          action: 'experience.mark_regression',
+          actor: { actor_type: "agent", actor_id: c.workflow.actor_id },
+          action: "experience.mark_regression",
           target: args.failed_episode_id,
-          timestamp: this.now(), policy_version: POLICY_VERSION, reason: args.reason,
+          timestamp: this.now(),
+          policy_version: POLICY_VERSION,
+          reason: args.reason,
         });
         return { demoted: args.failed_episode_id };
-      }
+      },
     );
   }
 
   async invalidate(args: {
-    workflow_id: string; target_episode_id: string; reason: string;
-    expected_revision?: number; client_context: ClientContext; actor_type?: 'agent' | 'human';
+    workflow_id: string;
+    target_episode_id: string;
+    reason: string;
+    expected_revision?: number;
+    client_context: ClientContext;
+    actor_type?: "agent" | "human";
   }): Promise<ToolResult> {
     return this.mutate(
-      args.workflow_id, args.client_context, args.expected_revision, undefined,
-      'experience.invalidate',
-      { type: 'episode.invalidated', payload: { target: args.target_episode_id } },
+      args.workflow_id,
+      args.client_context,
+      args.expected_revision,
+      undefined,
+      "experience.invalidate",
+      {
+        type: "episode.invalidated",
+        payload: { target: args.target_episode_id },
+      },
       async (c) => {
-        const target = await this.adapter.getEpisode(args.target_episode_id, c.episode!.scope_id);
-        if (!target) throw new EmmsError('INVALID_REQUEST', 'Target episode not found', false, { target: args.target_episode_id });
+        const target = await this.adapter.getEpisode(
+          args.target_episode_id,
+          c.episode!.scope_id,
+        );
+        if (!target)
+          throw new EmmsError(
+            "INVALID_REQUEST",
+            "Target episode not found",
+            false,
+            { target: args.target_episode_id },
+          );
         if (!isTerminal(target.state)) {
-          assertTransition(target.state, 'INVALIDATED');
-          target.state = 'INVALIDATED';
+          assertTransition(target.state, "INVALIDATED");
+          target.state = "INVALIDATED";
           await this.adapter.saveEpisode(target);
         }
         await this.adapter.insertAudit({
           event_id: randomUUID(),
-          actor: { actor_type: args.actor_type ?? 'human', actor_id: c.workflow.actor_id },
-          action: 'experience.invalidate', target: args.target_episode_id,
-          timestamp: this.now(), policy_version: POLICY_VERSION, reason: args.reason,
+          actor: {
+            actor_type: args.actor_type ?? "human",
+            actor_id: c.workflow.actor_id,
+          },
+          action: "experience.invalidate",
+          target: args.target_episode_id,
+          timestamp: this.now(),
+          policy_version: POLICY_VERSION,
+          reason: args.reason,
         });
         return { invalidated: args.target_episode_id };
-      }
+      },
     );
   }
 
   async recordReuseFeedback(args: {
-    workflow_id: string; experience_id: string;
-    verdict: 'applicable' | 'useful' | 'misleading' | 'harmful';
-    changed_plan?: boolean; outcome?: string; client_context: ClientContext;
+    workflow_id: string;
+    experience_id: string;
+    verdict: "applicable" | "useful" | "misleading" | "harmful";
+    changed_plan?: boolean;
+    outcome?: string;
+    client_context: ClientContext;
   }): Promise<ToolResult> {
     const c = await this.loadCtx(args.workflow_id, args.client_context);
     await this.adapter.insertFeedback({
-      feedback_id: 'fb_' + randomUUID().slice(0, 12),
+      feedback_id: "fb_" + randomUUID().slice(0, 12),
       episode_id: args.experience_id,
       verdict: args.verdict,
       changed_plan: args.changed_plan,
@@ -1089,7 +1593,14 @@ export class EmmsService {
       seq: 0,
     });
     const guidance = await this.guidanceFor(c);
-    return { result: { feedback_id: 'recorded', experience_id: args.experience_id, verdict: args.verdict }, guidance };
+    return {
+      result: {
+        feedback_id: "recorded",
+        experience_id: args.experience_id,
+        verdict: args.verdict,
+      },
+      guidance,
+    };
   }
 
   // ---------- lesson seeding (batch capture for /capture-lessons) ----------
@@ -1102,13 +1613,20 @@ export class EmmsService {
    * are reported per slug with `seeded` | `duplicate` | `failed`.
    */
   async seedLessons(args: {
-    lessons: Array<{ slug: string; observation: string; cause: string; fix: string }>;
+    lessons: Array<{
+      slug: string;
+      observation: string;
+      cause: string;
+      fix: string;
+    }>;
     scope_id?: string;
     client_context: ClientContext;
   }): Promise<ToolResult> {
     const scope_id = args.scope_id ?? args.client_context.scope_id;
     const results: Array<Record<string, unknown>> = [];
-    let seeded = 0, duplicates = 0, failed = 0;
+    let seeded = 0,
+      duplicates = 0,
+      failed = 0;
 
     for (const l of args.lessons) {
       const ctx: ClientContext = { ...args.client_context, scope_id };
@@ -1126,9 +1644,11 @@ export class EmmsService {
           // the already-terminal episode.
           duplicates++;
           results.push({
-            slug: l.slug, status: 'duplicate',
+            slug: l.slug,
+            status: "duplicate",
             workflow_id: (start.result as { workflow_id: string }).workflow_id,
-            experience_id: (start.result as { experience_id?: string }).experience_id,
+            experience_id: (start.result as { experience_id?: string })
+              .experience_id,
           });
           continue;
         }
@@ -1137,78 +1657,125 @@ export class EmmsService {
         const wfCtx = { ...ctx, workflow_id: wf };
 
         await this.recordObservation({
-          workflow_id: wf, kind: 'agent_reflection',
+          workflow_id: wf,
+          kind: "agent_reflection",
           content: `OBSERVATION: ${l.observation}`,
-          expected_revision: rev, client_context: wfCtx,
-        }); rev++;
-        await this.recordObservation({
-          workflow_id: wf, kind: 'environment_fact',
-          content: JSON.stringify({ area: 'emms-mvp', trap_class: 'recurring-bug' }),
-          expected_revision: rev, client_context: wfCtx,
-        }); rev++;
-        const att = await this.recordAttempt({
-          workflow_id: wf, intent: `Apply fix: ${l.fix}`, risk_classification: 'low',
-          rationale: 'validated during implementation', expected_revision: rev,
+          expected_revision: rev,
           client_context: wfCtx,
-        }); rev++;
+        });
+        rev++;
+        await this.recordObservation({
+          workflow_id: wf,
+          kind: "environment_fact",
+          content: JSON.stringify({
+            area: "emms-mvp",
+            trap_class: "recurring-bug",
+          }),
+          expected_revision: rev,
+          client_context: wfCtx,
+        });
+        rev++;
+        const att = await this.recordAttempt({
+          workflow_id: wf,
+          intent: `Apply fix: ${l.fix}`,
+          risk_classification: "low",
+          rationale: "validated during implementation",
+          expected_revision: rev,
+          client_context: wfCtx,
+        });
+        rev++;
         await this.completeAttempt({
-          workflow_id: wf, attempt_id: (att.result as { attempt_id: string }).attempt_id,
+          workflow_id: wf,
+          attempt_id: (att.result as { attempt_id: string }).attempt_id,
           outcome: `Fix applied and verified: ${l.fix}`,
-          classification: 'successful', expected_revision: rev, client_context: wfCtx,
-        }); rev++;
+          classification: "successful",
+          expected_revision: rev,
+          client_context: wfCtx,
+        });
+        rev++;
         await this.proposeHypothesis({
-          workflow_id: wf, statement: `Root cause: ${l.cause}`,
-          expected_revision: rev, client_context: wfCtx,
-        }); rev++;
+          workflow_id: wf,
+          statement: `Root cause: ${l.cause}`,
+          expected_revision: rev,
+          client_context: wfCtx,
+        });
+        rev++;
         const fin = await this.finalize({
-          workflow_id: wf, requested_outcome: 'partially_verified',
-          expected_revision: rev, client_context: wfCtx,
+          workflow_id: wf,
+          requested_outcome: "partially_verified",
+          expected_revision: rev,
+          client_context: wfCtx,
         });
 
         seeded++;
         results.push({
-          slug: l.slug, status: 'seeded',
+          slug: l.slug,
+          status: "seeded",
           workflow_id: wf,
-          experience_id: (start.result as { experience_id: string }).experience_id,
+          experience_id: (start.result as { experience_id: string })
+            .experience_id,
           final_state: (fin.result as { final_state: string }).final_state,
         });
       } catch (e) {
         failed++;
         const err = e as EmmsError;
         results.push({
-          slug: l.slug, status: 'failed',
-          error_code: err.code ?? 'INTERNAL_ERROR',
+          slug: l.slug,
+          status: "failed",
+          error_code: err.code ?? "INTERNAL_ERROR",
           message: (err.message ?? String(e)).slice(0, 200),
         });
       }
     }
     const guidance = buildGuidance({
       workflow: {
-        workflow_id: 'seed-batch', experience_id: 'seed-batch',
-        goal: 'lesson batch seed', scope_id, state: 'PARTIALLY_VERIFIED',
-        revision: 1, actor_id: args.client_context.agent_id ?? 'local-agent',
+        workflow_id: "seed-batch",
+        experience_id: "seed-batch",
+        goal: "lesson batch seed",
+        scope_id,
+        state: "PARTIALLY_VERIFIED",
+        revision: 1,
+        actor_id: args.client_context.agent_id ?? "local-agent",
         created_at: this.now(),
       },
       episode: {
-        experience_id: 'seed-batch', workflow_id: 'seed-batch', scope_id,
-        visibility: 'repository', goal_summary: 'lesson batch seed',
-        acceptance_criteria: [], problem_summary: '', state: 'PARTIALLY_VERIFIED',
+        experience_id: "seed-batch",
+        workflow_id: "seed-batch",
+        scope_id,
+        visibility: "repository",
+        goal_summary: "lesson batch seed",
+        acceptance_criteria: [],
+        problem_summary: "",
+        state: "PARTIALLY_VERIFIED",
         created_at: this.now(),
       },
-      hasFailureObservation: true, hasEnvironmentFact: true,
-      hasAttempt: true, hasSolution: true, hasValidationPlan: true,
-      hasVerifiedOriginal: true, hasVerifiedRegression: false,
-      warnings: [{
-        code: 'SEED_BATCH_SUMMARY', severity: 'low',
-        message: `Lesson batch: ${seeded} seeded, ${duplicates} duplicates, ${failed} failed`,
-      }],
+      hasFailureObservation: true,
+      hasEnvironmentFact: true,
+      hasAttempt: true,
+      hasSolution: true,
+      hasValidationPlan: true,
+      hasVerifiedOriginal: true,
+      hasVerifiedRegression: false,
+      warnings: [
+        {
+          code: "SEED_BATCH_SUMMARY",
+          severity: "low",
+          message: `Lesson batch: ${seeded} seeded, ${duplicates} duplicates, ${failed} failed`,
+        },
+      ],
     });
     return {
       result: {
-        seeded, duplicates, failed, lessons: results,
-        next_step: seeded > 0
-          ? 'Verify retrieval with experience_search (scope ' + scope_id + ') using lesson wording'
-          : undefined,
+        seeded,
+        duplicates,
+        failed,
+        lessons: results,
+        next_step:
+          seeded > 0
+            ? "Verify retrieval with experience_search (scope " +
+              scope_id +
+              ") using lesson wording"
+            : undefined,
       },
       guidance,
     };
@@ -1216,7 +1783,13 @@ export class EmmsService {
 }
 
 function jaccard(a: string, b: string): number {
-  const tokens = (s: string) => new Set(s.toLowerCase().split(/\W+/).filter((w) => w.length > 3));
+  const tokens = (s: string) =>
+    new Set(
+      s
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length > 3),
+    );
   const sa = tokens(a);
   const sb = tokens(b);
   const inter = [...sa].filter((t) => sb.has(t)).length;

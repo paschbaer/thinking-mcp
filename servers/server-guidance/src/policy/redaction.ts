@@ -13,7 +13,10 @@ export function redact(text: string, patterns: string[]): string {
     try {
       // 2c: value alternation matches multi-line quoted values ([\s\S]*?,
       // non-greedy) in addition to single-line ones.
-      const re = new RegExp(`(["']?)(${pattern})\\1\\s*[:=]\\s*("[\\s\\S]*?"|'[\\s\\S]*?'|[^\\s,}]+)`, "gi");
+      const re = new RegExp(
+        `(["']?)(${pattern})\\1\\s*[:=]\\s*("[\\s\\S]*?"|'[\\s\\S]*?'|[^\\s,}]+)`,
+        "gi",
+      );
       out = out.replace(re, `$1$2$1: "[REDACTED]"`);
     } catch {
       // invalid pattern: skip (config validation should prevent this)
@@ -26,12 +29,17 @@ export interface Redactor {
   redact(text: string): string;
 }
 
-export function createRedactor(patterns: string[] = DEFAULT_PATTERNS): Redactor {
+export function createRedactor(
+  patterns: string[] = DEFAULT_PATTERNS,
+): Redactor {
   return { redact: (text: string) => redact(text, patterns) };
 }
 
 /** Value-key based redaction for structured objects before serialization. */
-export function redactKey(value: string, patterns: string[] = DEFAULT_PATTERNS): boolean {
+export function redactKey(
+  value: string,
+  patterns: string[] = DEFAULT_PATTERNS,
+): boolean {
   return patterns.some((p) => {
     try {
       return new RegExp(p, "i").test(value);
@@ -61,14 +69,19 @@ export function containsSecretPattern(text: string): boolean {
 /** 2c sanitization seam: deep-walks untrusted downstream payloads and
  *  redacts inline key:value secrets plus secret-bearing strings before
  *  anything agent-facing is built from them. */
-export function redactUnknown(value: unknown, patterns: string[] = DEFAULT_PATTERNS): unknown {
+export function redactUnknown(
+  value: unknown,
+  patterns: string[] = DEFAULT_PATTERNS,
+): unknown {
   if (typeof value === "string") return redact(value, patterns);
   if (Array.isArray(value)) return value.map((v) => redactUnknown(v, patterns));
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([k, v]) => [
         k,
-        redactKey(k, patterns) && (typeof v === "string" || v === null) ? "[REDACTED]" : redactUnknown(v, patterns),
+        redactKey(k, patterns) && (typeof v === "string" || v === null)
+          ? "[REDACTED]"
+          : redactUnknown(v, patterns),
       ]),
     );
   }

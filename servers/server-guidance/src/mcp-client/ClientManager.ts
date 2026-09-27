@@ -70,7 +70,8 @@ export class ClientManager {
 
   constructor(options: ClientManagerOptions = {}) {
     this.required = new Set(options.requiredServers ?? []);
-    if (options.fetchTransport) this.customTransports.set("__default__", options.fetchTransport);
+    if (options.fetchTransport)
+      this.customTransports.set("__default__", options.fetchTransport);
   }
 
   /** Registers a custom transport factory for a specific server (test seam). */
@@ -78,16 +79,30 @@ export class ClientManager {
     this.customTransports.set(serverId, fetch);
   }
 
-  private async transportFor(serverId: string, config?: DownstreamTransportConfig): Promise<Transport> {
-    const custom = this.customTransports.get(serverId) ?? this.customTransports.get("__default__");
+  private async transportFor(
+    serverId: string,
+    config?: DownstreamTransportConfig,
+  ): Promise<Transport> {
+    const custom =
+      this.customTransports.get(serverId) ??
+      this.customTransports.get("__default__");
     if (custom) return await custom(serverId);
-    if (!config) throw new GuidanceError("downstream_server_not_configured", `no transport for ${serverId}`, { recoverable: false });
+    if (!config)
+      throw new GuidanceError(
+        "downstream_server_not_configured",
+        `no transport for ${serverId}`,
+        { recoverable: false },
+      );
     if (config.type === "http") {
       return new StreamableHTTPClientTransport(new URL(config.url), {
         requestInit: { headers: config.headers },
       });
     }
-    return new StdioClientTransport({ command: config.executable, args: config.args, cwd: config.cwd });
+    return new StdioClientTransport({
+      command: config.executable,
+      args: config.args,
+      cwd: config.cwd,
+    });
   }
 
   /**
@@ -110,15 +125,26 @@ export class ClientManager {
       handshakeTimeoutSeconds: connection?.handshakeTimeoutSeconds,
       reconnect: connection?.reconnect,
     });
-    const status: DownstreamServerStatus = { status: "failed", required: this.required.has(serverId), tools: [] };
+    const status: DownstreamServerStatus = {
+      status: "failed",
+      required: this.required.has(serverId),
+      tools: [],
+    };
     this.statuses.set(serverId, status);
     try {
       const s = connection?.handshakeTimeoutSeconds;
-      const timeoutMs = s === undefined
-        ? this.handshakeTimeoutMs
-        : (Number.isFinite(s) && s > 0 ? s * 1000 : NaN);
+      const timeoutMs =
+        s === undefined
+          ? this.handshakeTimeoutMs
+          : Number.isFinite(s) && s > 0
+            ? s * 1000
+            : NaN;
       if (Number.isNaN(timeoutMs)) {
-        throw new GuidanceError("downstream_server_not_configured", `invalid handshakeTimeoutSeconds: ${s}`, { recoverable: false });
+        throw new GuidanceError(
+          "downstream_server_not_configured",
+          `invalid handshakeTimeoutSeconds: ${s}`,
+          { recoverable: false },
+        );
       }
       const client = new Client({ name: "guidance", version: "0.1.0" });
       const transport = await this.transportFor(serverId, config);
@@ -126,14 +152,21 @@ export class ClientManager {
       const readyOrTimeout = Promise.race([
         client.connect(transport),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("handshake timeout")), timeoutMs);
+          timer = setTimeout(
+            () => reject(new Error("handshake timeout")),
+            timeoutMs,
+          );
         }),
       ]);
       try {
         await readyOrTimeout;
       } catch (err) {
         clearTimeout(timer);
-        try { await client.close(); } catch { /* isolation */ }
+        try {
+          await client.close();
+        } catch {
+          /* isolation */
+        }
         throw err;
       }
       clearTimeout(timer);
@@ -142,7 +175,9 @@ export class ClientManager {
       status.status = "ready";
       status.tools = (tools.tools ?? []).map((t) => ({
         name: t.name,
-        inputSchemaHash: `sha256:${createHash("sha256").update(JSON.stringify(t.inputSchema ?? {})).digest("hex")}`,
+        inputSchemaHash: `sha256:${createHash("sha256")
+          .update(JSON.stringify(t.inputSchema ?? {}))
+          .digest("hex")}`,
       }));
       status.lastSuccessfulRequestAt = new Date().toISOString();
       delete status.error;
@@ -156,7 +191,11 @@ export class ClientManager {
   private clientFor(serverId: string): Client {
     const client = this.clients.get(serverId);
     if (!client) {
-      throw new GuidanceError("downstream_server_unavailable", `server ${serverId} is not connected`, { recoverable: true });
+      throw new GuidanceError(
+        "downstream_server_unavailable",
+        `server ${serverId} is not connected`,
+        { recoverable: true },
+      );
     }
     return client;
   }
@@ -166,7 +205,11 @@ export class ClientManager {
     const status = this.statuses.get(serverId);
     const tool = status?.tools.find((t) => t.name === toolName);
     if (!tool) {
-      throw new GuidanceError("downstream_capability_missing", `tool ${toolName} not discovered on ${serverId}`, { recoverable: false });
+      throw new GuidanceError(
+        "downstream_capability_missing",
+        `tool ${toolName} not discovered on ${serverId}`,
+        { recoverable: false },
+      );
     }
     return tool;
   }
@@ -174,19 +217,35 @@ export class ClientManager {
   /** Allowlist check: discovery does not imply permission (FR-048). */
   assertAllowed(serverId: string, toolName: string, allowlist: string[]): void {
     if (!allowlist.includes(toolName)) {
-      throw new GuidanceError("downstream_capability_not_allowed", `tool ${toolName} is not allowlisted for ${serverId}`, { recoverable: false });
+      throw new GuidanceError(
+        "downstream_capability_not_allowed",
+        `tool ${toolName} is not allowlisted for ${serverId}`,
+        { recoverable: false },
+      );
     }
   }
 
   /** Drift detection: compare a pinned hash against current discovery (FR-042). */
-  assertNotDrifted(serverId: string, toolName: string, pinnedHash: string): void {
+  assertNotDrifted(
+    serverId: string,
+    toolName: string,
+    pinnedHash: string,
+  ): void {
     const status = this.statuses.get(serverId);
     const tool = status?.tools.find((t) => t.name === toolName);
     if (!tool) {
-      throw new GuidanceError("downstream_capability_changed", `tool ${toolName} disappeared from ${serverId}`, { recoverable: false });
+      throw new GuidanceError(
+        "downstream_capability_changed",
+        `tool ${toolName} disappeared from ${serverId}`,
+        { recoverable: false },
+      );
     }
     if (tool.inputSchemaHash !== pinnedHash) {
-      throw new GuidanceError("downstream_capability_changed", `tool ${toolName} schema drifted on ${serverId}`, { recoverable: false });
+      throw new GuidanceError(
+        "downstream_capability_changed",
+        `tool ${toolName} schema drifted on ${serverId}`,
+        { recoverable: false },
+      );
     }
   }
 
@@ -196,24 +255,46 @@ export class ClientManager {
    * that many seconds and reported as a transport failure (retry semantics
    * preserved upstream). Unconfigured = unbounded (explicit opt-in).
    */
-  async invokeTool(serverId: string, toolName: string, args: Record<string, unknown>, requestTimeoutSeconds?: number): Promise<
+  async invokeTool(
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    requestTimeoutSeconds?: number,
+  ): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
     | { kind: "transport"; message: string; timedOut?: boolean }
   > {
-    if (requestTimeoutSeconds !== undefined && (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)) {
+    if (
+      requestTimeoutSeconds !== undefined &&
+      (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)
+    ) {
       // Vor clientFor: invalid config beats connection errors in reporting.
       // Not a connectivity problem — reconnect must NOT retry this.
-      return { kind: "transport", message: `invalid requestTimeoutSeconds: ${requestTimeoutSeconds}` };
+      return {
+        kind: "transport",
+        message: `invalid requestTimeoutSeconds: ${requestTimeoutSeconds}`,
+      };
     }
-    const out = await this.invokeOnce(serverId, toolName, args, requestTimeoutSeconds);
+    const out = await this.invokeOnce(
+      serverId,
+      toolName,
+      args,
+      requestTimeoutSeconds,
+    );
     if (out.kind !== "transport") return out;
     // Request timeouts are NOT reconnected: the call already ran downstream and
     // was not cancelled (no AbortSignal in MCP callTool) — an automatic retry
     // could duplicate side effects on non-idempotent tools. Retry semantics
     // stay upstream (FR-035).
     if (out.timedOut) return out;
-    return await this.reconnectAndRetry(serverId, toolName, args, requestTimeoutSeconds, out);
+    return await this.reconnectAndRetry(
+      serverId,
+      toolName,
+      args,
+      requestTimeoutSeconds,
+      out,
+    );
   }
 
   /**
@@ -228,21 +309,34 @@ export class ClientManager {
     args: Record<string, unknown>,
     requestTimeoutSeconds: number | undefined,
     firstFailure: { kind: "transport"; message: string; timedOut?: boolean },
-  ): Promise<{ kind: "success"; content: unknown[]; structuredContent?: unknown } | { kind: "tool_reported"; message: string; content: unknown[] } | { kind: "transport"; message: string; timedOut?: boolean }> {
+  ): Promise<
+    | { kind: "success"; content: unknown[]; structuredContent?: unknown }
+    | { kind: "tool_reported"; message: string; content: unknown[] }
+    | { kind: "transport"; message: string; timedOut?: boolean }
+  > {
     const conn = this.connections.get(serverId);
     const rc = conn?.reconnect;
-    const maximumAttempts = rc?.enabled === true && Number.isInteger(rc.maximumAttempts) && rc.maximumAttempts! > 0
-      ? rc.maximumAttempts!
-      : 0;
+    const maximumAttempts =
+      rc?.enabled === true &&
+      Number.isInteger(rc.maximumAttempts) &&
+      rc.maximumAttempts! > 0
+        ? rc.maximumAttempts!
+        : 0;
     let last: { kind: "transport"; message: string } = firstFailure;
     for (let attempt = 1; attempt <= maximumAttempts; attempt++) {
       const delayMs = rc?.delayMilliseconds;
       if (typeof delayMs === "number" && delayMs > 0) {
-        await new Promise<void>((resolve) => setTimeout(resolve, delayMs).unref?.());
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, delayMs).unref?.(),
+        );
       }
       const old = this.clients.get(serverId);
       if (old) {
-        try { await old.close(); } catch { /* isolate */ }
+        try {
+          await old.close();
+        } catch {
+          /* isolate */
+        }
         this.clients.delete(serverId);
       }
       const st = this.statuses.get(serverId);
@@ -252,10 +346,18 @@ export class ClientManager {
         reconnect: rc,
       });
       if (ready.status !== "ready") {
-        last = { kind: "transport", message: `reconnect attempt ${attempt}/${maximumAttempts} failed: ${ready.error ?? "unknown"}` };
+        last = {
+          kind: "transport",
+          message: `reconnect attempt ${attempt}/${maximumAttempts} failed: ${ready.error ?? "unknown"}`,
+        };
         continue;
       }
-      const out = await this.invokeOnce(serverId, toolName, args, requestTimeoutSeconds);
+      const out = await this.invokeOnce(
+        serverId,
+        toolName,
+        args,
+        requestTimeoutSeconds,
+      );
       if (out.kind !== "transport") return out;
       if (out.timedOut) return out; // no auto-replay of timed-out calls
       last = out;
@@ -263,7 +365,12 @@ export class ClientManager {
     return last;
   }
 
-  private async invokeOnce(serverId: string, toolName: string, args: Record<string, unknown>, requestTimeoutSeconds?: number): Promise<
+  private async invokeOnce(
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    requestTimeoutSeconds?: number,
+  ): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
     | { kind: "transport"; message: string; timedOut?: boolean }
@@ -274,7 +381,11 @@ export class ClientManager {
     } catch (err) {
       return { kind: "transport", message: String(err) };
     }
-    let response: { isError?: boolean; content?: unknown[]; structuredContent?: unknown };
+    let response: {
+      isError?: boolean;
+      content?: unknown[];
+      structuredContent?: unknown;
+    };
     let timer: NodeJS.Timeout | undefined;
     let timedOut = false;
     try {
@@ -286,20 +397,22 @@ export class ClientManager {
       // tools (tracked follow-up). The timedOut marker keeps reconnect from
       // auto-retrying such calls.
       call.catch(() => {});
-      response = requestTimeoutSeconds === undefined
-        ? (await call) as typeof response
-        : (await Promise.race([
-            call,
-            new Promise<never>((_, reject) => {
-              timer = setTimeout(
-                () => {
+      response =
+        requestTimeoutSeconds === undefined
+          ? ((await call) as typeof response)
+          : ((await Promise.race([
+              call,
+              new Promise<never>((_, reject) => {
+                timer = setTimeout(() => {
                   timedOut = true;
-                  reject(new Error(`request timed out after ${requestTimeoutSeconds}s`));
-                },
-                requestTimeoutSeconds * 1000,
-              );
-            }),
-          ])) as typeof response;
+                  reject(
+                    new Error(
+                      `request timed out after ${requestTimeoutSeconds}s`,
+                    ),
+                  );
+                }, requestTimeoutSeconds * 1000);
+              }),
+            ])) as typeof response);
     } catch (err) {
       return timedOut
         ? { kind: "transport", message: String(err), timedOut: true }
@@ -307,12 +420,23 @@ export class ClientManager {
     } finally {
       clearTimeout(timer);
     }
-    this.statuses.get(serverId)!.lastSuccessfulRequestAt = new Date().toISOString();
+    this.statuses.get(serverId)!.lastSuccessfulRequestAt =
+      new Date().toISOString();
     if (response.isError) {
-      const first = (response.content ?? []).find((c) => (c as { type: string }).type === "text") as { text?: string } | undefined;
-      return { kind: "tool_reported", message: first?.text ?? "tool reported an error", content: response.content ?? [] };
+      const first = (response.content ?? []).find(
+        (c) => (c as { type: string }).type === "text",
+      ) as { text?: string } | undefined;
+      return {
+        kind: "tool_reported",
+        message: first?.text ?? "tool reported an error",
+        content: response.content ?? [],
+      };
     }
-    return { kind: "success", content: response.content ?? [], structuredContent: response.structuredContent };
+    return {
+      kind: "success",
+      content: response.content ?? [],
+      structuredContent: response.structuredContent,
+    };
   }
 
   statusOf(serverId: string): DownstreamServerStatus | undefined {

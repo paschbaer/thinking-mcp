@@ -1,13 +1,16 @@
-import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { SessionState } from '../state/SessionState.js';
-import { AGENTS_TEMPLATE } from './setup-clearthought-template.js';
-import { AGENTS_TEMPLATE_COMPACT, RECIPES_SECTION } from './setup-clearthought-templates.js';
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SessionState } from "../state/SessionState.js";
+import { AGENTS_TEMPLATE } from "./setup-clearthought-template.js";
+import {
+  AGENTS_TEMPLATE_COMPACT,
+  RECIPES_SECTION,
+} from "./setup-clearthought-templates.js";
 
-const START_MARKER = '<!-- clear-thought:agents-guide:start -->';
-const END_MARKER = '<!-- clear-thought:agents-guide:end -->';
-const BODY_HEADING = '## Ground rules';
-const GUIDE_HEADING = '# Clear Thought — Reasoning Tool Guide';
+const START_MARKER = "<!-- clear-thought:agents-guide:start -->";
+const END_MARKER = "<!-- clear-thought:agents-guide:end -->";
+const BODY_HEADING = "## Ground rules";
+const GUIDE_HEADING = "# Clear Thought — Reasoning Tool Guide";
 
 /** Repeated full-mode calls beyond this threshold per session are answered
  *  with a SHORT blocked response instead of the ~20KB guide. Rationale: when
@@ -48,39 +51,39 @@ function buildLoopBlockedResponse({ sessionId, calls }: LoopBlockArgs) {
     isError: hard,
     content: [
       {
-        type: 'text' as const,
+        type: "text" as const,
         text: JSON.stringify(
           hard
             ? {
-                status: 'refused_do_not_retry',
+                status: "refused_do_not_retry",
                 blocked_attempts: calls - FULL_CALL_LOOP_THRESHOLD,
                 message:
-                  'BLOCKED. setup_clearthought was refused ' +
+                  "BLOCKED. setup_clearthought was refused " +
                   (calls - FULL_CALL_LOOP_THRESHOLD) +
-                  ' times in this session. Calling it again will keep failing. ' +
-                  'STOP calling this tool and continue your task without it.',
-                terminal: true
+                  " times in this session. Calling it again will keep failing. " +
+                  "STOP calling this tool and continue your task without it.",
+                terminal: true,
               }
             : {
-                status: 'loop_detected',
+                status: "loop_detected",
                 one_shot: true,
                 calls_in_session: calls,
                 message:
-                  'setup_clearthought already SUCCEEDED ' +
+                  "setup_clearthought already SUCCEEDED " +
                   calls +
-                  ' times in this session without a part parameter. ' +
-                  'Unchanged repeated calls never produce new content — this is ' +
-                  'blocked to stop an endless retry loop. The guide is delivered ' +
-                  'PAGED: call with part: 0 (then 1, 2, ... until final_part) to ' +
-                  'fetch it properly, or proceed with your actual task now. ' +
-                  'Only pass force:true if you genuinely need a newly rendered guide.',
-                how_to_override: 'force: true'
+                  " times in this session without a part parameter. " +
+                  "Unchanged repeated calls never produce new content — this is " +
+                  "blocked to stop an endless retry loop. The guide is delivered " +
+                  "PAGED: call with part: 0 (then 1, 2, ... until final_part) to " +
+                  "fetch it properly, or proceed with your actual task now. " +
+                  "Only pass force:true if you genuinely need a newly rendered guide.",
+                how_to_override: "force: true",
               },
           null,
-          2
-        )
-      }
-    ]
+          2,
+        ),
+      },
+    ],
   };
 }
 
@@ -97,15 +100,15 @@ const PART_SIZE = 4500;
 /** Splits text into chunks of at most maxChars, breaking at line boundaries
  *  so markdown structure is never cut mid-line. */
 function splitIntoParts(text: string, maxChars: number): string[] {
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   const parts: string[] = [];
-  let current = '';
+  let current = "";
   for (const line of lines) {
     if (current.length > 0 && current.length + line.length + 1 > maxChars) {
       parts.push(current);
       current = line;
     } else {
-      current = current.length === 0 ? line : current + '\n' + line;
+      current = current.length === 0 ? line : current + "\n" + line;
     }
   }
   if (current.length > 0) parts.push(current);
@@ -123,38 +126,47 @@ function splitIntoParts(text: string, maxChars: number): string[] {
  *   delimited by HTML-comment markers so repeat calls update in place
  *   (idempotent) instead of duplicating the guide.
  */
-export function registerAgentsGuide(server: McpServer, _sessionState: SessionState) {
+export function registerAgentsGuide(
+  server: McpServer,
+  _sessionState: SessionState,
+) {
   server.tool(
-    'setup_clearthought',
-    'Return a ready-to-use AGENTS.md reasoning-tool guide (with usage rules, ' +
-      'tool routing and workflow recipes) for projects consuming this server, ' +
-      'optionally merged into existing AGENTS.md content. ' +
-      'FULL mode delivers the guide PAGED: the first call returns part 0 of ' +
-      'total_parts; you MUST then fetch part 1, 2, ... with the SAME arguments ' +
-      'plus part: N until final_part is true, and concatenate the parts 1:1. ' +
-      'Those part fetches are REQUIRED follow-ups, not retries. What you must ' +
-      'NEVER do: repeat a call UNCHANGED to retry or verify — that is blocked ' +
-      'after 2 attempts. MERGE mode (existing_agents_md) returns the complete ' +
-      'document in one response and allows idempotent repeat updates.',
+    "setup_clearthought",
+    "Return a ready-to-use AGENTS.md reasoning-tool guide (with usage rules, " +
+      "tool routing and workflow recipes) for projects consuming this server, " +
+      "optionally merged into existing AGENTS.md content. " +
+      "FULL mode delivers the guide PAGED: the first call returns part 0 of " +
+      "total_parts; you MUST then fetch part 1, 2, ... with the SAME arguments " +
+      "plus part: N until final_part is true, and concatenate the parts 1:1. " +
+      "Those part fetches are REQUIRED follow-ups, not retries. What you must " +
+      "NEVER do: repeat a call UNCHANGED to retry or verify — that is blocked " +
+      "after 2 attempts. MERGE mode (existing_agents_md) returns the complete " +
+      "document in one response and allows idempotent repeat updates.",
     {
       project_name: z
         .string()
         .trim()
         .min(1)
         .optional()
-        .describe('Name of the target project — replaces the {{PROJECT_NAME}} placeholder'),
+        .describe(
+          "Name of the target project — replaces the {{PROJECT_NAME}} placeholder",
+        ),
       domain_context: z
         .string()
         .trim()
         .min(1)
         .optional()
-        .describe('1-3 sentences about the target project domain — replaces {{DOMAIN_CONTEXT}}'),
+        .describe(
+          "1-3 sentences about the target project domain — replaces {{DOMAIN_CONTEXT}}",
+        ),
       codebase_root: z
         .string()
         .trim()
         .min(1)
         .optional()
-        .describe('Working root for the agent — replaces the {{CODEBASE_ROOT}} placeholder'),
+        .describe(
+          "Working root for the agent — replaces the {{CODEBASE_ROOT}} placeholder",
+        ),
       existing_agents_md: z
         .string()
         .trim()
@@ -162,35 +174,35 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
         .max(2_000_000)
         .optional()
         .describe(
-          'Content of an existing AGENTS.md. Providing it switches to merge mode: ' +
-            'the guide is integrated into this content (replacing a previously ' +
-            'inserted guide block if present) instead of returning a full document.'
+          "Content of an existing AGENTS.md. Providing it switches to merge mode: " +
+            "the guide is integrated into this content (replacing a previously " +
+            "inserted guide block if present) instead of returning a full document.",
         ),
       force: z
         .boolean()
         .optional()
         .describe(
-          'Escape hatch for the per-session loop guard: pass true ONLY to ' +
-            'intentionally re-render the guide after setup_clearthought was ' +
-            'already called multiple times in this session.'
+          "Escape hatch for the per-session loop guard: pass true ONLY to " +
+            "intentionally re-render the guide after setup_clearthought was " +
+            "already called multiple times in this session.",
         ),
       detail: z
-        .enum(['compact', 'full'])
+        .enum(["compact", "full"])
         .optional()
         .describe(
-          'Guide verbosity. compact (default): ~7KB, routing table without ' +
-            'parameter columns (parameters live in the tool schemas), recipes ' +
-            'OUTSOURCED to section: recipes. full: the complete legacy guide ' +
-            'with parameter columns and inlined recipes (~20KB, 4-5 paged ' +
-            'parts). Use full only when you really need the parameter tables.'
+          "Guide verbosity. compact (default): ~7KB, routing table without " +
+            "parameter columns (parameters live in the tool schemas), recipes " +
+            "OUTSOURCED to section: recipes. full: the complete legacy guide " +
+            "with parameter columns and inlined recipes (~20KB, 4-5 paged " +
+            "parts). Use full only when you really need the parameter tables.",
         ),
       section: z
-        .enum(['guide', 'recipes'])
+        .enum(["guide", "recipes"])
         .optional()
         .describe(
-          'Which section to serve. guide (default): the AGENTS.md guide. ' +
-            'recipes: ONLY the workflow-recipe tool chains as a SHORT ' +
-            'response (paged delivery does not apply).'
+          "Which section to serve. guide (default): the AGENTS.md guide. " +
+            "recipes: ONLY the workflow-recipe tool chains as a SHORT " +
+            "response (paged delivery does not apply).",
         ),
       part: z
         .number()
@@ -198,55 +210,71 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
         .min(0)
         .optional()
         .describe(
-          'FULL mode delivers the guide PAGED (each part well under the ' +
-            'client offload threshold, so every response stays inline): ' +
-            'part 0 (or omitted) returns metadata + the first part and ' +
-            'reports total_parts; follow up with part: 1, 2, ... to fetch ' +
-            'the remaining parts in order. part calls are exempt from the ' +
-            'loop guard. Ignored in merge mode.'
-        )
+          "FULL mode delivers the guide PAGED (each part well under the " +
+            "client offload threshold, so every response stays inline): " +
+            "part 0 (or omitted) returns metadata + the first part and " +
+            "reports total_parts; follow up with part: 1, 2, ... to fetch " +
+            "the remaining parts in order. part calls are exempt from the " +
+            "loop guard. Ignored in merge mode.",
+        ),
     },
     async (args, extra) => {
-      const sessionId = extra?.sessionId ?? 'no-session';
+      const sessionId = extra?.sessionId ?? "no-session";
 
       // Recipes-on-demand: SHORT standalone response, bypasses paging,
       // placeholders and the loop guard entirely.
-      if (args.section === 'recipes') {
+      if (args.section === "recipes") {
         return {
           content: [
             {
-              type: 'text' as const,
+              type: "text" as const,
               text: JSON.stringify(
                 {
-                  status: 'success',
-                  section: 'recipes',
-                  content: RECIPES_SECTION
+                  status: "success",
+                  section: "recipes",
+                  content: RECIPES_SECTION,
                 },
                 null,
-                2
-              )
-            }
-          ]
+                2,
+              ),
+            },
+          ],
         };
       }
 
-      const template = loadTemplate(args.detail ?? 'compact');
+      const template = loadTemplate(args.detail ?? "compact");
       const placeholders: Placeholder[] = [
-        { token: '{{PROJECT_NAME}}', value: args.project_name, fallback: '<your project>' },
-        { token: '{{DOMAIN_CONTEXT}}', value: args.domain_context, fallback: '<describe your domain>' },
-        { token: '{{CODEBASE_ROOT}}', value: args.codebase_root, fallback: '<working root>' }
+        {
+          token: "{{PROJECT_NAME}}",
+          value: args.project_name,
+          fallback: "<your project>",
+        },
+        {
+          token: "{{DOMAIN_CONTEXT}}",
+          value: args.domain_context,
+          fallback: "<describe your domain>",
+        },
+        {
+          token: "{{CODEBASE_ROOT}}",
+          value: args.codebase_root,
+          fallback: "<working root>",
+        },
       ];
 
       const rendered = applyPlaceholders(template, placeholders);
-      const block = buildGuideBlock(rendered, args.existing_agents_md !== undefined, placeholders);
+      const block = buildGuideBlock(
+        rendered,
+        args.existing_agents_md !== undefined,
+        placeholders,
+      );
 
-      let mode: 'full' | 'merge' = 'full';
+      let mode: "full" | "merge" = "full";
       let blockReplaced = false;
       let warning: string | undefined;
       let content: string;
 
       if (args.existing_agents_md !== undefined) {
-        mode = 'merge';
+        mode = "merge";
         const merged = integrateIntoExisting(args.existing_agents_md, block);
         blockReplaced = merged.blockReplaced;
         warning = merged.warning;
@@ -261,7 +289,7 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
       // offloaded/truncated large responses hide the success flag from the
       // model and cause endless retries (observed 2026-09-23). Merge-mode
       // calls are exempt (idempotent updates are legitimate), as is force:true.
-      if (mode === 'full' && args.force !== true && args.part === undefined) {
+      if (mode === "full" && args.force !== true && args.part === undefined) {
         const calls = (fullCallCounters.get(sessionId) ?? 0) + 1;
         fullCallCounters.set(sessionId, calls);
         if (calls > FULL_CALL_LOOP_THRESHOLD) {
@@ -270,7 +298,10 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
       }
 
       const unresolved0 = placeholders
-        .filter((p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback))
+        .filter(
+          (p) =>
+            valueOrFallback(p) === p.fallback && content.includes(p.fallback),
+        )
         .map((p) => p.token);
 
       // --- Paged delivery (root-cause fix for response offloading) ----------
@@ -280,44 +311,44 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
       // exempt from the loop guard (they are deterministic fetches, not
       // retries). Merge mode is never paged (existing_agents_md input implies
       // a write-back flow where the full document is required).
-      if (mode === 'full') {
+      if (mode === "full") {
         const parts = splitIntoParts(content, PART_SIZE);
         const requested = args.part ?? 0;
         if (requested >= parts.length) {
           return {
             content: [
               {
-                type: 'text' as const,
+                type: "text" as const,
                 text: JSON.stringify(
                   {
-                    status: 'part_out_of_range',
+                    status: "part_out_of_range",
                     one_shot: true,
                     part: requested,
                     total_parts: parts.length,
                     message:
-                      'Invalid part: this guide has ' +
+                      "Invalid part: this guide has " +
                       parts.length +
-                      ' parts (0..' +
+                      " parts (0.." +
                       (parts.length - 1) +
-                      '). Fetch the missing parts in order and stop.',
-                    how_to_fix: 'part: 0..' + (parts.length - 1)
+                      "). Fetch the missing parts in order and stop.",
+                    how_to_fix: "part: 0.." + (parts.length - 1),
                   },
                   null,
-                  2
-                )
-              }
-            ]
+                  2,
+                ),
+              },
+            ],
           };
         }
         return {
           content: [
             {
-              type: 'text' as const,
+              type: "text" as const,
               text: JSON.stringify(
                 {
-                  status: 'success',
+                  status: "success",
                   one_shot: true,
-                  delivery: 'paged',
+                  delivery: "paged",
                   part: requested,
                   total_parts: parts.length,
                   final_part: requested === parts.length - 1,
@@ -327,52 +358,55 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
                   nextSteps:
                     requested < parts.length - 1
                       ? [
-                          'Fetch the next part: call setup_clearthought again with the SAME arguments plus part: ' +
+                          "Fetch the next part: call setup_clearthought again with the SAME arguments plus part: " +
                             (requested + 1) +
-                            ' (total ' +
+                            " (total " +
                             parts.length +
-                            ' parts).',
-                          'Then assemble all parts in order (they concatenate 1:1) and write the result to AGENTS.md.'
+                            " parts).",
+                          "Then assemble all parts in order (they concatenate 1:1) and write the result to AGENTS.md.",
                         ]
                       : [
-                          'Final part received. Concatenate parts 0..' +
+                          "Final part received. Concatenate parts 0.." +
                             (parts.length - 1) +
-                            ' in order (1:1, no separators) and write the result to AGENTS.md.',
-                          'Fill any unresolved placeholders directly in the written file.',
-                          'Later updates: pass the file content as existing_agents_md to update the guide block in place.'
-                        ]
+                            " in order (1:1, no separators) and write the result to AGENTS.md.",
+                          "Fill any unresolved placeholders directly in the written file.",
+                          "Later updates: pass the file content as existing_agents_md to update the guide block in place.",
+                        ],
                 },
                 null,
-                2
-              )
-            }
-          ]
+                2,
+              ),
+            },
+          ],
         };
       }
 
       // After the paged block, mode is guaranteed 'merge': the full-mode path
       // returned inside the paged block. Simplify the merge-only response.
       const unresolved = placeholders
-        .filter((p) => valueOrFallback(p) === p.fallback && content.includes(p.fallback))
+        .filter(
+          (p) =>
+            valueOrFallback(p) === p.fallback && content.includes(p.fallback),
+        )
         .map((p) => p.token);
 
       // one_shot note is scoped per mode: merge mode legitimately allows repeat
       // calls (idempotent in-place updates); full mode must never be retried.
       const note =
-        'This call SUCCEEDED. Repeat calls with existing_agents_md are ' +
-        'allowed for idempotent in-place updates, but never call it again ' +
-        'to retry or verify success.';
+        "This call SUCCEEDED. Repeat calls with existing_agents_md are " +
+        "allowed for idempotent in-place updates, but never call it again " +
+        "to retry or verify success.";
 
       return {
         content: [
           {
-            type: 'text',
+            type: "text",
             text: JSON.stringify(
               {
                 // status FIRST: large `content` can push trailing fields out of
                 // a truncated tool-result view, which caused agents to assume
                 // failure and retry the call in an endless loop (2026-09-23).
-                status: 'success',
+                status: "success",
                 one_shot: false,
                 note,
                 mode,
@@ -381,29 +415,32 @@ export function registerAgentsGuide(server: McpServer, _sessionState: SessionSta
                 content,
                 unresolved_placeholders: unresolved,
                 nextSteps: [
-                  'Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication.',
-                  'Fill any unresolved placeholders directly in the written file.',
-                  'Repeat calls with updated content stay idempotent via the clear-thought markers.'
-                ]
+                  "Write `content` back to the target AGENTS.md. A previously inserted guide block was replaced in place — no duplication.",
+                  "Fill any unresolved placeholders directly in the written file.",
+                  "Repeat calls with updated content stay idempotent via the clear-thought markers.",
+                ],
               },
               null,
-              2
-            )
-          }
-        ]
+              2,
+            ),
+          },
+        ],
       };
-    }
+    },
   );
 }
 
 /** The AGENTS.md templates are embedded (see setup-clearthought-template.ts
  *  and setup-clearthought-templates.ts) so they survive Docker builds with
  *  *.md ignores and single-file bundling. */
-function loadTemplate(detail: 'compact' | 'full'): string {
-  return detail === 'full' ? AGENTS_TEMPLATE : AGENTS_TEMPLATE_COMPACT;
+function loadTemplate(detail: "compact" | "full"): string {
+  return detail === "full" ? AGENTS_TEMPLATE : AGENTS_TEMPLATE_COMPACT;
 }
 
-function applyPlaceholders(template: string, placeholders: Placeholder[]): string {
+function applyPlaceholders(
+  template: string,
+  placeholders: Placeholder[],
+): string {
   let out = template;
   for (const p of placeholders) {
     out = out.split(p.token).join(valueOrFallback(p));
@@ -421,16 +458,20 @@ function splitGuide(rendered: string): { head: string; body: string } {
   const bodyStart = rendered.indexOf(BODY_HEADING);
   if (headingStart === -1 || bodyStart === -1 || bodyStart < headingStart) {
     throw new Error(
-      'AGENTS template is malformed: expected "# Clear Thought — Reasoning Tool Guide" followed by "## Ground rules"'
+      'AGENTS template is malformed: expected "# Clear Thought — Reasoning Tool Guide" followed by "## Ground rules"',
     );
   }
   return {
     head: rendered.slice(headingStart, bodyStart).trimEnd(),
-    body: rendered.slice(bodyStart).trimEnd()
+    body: rendered.slice(bodyStart).trimEnd(),
   };
 }
 
-function buildGuideBlock(rendered: string, mergeMode: boolean, placeholders: Placeholder[]): string {
+function buildGuideBlock(
+  rendered: string,
+  mergeMode: boolean,
+  placeholders: Placeholder[],
+): string {
   const { body } = splitGuide(rendered);
   if (mergeMode === false) {
     return `${START_MARKER}\n${body}\n${END_MARKER}`;
@@ -438,13 +479,18 @@ function buildGuideBlock(rendered: string, mergeMode: boolean, placeholders: Pla
   // The template head (with the project-specific intro) is not part of a
   // merged block, so surface the provided context as a line under the heading.
   const provided = placeholders
-    .filter((p) => p.value !== undefined && p.token !== '{{CODEBASE_ROOT}}')
-    .map((p) => `${p.token === '{{PROJECT_NAME}}' ? 'Project' : 'Domain'}: ${p.value}`);
-  const contextLine = placeholders.find((p) => p.token === '{{CODEBASE_ROOT}}' && p.value !== undefined);
+    .filter((p) => p.value !== undefined && p.token !== "{{CODEBASE_ROOT}}")
+    .map(
+      (p) =>
+        `${p.token === "{{PROJECT_NAME}}" ? "Project" : "Domain"}: ${p.value}`,
+    );
+  const contextLine = placeholders.find(
+    (p) => p.token === "{{CODEBASE_ROOT}}" && p.value !== undefined,
+  );
   if (contextLine) provided.push(`Codebase root: ${contextLine.value}`);
   const heading = mergeMode
-    ? `${GUIDE_HEADING.replace('# ', '## ')}${provided.length ? `\n\n${provided.join(' ')}` : ''}`
-    : '';
+    ? `${GUIDE_HEADING.replace("# ", "## ")}${provided.length ? `\n\n${provided.join(" ")}` : ""}`
+    : "";
   return `${START_MARKER}\n${heading}\n\n${body}\n${END_MARKER}`;
 }
 
@@ -455,7 +501,7 @@ function buildFullDocument(rendered: string, block: string): string {
 
 function integrateIntoExisting(
   existing: string,
-  block: string
+  block: string,
 ): { content: string; blockReplaced: boolean; warning?: string } {
   const startCount = existing.split(START_MARKER).length - 1;
   const endCount = existing.split(END_MARKER).length - 1;
@@ -466,11 +512,18 @@ function integrateIntoExisting(
   // START without END, END before START, multiple pairs) replacing the span
   // [first START .. last END] could silently delete user content, so append
   // instead and tell the caller.
-  if (startCount === 1 && endCount === 1 && startIdx !== -1 && endIdx > startIdx) {
+  if (
+    startCount === 1 &&
+    endCount === 1 &&
+    startIdx !== -1 &&
+    endIdx > startIdx
+  ) {
     const before = existing.slice(0, startIdx).trimEnd();
     const after = existing.slice(endIdx + END_MARKER.length).trimStart();
     const joined =
-      after.length > 0 ? `${before}\n\n${block}\n\n${after}` : `${before}\n\n${block}`;
+      after.length > 0
+        ? `${before}\n\n${block}\n\n${after}`
+        : `${before}\n\n${block}`;
     return { content: `${joined}\n`, blockReplaced: true };
   }
   if (startCount > 0 || endCount > 0) {
@@ -478,9 +531,9 @@ function integrateIntoExisting(
       content: `${existing.trimEnd()}\n\n${block}\n`,
       blockReplaced: false,
       warning:
-        'The existing content contains incomplete or duplicated clear-thought guide markers; ' +
-        'the guide was appended instead of replacing them. Clean up the stray ' +
-        `${START_MARKER} / ${END_MARKER} lines manually and re-run to restore in-place updates.`
+        "The existing content contains incomplete or duplicated clear-thought guide markers; " +
+        "the guide was appended instead of replacing them. Clean up the stray " +
+        `${START_MARKER} / ${END_MARKER} lines manually and re-run to restore in-place updates.`,
     };
   }
   const base = existing.trimEnd();

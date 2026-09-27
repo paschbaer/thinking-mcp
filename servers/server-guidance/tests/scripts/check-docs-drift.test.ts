@@ -27,12 +27,23 @@ const ERRORS = `export const ERROR_CODES = {
 
 beforeEach(() => {
   ws = mkdtempSync(join(tmpdir(), "guidance-docs-drift-"));
-  mkdirSync(join(ws, "servers/server-guidance/src/mcp-server"), { recursive: true });
+  mkdirSync(join(ws, "servers/server-guidance/src/mcp-server"), {
+    recursive: true,
+  });
   mkdirSync(join(ws, "servers/server-guidance/src/setup"), { recursive: true });
   mkdirSync(join(ws, "servers/server-guidance/src/types"), { recursive: true });
-  writeFileSync(join(ws, "servers/server-guidance/src/mcp-server/register-tools.ts"), REGISTER_TOOLS);
-  writeFileSync(join(ws, "servers/server-guidance/src/setup/ConfigAssistant.ts"), ASSISTANT);
-  writeFileSync(join(ws, "servers/server-guidance/src/types/errors.ts"), ERRORS);
+  writeFileSync(
+    join(ws, "servers/server-guidance/src/mcp-server/register-tools.ts"),
+    REGISTER_TOOLS,
+  );
+  writeFileSync(
+    join(ws, "servers/server-guidance/src/setup/ConfigAssistant.ts"),
+    ASSISTANT,
+  );
+  writeFileSync(
+    join(ws, "servers/server-guidance/src/types/errors.ts"),
+    ERRORS,
+  );
 });
 
 afterEach(() => {
@@ -53,7 +64,11 @@ function run(): RunResult {
     return { status: 0, stderr: "", stdout };
   } catch (e) {
     const err = e as { status: number; stderr: string; stdout: string };
-    return { status: err.status ?? -1, stderr: err.stderr ?? "", stdout: err.stdout ?? "" };
+    return {
+      status: err.status ?? -1,
+      stderr: err.stderr ?? "",
+      stdout: err.stdout ?? "",
+    };
   }
 }
 
@@ -93,10 +108,27 @@ describe("docs drift gate (specs/010 AC-1..4, N-AC-1..4)", () => {
   });
 
   it("AC-1: README tool row without registered source is reported (no source)", () => {
-    writeReadme(cleanReadme.replace("| `tool_b` | — | documented |", "| `ghost_tool` | — | documented |"));
+    writeReadme(
+      cleanReadme.replace(
+        "| `tool_b` | — | documented |",
+        "| `ghost_tool` | — | documented |",
+      ),
+    );
     const r = run();
     expect(r.status).toBe(1);
     expect(r.stderr).toContain("README tool row ghost_tool");
+  });
+
+  it("FR2-L2: README tool row matching is case-sensitive (contract-documented)", () => {
+    writeReadme(
+      cleanReadme.replace(
+        "| `tool_a` | — | documented |",
+        "| `TOOL_A` | — | documented |",
+      ),
+    );
+    const r = run();
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("tool tool_a");
   });
 
   it("AC-2: question id missing from assistant chapter is reported", () => {
@@ -107,14 +139,24 @@ describe("docs drift gate (specs/010 AC-1..4, N-AC-1..4)", () => {
   });
 
   it("AC-2: question id documented outside the assistant chapter does NOT count", () => {
-    writeReadme(cleanReadme.replace("question `q_one` documented", "question documented") + "\nsee `q_one` elsewhere\n");
+    writeReadme(
+      cleanReadme.replace(
+        "question `q_one` documented",
+        "question documented",
+      ) + "\nsee `q_one` elsewhere\n",
+    );
     const r = run();
     expect(r.status).toBe(1);
     expect(r.stderr).toContain("question q_one");
   });
 
   it("AC-3: error code without table row is reported; free-text mention does not count", () => {
-    writeReadme(cleanReadme.replace("| `code_one` | first |\n", "free text `code_one` in prose\n"));
+    writeReadme(
+      cleanReadme.replace(
+        "| `code_one` | first |\n",
+        "free text `code_one` in prose\n",
+      ),
+    );
     const r = run();
     expect(r.status).toBe(1);
     expect(r.stderr).toContain("error code code_one");
@@ -134,7 +176,10 @@ describe("docs drift gate (specs/010 AC-1..4, N-AC-1..4)", () => {
     writeFileSync(join(ws, "specs/feat/spec.md"), spec);
     writeFileSync(join(ws, "specs/feat/tasks.md"), tasks);
     expect(run().stderr).toContain("spec feat");
-    writeFileSync(join(ws, "specs/feat/spec.md"), spec + "<!-- docs-drift: status ok -->\n");
+    writeFileSync(
+      join(ws, "specs/feat/spec.md"),
+      spec + "<!-- docs-drift: status ok -->\n",
+    );
     expect(run().status).toBe(0);
   });
 

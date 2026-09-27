@@ -117,7 +117,14 @@ export function composeApplication(
     specKitTasks,
   });
   const tools = new WorkflowTools(engine);
-  return { config, configDir, stateDir, engine, tools, workspaces: config.workspaces };
+  return {
+    config,
+    configDir,
+    stateDir,
+    engine,
+    tools,
+    workspaces: config.workspaces,
+  };
 }
 
 export function resolveStateDir(

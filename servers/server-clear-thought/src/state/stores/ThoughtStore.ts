@@ -2,8 +2,8 @@
  * Store for managing sequential thinking data with branching support
  */
 
-import { BaseStore } from './BaseStore.js';
-import { ThoughtData } from '../../types/index.js';
+import { BaseStore } from "./BaseStore.js";
+import { ThoughtData } from "../../types/index.js";
 
 /**
  * Specialized store for managing thoughts with branching and revision support
@@ -11,16 +11,16 @@ import { ThoughtData } from '../../types/index.js';
 export class ThoughtStore extends BaseStore<ThoughtData> {
   /** Map of branch IDs to their thoughts */
   private branches: Map<string, ThoughtData[]>;
-  
+
   /** Map of thought numbers to their revision history */
   private revisions: Map<number, ThoughtData[]>;
-  
+
   constructor() {
-    super('ThoughtStore');
+    super("ThoughtStore");
     this.branches = new Map();
     this.revisions = new Map();
   }
-  
+
   /**
    * Add a new thought to the store
    * @param id - Unique identifier for the thought
@@ -28,14 +28,14 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
    */
   add(id: string, thought: ThoughtData): void {
     this.data.set(id, thought);
-    
+
     // Track branches
     if (thought.branchId) {
       const branchThoughts = this.branches.get(thought.branchId) || [];
       branchThoughts.push(thought);
       this.branches.set(thought.branchId, branchThoughts);
     }
-    
+
     // Track revisions
     if (thought.isRevision && thought.revisesThought !== undefined) {
       const revisionHistory = this.revisions.get(thought.revisesThought) || [];
@@ -43,17 +43,17 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
       this.revisions.set(thought.revisesThought, revisionHistory);
     }
   }
-  
+
   /**
    * Get all thoughts in chronological order
    * @returns Array of all thoughts
    */
   getAll(): ThoughtData[] {
-    return Array.from(this.data.values()).sort((a, b) => 
-      a.thoughtNumber - b.thoughtNumber
+    return Array.from(this.data.values()).sort(
+      (a, b) => a.thoughtNumber - b.thoughtNumber,
     );
   }
-  
+
   /**
    * Clear all thoughts and associated data
    */
@@ -62,7 +62,7 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
     this.branches.clear();
     this.revisions.clear();
   }
-  
+
   /**
    * Get thoughts for a specific branch
    * @param branchId - The branch identifier
@@ -71,7 +71,7 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
   getBranch(branchId: string): ThoughtData[] {
     return this.branches.get(branchId) || [];
   }
-  
+
   /**
    * Get all branches
    * @returns Map of branch IDs to their thoughts
@@ -79,7 +79,7 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
   getAllBranches(): Map<string, ThoughtData[]> {
     return new Map(this.branches);
   }
-  
+
   /**
    * Get revision history for a thought
    * @param thoughtNumber - The original thought number
@@ -88,7 +88,7 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
   getRevisions(thoughtNumber: number): ThoughtData[] {
     return this.revisions.get(thoughtNumber) || [];
   }
-  
+
   /**
    * Get the latest thought (highest thought number)
    * @returns The most recent thought or undefined
@@ -97,7 +97,7 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
     const thoughts = this.getAll();
     return thoughts[thoughts.length - 1];
   }
-  
+
   /**
    * Get thoughts in a specific range
    * @param start - Starting thought number (inclusive)
@@ -105,19 +105,20 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
    * @returns Array of thoughts in the range
    */
   getRange(start: number, end: number): ThoughtData[] {
-    return this.getAll().filter(thought => 
-      thought.thoughtNumber >= start && thought.thoughtNumber <= end
+    return this.getAll().filter(
+      (thought) =>
+        thought.thoughtNumber >= start && thought.thoughtNumber <= end,
     );
   }
-  
+
   /**
    * Get thoughts that need continuation
    * @returns Array of thoughts where nextThoughtNeeded is true
    */
   getPendingThoughts(): ThoughtData[] {
-    return this.filter(thought => thought.nextThoughtNeeded);
+    return this.filter((thought) => thought.nextThoughtNeeded);
   }
-  
+
   /**
    * Count thoughts by type
    * @returns Object with counts for regular, revision, and branched thoughts
@@ -132,13 +133,13 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
     const thoughts = this.getAll();
     return {
       total: thoughts.length,
-      regular: thoughts.filter(t => !t.isRevision && !t.branchId).length,
-      revisions: thoughts.filter(t => t.isRevision).length,
-      branched: thoughts.filter(t => t.branchId).length,
-      branches: this.branches.size
+      regular: thoughts.filter((t) => !t.isRevision && !t.branchId).length,
+      revisions: thoughts.filter((t) => t.isRevision).length,
+      branched: thoughts.filter((t) => t.branchId).length,
+      branches: this.branches.size,
     };
   }
-  
+
   /**
    * Export store data including branch and revision metadata
    */
@@ -147,11 +148,11 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
       thoughts: super.export(),
       branches: Object.fromEntries(this.branches),
       revisions: Object.fromEntries(
-        Array.from(this.revisions).map(([k, v]) => [k.toString(), v])
-      )
+        Array.from(this.revisions).map(([k, v]) => [k.toString(), v]),
+      ),
     };
   }
-  
+
   /**
    * Import store data including branch and revision metadata
    */
@@ -159,20 +160,21 @@ export class ThoughtStore extends BaseStore<ThoughtData> {
     if (data.thoughts) {
       super.import(data.thoughts);
     }
-    
+
     // Rebuild branch and revision maps
     this.branches.clear();
     this.revisions.clear();
-    
+
     this.data.forEach((thought) => {
       if (thought.branchId) {
         const branchThoughts = this.branches.get(thought.branchId) || [];
         branchThoughts.push(thought);
         this.branches.set(thought.branchId, branchThoughts);
       }
-      
+
       if (thought.isRevision && thought.revisesThought !== undefined) {
-        const revisionHistory = this.revisions.get(thought.revisesThought) || [];
+        const revisionHistory =
+          this.revisions.get(thought.revisesThought) || [];
         revisionHistory.push(thought);
         this.revisions.set(thought.revisesThought, revisionHistory);
       }

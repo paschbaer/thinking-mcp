@@ -24,9 +24,9 @@ import type {
   ValidationPlan,
   ValidationRun,
   Workflow,
-} from '../domain/types.js';
-import type { SearchRow, StorageAdapter } from './adapter.js';
-import type { LessonRecord } from '../domain/lesson-service.js';
+} from "../domain/types.js";
+import type { SearchRow, StorageAdapter } from "./adapter.js";
+import type { LessonRecord } from "../domain/lesson-service.js";
 
 export interface PostgresAdapterOptions {
   connectionString: string;
@@ -36,7 +36,7 @@ export interface PostgresAdapterOptions {
 
 export class PostgresAdapter implements StorageAdapter {
   // `pg` types via type-only import; the module itself is loaded lazily.
-  private client: import('pg').Client | null = null;
+  private client: import("pg").Client | null = null;
   private opts: PostgresAdapterOptions;
   private seq = 0;
 
@@ -45,11 +45,11 @@ export class PostgresAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    const { Client } = await import('pg');
+    const { Client } = await import("pg");
     this.client = new Client({ connectionString: this.opts.connectionString });
     await this.client.connect();
     if (this.opts.autoCreateExtension) {
-      await this.client.query('CREATE EXTENSION IF NOT EXISTS vector');
+      await this.client.query("CREATE EXTENSION IF NOT EXISTS vector");
     }
     await this.runMigrations();
   }
@@ -224,17 +224,39 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `INSERT INTO workflows (workflow_id, experience_id, goal, scope_id, scope_fingerprint, state, revision, actor_id, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [wf.workflow_id, wf.experience_id ?? null, wf.goal, wf.scope_id, wf.scope_fingerprint ?? null, wf.state, wf.revision, wf.actor_id, wf.created_at]
+      [
+        wf.workflow_id,
+        wf.experience_id ?? null,
+        wf.goal,
+        wf.scope_id,
+        wf.scope_fingerprint ?? null,
+        wf.state,
+        wf.revision,
+        wf.actor_id,
+        wf.created_at,
+      ],
     );
   }
-  async getWorkflow(workflow_id: string, scope_id: string): Promise<Workflow | undefined> {
-    const r = await this.client!.query('SELECT * FROM workflows WHERE workflow_id=$1 AND scope_id=$2', [workflow_id, scope_id]);
+  async getWorkflow(
+    workflow_id: string,
+    scope_id: string,
+  ): Promise<Workflow | undefined> {
+    const r = await this.client!.query(
+      "SELECT * FROM workflows WHERE workflow_id=$1 AND scope_id=$2",
+      [workflow_id, scope_id],
+    );
     return r.rows[0] as Workflow | undefined;
   }
   async saveWorkflow(wf: Workflow): Promise<void> {
     await this.client!.query(
-      'UPDATE workflows SET experience_id=$1, state=$2, revision=$3 WHERE workflow_id=$4 AND scope_id=$5',
-      [wf.experience_id ?? null, wf.state, wf.revision, wf.workflow_id, wf.scope_id]
+      "UPDATE workflows SET experience_id=$1, state=$2, revision=$3 WHERE workflow_id=$4 AND scope_id=$5",
+      [
+        wf.experience_id ?? null,
+        wf.state,
+        wf.revision,
+        wf.workflow_id,
+        wf.scope_id,
+      ],
     );
   }
 
@@ -243,11 +265,29 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `INSERT INTO episodes (experience_id, workflow_id, scope_id, scope_fingerprint, visibility, goal_summary, acceptance_criteria, problem_summary, state, last_verified_at, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [ep.experience_id, ep.workflow_id, ep.scope_id, ep.scope_fingerprint ?? null, ep.visibility, ep.goal_summary, JSON.stringify(ep.acceptance_criteria), ep.problem_summary, ep.state, ep.last_verified_at ?? null, ep.created_at]
+      [
+        ep.experience_id,
+        ep.workflow_id,
+        ep.scope_id,
+        ep.scope_fingerprint ?? null,
+        ep.visibility,
+        ep.goal_summary,
+        JSON.stringify(ep.acceptance_criteria),
+        ep.problem_summary,
+        ep.state,
+        ep.last_verified_at ?? null,
+        ep.created_at,
+      ],
     );
   }
-  async getEpisode(episode_id: string, scope_id: string): Promise<Episode | undefined> {
-    const r = await this.client!.query('SELECT * FROM episodes WHERE experience_id=$1 AND scope_id=$2', [episode_id, scope_id]);
+  async getEpisode(
+    episode_id: string,
+    scope_id: string,
+  ): Promise<Episode | undefined> {
+    const r = await this.client!.query(
+      "SELECT * FROM episodes WHERE experience_id=$1 AND scope_id=$2",
+      [episode_id, scope_id],
+    );
     if (!r.rows[0]) return undefined;
     const row = r.rows[0];
     return { ...row, acceptance_criteria: row.acceptance_criteria } as Episode;
@@ -256,7 +296,16 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `UPDATE episodes SET state=$1, last_verified_at=$2, goal_summary=$3, acceptance_criteria=$4, problem_summary=$5, visibility=$8
        WHERE experience_id=$6 AND scope_id=$7`,
-      [ep.state, ep.last_verified_at ?? null, ep.goal_summary, JSON.stringify(ep.acceptance_criteria), ep.problem_summary, ep.experience_id, ep.scope_id, ep.visibility]
+      [
+        ep.state,
+        ep.last_verified_at ?? null,
+        ep.goal_summary,
+        JSON.stringify(ep.acceptance_criteria),
+        ep.problem_summary,
+        ep.experience_id,
+        ep.scope_id,
+        ep.visibility,
+      ],
     );
   }
 
@@ -265,58 +314,131 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `INSERT INTO observations (observation_id, episode_id, kind, content, exit_code, evidence_artifact_id, provenance, seq)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [o.observation_id, o.episode_id, o.kind, o.content, o.exit_code ?? null, o.evidence_artifact_id ?? null, JSON.stringify(o.provenance), this.nextSeq()]
+      [
+        o.observation_id,
+        o.episode_id,
+        o.kind,
+        o.content,
+        o.exit_code ?? null,
+        o.evidence_artifact_id ?? null,
+        JSON.stringify(o.provenance),
+        this.nextSeq(),
+      ],
     );
   }
   async listObservations(episode_id: string): Promise<Observation[]> {
-    const r = await this.client!.query('SELECT * FROM observations WHERE episode_id=$1 ORDER BY seq', [episode_id]);
-    return r.rows.map((row: Record<string, unknown>) => ({ ...(row as unknown as Observation), provenance: row.provenance as Observation['provenance'] }));
+    const r = await this.client!.query(
+      "SELECT * FROM observations WHERE episode_id=$1 ORDER BY seq",
+      [episode_id],
+    );
+    return r.rows.map((row: Record<string, unknown>) => ({
+      ...(row as unknown as Observation),
+      provenance: row.provenance as Observation["provenance"],
+    }));
   }
   async insertAttempt(a: Attempt): Promise<void> {
     await this.client!.query(
       `INSERT INTO attempts (attempt_id, episode_id, intent, fact, risk_classification, rationale, prior_knowledge_used, outcome, side_effects, affected_artifacts, classification, seq)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [a.attempt_id, a.episode_id, a.intent, a.fact ?? null, a.risk_classification ?? null, a.rationale ?? null, a.prior_knowledge_used ?? null, a.outcome ?? null, a.side_effects ? JSON.stringify(a.side_effects) : null, a.affected_artifacts ? JSON.stringify(a.affected_artifacts) : null, a.classification ?? null, this.nextSeq()]
+      [
+        a.attempt_id,
+        a.episode_id,
+        a.intent,
+        a.fact ?? null,
+        a.risk_classification ?? null,
+        a.rationale ?? null,
+        a.prior_knowledge_used ?? null,
+        a.outcome ?? null,
+        a.side_effects ? JSON.stringify(a.side_effects) : null,
+        a.affected_artifacts ? JSON.stringify(a.affected_artifacts) : null,
+        a.classification ?? null,
+        this.nextSeq(),
+      ],
     );
   }
-  async getAttempt(attempt_id: string, episode_id: string): Promise<Attempt | undefined> {
-    const r = await this.client!.query('SELECT * FROM attempts WHERE attempt_id=$1 AND episode_id=$2', [attempt_id, episode_id]);
+  async getAttempt(
+    attempt_id: string,
+    episode_id: string,
+  ): Promise<Attempt | undefined> {
+    const r = await this.client!.query(
+      "SELECT * FROM attempts WHERE attempt_id=$1 AND episode_id=$2",
+      [attempt_id, episode_id],
+    );
     return r.rows[0] as Attempt | undefined;
   }
   async saveAttempt(a: Attempt): Promise<void> {
     await this.client!.query(
       `UPDATE attempts SET fact=$1, outcome=$2, side_effects=$3, affected_artifacts=$4, classification=$5
        WHERE attempt_id=$6 AND episode_id=$7`,
-      [a.fact ?? null, a.outcome ?? null, a.side_effects ? JSON.stringify(a.side_effects) : null, a.affected_artifacts ? JSON.stringify(a.affected_artifacts) : null, a.classification ?? null, a.attempt_id, a.episode_id]
+      [
+        a.fact ?? null,
+        a.outcome ?? null,
+        a.side_effects ? JSON.stringify(a.side_effects) : null,
+        a.affected_artifacts ? JSON.stringify(a.affected_artifacts) : null,
+        a.classification ?? null,
+        a.attempt_id,
+        a.episode_id,
+      ],
     );
   }
   async listAttempts(episode_id: string): Promise<Attempt[]> {
-    const r = await this.client!.query('SELECT * FROM attempts WHERE episode_id=$1 ORDER BY seq', [episode_id]);
+    const r = await this.client!.query(
+      "SELECT * FROM attempts WHERE episode_id=$1 ORDER BY seq",
+      [episode_id],
+    );
     return (r.rows as Record<string, unknown>[]).map((row) => ({
       ...(row as unknown as Attempt),
       side_effects: (row.side_effects as string[] | null) ?? undefined,
-      affected_artifacts: (row.affected_artifacts as string[] | null) ?? undefined,
+      affected_artifacts:
+        (row.affected_artifacts as string[] | null) ?? undefined,
     }));
   }
   async insertHypothesis(h: Hypothesis): Promise<void> {
     await this.client!.query(
       `INSERT INTO hypotheses (hypothesis_id, episode_id, statement, status, supporting_evidence, conflicting_evidence, seq)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [h.hypothesis_id, h.episode_id, h.statement, h.status, JSON.stringify(h.supporting_evidence), JSON.stringify(h.conflicting_evidence), this.nextSeq()]
+      [
+        h.hypothesis_id,
+        h.episode_id,
+        h.statement,
+        h.status,
+        JSON.stringify(h.supporting_evidence),
+        JSON.stringify(h.conflicting_evidence),
+        this.nextSeq(),
+      ],
     );
   }
   async saveHypothesis(h: Hypothesis): Promise<void> {
-    await this.client!.query('UPDATE hypotheses SET status=$1, statement=$2 WHERE hypothesis_id=$3 AND episode_id=$4', [h.status, h.statement, h.hypothesis_id, h.episode_id]);
+    await this.client!.query(
+      "UPDATE hypotheses SET status=$1, statement=$2 WHERE hypothesis_id=$3 AND episode_id=$4",
+      [h.status, h.statement, h.hypothesis_id, h.episode_id],
+    );
   }
   async listHypotheses(episode_id: string): Promise<Hypothesis[]> {
-    const r = await this.client!.query('SELECT * FROM hypotheses WHERE episode_id=$1 ORDER BY seq', [episode_id]);
+    const r = await this.client!.query(
+      "SELECT * FROM hypotheses WHERE episode_id=$1 ORDER BY seq",
+      [episode_id],
+    );
     return r.rows as Hypothesis[];
   }
   async insertValidationPlan(p: ValidationPlan): Promise<void> {
-    await this.client!.query('INSERT INTO validation_plans (validation_plan_id, episode_id, checks, seq) VALUES ($1,$2,$3,$4)', [p.validation_plan_id, p.episode_id, JSON.stringify(p.checks), this.nextSeq()]);
+    await this.client!.query(
+      "INSERT INTO validation_plans (validation_plan_id, episode_id, checks, seq) VALUES ($1,$2,$3,$4)",
+      [
+        p.validation_plan_id,
+        p.episode_id,
+        JSON.stringify(p.checks),
+        this.nextSeq(),
+      ],
+    );
   }
-  async getValidationPlan(episode_id: string): Promise<ValidationPlan | undefined> {
-    const r = await this.client!.query('SELECT * FROM validation_plans WHERE episode_id=$1', [episode_id]);
+  async getValidationPlan(
+    episode_id: string,
+  ): Promise<ValidationPlan | undefined> {
+    const r = await this.client!.query(
+      "SELECT * FROM validation_plans WHERE episode_id=$1",
+      [episode_id],
+    );
     if (!r.rows[0]) return undefined;
     return { ...r.rows[0], checks: r.rows[0].checks } as ValidationPlan;
   }
@@ -324,11 +446,24 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `INSERT INTO validation_runs (run_id, episode_id, check_index, status, exit_code, evidence_artifact_id, seq)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [run.run_id, run.episode_id, run.check_index, run.status, run.exit_code ?? null, run.evidence_artifact_id ?? null, this.nextSeq()]
+      [
+        run.run_id,
+        run.episode_id,
+        run.check_index,
+        run.status,
+        run.exit_code ?? null,
+        run.evidence_artifact_id ?? null,
+        this.nextSeq(),
+      ],
     );
   }
   async listValidationRuns(episode_id: string): Promise<ValidationRun[]> {
-    return (await this.client!.query('SELECT * FROM validation_runs WHERE episode_id=$1 ORDER BY seq', [episode_id])).rows as ValidationRun[];
+    return (
+      await this.client!.query(
+        "SELECT * FROM validation_runs WHERE episode_id=$1 ORDER BY seq",
+        [episode_id],
+      )
+    ).rows as ValidationRun[];
   }
 
   // ---- Evidence ----
@@ -336,11 +471,30 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `INSERT INTO artifacts (artifact_id, episode_id, scope_id, content_hash, kind, media_type, byte_size, redaction_status, redaction_findings, redaction_ruleset_version, trust, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [a.artifact_id, a.episode_id, a.scope_id, a.content_hash, a.kind, a.media_type, a.byte_size, a.redaction_status, a.redaction_findings, a.redaction_ruleset_version, a.trust, a.created_at]
+      [
+        a.artifact_id,
+        a.episode_id,
+        a.scope_id,
+        a.content_hash,
+        a.kind,
+        a.media_type,
+        a.byte_size,
+        a.redaction_status,
+        a.redaction_findings,
+        a.redaction_ruleset_version,
+        a.trust,
+        a.created_at,
+      ],
     );
   }
-  async getArtifactMeta(artifact_id: string, scope_id: string): Promise<EvidenceArtifact | undefined> {
-    const r = await this.client!.query('SELECT * FROM artifacts WHERE artifact_id=$1 AND scope_id=$2', [artifact_id, scope_id]);
+  async getArtifactMeta(
+    artifact_id: string,
+    scope_id: string,
+  ): Promise<EvidenceArtifact | undefined> {
+    const r = await this.client!.query(
+      "SELECT * FROM artifacts WHERE artifact_id=$1 AND scope_id=$2",
+      [artifact_id, scope_id],
+    );
     return r.rows[0] as EvidenceArtifact | undefined;
   }
 
@@ -349,11 +503,22 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `INSERT INTO events (event_id, workflow_id, episode_id, type, payload, seq, recorded_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [e.event_id, e.workflow_id, e.episode_id ?? null, e.type, JSON.stringify(e.payload), this.nextSeq(), e.recorded_at]
+      [
+        e.event_id,
+        e.workflow_id,
+        e.episode_id ?? null,
+        e.type,
+        JSON.stringify(e.payload),
+        this.nextSeq(),
+        e.recorded_at,
+      ],
     );
   }
   async listEvents(workflow_id: string): Promise<DomainEvent[]> {
-    const r = await this.client!.query('SELECT * FROM events WHERE workflow_id=$1 ORDER BY seq', [workflow_id]);
+    const r = await this.client!.query(
+      "SELECT * FROM events WHERE workflow_id=$1 ORDER BY seq",
+      [workflow_id],
+    );
     return r.rows as DomainEvent[];
   }
 
@@ -362,28 +527,53 @@ export class PostgresAdapter implements StorageAdapter {
     await this.client!.query(
       `INSERT INTO feedback (feedback_id, episode_id, verdict, changed_plan, outcome, seq)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      [f.feedback_id, f.episode_id, f.verdict, f.changed_plan ?? null, f.outcome ?? null, this.nextSeq()]
+      [
+        f.feedback_id,
+        f.episode_id,
+        f.verdict,
+        f.changed_plan ?? null,
+        f.outcome ?? null,
+        this.nextSeq(),
+      ],
     );
   }
   async listFeedback(episode_id: string): Promise<ReuseFeedback[]> {
-    return (await this.client!.query('SELECT * FROM feedback WHERE episode_id=$1 ORDER BY seq', [episode_id])).rows as ReuseFeedback[];
+    return (
+      await this.client!.query(
+        "SELECT * FROM feedback WHERE episode_id=$1 ORDER BY seq",
+        [episode_id],
+      )
+    ).rows as ReuseFeedback[];
   }
   async insertAudit(a: AuditEvent): Promise<void> {
     await this.client!.query(
       `INSERT INTO audit (event_id, actor, action, target, before_revision, after_revision, timestamp, policy_version, reason)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [a.event_id, JSON.stringify(a.actor), a.action, a.target, a.before_revision ?? null, a.after_revision ?? null, a.timestamp, a.policy_version, a.reason ?? null]
+      [
+        a.event_id,
+        JSON.stringify(a.actor),
+        a.action,
+        a.target,
+        a.before_revision ?? null,
+        a.after_revision ?? null,
+        a.timestamp,
+        a.policy_version,
+        a.reason ?? null,
+      ],
     );
   }
   async getIdempotency(key: string): Promise<IdempotencyRecord | undefined> {
-    const r = await this.client!.query('SELECT * FROM idempotency WHERE key=$1', [key]);
+    const r = await this.client!.query(
+      "SELECT * FROM idempotency WHERE key=$1",
+      [key],
+    );
     return r.rows[0] as IdempotencyRecord | undefined;
   }
   async putIdempotency(rec: IdempotencyRecord): Promise<boolean> {
     const r = await this.client!.query(
       `INSERT INTO idempotency (key, actor_id, tool, request_id, result_json) VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (key, actor_id, tool) DO NOTHING`,
-      [rec.key, rec.actor_id, rec.tool, rec.request_id, rec.result_json]
+      [rec.key, rec.actor_id, rec.tool, rec.request_id, rec.result_json],
     );
     return (r.rowCount ?? 0) > 0;
   }
@@ -391,14 +581,14 @@ export class PostgresAdapter implements StorageAdapter {
   // ---- Retrieval ----
   async searchExact(hash: string, scope_id: string): Promise<SearchRow[]> {
     const params: unknown[] = [hash];
-    const scopeFilter = scope_id === '' ? '' : `AND e.scope_id = $2`;
-    if (scope_id !== '') params.push(scope_id);
+    const scopeFilter = scope_id === "" ? "" : `AND e.scope_id = $2`;
+    if (scope_id !== "") params.push(scope_id);
     const r = await this.client!.query(
       `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
               e.last_verified_at, s.normalized_hash, s.exact_tokens
        FROM episodes e JOIN signatures s ON s.episode_id = e.experience_id
        WHERE s.normalized_hash = $1 ${scopeFilter}`,
-      params
+      params,
     );
     return r.rows as SearchRow[];
   }
@@ -409,12 +599,12 @@ export class PostgresAdapter implements StorageAdapter {
     // - coverage: goal_summary AND first 500 chars of observations
     // - LEFT JOIN signatures: signature-less episodes (lessons) must not be
     //   dropped by an INNER JOIN (2026-09-22 bug class)
-    const safe = terms.replace(/[^\w\s]/g, ' ').trim();
+    const safe = terms.replace(/[^\w\s]/g, " ").trim();
     if (!safe) return [];
-    const tsquery = safe.split(/\s+/).join(' & ');
+    const tsquery = safe.split(/\s+/).join(" & ");
     const params: unknown[] = [tsquery];
-    const scopeFilter = scope_id === '' ? '' : 'AND e.scope_id = $2';
-    if (scope_id !== '') params.push(scope_id);
+    const scopeFilter = scope_id === "" ? "" : "AND e.scope_id = $2";
+    if (scope_id !== "") params.push(scope_id);
     const r = await this.client!.query(
       `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
               e.last_verified_at, s.normalized_hash, s.exact_tokens
@@ -425,7 +615,7 @@ export class PostgresAdapter implements StorageAdapter {
                 WHERE o.episode_id = e.experience_id
                   AND to_tsvector('simple', substr(o.content, 1, 500)) @@ to_tsquery('simple', $1)
               )) ${scopeFilter}`,
-      params
+      params,
     );
     return r.rows as SearchRow[];
   }
@@ -435,117 +625,167 @@ export class PostgresAdapter implements StorageAdapter {
               e.last_verified_at, s.normalized_hash, s.exact_tokens
        FROM episodes e JOIN signatures s ON s.episode_id = e.experience_id
        WHERE e.scope_id = $1`,
-      [scope_id]
+      [scope_id],
     );
     return r.rows as SearchRow[];
   }
-  async getFeedbackSummary(episode_id: string): Promise<{ harmful: number; useful: number }> {
+  async getFeedbackSummary(
+    episode_id: string,
+  ): Promise<{ harmful: number; useful: number }> {
     const r = await this.client!.query(
       `SELECT COUNT(*) FILTER (WHERE verdict='harmful') AS harmful,
               COUNT(*) FILTER (WHERE verdict IN ('useful','applicable')) AS useful
        FROM feedback WHERE episode_id=$1`,
-      [episode_id]
+      [episode_id],
     );
     const row = r.rows[0] as { harmful: string; useful: string };
     return { harmful: Number(row.harmful), useful: Number(row.useful) };
   }
-  async putSignature(episode_id: string, normalized_hash: string, exact_tokens: string, kind: string, exit_code?: number): Promise<void> {
+  async putSignature(
+    episode_id: string,
+    normalized_hash: string,
+    exact_tokens: string,
+    kind: string,
+    exit_code?: number,
+  ): Promise<void> {
     await this.client!.query(
-      'INSERT INTO signatures (episode_id, normalized_hash, exact_tokens, kind, exit_code) VALUES ($1,$2,$3,$4,$5)',
-      [episode_id, normalized_hash, exact_tokens, kind, exit_code ?? null]
+      "INSERT INTO signatures (episode_id, normalized_hash, exact_tokens, kind, exit_code) VALUES ($1,$2,$3,$4,$5)",
+      [episode_id, normalized_hash, exact_tokens, kind, exit_code ?? null],
     );
   }
-  async putEnvironment(episode_id: string, dims: Array<{ key: string; value: string }>): Promise<void> {
+  async putEnvironment(
+    episode_id: string,
+    dims: Array<{ key: string; value: string }>,
+  ): Promise<void> {
     for (const d of dims) {
-      await this.client!.query('INSERT INTO environment (episode_id, key, value) VALUES ($1,$2,$3) ON CONFLICT (episode_id, key) DO UPDATE SET value=$3', [episode_id, d.key, d.value]);
+      await this.client!.query(
+        "INSERT INTO environment (episode_id, key, value) VALUES ($1,$2,$3) ON CONFLICT (episode_id, key) DO UPDATE SET value=$3",
+        [episode_id, d.key, d.value],
+      );
     }
   }
-  async getEnvironment(episode_id: string): Promise<Array<{ key: string; value: string }>> {
-    return (await this.client!.query('SELECT key, value FROM environment WHERE episode_id=$1', [episode_id])).rows as Array<{ key: string; value: string }>;
+  async getEnvironment(
+    episode_id: string,
+  ): Promise<Array<{ key: string; value: string }>> {
+    return (
+      await this.client!.query(
+        "SELECT key, value FROM environment WHERE episode_id=$1",
+        [episode_id],
+      )
+    ).rows as Array<{ key: string; value: string }>;
   }
 
   // ---- Lessons (consolidation groundwork) ----
-  async getLessonByHash(_normalized_hash: string): Promise<LessonRecord | undefined> {
-    const r = await this.client!.query('SELECT data FROM lessons WHERE normalized_hash=$1', [_normalized_hash]);
+  async getLessonByHash(
+    _normalized_hash: string,
+  ): Promise<LessonRecord | undefined> {
+    const r = await this.client!.query(
+      "SELECT data FROM lessons WHERE normalized_hash=$1",
+      [_normalized_hash],
+    );
     return r.rows[0]?.data as LessonRecord | undefined;
   }
   async insertLesson(l: LessonRecord): Promise<void> {
-    await this.client!.query('INSERT INTO lessons (lesson_id, normalized_hash, data) VALUES ($1,$2,$3)', [l.lesson_id, l.normalized_hash, JSON.stringify(l)]);
+    await this.client!.query(
+      "INSERT INTO lessons (lesson_id, normalized_hash, data) VALUES ($1,$2,$3)",
+      [l.lesson_id, l.normalized_hash, JSON.stringify(l)],
+    );
   }
   async updateLesson(l: LessonRecord): Promise<void> {
-    await this.client!.query('UPDATE lessons SET data=$1 WHERE lesson_id=$2', [JSON.stringify(l), l.lesson_id]);
+    await this.client!.query("UPDATE lessons SET data=$1 WHERE lesson_id=$2", [
+      JSON.stringify(l),
+      l.lesson_id,
+    ]);
   }
   async getLesson(lesson_id: string): Promise<LessonRecord | undefined> {
-    const r = await this.client!.query('SELECT data FROM lessons WHERE lesson_id=$1', [lesson_id]);
+    const r = await this.client!.query(
+      "SELECT data FROM lessons WHERE lesson_id=$1",
+      [lesson_id],
+    );
     return r.rows[0]?.data as LessonRecord | undefined;
   }
   async searchLessons(_query: string): Promise<LessonRecord[]> {
-    return (await this.client!.query('SELECT data FROM lessons')).rows.map((r: { data: LessonRecord }) => r.data);
+    return (await this.client!.query("SELECT data FROM lessons")).rows.map(
+      (r: { data: LessonRecord }) => r.data,
+    );
   }
-  async listVerifiedEpisodesForSignature(_normalized_hash: string): Promise<Array<{ experience_id: string; scope_id: string }>> {
+  async listVerifiedEpisodesForSignature(
+    _normalized_hash: string,
+  ): Promise<Array<{ experience_id: string; scope_id: string }>> {
     const r = await this.client!.query(
       `SELECT e.experience_id, e.scope_id FROM episodes e JOIN signatures s ON s.episode_id=e.experience_id
        WHERE s.normalized_hash=$1 AND e.state IN ('LOCALLY_VERIFIED','REPRODUCED','CROSS_PROJECT_VERIFIED')`,
-      [_normalized_hash]
+      [_normalized_hash],
     );
     return r.rows as Array<{ experience_id: string; scope_id: string }>;
   }
-  async listContradictingEpisodesForSignature(_normalized_hash: string): Promise<Array<{ experience_id: string; scope_id: string }>> {
+  async listContradictingEpisodesForSignature(
+    _normalized_hash: string,
+  ): Promise<Array<{ experience_id: string; scope_id: string }>> {
     const r = await this.client!.query(
       `SELECT e.experience_id, e.scope_id FROM episodes e
        JOIN signatures s ON s.episode_id=e.experience_id
        JOIN attempts a ON a.episode_id=e.experience_id
        WHERE s.normalized_hash=$1 AND a.classification IN ('harmful','ineffective')
        GROUP BY e.experience_id, e.scope_id`,
-      [_normalized_hash]
+      [_normalized_hash],
     );
     return r.rows as Array<{ experience_id: string; scope_id: string }>;
   }
 
   // ---- Embeddings ----
   async listScopes(): Promise<string[]> {
-    const r = await this.client!.query('SELECT DISTINCT scope_id FROM episodes');
+    const r = await this.client!.query(
+      "SELECT DISTINCT scope_id FROM episodes",
+    );
     return r.rows.map((row: { scope_id: string }) => row.scope_id);
   }
 
   async findAllEpisodes(): Promise<Episode[]> {
-    const r = await this.client!.query('SELECT * FROM episodes');
+    const r = await this.client!.query("SELECT * FROM episodes");
     return r.rows as Episode[];
   }
 
   async getEmbedding(episode_id: string): Promise<number[] | undefined> {
-    const r = await this.client!.query('SELECT vec::text AS vec FROM embeddings WHERE episode_id=$1', [episode_id]);
+    const r = await this.client!.query(
+      "SELECT vec::text AS vec FROM embeddings WHERE episode_id=$1",
+      [episode_id],
+    );
     if (!r.rows[0]) return undefined;
     // pgvector text format: "[1,2,3]"
     const raw = r.rows[0].vec as string;
-    return JSON.parse(raw.replace(/^\[/, '[').replace(/\]$/, ']'));
+    return JSON.parse(raw.replace(/^\[/, "[").replace(/\]$/, "]"));
   }
   async putEmbedding(episode_id: string, vec: number[]): Promise<void> {
     await this.client!.query(
-      'INSERT INTO embeddings (episode_id, vec) VALUES ($1, $2::vector) ON CONFLICT (episode_id) DO UPDATE SET vec=$2::vector',
-      [episode_id, `[${vec.join(',')}]`]
+      "INSERT INTO embeddings (episode_id, vec) VALUES ($1, $2::vector) ON CONFLICT (episode_id) DO UPDATE SET vec=$2::vector",
+      [episode_id, `[${vec.join(",")}]`],
     );
   }
 
   /** Migration helper: vector upsert for the one-shot SQLite -> Postgres CLI. */
   async rawUpsertEmbedding(episode_id: string, vec: number[]): Promise<void> {
     await this.client!.query(
-      'INSERT INTO embeddings (episode_id, vec) VALUES ($1, $2::vector) ON CONFLICT (episode_id) DO NOTHING',
-      [episode_id, `[${vec.join(',')}]`]
+      "INSERT INTO embeddings (episode_id, vec) VALUES ($1, $2::vector) ON CONFLICT (episode_id) DO NOTHING",
+      [episode_id, `[${vec.join(",")}]`],
     );
   }
 
   /** Migration helper: raw upsert for the one-shot SQLite -> Postgres CLI. */
-  async rawUpsert(table: string, cols: string[], row: Record<string, unknown>): Promise<void> {
+  async rawUpsert(
+    table: string,
+    cols: string[],
+    row: Record<string, unknown>,
+  ): Promise<void> {
     const values = cols.map((c) => {
       let v = row[c];
       if (v === undefined) v = null;
       return v;
     });
-    const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
+    const placeholders = cols.map((_, i) => `$${i + 1}`).join(",");
     await this.client!.query(
-      `INSERT INTO ${table} (${cols.join(',')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`,
-      values
+      `INSERT INTO ${table} (${cols.join(",")}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`,
+      values,
     );
   }
 }

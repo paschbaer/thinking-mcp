@@ -25,8 +25,15 @@ import type {
 } from "../types/index.js";
 import { WorkspaceOpLock, workspaceLockFile } from "./workspace-lock.js";
 import type { NormalizedResult } from "../types/index.js";
-import { MetricsRepository, type MetricsSnapshot, type OperationOutcome } from "../metrics/MetricsRepository.js";
-import type { DownstreamInvoker, ExecuteFn } from "../orchestration/OperationEngine.js";
+import {
+  MetricsRepository,
+  type MetricsSnapshot,
+  type OperationOutcome,
+} from "../metrics/MetricsRepository.js";
+import type {
+  DownstreamInvoker,
+  ExecuteFn,
+} from "../orchestration/OperationEngine.js";
 import { SessionRepository } from "../state/SessionRepository.js";
 import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
@@ -353,11 +360,19 @@ export class WorkflowEngine {
           const t0 = Date.now();
           return Promise.resolve(deRaw(config, ctx, attempt, signal)).then(
             (res) => {
-              this.metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
+              this.metrics.recordOperation(
+                config.operationId,
+                res.status as OperationOutcome,
+                Date.now() - t0,
+              );
               return res;
             },
             (err) => {
-              this.metrics.recordOperation(config.operationId, "failed", Date.now() - t0);
+              this.metrics.recordOperation(
+                config.operationId,
+                "failed",
+                Date.now() - t0,
+              );
               throw err;
             },
           );
@@ -383,7 +398,8 @@ export class WorkflowEngine {
         configs: OperationConfig[],
         ctx: OperationContext,
       ): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> => {
-        if (!downstreamEngine) return clientEngine.executeRequired(configs, ctx);
+        if (!downstreamEngine)
+          return clientEngine.executeRequired(configs, ctx);
         const down = configs.filter(isDownstreamOp);
         const rest = configs.filter((c) => !isDownstreamOp(c));
         const downRun = down.length
@@ -410,12 +426,20 @@ export class WorkflowEngine {
         routerTarget as unknown as OperationEngine,
         {
           get(target, prop, receiver) {
-            if (prop === "then" || prop === "catch" || prop === "finally") return Reflect.get(target, prop, receiver);
+            if (prop === "then" || prop === "catch" || prop === "finally")
+              return Reflect.get(target, prop, receiver);
             if (prop in target) return Reflect.get(target, prop, receiver);
             if (typeof prop === "string") {
               if (forwardedCache.has(prop)) return forwardedCache.get(prop);
-              const value = (downstreamEngine as unknown as Record<string, unknown>)[prop];
-              const stable = typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(downstreamEngine) : value;
+              const value = (
+                downstreamEngine as unknown as Record<string, unknown>
+              )[prop];
+              const stable =
+                typeof value === "function"
+                  ? (value as (...a: unknown[]) => unknown).bind(
+                      downstreamEngine,
+                    )
+                  : value;
               forwardedCache.set(prop, stable);
               return stable;
             }
@@ -432,19 +456,29 @@ export class WorkflowEngine {
     // execution (lifecycle + runOperation + composite steps) without touching
     // any result semantics. Guard: der Remote-ClientOpEngine hat kein
     // execute (nur executeRequired) — dort gibt es nichts aufzuzeichnen.
-    const rawExecute = (this.operationEngine as { execute?: ExecuteFn }).execute?.bind(this.operationEngine);
+    const rawExecute = (
+      this.operationEngine as { execute?: ExecuteFn }
+    ).execute?.bind(this.operationEngine);
     if (rawExecute) {
       const metrics = this.metrics;
       this.operationEngine.execute = (config, ctx, attempt, signal) => {
         const t0 = Date.now();
         return Promise.resolve(rawExecute(config, ctx, attempt, signal)).then(
           (res) => {
-            metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
+            metrics.recordOperation(
+              config.operationId,
+              res.status as OperationOutcome,
+              Date.now() - t0,
+            );
             return res;
           },
           (err) => {
             // final review F6: crash-style rejections count as failed runs
-            metrics.recordOperation(config.operationId, "failed", Date.now() - t0);
+            metrics.recordOperation(
+              config.operationId,
+              "failed",
+              Date.now() - t0,
+            );
             throw err;
           },
         );
@@ -458,7 +492,10 @@ export class WorkflowEngine {
   private readonly workspaceLocks = new Map<string, WorkspaceOpLock>();
   private readonly lockTtlMs: number;
   private readonly runningOps = new Set<string>();
-  private readonly activeOpControllers = new Map<string, Set<AbortController>>();
+  private readonly activeOpControllers = new Map<
+    string,
+    Set<AbortController>
+  >();
   private readonly redactionPatterns: string[];
   private pinnedHashes = new Map<string, string>();
   private readonly policyEngine = new PolicyEngine();
@@ -496,12 +533,13 @@ export class WorkflowEngine {
     // Scaffold-on-first-use (mirrors boot Option D): a registered workspace
     // without .guidance receives a copy of the boot configuration (minus
     // state), so name-based starts work immediately (specs/008 T8).
-    const cfgDir = join(root, '.guidance');
-    if (!existsSync(join(cfgDir, 'guidance.json'))) {
+    const cfgDir = join(root, ".guidance");
+    if (!existsSync(join(cfgDir, "guidance.json"))) {
       mkdirSync(cfgDir, { recursive: true });
       cpSync(this.config.configDir, cfgDir, {
         recursive: true,
-        filter: (src: string) => !src.includes(join(cfgDir, '')) && !/[\/]state([\/]|$)/.test(src),
+        filter: (src: string) =>
+          !src.includes(join(cfgDir, "")) && !/[\/]state([\/]|$)/.test(src),
       });
     }
     let eng = this.childEngines.get(root);
@@ -527,7 +565,11 @@ export class WorkflowEngine {
     if (this.sessionRoutes.has(sessionId)) return;
     for (const w of this.config.workspaces.list()) {
       if (w.root === this.defaultRoot) continue;
-      if (existsSync(join(w.root, ".guidance", "state", "sessions", `${sessionId}.json`))) {
+      if (
+        existsSync(
+          join(w.root, ".guidance", "state", "sessions", `${sessionId}.json`),
+        )
+      ) {
         this.sessionRoutes.set(sessionId, this.engineForWorkspace(w.root));
         return;
       }
@@ -642,12 +684,22 @@ export class WorkflowEngine {
     const live = await this.getDownstreamStatus();
     for (const c of live) {
       const prev = snap.connections.find((x) => x.serverId === c.id);
-      this.metrics.recordConnection(c.id, c.status ?? "unknown", c.lastSuccessfulRequestAt ?? prev?.lastSuccessfulRequestAt);
+      this.metrics.recordConnection(
+        c.id,
+        c.status ?? "unknown",
+        c.lastSuccessfulRequestAt ?? prev?.lastSuccessfulRequestAt,
+      );
       const existing = snap.connections.find((x) => x.serverId === c.id);
       if (existing) {
         existing.status = c.status ?? existing.status;
-        existing.lastSuccessfulRequestAt = c.lastSuccessfulRequestAt ?? prev?.lastSuccessfulRequestAt;
-      } else snap.connections.push({ serverId: c.id, status: c.status ?? "unknown", lastSuccessfulRequestAt: c.lastSuccessfulRequestAt });
+        existing.lastSuccessfulRequestAt =
+          c.lastSuccessfulRequestAt ?? prev?.lastSuccessfulRequestAt;
+      } else
+        snap.connections.push({
+          serverId: c.id,
+          status: c.status ?? "unknown",
+          lastSuccessfulRequestAt: c.lastSuccessfulRequestAt,
+        });
     }
     // specs/008 T17 (FR-808): aggregate child-workspace metrics with a
     // per-workspace breakdown; top-level counters become cross-workspace sums.
@@ -656,9 +708,19 @@ export class WorkflowEngine {
       for (const [root, child] of this.childEngines) {
         const name = this.config.workspaces.resolve(root).name;
         const childSnap = await child.getMetrics();
-        snap.perWorkspace[name] = { operations: childSnap.operations, connections: childSnap.connections };
+        snap.perWorkspace[name] = {
+          operations: childSnap.operations,
+          connections: childSnap.connections,
+        };
         for (const [opId, m] of Object.entries(childSnap.operations)) {
-          const agg = (snap.operations[opId] ??= { runs: 0, succeeded: 0, failed: 0, cancelled: 0, timedOut: 0, durationMs: { count: 0, sum: 0, max: 0 } });
+          const agg = (snap.operations[opId] ??= {
+            runs: 0,
+            succeeded: 0,
+            failed: 0,
+            cancelled: 0,
+            timedOut: 0,
+            durationMs: { count: 0, sum: 0, max: 0 },
+          });
           agg.runs += m.runs;
           agg.succeeded += m.succeeded;
           agg.failed += m.failed;
@@ -669,7 +731,8 @@ export class WorkflowEngine {
           agg.durationMs.max = Math.max(agg.durationMs.max, m.durationMs.max);
         }
         for (const c of childSnap.connections) {
-          if (!snap.connections.some((x) => x.serverId === c.serverId)) snap.connections.push(c);
+          if (!snap.connections.some((x) => x.serverId === c.serverId))
+            snap.connections.push(c);
         }
       }
     }
@@ -686,7 +749,10 @@ export class WorkflowEngine {
     if (!lock) {
       if (this.workspaceLocks.size >= 64) {
         const oldest = this.workspaceLocks.keys().next().value;
-        if (oldest !== undefined && !this.workspaceLocks.get(oldest)?.isHeld()) {
+        if (
+          oldest !== undefined &&
+          !this.workspaceLocks.get(oldest)?.isHeld()
+        ) {
           this.workspaceLocks.delete(oldest);
         }
       }
@@ -793,7 +859,8 @@ export class WorkflowEngine {
         this.pinnedHashes.set(`${serverId}:${toolName}`, tool.inputSchemaHash);
         saveCapabilityPins(stateDir, this.pinnedHashes); // 2e: Pin persistieren
       }
-      const requestTimeoutSeconds = serverCfg?.connection?.requestTimeoutSeconds;
+      const requestTimeoutSeconds =
+        serverCfg?.connection?.requestTimeoutSeconds;
       const result = await this.clientManager!.invokeTool(
         serverId,
         toolName,
@@ -802,7 +869,11 @@ export class WorkflowEngine {
       );
       // spec 005 F3/FR-704: Verbindungs-Status je Downstream-Invoke messen.
       const st = this.clientManager!.statusOf(serverId);
-      this.metrics.recordConnection(serverId, st?.status ?? "connected", st?.lastSuccessfulRequestAt);
+      this.metrics.recordConnection(
+        serverId,
+        st?.status ?? "connected",
+        st?.lastSuccessfulRequestAt,
+      );
       return result;
     };
   }
@@ -828,19 +899,35 @@ export class WorkflowEngine {
 
     const session = this.getSession(sessionId);
     const auditDenial = (data: Record<string, unknown>): void =>
-      this.audit.append({ sessionId, eventType: "operation_invocation_denied", data });
+      this.audit.append({
+        sessionId,
+        eventType: "operation_invocation_denied",
+        data,
+      });
     const op = this.operations[operationId];
     if (!op) {
       auditDenial({ operationId, reason: "operation_not_configured" });
-      throw new GuidanceError("operation_not_configured", `operation ${operationId} is not configured`, { recoverable: false });
+      throw new GuidanceError(
+        "operation_not_configured",
+        `operation ${operationId} is not configured`,
+        { recoverable: false },
+      );
     }
     if (op.invocableByAgent !== true) {
       auditDenial({ operationId, reason: "agent_invocation_denied" });
-      throw new GuidanceError("agent_invocation_denied", `operation ${operationId} is not marked invocableByAgent`, { recoverable: true });
+      throw new GuidanceError(
+        "agent_invocation_denied",
+        `operation ${operationId} is not marked invocableByAgent`,
+        { recoverable: true },
+      );
     }
     if (this.runningOps.has(sessionId)) {
       auditDenial({ operationId, reason: "operation_in_progress" });
-      throw new GuidanceError("operation_in_progress", `an operation is already running for session ${sessionId}`, { recoverable: true });
+      throw new GuidanceError(
+        "operation_in_progress",
+        `an operation is already running for session ${sessionId}`,
+        { recoverable: true },
+      );
     }
     this.acquireWorkspaceOpLock(session.workspaceRoot);
     this.runningOps.add(sessionId);
@@ -856,42 +943,81 @@ export class WorkflowEngine {
     const startedAt = Date.now();
     try {
       if (session.status !== "active") {
-        this.audit.append({ sessionId, eventType: "operation_invocation_denied", data: { operationId, reason: `session_${session.status}` } });
-        return { id: operationId, status: "failed", summary: `session is ${session.status}` };
+        this.audit.append({
+          sessionId,
+          eventType: "operation_invocation_denied",
+          data: { operationId, reason: `session_${session.status}` },
+        });
+        return {
+          id: operationId,
+          status: "failed",
+          summary: `session is ${session.status}`,
+        };
       }
-      const run = await this.operationEngine.execute(op, this.ctxFor(session), 1, controller.signal);
+      const run = await this.operationEngine.execute(
+        op,
+        this.ctxFor(session),
+        1,
+        controller.signal,
+      );
       // FR-202 (Hard-Kill seit Feature 004): Cancel/Timeout bricht den Child
       // via Abort ab (SIGTERM→SIGKILL); das Ergebnis wird verworfen und als
       // cancelled auditiert.
       const wasCancelled =
-        this.sessions.load(sessionId).status === "cancelled" || run.status === "cancelled";
+        this.sessions.load(sessionId).status === "cancelled" ||
+        run.status === "cancelled";
       if (wasCancelled) {
         this.audit.append({
           sessionId,
           eventType: "operation_invoked",
-          data: { operationId, status: "cancelled", durationMs: Date.now() - startedAt, via: "run_operation" },
+          data: {
+            operationId,
+            status: "cancelled",
+            durationMs: Date.now() - startedAt,
+            via: "run_operation",
+          },
         });
-        return { id: operationId, status: "failed", summary: "session cancelled during operation; result discarded" };
+        return {
+          id: operationId,
+          status: "failed",
+          summary: "session cancelled during operation; result discarded",
+        };
       }
-      this.recordDownstreamState(sessionId, run.operationId, run.status, run.summary);
+      this.recordDownstreamState(
+        sessionId,
+        run.operationId,
+        run.status,
+        run.summary,
+      );
       this.audit.append({
         sessionId,
         eventType: "operation_invoked",
-        data: { operationId, status: run.status, durationMs: Date.now() - startedAt, via: "run_operation" },
+        data: {
+          operationId,
+          status: run.status,
+          durationMs: Date.now() - startedAt,
+          via: "run_operation",
+        },
       });
       return this.exposeOpResult(run, op);
     } catch (err) {
       this.audit.append({
         sessionId,
         eventType: "operation_invoked",
-        data: { operationId, status: "failed", durationMs: Date.now() - startedAt, via: "run_operation" },
+        data: {
+          operationId,
+          status: "failed",
+          durationMs: Date.now() - startedAt,
+          via: "run_operation",
+        },
       });
       throw err;
     } finally {
       this.runningOps.delete(sessionId);
       const controllers = this.activeOpControllers.get(sessionId);
       controllers?.delete(controller);
-      if (controllers && controllers.size === 0) this.activeOpControllers.delete(sessionId);
+      if (controllers && controllers.size === 0)
+        this.activeOpControllers.delete(sessionId);
       this.releaseWorkspaceOpLock(session.workspaceRoot);
     }
   }
@@ -922,18 +1048,27 @@ export class WorkflowEngine {
     // Membership enforcement lives at the MCP tool layer (assertWorkspaceRegistered).
     // The engine stays tolerant for sentinel/legacy callers (remote boot, tests):
     // an unregistered candidate keeps the boot composition instead of failing.
-    const candidate = input.workspace ?? input.workspaceRoot ?? this.defaultRoot;
+    const candidate =
+      input.workspace ?? input.workspaceRoot ?? this.defaultRoot;
     let targetRoot: string;
     let target: WorkflowEngine = this;
     try {
       targetRoot = this.config.workspaces.resolve(candidate).root;
       target = this.engineForWorkspace(targetRoot);
     } catch (err) {
-      if (!(err instanceof GuidanceError) || err.code !== 'workspace_not_registered') throw err;
+      if (
+        !(err instanceof GuidanceError) ||
+        err.code !== "workspace_not_registered"
+      )
+        throw err;
       targetRoot = resolve(candidate);
     }
     if (target !== this) {
-      const child = await target.startWorkflow({ ...input, workspaceRoot: targetRoot, workspace: undefined });
+      const child = await target.startWorkflow({
+        ...input,
+        workspaceRoot: targetRoot,
+        workspace: undefined,
+      });
       this.sessionRoutes.set(child.sessionId, target);
       return child;
     }
@@ -1455,8 +1590,9 @@ export class WorkflowEngine {
       mode,
     );
     const errorMessages: string[] =
-      (r as { errors?: { message: string }[] }).errors?.map((e) => this.redactor.redact(e.message)) ??
-      [];
+      (r as { errors?: { message: string }[] }).errors?.map((e) =>
+        this.redactor.redact(e.message),
+      ) ?? [];
     const suffix =
       errorMessages.length > 0 &&
       (mode === "summary_and_errors" || mode === "normalized" || mode === "raw")

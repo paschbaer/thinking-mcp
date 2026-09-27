@@ -18,7 +18,10 @@ export function hashToken(token: string): string {
 }
 
 /** FR-101.3: timing-safe Token-Vergleich über konstantlange Digests. */
-export function tokenMatches(provided: string, expectedHashHex: string): boolean {
+export function tokenMatches(
+  provided: string,
+  expectedHashHex: string,
+): boolean {
   // Beide Seiten als 32-Byte-Digest (hex-decodiert) — gleiche Länge ist
   // Voraussetzung für timingSafeEqual (wirft sonst RangeError).
   const a = new Uint8Array(Buffer.from(hashToken(provided), "hex"));
@@ -32,10 +35,14 @@ export class PairStore {
   constructor(pairs: KeyTokenPair[]) {
     for (const pair of pairs) {
       if (!KEY_PATTERN.test(pair.key)) {
-        throw new Error(`configuration_invalid: GUIDANCE_KEY_TOKENS key must match ${KEY_PATTERN.source}`);
+        throw new Error(
+          `configuration_invalid: GUIDANCE_KEY_TOKENS key must match ${KEY_PATTERN.source}`,
+        );
       }
       if (this.byKey.has(pair.key)) {
-        throw new Error(`configuration_invalid: GUIDANCE_KEY_TOKENS duplicate key`);
+        throw new Error(
+          `configuration_invalid: GUIDANCE_KEY_TOKENS duplicate key`,
+        );
       }
       this.byKey.set(pair.key, { tokenHash: hashToken(pair.token) });
     }
@@ -59,7 +66,8 @@ export class PairStore {
   isKnownToken(token: string): boolean {
     const h = hashToken(token);
     for (const { tokenHash } of this.byKey.values()) {
-      if (timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(tokenHash, "hex"))) return true;
+      if (timingSafeEqual(Buffer.from(h, "hex"), Buffer.from(tokenHash, "hex")))
+        return true;
     }
     return false;
   }
@@ -74,7 +82,9 @@ export async function loadPairsFromEnv(): Promise<KeyTokenPair[]> {
   const inline = process.env.GUIDANCE_KEY_TOKENS;
   const file = process.env.GUIDANCE_KEY_TOKENS_FILE;
   if (inline && file) {
-    throw new Error("configuration_invalid: set either GUIDANCE_KEY_TOKENS or GUIDANCE_KEY_TOKENS_FILE, not both");
+    throw new Error(
+      "configuration_invalid: set either GUIDANCE_KEY_TOKENS or GUIDANCE_KEY_TOKENS_FILE, not both",
+    );
   }
   let raw: string | undefined = inline;
   if (!raw && file) {
@@ -85,15 +95,26 @@ export async function loadPairsFromEnv(): Promise<KeyTokenPair[]> {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("configuration_invalid: GUIDANCE_KEY_TOKENS is not valid JSON");
+    throw new Error(
+      "configuration_invalid: GUIDANCE_KEY_TOKENS is not valid JSON",
+    );
   }
   if (!Array.isArray(parsed)) {
-    throw new Error("configuration_invalid: GUIDANCE_KEY_TOKENS must be an array of {key, token}");
+    throw new Error(
+      "configuration_invalid: GUIDANCE_KEY_TOKENS must be an array of {key, token}",
+    );
   }
   return parsed.map((p) => {
     const o = p as { key?: unknown; token?: unknown };
-    if (typeof o.key !== "string" || typeof o.token !== "string" || o.key.length === 0 || o.token.length < 16) {
-      throw new Error("configuration_invalid: GUIDANCE_KEY_TOKENS entries require {key: string, token: string>=16}");
+    if (
+      typeof o.key !== "string" ||
+      typeof o.token !== "string" ||
+      o.key.length === 0 ||
+      o.token.length < 16
+    ) {
+      throw new Error(
+        "configuration_invalid: GUIDANCE_KEY_TOKENS entries require {key: string, token: string>=16}",
+      );
     }
     return { key: o.key, token: o.token };
   });

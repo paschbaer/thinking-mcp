@@ -17,7 +17,9 @@ export class RateLimiter {
     if (window.length >= this.maxPerMinute) {
       this.hits.set(ip, window);
       const retryAfterSec = Math.ceil((WINDOW_MS - (now - window[0]!)) / 1000);
-      throw new Error(`rate_limited: too many init_session requests; retry after ${retryAfterSec}s`);
+      throw new Error(
+        `rate_limited: too many init_session requests; retry after ${retryAfterSec}s`,
+      );
     }
     window.push(now);
     this.hits.set(ip, window);

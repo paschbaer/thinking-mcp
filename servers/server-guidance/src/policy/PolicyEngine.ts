@@ -15,7 +15,13 @@ export interface EgressInput {
   approved?: boolean;
 }
 
-const TRUST_TO_EGRESS: Record<TrustLevel, "none" | "validated_inputs_only" | "project_data" | "project_data_with_approval"> = {
+const TRUST_TO_EGRESS: Record<
+  TrustLevel,
+  | "none"
+  | "validated_inputs_only"
+  | "project_data"
+  | "project_data_with_approval"
+> = {
   untrusted: "none",
   restricted: "validated_inputs_only",
   trusted: "project_data",
@@ -32,34 +38,74 @@ export class PolicyEngine {
     const mode = TRUST_TO_EGRESS[input.trustLevel];
     const hasPayload = Object.keys(input.args ?? {}).length > 0;
     if (mode === "none" && hasPayload) {
-      throw new GuidanceError("data_egress_denied", `server ${input.serverId} is untrusted and cannot receive data`, { recoverable: false });
+      throw new GuidanceError(
+        "data_egress_denied",
+        `server ${input.serverId} is untrusted and cannot receive data`,
+        { recoverable: false },
+      );
     }
     if (mode === "validated_inputs_only") {
       for (const value of Object.values(input.args)) {
         if (typeof value === "object" && value !== null) {
-          throw new GuidanceError("data_egress_denied", `server ${input.serverId} may only receive scalar validated inputs`, { recoverable: false });
+          throw new GuidanceError(
+            "data_egress_denied",
+            `server ${input.serverId} may only receive scalar validated inputs`,
+            { recoverable: false },
+          );
         }
         // 2c: content-level check — restricted servers must not receive
         // high-confidence secret values even in scalar form (structured
         // checks alone let literal credentials pass).
         if (typeof value === "string" && containsSecretPattern(value)) {
-          throw new GuidanceError("data_egress_denied", `server ${input.serverId} arg looks like a credential and was blocked`, { recoverable: false });
+          throw new GuidanceError(
+            "data_egress_denied",
+            `server ${input.serverId} arg looks like a credential and was blocked`,
+            { recoverable: false },
+          );
         }
       }
     }
-    if ((input.riskClass === "destructive" || input.riskClass === "credential_sensitive") && input.approved !== true) {
-      throw new GuidanceError("authorization_required", `operation on ${input.serverId} requires explicit authorization (${input.riskClass})`, { recoverable: true });
+    if (
+      (input.riskClass === "destructive" ||
+        input.riskClass === "credential_sensitive") &&
+      input.approved !== true
+    ) {
+      throw new GuidanceError(
+        "authorization_required",
+        `operation on ${input.serverId} requires explicit authorization (${input.riskClass})`,
+        { recoverable: true },
+      );
     }
   }
 
   /** Exposure filter (FR-037/§30): strips content the agent may not see. */
-  applyExposure<T extends { content: unknown[]; data: Record<string, unknown>; summary: string; errors: { message: string }[] }>(
+  applyExposure<
+    T extends {
+      content: unknown[];
+      data: Record<string, unknown>;
+      summary: string;
+      errors: { message: string }[];
+    },
+  >(
     result: T,
-    mode: "none" | "status_only" | "summary" | "summary_and_errors" | "normalized" | "raw",
+    mode:
+      | "none"
+      | "status_only"
+      | "summary"
+      | "summary_and_errors"
+      | "normalized"
+      | "raw",
   ): T {
     switch (mode) {
       case "none":
-        return { ...result, content: [], data: {}, summary: "", errors: [], warnings: [] };
+        return {
+          ...result,
+          content: [],
+          data: {},
+          summary: "",
+          errors: [],
+          warnings: [],
+        };
       case "status_only":
         return { ...result, content: [], data: {}, warnings: [] };
       case "summary":
@@ -73,6 +119,9 @@ export class PolicyEngine {
 
   /** Loads operation risk classes into the approval gate. */
   requiresApproval(config: Pick<OperationConfig, "riskClass">): boolean {
-    return config.riskClass === "destructive" || config.riskClass === "credential_sensitive";
+    return (
+      config.riskClass === "destructive" ||
+      config.riskClass === "credential_sensitive"
+    );
   }
 }

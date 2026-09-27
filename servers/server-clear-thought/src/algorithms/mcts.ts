@@ -5,17 +5,17 @@
  * documented future extension.
  */
 
-import { z } from 'zod';
-import { createRng, sampleInteger, type SeededRng } from './rng.js';
+import { z } from "zod";
+import { createRng, sampleInteger, type SeededRng } from "./rng.js";
 
-const ACTION_NAMES = ['up', 'right', 'down', 'left'] as const;
+const ACTION_NAMES = ["up", "right", "down", "left"] as const;
 export type GridAction = (typeof ACTION_NAMES)[number];
 
 const ACTION_DELTAS: Array<[number, number]> = [
   [-1, 0], // up
   [0, 1], // right
   [1, 0], // down
-  [0, -1] // left
+  [0, -1], // left
 ];
 
 export const mctsParamsSchema = z.object({
@@ -30,12 +30,12 @@ export const mctsParamsSchema = z.object({
     goalReward: z.number().default(1),
     trapReward: z.number().default(-1),
     stepReward: z.number().default(-0.01),
-    maxSteps: z.number().int().positive().optional()
+    maxSteps: z.number().int().positive().optional(),
   }),
   simulations: z.number().int().positive().default(1000),
   /** UCT exploration constant. */
   explorationConstant: z.number().positive().default(1.4),
-  seed: z.number().int().default(42)
+  seed: z.number().int().default(42),
 });
 
 export type MctsParams = z.infer<typeof mctsParamsSchema>;
@@ -60,28 +60,36 @@ interface MctsNode {
 function isBlocked(
   walls: Array<readonly [number, number]>,
   r: number,
-  c: number
+  c: number,
 ): boolean {
   return walls.some(([wr, wc]) => wr === r && wc === c);
 }
 
-function isTrap(traps: Array<readonly [number, number]>, r: number, c: number): boolean {
+function isTrap(
+  traps: Array<readonly [number, number]>,
+  r: number,
+  c: number,
+): boolean {
   return traps.some(([tr, tc]) => tr === r && tc === c);
 }
 
 interface StepOutcome {
   cell: number;
   reward: number;
-  terminal: false | 'goal' | 'trap';
+  terminal: false | "goal" | "trap";
 }
 
-function makeStepper(env: MctsParams['environment']) {
+function makeStepper(env: MctsParams["environment"]) {
   const maxSteps = env.maxSteps ?? env.rows * env.cols * 2;
   const wallSet = new Set(env.walls.map(([r, c]) => r * env.cols + c));
   const trapSet = new Set(env.traps.map(([r, c]) => r * env.cols + c));
   const goalCell = env.goal[0] * env.cols + env.goal[1];
 
-  return function step(cell: number, actionIndex: number, stepsSoFar: number): StepOutcome {
+  return function step(
+    cell: number,
+    actionIndex: number,
+    stepsSoFar: number,
+  ): StepOutcome {
     const r = Math.floor(cell / env.cols);
     const c = cell % env.cols;
     const [dr, dc] = ACTION_DELTAS[actionIndex];
@@ -92,10 +100,10 @@ function makeStepper(env: MctsParams['environment']) {
       next = cell; // blocked: stay in place
     }
     if (next === goalCell) {
-      return { cell: next, reward: env.goalReward, terminal: 'goal' };
+      return { cell: next, reward: env.goalReward, terminal: "goal" };
     }
     if (trapSet.has(next)) {
-      return { cell: next, reward: env.trapReward, terminal: 'trap' };
+      return { cell: next, reward: env.trapReward, terminal: "trap" };
     }
     if (stepsSoFar + 1 >= maxSteps) {
       return { cell: next, reward: env.stepReward, terminal: false };
@@ -104,7 +112,7 @@ function makeStepper(env: MctsParams['environment']) {
   };
 }
 
-function maxStepsOf(env: MctsParams['environment']): number {
+function maxStepsOf(env: MctsParams["environment"]): number {
   return env.maxSteps ?? env.rows * env.cols * 2;
 }
 
@@ -122,7 +130,7 @@ export function runMcts(params: MctsParams): MctsResult {
     visits: 0,
     value: 0,
     untried: [0, 1, 2, 3],
-    children: new Map()
+    children: new Map(),
   });
 
   const root = newNode(startCell);
@@ -134,7 +142,7 @@ export function runMcts(params: MctsParams): MctsResult {
     const path: MctsNode[] = [node];
     let totalReturn = 0;
     let steps = 0;
-    let terminal: StepOutcome['terminal'] = false;
+    let terminal: StepOutcome["terminal"] = false;
 
     // Selection: descend fully expanded, non-terminal nodes via UCT.
     while (node.untried.length === 0 && node.children.size > 0) {
@@ -183,8 +191,8 @@ export function runMcts(params: MctsParams): MctsResult {
       steps++;
       terminal = outcome.terminal;
     }
-    if (terminal === 'goal') terminalStats.goalsReached++;
-    else if (terminal === 'trap') terminalStats.trapsHit++;
+    if (terminal === "goal") terminalStats.goalsReached++;
+    else if (terminal === "trap") terminalStats.trapsHit++;
     else terminalStats.timeouts++;
 
     // Backpropagation: undiscounted return for every node on the path.
@@ -197,14 +205,14 @@ export function runMcts(params: MctsParams): MctsResult {
   // Robust child: most visited action at the root.
   let bestActionIndex = 0;
   let bestVisits = -1;
-  const rootStats: MctsResult['root'] = [];
+  const rootStats: MctsResult["root"] = [];
   for (let a = 0; a < 4; a++) {
     const child = root.children.get(a);
     if (!child) continue;
     rootStats.push({
       action: ACTION_NAMES[a],
       visits: child.visits,
-      meanValue: child.value / child.visits
+      meanValue: child.value / child.visits,
     });
     if (child.visits > bestVisits) {
       bestVisits = child.visits;
@@ -214,7 +222,9 @@ export function runMcts(params: MctsParams): MctsResult {
   rootStats.sort((x, y) => y.visits - x.visits);
 
   if (rootStats.length === 0) {
-    throw new Error('MCTS produced no root actions — check the environment definition');
+    throw new Error(
+      "MCTS produced no root actions — check the environment definition",
+    );
   }
 
   return {
@@ -223,7 +233,7 @@ export function runMcts(params: MctsParams): MctsResult {
     root: rootStats,
     simulations,
     terminalStats,
-    grid: { rows: env.rows, cols: env.cols }
+    grid: { rows: env.rows, cols: env.cols },
   };
 }
 

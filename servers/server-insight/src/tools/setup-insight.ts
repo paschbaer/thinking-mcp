@@ -10,13 +10,13 @@
  * - merge: the EMMS block integrated into existing content, delimited by
  *   HTML-comment markers so repeat calls update in place (idempotent)
  */
-import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-const START_MARKER = '<!-- emms:lookup-rules:start -->';
-const END_MARKER = '<!-- emms:lookup-rules:end -->';
+const START_MARKER = "<!-- emms:lookup-rules:start -->";
+const END_MARKER = "<!-- emms:lookup-rules:end -->";
 
-const CAPTURE_PROMPT_FILENAME = '.github/prompts/capture-lessons.prompt.md';
+const CAPTURE_PROMPT_FILENAME = ".github/prompts/capture-lessons.prompt.md";
 
 const CAPTURE_PROMPT_TEMPLATE = `---
 description: Capture session lessons as EMMS experience episodes
@@ -71,8 +71,13 @@ persist each one as an experience episode in the experience-memory server.
   safety net, not a substitute).
 `;
 
-function buildLookupRulesBlock(repoLessonsScope: string, triggers: Array<{ domain: string; keywords: string }>): string {
-  const rows = triggers.map((t) => `| ${t.domain} | \`${t.keywords}\` |`).join('\n');
+function buildLookupRulesBlock(
+  repoLessonsScope: string,
+  triggers: Array<{ domain: string; keywords: string }>,
+): string {
+  const rows = triggers
+    .map((t) => `| ${t.domain} | \`${t.keywords}\` |`)
+    .join("\n");
   return `${START_MARKER}
 ## Experience Memory Lookup (EMMS) — proactive retrieval
 
@@ -97,24 +102,42 @@ ${END_MARKER}`;
 }
 
 const GITIGNORE_LINES = [
-  'servers/server-insight/emms-data/',
-  'servers/server-insight/emms-store.db*',
-  'servers/server-insight/emms-artifacts/',
+  "servers/server-insight/emms-data/",
+  "servers/server-insight/emms-store.db*",
+  "servers/server-insight/emms-artifacts/",
 ];
 
 const DEFAULT_TRIGGERS = [
-  { domain: 'better-sqlite3 (install, rebuild, queries)', keywords: 'better-sqlite3 bindings named params' },
-  { domain: 'SQLite FTS5 / full-text search', keywords: 'fts5 match injection sanitize' },
-  { domain: 'vitest / ESM test imports', keywords: 'vitest esm ts extensions' },
-  { domain: 'finalize / assessment / evidence logic', keywords: 'finalize assessment read-only read-after-write' },
-  { domain: 'ranking / demotion / dedupe tests', keywords: 'ranking comparison jaccard demotion' },
-  { domain: 'semantic embeddings / transformers', keywords: 'minilm embeddings offline' },
-  { domain: 'Docker / native module builds', keywords: 'docker native rebuild bindings' },
+  {
+    domain: "better-sqlite3 (install, rebuild, queries)",
+    keywords: "better-sqlite3 bindings named params",
+  },
+  {
+    domain: "SQLite FTS5 / full-text search",
+    keywords: "fts5 match injection sanitize",
+  },
+  { domain: "vitest / ESM test imports", keywords: "vitest esm ts extensions" },
+  {
+    domain: "finalize / assessment / evidence logic",
+    keywords: "finalize assessment read-only read-after-write",
+  },
+  {
+    domain: "ranking / demotion / dedupe tests",
+    keywords: "ranking comparison jaccard demotion",
+  },
+  {
+    domain: "semantic embeddings / transformers",
+    keywords: "minilm embeddings offline",
+  },
+  {
+    domain: "Docker / native module builds",
+    keywords: "docker native rebuild bindings",
+  },
 ];
 
 interface FileResult {
   file: string;
-  mode: 'full' | 'merge' | 'append' | 'skip';
+  mode: "full" | "merge" | "append" | "skip";
   block_replaced: boolean;
   content: string;
   warning?: string;
@@ -122,24 +145,33 @@ interface FileResult {
 
 function integrateWithMarkers(
   existing: string,
-  block: string
+  block: string,
 ): { content: string; blockReplaced: boolean; warning?: string } {
   const startCount = existing.split(START_MARKER).length - 1;
   const endCount = existing.split(END_MARKER).length - 1;
   const startIdx = existing.indexOf(START_MARKER);
   const endIdx = existing.indexOf(END_MARKER);
 
-  if (startCount === 1 && endCount === 1 && startIdx !== -1 && endIdx > startIdx) {
+  if (
+    startCount === 1 &&
+    endCount === 1 &&
+    startIdx !== -1 &&
+    endIdx > startIdx
+  ) {
     const before = existing.slice(0, startIdx).trimEnd();
     const after = existing.slice(endIdx + END_MARKER.length).trimStart();
-    const joined = after.length > 0 ? `${before}\n\n${block}\n\n${after}` : `${before}\n\n${block}`;
+    const joined =
+      after.length > 0
+        ? `${before}\n\n${block}\n\n${after}`
+        : `${before}\n\n${block}`;
     return { content: `${joined}\n`, blockReplaced: true };
   }
   if (startCount > 0 || endCount > 0) {
     return {
       content: `${existing.trimEnd()}\n\n${block}\n`,
       blockReplaced: false,
-      warning: 'Incomplete or duplicated EMMS markers found; block appended instead of replacing. Clean up stray markers and re-run.',
+      warning:
+        "Incomplete or duplicated EMMS markers found; block appended instead of replacing. Clean up stray markers and re-run.",
     };
   }
   const base = existing.trimEnd();
@@ -148,33 +180,67 @@ function integrateWithMarkers(
 
 export function registerSetupInsight(server: McpServer): void {
   server.tool(
-    'setup_insight',
-    'Bootstrap the EMMS integration in a target repo: returns ready-to-write ' +
-      'lookup rules for AGENTS.md/CLAUDE.md (marker-based idempotent merge into ' +
-      'existing content), the capture prompt file, gitignore lines, and next ' +
-      'steps. The calling agent writes the returned content to the target files.',
+    "setup_insight",
+    "Bootstrap the EMMS integration in a target repo: returns ready-to-write " +
+      "lookup rules for AGENTS.md/CLAUDE.md (marker-based idempotent merge into " +
+      "existing content), the capture prompt file, gitignore lines, and next " +
+      "steps. The calling agent writes the returned content to the target files.",
     {
-      repo_lessons_scope: z.string().trim().min(1).optional()
-        .describe('Scope id for lesson episodes (default: <repo-name>-lessons)'),
-      repo_name: z.string().trim().min(1).optional()
-        .describe('Target project name — used in generated content'),
-      existing_agents_md: z.string().max(2_000_000).optional()
-        .describe('Content of existing AGENTS.md → merge mode (idempotent update)'),
-      existing_claude_md: z.string().max(2_000_000).optional()
-        .describe('Content of existing CLAUDE.md → merge mode'),
-      existing_gitignore: z.string().max(100_000).optional()
-        .describe('Content of existing .gitignore → returns appended version'),
-      existing_capture_prompt: z.string().max(50_000).optional()
-        .describe('Content of existing capture prompt file → returns "skip" if non-empty'),
-      custom_triggers: z.array(z.object({
-        domain: z.string().min(1),
-        keywords: z.string().min(1),
-      })).optional()
-        .describe('Repo-specific trigger domains replacing the defaults'),
+      repo_lessons_scope: z
+        .string()
+        .trim()
+        .min(1)
+        .optional()
+        .describe(
+          "Scope id for lesson episodes (default: <repo-name>-lessons)",
+        ),
+      repo_name: z
+        .string()
+        .trim()
+        .min(1)
+        .optional()
+        .describe("Target project name — used in generated content"),
+      existing_agents_md: z
+        .string()
+        .max(2_000_000)
+        .optional()
+        .describe(
+          "Content of existing AGENTS.md → merge mode (idempotent update)",
+        ),
+      existing_claude_md: z
+        .string()
+        .max(2_000_000)
+        .optional()
+        .describe("Content of existing CLAUDE.md → merge mode"),
+      existing_gitignore: z
+        .string()
+        .max(100_000)
+        .optional()
+        .describe("Content of existing .gitignore → returns appended version"),
+      existing_capture_prompt: z
+        .string()
+        .max(50_000)
+        .optional()
+        .describe(
+          'Content of existing capture prompt file → returns "skip" if non-empty',
+        ),
+      custom_triggers: z
+        .array(
+          z.object({
+            domain: z.string().min(1),
+            keywords: z.string().min(1),
+          }),
+        )
+        .optional()
+        .describe("Repo-specific trigger domains replacing the defaults"),
     },
     async (args) => {
-      const scope = args.repo_lessons_scope ?? (args.repo_name ? `${args.repo_name}-lessons` : 'emms-lessons');
-      const triggers = args.custom_triggers?.length ? args.custom_triggers : DEFAULT_TRIGGERS;
+      const scope =
+        args.repo_lessons_scope ??
+        (args.repo_name ? `${args.repo_name}-lessons` : "emms-lessons");
+      const triggers = args.custom_triggers?.length
+        ? args.custom_triggers
+        : DEFAULT_TRIGGERS;
       const block = buildLookupRulesBlock(scope, triggers);
 
       const files: FileResult[] = [];
@@ -182,55 +248,115 @@ export function registerSetupInsight(server: McpServer): void {
       // AGENTS.md
       if (args.existing_agents_md !== undefined) {
         const m = integrateWithMarkers(args.existing_agents_md, block);
-        files.push({ file: 'AGENTS.md', mode: 'merge', block_replaced: m.blockReplaced, content: m.content, warning: m.warning });
+        files.push({
+          file: "AGENTS.md",
+          mode: "merge",
+          block_replaced: m.blockReplaced,
+          content: m.content,
+          warning: m.warning,
+        });
       } else {
-        files.push({ file: 'AGENTS.md', mode: 'full', block_replaced: false, content: `# AGENTS.md\n\n${block}\n` });
+        files.push({
+          file: "AGENTS.md",
+          mode: "full",
+          block_replaced: false,
+          content: `# AGENTS.md\n\n${block}\n`,
+        });
       }
 
       // CLAUDE.md
       if (args.existing_claude_md !== undefined) {
         const m = integrateWithMarkers(args.existing_claude_md, block);
-        files.push({ file: 'CLAUDE.md', mode: 'merge', block_replaced: m.blockReplaced, content: m.content, warning: m.warning });
+        files.push({
+          file: "CLAUDE.md",
+          mode: "merge",
+          block_replaced: m.blockReplaced,
+          content: m.content,
+          warning: m.warning,
+        });
       } else {
-        files.push({ file: 'CLAUDE.md', mode: 'full', block_replaced: false, content: `# CLAUDE.md\n\n${block}\n` });
+        files.push({
+          file: "CLAUDE.md",
+          mode: "full",
+          block_replaced: false,
+          content: `# CLAUDE.md\n\n${block}\n`,
+        });
       }
 
       // Capture prompt
-      if (args.existing_capture_prompt !== undefined && args.existing_capture_prompt.trim().length > 0) {
-        files.push({ file: CAPTURE_PROMPT_FILENAME, mode: 'skip', block_replaced: false, content: args.existing_capture_prompt, warning: 'Capture prompt already exists and is non-empty — skipped.' });
+      if (
+        args.existing_capture_prompt !== undefined &&
+        args.existing_capture_prompt.trim().length > 0
+      ) {
+        files.push({
+          file: CAPTURE_PROMPT_FILENAME,
+          mode: "skip",
+          block_replaced: false,
+          content: args.existing_capture_prompt,
+          warning: "Capture prompt already exists and is non-empty — skipped.",
+        });
       } else {
-        files.push({ file: CAPTURE_PROMPT_FILENAME, mode: 'full', block_replaced: false, content: CAPTURE_PROMPT_TEMPLATE });
+        files.push({
+          file: CAPTURE_PROMPT_FILENAME,
+          mode: "full",
+          block_replaced: false,
+          content: CAPTURE_PROMPT_TEMPLATE,
+        });
       }
 
       // Gitignore
       if (args.existing_gitignore !== undefined) {
-        const missing = GITIGNORE_LINES.filter((l) => !args.existing_gitignore!.includes(l));
+        const missing = GITIGNORE_LINES.filter(
+          (l) => !args.existing_gitignore!.includes(l),
+        );
         if (missing.length === 0) {
-          files.push({ file: '.gitignore', mode: 'skip', block_replaced: false, content: args.existing_gitignore });
+          files.push({
+            file: ".gitignore",
+            mode: "skip",
+            block_replaced: false,
+            content: args.existing_gitignore,
+          });
         } else {
-          const appended = `${args.existing_gitignore.trimEnd()}\n\n# EMMS runtime data\n${missing.join('\n')}\n`;
-          files.push({ file: '.gitignore', mode: 'append', block_replaced: false, content: appended, warning: `Appended: ${missing.join(', ')}` });
+          const appended = `${args.existing_gitignore.trimEnd()}\n\n# EMMS runtime data\n${missing.join("\n")}\n`;
+          files.push({
+            file: ".gitignore",
+            mode: "append",
+            block_replaced: false,
+            content: appended,
+            warning: `Appended: ${missing.join(", ")}`,
+          });
         }
       } else {
-        files.push({ file: '.gitignore', mode: 'full', block_replaced: false, content: `${GITIGNORE_LINES.join('\n')}\n` });
+        files.push({
+          file: ".gitignore",
+          mode: "full",
+          block_replaced: false,
+          content: `${GITIGNORE_LINES.join("\n")}\n`,
+        });
       }
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            scope,
-            files,
-            next_steps: [
-              'Write each file\u2019s `content` to the corresponding target file in the target repo.',
-              'Create .github/prompts/capture-lessons.prompt.md from the returned prompt content.',
-              'After setup, /capture-lessons is available for session-end capture and the lookup rules are live for task-start retrieval.',
-              'Seed initial lessons via workflow_start + observations + finalize, or provide a lessons JSON.',
-            ],
-            status: 'success',
-          }, null, 2),
-        }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                scope,
+                files,
+                next_steps: [
+                  "Write each file\u2019s `content` to the corresponding target file in the target repo.",
+                  "Create .github/prompts/capture-lessons.prompt.md from the returned prompt content.",
+                  "After setup, /capture-lessons is available for session-end capture and the lookup rules are live for task-start retrieval.",
+                  "Seed initial lessons via workflow_start + observations + finalize, or provide a lessons JSON.",
+                ],
+                status: "success",
+              },
+              null,
+              2,
+            ),
+          },
+        ],
       };
-    }
+    },
   );
 }

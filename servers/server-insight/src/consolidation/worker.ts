@@ -7,8 +7,8 @@
  * 2. Auto-dedup — runs findDuplicates + dedupeScope per scope
  * 3. Lesson promotion — auto-proposes lessons from verified episodes
  */
-import type { StorageAdapter } from '../storage/adapter.js';
-import type { LessonService } from '../domain/lesson-service.js';
+import type { StorageAdapter } from "../storage/adapter.js";
+import type { LessonService } from "../domain/lesson-service.js";
 
 export interface WorkerOptions {
   /** Days after which an episode is considered stale (default 90). */
@@ -34,7 +34,7 @@ export class ConsolidationWorker {
   constructor(
     private readonly adapter: StorageAdapter,
     private readonly lessonService: LessonService,
-    options: WorkerOptions = {}
+    options: WorkerOptions = {},
   ) {
     this.staleDays = options.staleDays ?? 90;
     this.intervalMs = options.intervalMs ?? 300_000; // 5 min
@@ -44,7 +44,7 @@ export class ConsolidationWorker {
     if (this.intervalMs <= 0 || this.timer) return;
     this.timer = setInterval(() => {
       this.runOnce().catch((e) => {
-        console.error('[EMMS consolidation] run failed:', (e as Error).message);
+        console.error("[EMMS consolidation] run failed:", (e as Error).message);
       });
     }, this.intervalMs);
     this.timer.unref(); // don't prevent process exit
@@ -69,7 +69,14 @@ export class ConsolidationWorker {
       scopes = await this.adapter.listScopes();
     } catch (e) {
       errors.push(`listScopes: ${(e as Error).message}`);
-      return { ran_at, scopes_scanned: 0, stale_flagged: 0, dedup_groups: 0, lessons_promoted: 0, errors };
+      return {
+        ran_at,
+        scopes_scanned: 0,
+        stale_flagged: 0,
+        dedup_groups: 0,
+        lessons_promoted: 0,
+        errors,
+      };
     }
 
     const staleCutoff = Date.now() - this.staleDays * 24 * 3600 * 1000;
@@ -80,7 +87,10 @@ export class ConsolidationWorker {
         const eps = await this.adapter.findAllEpisodes();
         for (const ep of eps) {
           if (ep.scope_id !== scope_id) continue;
-          if (ep.last_verified_at && Date.parse(ep.last_verified_at) < staleCutoff) {
+          if (
+            ep.last_verified_at &&
+            Date.parse(ep.last_verified_at) < staleCutoff
+          ) {
             stale_flagged++;
           }
         }
@@ -100,12 +110,19 @@ export class ConsolidationWorker {
       try {
         const eps = await this.adapter.findAllEpisodes();
         const verified = eps.filter(
-          (e) => e.scope_id === scope_id &&
-            (e.state === 'LOCALLY_VERIFIED' || e.state === 'REPRODUCED' || e.state === 'CROSS_PROJECT_VERIFIED')
+          (e) =>
+            e.scope_id === scope_id &&
+            (e.state === "LOCALLY_VERIFIED" ||
+              e.state === "REPRODUCED" ||
+              e.state === "CROSS_PROJECT_VERIFIED"),
         );
         for (const ep of verified) {
           const sigs = await (this.adapter as unknown as {
-            db: { prepare: (q: string) => { all: (...p: unknown[]) => Array<{ normalized_hash: string }> } };
+            db: {
+              prepare: (q: string) => {
+                all: (...p: unknown[]) => Array<{ normalized_hash: string }>;
+              };
+            };
           });
           void sigs;
           // Use the adapter's listInScope to get the hash
@@ -116,7 +133,7 @@ export class ConsolidationWorker {
             row.normalized_hash,
             ep.problem_summary.slice(0, 80),
             `Fix: ${ep.goal_summary.slice(0, 80)}`,
-            ep.problem_summary.slice(0, 80)
+            ep.problem_summary.slice(0, 80),
           );
           if (lesson) lessons_promoted++;
         }
@@ -125,7 +142,14 @@ export class ConsolidationWorker {
       }
     }
 
-    return { ran_at, scopes_scanned: scopes.length, stale_flagged, dedup_groups, lessons_promoted, errors };
+    return {
+      ran_at,
+      scopes_scanned: scopes.length,
+      stale_flagged,
+      dedup_groups,
+      lessons_promoted,
+      errors,
+    };
   }
 
   private async findDuplicates(scope_id: string): Promise<string[][]> {

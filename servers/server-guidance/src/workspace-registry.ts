@@ -102,7 +102,11 @@ export class WorkspaceRegistry {
       } catch {
         real = abs;
       }
-      byName.set("default", { name: "default", root: real, projectName: "default" });
+      byName.set("default", {
+        name: "default",
+        root: real,
+        projectName: "default",
+      });
       byRoot.set(real, byName.get("default")!);
     }
     return new WorkspaceRegistry(byName, byRoot);

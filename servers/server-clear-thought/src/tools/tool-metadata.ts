@@ -9,7 +9,7 @@
  * a new tool ships without an entry here.
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 export interface ToolMetadata {
   /** Human-readable annotation title (shown in clients). */
@@ -28,7 +28,9 @@ export interface ToolMetadata {
 }
 
 /** status + optional extras, passthrough for payload evolution. */
-function schema(extra: Record<string, z.ZodTypeAny> = {}): z.ZodObject<Record<string, z.ZodTypeAny>> {
+function schema(
+  extra: Record<string, z.ZodTypeAny> = {},
+): z.ZodObject<Record<string, z.ZodTypeAny>> {
   return z
     .object({ status: z.string().optional(), ...extra })
     .passthrough() as z.ZodObject<Record<string, z.ZodTypeAny>>;
@@ -39,113 +41,124 @@ const sessionContext = { sessionContext: z.unknown().optional() };
 /** Dual-mode (facilitation/analysis) scaffolds share these keys. */
 const dualMode = {
   guiding_questions: z.unknown().optional(),
-  nextSteps: z.unknown().optional()
+  nextSteps: z.unknown().optional(),
 };
 
 export const TOOL_METADATA: Record<string, ToolMetadata> = {
   // ── Reasoning family (iterative, stateful) ──────────────────────────────
   sequential_thinking: {
-    title: 'Sequential Thinking',
-    outputSchema: schema({ ...sessionContext, nextThoughtNeeded: z.unknown().optional() }),
-    stateful: true
+    title: "Sequential Thinking",
+    outputSchema: schema({
+      ...sessionContext,
+      nextThoughtNeeded: z.unknown().optional(),
+    }),
+    stateful: true,
   },
-  mental_model: { title: 'Mental Model', outputSchema: schema(sessionContext), stateful: true },
-  debugging_approach: {
-    title: 'Debugging Approach',
+  mental_model: {
+    title: "Mental Model",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
+  },
+  debugging_approach: {
+    title: "Debugging Approach",
+    outputSchema: schema(sessionContext),
+    stateful: true,
   },
   collaborative_reasoning: {
-    title: 'Collaborative Reasoning',
+    title: "Collaborative Reasoning",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
   },
   decision_framework: {
-    title: 'Decision Framework',
+    title: "Decision Framework",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
   },
   metacognitive_monitoring: {
-    title: 'Metacognitive Monitoring',
+    title: "Metacognitive Monitoring",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
   },
-  socratic_method: { title: 'Socratic Method', outputSchema: schema(sessionContext), stateful: true },
-  creative_thinking: {
-    title: 'Creative Thinking',
+  socratic_method: {
+    title: "Socratic Method",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
+  },
+  creative_thinking: {
+    title: "Creative Thinking",
+    outputSchema: schema(sessionContext),
+    stateful: true,
   },
   systems_thinking: {
-    title: 'Systems Thinking',
+    title: "Systems Thinking",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
   },
   scientific_method: {
-    title: 'Scientific Method',
+    title: "Scientific Method",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
   },
   structured_argumentation: {
-    title: 'Structured Argumentation',
+    title: "Structured Argumentation",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
   },
   visual_reasoning: {
-    title: 'Visual Reasoning',
+    title: "Visual Reasoning",
     outputSchema: schema(sessionContext),
-    stateful: true
+    stateful: true,
   },
 
   // ── Dual-mode visualization family ───────────────────────────────────────
   mind_map: {
-    title: 'Mind Map',
+    title: "Mind Map",
     outputSchema: schema({
       map: z.unknown().optional(),
       suggested_branch_count: z.unknown().optional(),
       branch_count: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
   concept_map: {
-    title: 'Concept Map',
+    title: "Concept Map",
     outputSchema: schema({
       map: z.unknown().optional(),
       relations: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
   fishbone_diagram: {
-    title: 'Fishbone Diagram',
+    title: "Fishbone Diagram",
     outputSchema: schema({
       causes: z.unknown().optional(),
       categories: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
   swot_analysis: {
-    title: 'SWOT Analysis',
+    title: "SWOT Analysis",
     outputSchema: schema({
       strengths: z.unknown().optional(),
       weaknesses: z.unknown().optional(),
       opportunities: z.unknown().optional(),
       threats: z.unknown().optional(),
       towsRanked: z.unknown().optional(),
-      scores: z.unknown().optional()
-    })
+      scores: z.unknown().optional(),
+    }),
   },
   issue_tree: {
-    title: 'Issue Tree',
+    title: "Issue Tree",
     outputSchema: schema({
       tree: z.unknown().optional(),
       sub_questions: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
 
   // ── Risk family (B1) ───────────────────────────────────────────────────
   premortem: {
-    title: 'Pre-Mortem',
+    title: "Pre-Mortem",
     outputSchema: schema({
       mode: z.unknown().optional(),
       project: z.unknown().optional(),
@@ -153,11 +166,11 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
       risks: z.unknown().optional(),
       top_risks: z.unknown().optional(),
       mitigation_coverage: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
   fmea: {
-    title: 'FMEA',
+    title: "FMEA",
     outputSchema: schema({
       mode: z.unknown().optional(),
       scope: z.unknown().optional(),
@@ -165,181 +178,209 @@ export const TOOL_METADATA: Record<string, ToolMetadata> = {
       mean_rpn: z.unknown().optional(),
       max_rpn: z.unknown().optional(),
       flagged_count: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
   fault_tree: {
-    title: 'Fault Tree Analysis',
+    title: "Fault Tree Analysis",
     outputSchema: schema({
       mode: z.unknown().optional(),
       top_event: z.unknown().optional(),
       top_probability: z.unknown().optional(),
       basic_events: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
 
   // ── Risk toolset (family toolset for the B1 risk tools) ──────────────
   risk: {
-    title: 'Risk Toolset',
-    outputSchema: schema({ operation: z.unknown().optional() })
+    title: "Risk Toolset",
+    outputSchema: schema({ operation: z.unknown().optional() }),
   },
   // ── Track B2–B5 ─────────────────────────────────────────────────────────
   argument_map: {
-    title: 'Argument Map',
+    title: "Argument Map",
     outputSchema: schema({
       claim: z.unknown().optional(),
       elements: z.unknown().optional(),
       missing_elements: z.unknown().optional(),
       completeness: z.unknown().optional(),
-      verdict: z.unknown().optional()
-    })
+      verdict: z.unknown().optional(),
+    }),
   },
   causal_graph: {
-    title: 'Causal Graph',
+    title: "Causal Graph",
     outputSchema: schema({
       mode: z.unknown().optional(),
       outcome: z.unknown().optional(),
       root_candidates: z.unknown().optional(),
       confounder_candidates: z.unknown().optional(),
       questions: z.unknown().optional(),
-      ...dualMode
-    })
+      ...dualMode,
+    }),
   },
   fermi_estimate: {
-    title: 'Fermi Estimate',
+    title: "Fermi Estimate",
     outputSchema: schema({
       target: z.unknown().optional(),
       estimate: z.unknown().optional(),
       sensitivity: z.unknown().optional(),
-      most_sensitive: z.unknown().optional()
-    })
+      most_sensitive: z.unknown().optional(),
+    }),
   },
   game_matrix: {
-    title: 'Game Matrix',
+    title: "Game Matrix",
     outputSchema: schema({
       best_responses: z.unknown().optional(),
       strictly_dominated: z.unknown().optional(),
       pure_nash: z.unknown().optional(),
       nash_count: z.unknown().optional(),
-      mixed_strategies: z.unknown().optional()
-    })
+      mixed_strategies: z.unknown().optional(),
+    }),
   },
   // ── Workflow toolset (track C) ────────────────────────────────────────
   recipe_runner: {
-    title: 'Recipe Runner',
+    title: "Recipe Runner",
     outputSchema: schema({
       mode: z.unknown().optional(),
       recipe: z.unknown().optional(),
       progress: z.unknown().optional(),
       current_stage: z.unknown().optional(),
-      next_action: z.unknown().optional()
+      next_action: z.unknown().optional(),
     }),
-    stateful: true
+    stateful: true,
   },
   workflow: {
-    title: 'Workflow Toolset',
+    title: "Workflow Toolset",
     outputSchema: schema({ operation: z.unknown().optional() }),
-    stateful: true
+    stateful: true,
   },
 
   // ── Utility family ────────────────────────────────────────────────────────
   analogical_mapper: {
-    title: 'Analogical Mapper',
-    outputSchema: schema({ lenses: z.unknown().optional(), suggested_prompts: z.unknown().optional(), ...dualMode })
+    title: "Analogical Mapper",
+    outputSchema: schema({
+      lenses: z.unknown().optional(),
+      suggested_prompts: z.unknown().optional(),
+      ...dualMode,
+    }),
   },
   assumption_xray: {
-    title: 'Assumption X-Ray',
-    outputSchema: schema({ assumptions: z.unknown().optional(), falsification_tests: z.unknown().optional() })
+    title: "Assumption X-Ray",
+    outputSchema: schema({
+      assumptions: z.unknown().optional(),
+      falsification_tests: z.unknown().optional(),
+    }),
   },
   comparative_advantage: {
-    title: 'Comparative Advantage',
-    outputSchema: schema({ assignments: z.unknown().optional() })
+    title: "Comparative Advantage",
+    outputSchema: schema({ assignments: z.unknown().optional() }),
   },
-  drag_point_audit: { title: 'Drag Point Audit', outputSchema: schema() },
+  drag_point_audit: { title: "Drag Point Audit", outputSchema: schema() },
   safe_struggle_designer: {
-    title: 'Safe Struggle Designer',
-    outputSchema: schema({ skill: z.unknown().optional() })
+    title: "Safe Struggle Designer",
+    outputSchema: schema({ skill: z.unknown().optional() }),
   },
   seven_seekers_orchestrator: {
-    title: 'Seven Seekers Orchestrator',
-    outputSchema: schema({ lenses: z.unknown().optional(), suggested_downstream_tools: z.unknown().optional(), ...dualMode })
+    title: "Seven Seekers Orchestrator",
+    outputSchema: schema({
+      lenses: z.unknown().optional(),
+      suggested_downstream_tools: z.unknown().optional(),
+      ...dualMode,
+    }),
   },
-  value_of_information: { title: 'Value of Information', outputSchema: schema() },
+  value_of_information: {
+    title: "Value of Information",
+    outputSchema: schema(),
+  },
   existing_tool_example: {
-    title: 'Existing Tool Example',
-    outputSchema: schema({ text: z.unknown().optional() })
+    title: "Existing Tool Example",
+    outputSchema: schema({ text: z.unknown().optional() }),
   },
   setup_clearthought: {
-    title: 'Agents Guide',
+    title: "Agents Guide",
     outputSchema: schema({
       mode: z.unknown().optional(),
       content: z.unknown().optional(),
       block_replaced: z.unknown().optional(),
-      unresolved_placeholders: z.unknown().optional()
-    })
+      unresolved_placeholders: z.unknown().optional(),
+    }),
   },
 
   // ── Session family ────────────────────────────────────────────────────────
   session_info: {
-    title: 'Session Info',
+    title: "Session Info",
     outputSchema: schema({
       sessionId: z.unknown().optional(),
       createdAt: z.unknown().optional(),
       lastAccessedAt: z.unknown().optional(),
-      stats: z.unknown().optional()
-    })
+      stats: z.unknown().optional(),
+    }),
   },
   session_export: {
-    title: 'Session Export',
-    outputSchema: schema({ format: z.unknown().optional(), export: z.unknown().optional() })
+    title: "Session Export",
+    outputSchema: schema({
+      format: z.unknown().optional(),
+      export: z.unknown().optional(),
+    }),
   },
   session_import: {
-    title: 'Session Import',
+    title: "Session Import",
     outputSchema: schema({ restored: z.unknown().optional() }),
-    stateful: true
+    stateful: true,
   },
   session_save: {
-    title: 'Session Save',
+    title: "Session Save",
     outputSchema: schema({
       saved: z.unknown().optional(),
-      bytes: z.unknown().optional()
+      bytes: z.unknown().optional(),
     }),
-    readOnly: false
+    readOnly: false,
   },
   session_load: {
-    title: 'Session Load',
+    title: "Session Load",
     outputSchema: schema({
       loaded: z.unknown().optional(),
       savedAt: z.unknown().optional(),
-      stats: z.unknown().optional()
+      stats: z.unknown().optional(),
     }),
-    stateful: true
+    stateful: true,
   },
 
   // ── Toolsets (dispatch to the handlers above → stateful like their ops) ──
-  reasoning: { title: 'Reasoning Toolset', outputSchema: schema({ operation: z.unknown().optional() }), stateful: true },
-  visualization: {
-    title: 'Visualization Toolset',
-    outputSchema: schema({ operation: z.unknown().optional() })
+  reasoning: {
+    title: "Reasoning Toolset",
+    outputSchema: schema({ operation: z.unknown().optional() }),
+    stateful: true,
   },
-  utility: { title: 'Utility Toolset', outputSchema: schema({ operation: z.unknown().optional() }) },
-  session: { title: 'Session Toolset', outputSchema: schema({ operation: z.unknown().optional() }), stateful: true },
+  visualization: {
+    title: "Visualization Toolset",
+    outputSchema: schema({ operation: z.unknown().optional() }),
+  },
+  utility: {
+    title: "Utility Toolset",
+    outputSchema: schema({ operation: z.unknown().optional() }),
+  },
+  session: {
+    title: "Session Toolset",
+    outputSchema: schema({ operation: z.unknown().optional() }),
+    stateful: true,
+  },
 
   // ── Stochastic algorithms (merged from server-stochasticthinking) ────────
   stochasticalgorithm: {
-    title: 'Stochastic Algorithm (real computation)',
+    title: "Stochastic Algorithm (real computation)",
     outputSchema: schema({
       algorithm: z.unknown().optional(),
       summary: z.unknown().optional(),
       hasResult: z.unknown().optional(),
-      details: z.unknown().optional()
+      details: z.unknown().optional(),
     }),
-    stateful: true
+    stateful: true,
   },
   stochastic: {
-    title: 'Stochastic Toolset',
+    title: "Stochastic Toolset",
     outputSchema: schema({ operation: z.unknown().optional() }),
-    stateful: true
-  }
+    stateful: true,
+  },
 };

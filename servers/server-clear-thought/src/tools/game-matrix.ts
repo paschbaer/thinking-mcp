@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 /**
  * B5 — Game Matrix: analyze a zero-sum-or-not payoff matrix — strict
@@ -8,34 +8,46 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
  */
 
 const cellSchema = z.object({
-  row: z.number().describe('Payoff for the row player'),
-  col: z.number().describe('Payoff for the column player')
+  row: z.number().describe("Payoff for the row player"),
+  col: z.number().describe("Payoff for the column player"),
 });
 
 export const gameMatrixInputShape = {
-  row_labels: z.array(z.string().trim().min(1)).min(2).describe('Row player strategies'),
-  col_labels: z.array(z.string().trim().min(1)).min(2).describe('Column player strategies'),
+  row_labels: z
+    .array(z.string().trim().min(1))
+    .min(2)
+    .describe("Row player strategies"),
+  col_labels: z
+    .array(z.string().trim().min(1))
+    .min(2)
+    .describe("Column player strategies"),
   payoff_matrix: z
     .array(z.array(cellSchema))
     .min(2)
     .describe(
-      'Payoff cells: payoff_matrix[row][col] = { row, col }. Example for 2x2: ' +
+      "Payoff cells: payoff_matrix[row][col] = { row, col }. Example for 2x2: " +
         '[[{"row":5,"col":3},{"row":0,"col":4}],[{"row":3,"col":3},{"row":6,"col":2}]] ' +
-        '— nested objects with numbers, never strings'
-    )
+        "— nested objects with numbers, never strings",
+    ),
 };
 
-export function runGameMatrix(args: z.infer<z.ZodObject<typeof gameMatrixInputShape>>) {
+export function runGameMatrix(
+  args: z.infer<z.ZodObject<typeof gameMatrixInputShape>>,
+) {
   const { row_labels, col_labels, payoff_matrix } = args;
   const R = row_labels.length;
   const C = col_labels.length;
 
   if (payoff_matrix.length !== R) {
-    throw new Error(`payoff_matrix has ${payoff_matrix.length} rows, expected ${R}`);
+    throw new Error(
+      `payoff_matrix has ${payoff_matrix.length} rows, expected ${R}`,
+    );
   }
   payoff_matrix.forEach((row, i) => {
     if (row.length !== C) {
-      throw new Error(`payoff_matrix[${i}] has ${row.length} columns, expected ${C}`);
+      throw new Error(
+        `payoff_matrix[${i}] has ${row.length} columns, expected ${C}`,
+      );
     }
   });
 
@@ -43,14 +55,16 @@ export function runGameMatrix(args: z.infer<z.ZodObject<typeof gameMatrixInputSh
   const bestResponses = {
     row: new Array(C).fill(0).map((_, c) => {
       let best = 0;
-      for (let r = 1; r < R; r++) if (payoff_matrix[r][c].row > payoff_matrix[best][c].row) best = r;
+      for (let r = 1; r < R; r++)
+        if (payoff_matrix[r][c].row > payoff_matrix[best][c].row) best = r;
       return row_labels[best];
     }),
     col: new Array(R).fill(0).map((_, r) => {
       let best = 0;
-      for (let c = 1; c < C; c++) if (payoff_matrix[r][c].col > payoff_matrix[r][best].col) best = c;
+      for (let c = 1; c < C; c++)
+        if (payoff_matrix[r][c].col > payoff_matrix[r][best].col) best = c;
       return col_labels[best];
-    })
+    }),
   };
 
   // Strict dominance: row r strictly dominated by row r' if r' beats r in every column.
@@ -59,7 +73,11 @@ export function runGameMatrix(args: z.infer<z.ZodObject<typeof gameMatrixInputSh
     for (let r = 0; r < R; r++) {
       for (let r2 = 0; r2 < R; r2++) {
         if (r === r2) continue;
-        if (payoff_matrix[r].every((cell, c) => payoff_matrix[r2][c].row > cell.row)) {
+        if (
+          payoff_matrix[r].every(
+            (cell, c) => payoff_matrix[r2][c].row > cell.row,
+          )
+        ) {
           out.push({ dominated: row_labels[r], by: row_labels[r2] });
           break;
         }
@@ -82,13 +100,25 @@ export function runGameMatrix(args: z.infer<z.ZodObject<typeof gameMatrixInputSh
   }
 
   // Pure Nash: cell is a simultaneous best response.
-  const pureNash: Array<{ row: string; col: string; payoffs: z.infer<typeof cellSchema> }> = [];
+  const pureNash: Array<{
+    row: string;
+    col: string;
+    payoffs: z.infer<typeof cellSchema>;
+  }> = [];
   for (let r = 0; r < R; r++) {
     for (let c = 0; c < C; c++) {
-      const isRowBest = payoff_matrix[r][c].row === Math.max(...payoff_matrix.map((row) => row[c].row));
-      const isColBest = payoff_matrix[r][c].col === Math.max(...payoff_matrix[r].map((cell) => cell.col));
+      const isRowBest =
+        payoff_matrix[r][c].row ===
+        Math.max(...payoff_matrix.map((row) => row[c].row));
+      const isColBest =
+        payoff_matrix[r][c].col ===
+        Math.max(...payoff_matrix[r].map((cell) => cell.col));
       if (isRowBest && isColBest) {
-        pureNash.push({ row: row_labels[r], col: col_labels[c], payoffs: payoff_matrix[r][c] });
+        pureNash.push({
+          row: row_labels[r],
+          col: col_labels[c],
+          payoffs: payoff_matrix[r][c],
+        });
       }
     }
   }
@@ -115,31 +145,42 @@ export function runGameMatrix(args: z.infer<z.ZodObject<typeof gameMatrixInputSh
         // Indifference → p = (h − g) / (e − f − g + h).
         const p = (h - g) / denomCol;
         mixed = {
-          row_player: { [row_labels[0]]: round(p), [row_labels[1]]: round(1 - p) },
-          col_player: { [col_labels[0]]: round(q), [col_labels[1]]: round(1 - q) },
-          note: 'Closed-form equilibrium of the mixed extension (2×2). Probabilities outside [0,1] mean no interior mixed equilibrium.'
+          row_player: {
+            [row_labels[0]]: round(p),
+            [row_labels[1]]: round(1 - p),
+          },
+          col_player: {
+            [col_labels[0]]: round(q),
+            [col_labels[1]]: round(1 - q),
+          },
+          note: "Closed-form equilibrium of the mixed extension (2×2). Probabilities outside [0,1] mean no interior mixed equilibrium.",
         };
       }
     }
   }
 
   return {
-    mode: 'analysis',
+    mode: "analysis",
     row_labels,
     col_labels,
     payoff_matrix,
     best_responses: bestResponses,
-    strictly_dominated: { rows: strictlyDominatedRows(), columns: strictlyDominatedCols() },
+    strictly_dominated: {
+      rows: strictlyDominatedRows(),
+      columns: strictlyDominatedCols(),
+    },
     pure_nash: pureNash,
     nash_count: pureNash.length,
     mixed_strategies: mixed,
     nextSteps: [
       pureNash.length === 1
-        ? 'Unique pure Nash — predicted outcome, but check the payoffs for realism before relying on it.'
-        : 'Multiple equilibria (or none) — coordination, convention or commitment mechanisms decide which one is played.',
-      mixed ? 'Compare the mixed equilibrium against the pure ones before predicting behavior.' : 'Consider aggregating strategies to reach a 2×2 form for mixed-equilibrium analysis.'
+        ? "Unique pure Nash — predicted outcome, but check the payoffs for realism before relying on it."
+        : "Multiple equilibria (or none) — coordination, convention or commitment mechanisms decide which one is played.",
+      mixed
+        ? "Compare the mixed equilibrium against the pure ones before predicting behavior."
+        : "Consider aggregating strategies to reach a 2×2 form for mixed-equilibrium analysis.",
     ],
-    status: 'success'
+    status: "success",
   };
 
   function round(x: number): number {
@@ -149,14 +190,16 @@ export function runGameMatrix(args: z.infer<z.ZodObject<typeof gameMatrixInputSh
 
 export function registerGameMatrix(server: McpServer, _sessionState: unknown) {
   server.tool(
-    'game_matrix',
-    'Game theory: analyze a payoff matrix — strict dominance, best ' +
-      'responses, pure Nash equilibria and closed-form mixed strategies for ' +
-      '2×2 games',
+    "game_matrix",
+    "Game theory: analyze a payoff matrix — strict dominance, best " +
+      "responses, pure Nash equilibria and closed-form mixed strategies for " +
+      "2×2 games",
     gameMatrixInputShape,
     async (args) => {
       const response = runGameMatrix(args);
-      return { content: [{ type: 'text', text: JSON.stringify(response, null, 2) }] };
-    }
+      return {
+        content: [{ type: "text", text: JSON.stringify(response, null, 2) }],
+      };
+    },
   );
 }

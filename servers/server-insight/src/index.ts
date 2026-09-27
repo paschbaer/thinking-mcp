@@ -1,8 +1,8 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
-import { DEFAULT_CONFIG, type ServerConfig } from './config.js';
-import { registerTools } from './tools/index.js';
+import { DEFAULT_CONFIG, type ServerConfig } from "./config.js";
+import { registerTools } from "./tools/index.js";
 
 /**
  * Creates the Experience Memory MCP Server (EMMS).
@@ -22,15 +22,15 @@ export default function createExperienceMemoryServer({
 
   const server = new McpServer(
     {
-      name: 'experience-memory-mcp',
-      version: '0.1.0',
+      name: "experience-memory-mcp",
+      version: "0.1.0",
     },
     {
       instructions:
-        'Evidence-backed long-term experience memory for coding agents. ' +
-        'Capture, validate, and retrieve structured experience episodes with ' +
-        'guidance on the recommended next request.',
-    }
+        "Evidence-backed long-term experience memory for coding agents. " +
+        "Capture, validate, and retrieve structured experience episodes with " +
+        "guidance on the recommended next request.",
+    },
   );
 
   registerTools(server, resolvedConfig);

@@ -54,16 +54,32 @@ export class ClientOpLedger {
     const existing = this.reports.get(operationId);
     if (existing?.token !== undefined) {
       if (existing.token !== token) {
-        throw new GuidanceError("client_report_invalid", `operation ${operationId} was already reported (token mismatch)`, { recoverable: true });
+        throw new GuidanceError(
+          "client_report_invalid",
+          `operation ${operationId} was already reported (token mismatch)`,
+          { recoverable: true },
+        );
       }
-      throw new GuidanceError("client_report_invalid", `operation ${operationId} was already reported (replay)`, { recoverable: true });
+      throw new GuidanceError(
+        "client_report_invalid",
+        `operation ${operationId} was already reported (replay)`,
+        { recoverable: true },
+      );
     }
     const expected = this.pendingTokens.get(operationId);
     if (!expected) {
-      throw new GuidanceError("client_report_invalid", `no pending client operation ${operationId}`, { recoverable: true });
+      throw new GuidanceError(
+        "client_report_invalid",
+        `no pending client operation ${operationId}`,
+        { recoverable: true },
+      );
     }
     if (token !== expected) {
-      throw new GuidanceError("client_report_invalid", `report token mismatch for ${operationId}`, { recoverable: true });
+      throw new GuidanceError(
+        "client_report_invalid",
+        `report token mismatch for ${operationId}`,
+        { recoverable: true },
+      );
     }
   }
 
@@ -77,7 +93,8 @@ export class ClientOpLedger {
   }
 
   restorePending(tokens: Record<string, string> | undefined): void {
-    for (const [opId, token] of Object.entries(tokens ?? {})) this.pendingTokens.set(opId, token);
+    for (const [opId, token] of Object.entries(tokens ?? {}))
+      this.pendingTokens.set(opId, token);
   }
 
   get(operationId: string): OpReport | undefined {
@@ -92,13 +109,19 @@ export class ClientOpLedger {
 export class ClientOpEngine {
   constructor(private readonly ledger: ClientOpLedger) {}
 
-  async executeRequired(configs: OperationConfig[], _ctx: OperationContext): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> {
+  async executeRequired(
+    configs: OperationConfig[],
+    _ctx: OperationContext,
+  ): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> {
     const results: NormalizedResult[] = configs.map((config) => {
       const report = this.ledger.get(config.operationId);
       if (report) {
         return {
           operationId: config.operationId,
-          status: report.status === "succeeded" ? ("succeeded" as const) : report.status,
+          status:
+            report.status === "succeeded"
+              ? ("succeeded" as const)
+              : report.status,
           summary: report.summary || `client-reported: ${report.status}`,
           data: { exitCode: report.exitCode, clientReported: true },
           content: [],
@@ -108,13 +131,20 @@ export class ClientOpEngine {
         operationId: config.operationId,
         status: "input_required" as const,
         summary: "awaiting client execution (remote mode)",
-        data: { awaitingClient: true, opToken: this.ledger.mintToken(config.operationId) },
+        data: {
+          awaitingClient: true,
+          opToken: this.ledger.mintToken(config.operationId),
+        },
         content: [],
       } as unknown as NormalizedResult;
     });
     const allSucceeded = configs
       .filter((c) => c.required)
-      .every((c) => results.find((r) => r.operationId === c.operationId)?.status === "succeeded");
+      .every(
+        (c) =>
+          results.find((r) => r.operationId === c.operationId)?.status ===
+          "succeeded",
+      );
     return { allSucceeded, results };
   }
 }

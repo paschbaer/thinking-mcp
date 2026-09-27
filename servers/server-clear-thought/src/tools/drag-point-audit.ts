@@ -1,20 +1,31 @@
-import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { SessionState } from '../state/SessionState.js';
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SessionState } from "../state/SessionState.js";
 
-const DEFAULT_CATEGORIES = ['error', 'warning', 'timeout', 'retry', 'slow'] as const;
+const DEFAULT_CATEGORIES = [
+  "error",
+  "warning",
+  "timeout",
+  "retry",
+  "slow",
+] as const;
 
-export function registerDragPointAudit(server: McpServer, _sessionState: SessionState) {
+export function registerDragPointAudit(
+  server: McpServer,
+  _sessionState: SessionState,
+) {
   server.tool(
-    'drag_point_audit',
-    'Scan a process log for drag points: per-keyword occurrence counts, ' +
-      'repeated messages and overall drag density (empty log returns a scaffold)',
+    "drag_point_audit",
+    "Scan a process log for drag points: per-keyword occurrence counts, " +
+      "repeated messages and overall drag density (empty log returns a scaffold)",
     {
-      log: z.string().describe('The process log to scan for drag points'),
+      log: z.string().describe("The process log to scan for drag points"),
       categories: z
         .array(z.string())
         .optional()
-        .describe('Keywords to count per line (default: error, warning, timeout, retry, slow)')
+        .describe(
+          "Keywords to count per line (default: error, warning, timeout, retry, slow)",
+        ),
     },
     async ({ log, categories }) => {
       const lines = log
@@ -26,25 +37,27 @@ export function registerDragPointAudit(server: McpServer, _sessionState: Session
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(
                 {
-                  mode: 'facilitation',
+                  mode: "facilitation",
                   drag_points: [],
                   repeated_messages: [],
                   guiding_questions: [
-                    'Which processing stages are covered by this log?',
-                    'Where do retries, timeouts or repeated failures appear?',
-                    'Which lines repeat identically (loops, retry storms)?'
+                    "Which processing stages are covered by this log?",
+                    "Where do retries, timeouts or repeated failures appear?",
+                    "Which lines repeat identically (loops, retry storms)?",
                   ],
-                  nextSteps: ['Paste the log text into the `log` parameter and call again.'],
-                  status: 'success'
+                  nextSteps: [
+                    "Paste the log text into the `log` parameter and call again.",
+                  ],
+                  status: "success",
                 },
                 null,
-                2
-              )
-            }
-          ]
+                2,
+              ),
+            },
+          ],
         };
       }
 
@@ -55,7 +68,9 @@ export function registerDragPointAudit(server: McpServer, _sessionState: Session
       const lowerLines = lines.map((line) => line.toLowerCase());
       const drag_points = cats.map((category) => ({
         category,
-        count: lowerLines.filter((line) => line.includes(category.toLowerCase())).length
+        count: lowerLines.filter((line) =>
+          line.includes(category.toLowerCase()),
+        ).length,
       }));
 
       const counts = new Map<string, number>();
@@ -67,17 +82,17 @@ export function registerDragPointAudit(server: McpServer, _sessionState: Session
         .map(([message, count]) => ({ message, count }));
 
       const flagged = lowerLines.filter((line) =>
-        cats.some((category) => line.includes(category.toLowerCase()))
+        cats.some((category) => line.includes(category.toLowerCase())),
       ).length;
       const drag_density = Number((flagged / lines.length).toFixed(2));
 
       return {
         content: [
           {
-            type: 'text',
+            type: "text",
             text: JSON.stringify(
               {
-                mode: 'analysis',
+                mode: "analysis",
                 drag_points,
                 repeated_messages,
                 total_line_count: lines.length,
@@ -85,18 +100,18 @@ export function registerDragPointAudit(server: McpServer, _sessionState: Session
                 drag_density,
                 summary_score: drag_density,
                 nextSteps: [
-                  'Investigate the categories with the highest counts first.',
-                  'Repeated identical messages usually indicate retry storms or loops.',
-                  'A drag_density above 0.3 means the log is dominated by problem lines.'
+                  "Investigate the categories with the highest counts first.",
+                  "Repeated identical messages usually indicate retry storms or loops.",
+                  "A drag_density above 0.3 means the log is dominated by problem lines.",
                 ],
-                status: 'success'
+                status: "success",
               },
               null,
-              2
-            )
-          }
-        ]
+              2,
+            ),
+          },
+        ],
       };
-    }
+    },
   );
 }

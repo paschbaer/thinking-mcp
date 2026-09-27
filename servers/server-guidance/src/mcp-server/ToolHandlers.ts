@@ -19,9 +19,7 @@ export class WorkflowTools {
     return this.engine.startWorkflow(input);
   }
 
-  async getCurrentGuidance(
-    sessionId: string,
-  ): Promise<{
+  async getCurrentGuidance(sessionId: string): Promise<{
     sessionId: string;
     currentPhase: string;
     status: string;
