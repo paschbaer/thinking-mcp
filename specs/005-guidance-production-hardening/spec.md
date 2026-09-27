@@ -102,8 +102,10 @@ covers both variants.
   status change; persistence as JSONL append in `stateDir/metrics.jsonl`,
   replayed on boot; all payloads redacted via the audit redactor.
 - **FR-404** Remote-mode report tokens per US3 (one-time, audited,
-  `client_report_invalid` on mismatch/replay; HMAC-SHA256 with the session
-  key material when key auth is configured).
+  `client_report_invalid` on mismatch/replay; burned on acceptance). The
+  token is an opaque 32-hex random value — the transport is already
+  key-authenticated, so no additional HMAC layer is applied (optional
+  future hardening, tracked).
 - **FR-405** Venv relocation via `UV_PROJECT_ENVIRONMENT` (documentation +
   compose example + E2E variant); no engine changes.
 - **FR-406** Spec 003 renumbering per US5 with alias table.

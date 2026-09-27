@@ -333,6 +333,23 @@ export class WorkflowEngine {
         downstreamEngine.setDownstreamInvoker({
           invokeTool: this.buildInvokerClosure(servers, deps.stateDir),
         });
+        // spec 005 F3/M2 (final review feature 007): Lifecycle-Pfade laufen
+        // über executeRequired — Metrics auch dort aufzeichnen, sonst zählt
+        // remote nur der direkte execute-Pfad (run_operation).
+        const deRaw = downstreamEngine.execute.bind(downstreamEngine);
+        downstreamEngine.execute = (config, ctx, attempt, signal) => {
+          const t0 = Date.now();
+          return Promise.resolve(deRaw(config, ctx, attempt, signal)).then(
+            (res) => {
+              this.metrics.recordOperation(config.operationId, res.status as OperationOutcome, Date.now() - t0);
+              return res;
+            },
+            (err) => {
+              this.metrics.recordOperation(config.operationId, "failed", Date.now() - t0);
+              throw err;
+            },
+          );
+        };
       }
       // Router: Downstream-Ops (server-Feld) → regulärer Executor,
       // client-seitige Ops → ClientOpEngine (executeRequired-only).
@@ -521,10 +538,13 @@ export class WorkflowEngine {
     const snap = this.metrics.snapshot();
     const live = await this.getDownstreamStatus();
     for (const c of live) {
-      this.metrics.recordConnection(c.id, c.status ?? "unknown");
+      const prev = snap.connections.find((x) => x.serverId === c.id);
+      this.metrics.recordConnection(c.id, c.status ?? "unknown", c.lastSuccessfulRequestAt ?? prev?.lastSuccessfulRequestAt);
       const existing = snap.connections.find((x) => x.serverId === c.id);
-      if (existing) existing.status = c.status ?? existing.status;
-      else snap.connections.push({ serverId: c.id, status: c.status ?? "unknown" });
+      if (existing) {
+        existing.status = c.status ?? existing.status;
+        existing.lastSuccessfulRequestAt = c.lastSuccessfulRequestAt ?? prev?.lastSuccessfulRequestAt;
+      } else snap.connections.push({ serverId: c.id, status: c.status ?? "unknown", lastSuccessfulRequestAt: c.lastSuccessfulRequestAt });
     }
     return snap;
   }
