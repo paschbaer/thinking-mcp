@@ -7,7 +7,7 @@
  * on every call (fits the stateless HTTP mode; decision setup-wizard-state-1
  * Option A).
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GuidanceError } from "../types/errors.js";
@@ -484,4 +484,67 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
     notes.push("http-docker: downstream URLs use host.docker.internal — ensure those servers are reachable from the container (allowlist already generated).");
   }
   return { files, notes };
+}
+
+/**
+ * specs/008 FR-902 (adopt flow, N-6): fail-closed validation of the adopt
+ * reference configuration. Checks presence + JSON-parseability of every file
+ * the adopt flow needs, plus readability of the reference profile file
+ * (FR-908). Throws GuidanceError("configuration_invalid") with the
+ * `adopt source: missing/unreadable file <name>` pattern.
+ */
+export function validateAdoptReference(referenceDir: string): void {
+  const requiredFiles = [
+    "guidance.json",
+    "workflow.json",
+    "policies.json",
+    "operations.json",
+    "downstream-servers.json",
+  ];
+  for (const f of requiredFiles) {
+    const p = join(referenceDir, f);
+    if (!existsSync(p)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `adopt source: missing/unreadable file ${f} (reference dir: ${referenceDir})`,
+        { recoverable: true },
+      );
+    }
+    try {
+      JSON.parse(readFileSync(p, "utf-8"));
+    } catch {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `adopt source: unreadable file ${f} (reference dir: ${referenceDir})`,
+        { recoverable: true },
+      );
+    }
+  }
+  const schemasDir = join(referenceDir, "schemas");
+  if (!existsSync(schemasDir)) {
+    throw new GuidanceError(
+      "configuration_invalid",
+      `adopt source: missing/unreadable file schemas/ (reference dir: ${referenceDir})`,
+      { recoverable: true },
+    );
+  }
+  // FR-908: the reference profile file must be readable when a non-plain
+  // profile is declared — the adopted workflow may depend on its gates.
+  let guidance: Record<string, unknown>;
+  try {
+    guidance = JSON.parse(readFileSync(join(referenceDir, "guidance.json"), "utf-8")) as Record<string, unknown>;
+  } catch {
+    throw new GuidanceError("configuration_invalid", "adopt source: unreadable file guidance.json", { recoverable: true });
+  }
+  const profile = guidance["profile"];
+  if (typeof profile === "string" && profile !== "plain") {
+    const profileFile = join(referenceDir, "profiles", `${profile}.json`);
+    if (!existsSync(profileFile)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `adopt source: missing/unreadable file profiles/${profile}.json (FR-908)`,
+        { recoverable: true },
+      );
+    }
+  }
 }

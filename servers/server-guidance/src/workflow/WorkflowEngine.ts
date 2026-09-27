@@ -2301,7 +2301,20 @@ export class WorkflowEngine {
     session: WorkflowSession,
     phase?: string,
   ): PhaseInstruction {
-    return this.guidanceFor(session, phase);
+    const instruction = this.guidanceFor(session, phase);
+    // specs/008 FR-904: the global instruction slot (workflow.json
+    // instructions.global) is prepended server-side to EVERY agent-facing
+    // phase instruction — guaranteed by construction, no per-phase opt-out.
+    const globalRaw = (
+      this.config.workflow as { instructions?: { global?: string } } | undefined
+    )?.instructions?.global;
+    if (globalRaw) {
+      return {
+        ...instruction,
+        instruction: globalRaw + "\n\n" + instruction.instruction,
+      };
+    }
+    return instruction;
   }
 
   async cancelWorkflow(sessionId: string): Promise<SubmitResult> {
