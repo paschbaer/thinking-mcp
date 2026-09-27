@@ -442,3 +442,4 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - memory-bank: F3/F5/F7 (2026-09-26-Sektion) + L2/L3 auf [x] mit Evidence; L4 INFO bleibt offen (bei Bedarf).
 - detect_changes: GitNexus 2x Timeout — Ersatz via git diff (nur Kommentare/Testnamen, kein Verhalten). SUITE NICHT LOKAL GELAUFEN (kein Node auf Host); Testnamen-Renames sind string-safe.
 - LESSON: sed -i auf CRLF-Dateien (specs/005,006) hat Whole-File-Rewrite erzeugt (132/132 lines) — mit git checkout wiederhergestellt und perl -pi -e (CRLF-erhaltend) verwendet. Künftig Status-Edits in CRLF-Dateien nur mit perl oder edit_file.
+- specs/008-multi-workspace implementiert: 17/17 Tasks, Suite 326 passed (5 pre-existing), tsc+build clean, P2-Gate 0 HIGH/CRIT. Offen: Merges zu develop (feature/multi-workspace + feature/release-batch-tool), Push.
