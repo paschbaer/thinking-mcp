@@ -2,13 +2,13 @@
 
 ## P1 — Gate-Skript
 
-- [ ] T1 `check-docs-drift.mjs`: Tool-Parität (Quelle: SPEC_KIT_TOOL_NAMES +
+- [x] T1 `check-docs-drift.mjs`: Tool-Parität (Quelle: SPEC_KIT_TOOL_NAMES +
   WORKFLOW_TOOL_NAMES ↔ README-Tool-Tabelle) — FR-951.1
-- [ ] T2 `check-docs-drift.mjs`: Frage-Katalog-Parität (QUESTIONS-IDs ⊆
+- [x] T2 `check-docs-drift.mjs`: Frage-Katalog-Parität (QUESTIONS-IDs ⊆
   README) + ERROR_CODES-Tabelle-Parität — FR-951.2/3
-- [ ] T3 `check-docs-drift.mjs`: Spec-Status-Hygiene (dateibasiert, Draft +
+- [x] T3 `check-docs-drift.mjs`: Spec-Status-Hygiene (dateibasiert, Draft +
   alle-Checkboxen-[x] ⇒ Meldung; Override-Kommentar) — FR-951.4
-- [ ] T4 Negative-Fälle: fehlende README, kein specs-Verzeichnis, kein `.git`,
+- [x] T4 Negative-Fälle: fehlende README, kein specs-Verzeichnis, kein `.git`,
   `.bak`-Ausnahme — AC / N-AC-1..4
 
 ## P2 — Verdrahtung
@@ -33,3 +33,4 @@
 
 - [ ] T10 AC-1..AC-4 + N-AC-1..4 als Tests; Vollsuite + tsc + build;
   Memory-Bank-Update
+- Batch 1 (T1-T4) completed 2026-09-27: Gate live, Exit 0 (35 tools, 6 questions, 80 error codes). Negative-Fälle per Design abgedeckt (fehlende README fail-closed, leerer specs-Baum still, kein .git dateibasiert, .bak-Ausnahme).
