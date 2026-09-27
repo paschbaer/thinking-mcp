@@ -6,6 +6,24 @@
 
 ## Avoid These Mistakes
 
+- **MCP `Context server request timeout` — diagnose SERVER vs CLIENT before touching config (2026-09-27):**
+  recurring timeouts on clearthought/gitnexus tool calls looked like server problems.
+  Evidence chain that settled it: (1) `docker ps` + `curl /health` — all containers healthy;
+  (2) `docker logs --since 24h | grep -iE "error|timeout|slow|warn"` — zero hits;
+  (3) direct curl MCP roundtrip against `:3000/mcp` (initialize + notifications/initialized +
+  tools/call) = **~160 ms total** — server-side latency is not the bottleneck;
+  (4) the same trivial call through the editor connection still timed out.
+  → Root cause layer is the **Zed MCP client/HTTP transport** (broken SSE stream / client
+  request timeout), NOT the servers. Prevention:
+  - On any MCP tool timeout: run the 4-step evidence chain above FIRST. Only after the
+    server is proven fast+clean suspect the client.
+  - Workaround for heavy ops (gitnexus analyze/reindex): run via CLI/terminal, not MCP —
+    server-side timeouts in `.guidance/downstream-servers.json` (300 s) don't apply to the
+    editor client, which uses its own (shorter, unconfigurable-from-repo) limit.
+  - After a timeout, restart the MCP server session in the editor; cascading timeouts after
+    a first failure indicate a dead stream that never re-initialized.
+  - Note: gitnexus `:4747` is the WEB UI (`gitnexus serve`), there is no `/mcp` endpoint —
+    the editor's gitnexus MCP connection is configured elsewhere (user-level settings).
 - **Self-review finds boundary defects late — mandate an independent reviewer pass INSIDE
   the workflow, not only at merge time:** during the workflow-chaining implementation
   (2026-09-25), the in-workflow implementation review (same author, minutes after writing
