@@ -107,7 +107,7 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
   // do NOT flip the op set.
   const pyprojectPath = join(configDir, "..", "pyproject.toml");
   const pythonWorkspace =
-    existsSync(pyprojectPath) && /\[project\]/.test(readFileSync(pyprojectPath, "utf8"));
+    existsSync(pyprojectPath) && /^\s*\[project\]/m.test(readFileSync(pyprojectPath, "utf8"));
 
   const created: string[] = [];
   const project = "my-project";
