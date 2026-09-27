@@ -14,7 +14,11 @@
       },
       "taskExecution": {
         "mode": "batch",
-        "batch": { "maximumTasks": 3, "respectDependencies": true, "groupParallelTasks": true }
+        "batch": {
+          "maximumTasks": 3,
+          "respectDependencies": true,
+          "groupParallelTasks": true
+        }
       },
       "markdownCheckboxPolicy": "hint",
       "completion": {
@@ -62,5 +66,17 @@
     "allowAgentProvidedCommands": false,
     "restrictWorkingDirectory": true,
     "redactSensitiveOutput": true
-  }
+  },
+  "workspaces": [
+    {
+      "name": "thinking-mcp",
+      "root": "/workspace",
+      "projectName": "Thinking-MCP"
+    },
+    {
+      "name": "niyama",
+      "root": "/workspaces/Niyama",
+      "projectName": "Niyama"
+    }
+  ]
 }
