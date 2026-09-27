@@ -10,10 +10,11 @@ import {
   writeFileSync,
   readFileSync,
   renameSync,
+  cpSync,
 } from "node:fs";
-import { join } from "node:path";
+import { resolve, join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
-import type { ChainConfig, LoadedConfig } from "../config.js";
+import { loadConfig, type ChainConfig, type LoadedConfig } from "../config.js";
 import type {
   OperationConfig,
   OperationStatus,
@@ -166,6 +167,8 @@ export interface EngineDeps {
   clientOperationEngine?: OperationEngine;
   /** FR-117 bridge: pending spec-kit tasks of a session, tasks.md order. */
   specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
+  /** specs/008 T8: child engines (per non-default workspace) never re-route. */
+  isChild?: boolean;
 }
 
 interface ResponsesFile {
@@ -184,12 +187,21 @@ export class WorkflowEngine {
   private readonly instructions: Record<string, PhaseInstruction>;
   private readonly operations: Record<string, OperationConfig>;
   private readonly config: LoadedConfig;
+  /** specs/008 T8/T9: per-workspace child engines + session routing. */
+  private readonly childEngines = new Map<string, WorkflowEngine>();
+  private readonly sessionRoutes = new Map<string, WorkflowEngine>();
+  private readonly isChild: boolean;
+  private readonly defaultRoot: string;
+  private readonly deps: EngineDeps;
   private readonly chain: ChainConfig;
   private readonly specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
   private readonly validators = new Map<string, SchemaValidator>();
 
   constructor(deps: EngineDeps) {
     this.config = deps.config;
+    this.isChild = deps.isChild ?? false;
+    this.deps = deps;
+    this.defaultRoot = deps.config.workspaces.default.root;
     this.chain = deps.config.chain ?? {
       enabled: false,
       maxChainDepth: 8,
@@ -472,7 +484,51 @@ export class WorkflowEngine {
     });
   }
 
+  /**
+   * specs/008 T8: lazily load and cache the composition of a non-default
+   * workspace (config from <root>/.guidance, state at <root>/.guidance/state,
+   * own configurationVersion). The default workspace keeps the boot
+   * composition (AC-3). The spec-kit tasks bridge is parent-only (documented
+   * limitation — chaining across non-default workspaces is out of scope).
+   */
+  private engineForWorkspace(root: string): WorkflowEngine {
+    if (this.isChild || root === this.defaultRoot) return this;
+    // Scaffold-on-first-use (mirrors boot Option D): a registered workspace
+    // without .guidance receives a copy of the boot configuration (minus
+    // state), so name-based starts work immediately (specs/008 T8).
+    const cfgDir = join(root, '.guidance');
+    if (!existsSync(join(cfgDir, 'guidance.json'))) {
+      mkdirSync(cfgDir, { recursive: true });
+      cpSync(this.config.configDir, cfgDir, {
+        recursive: true,
+        filter: (src: string) => !src.includes(join(cfgDir, '')) && !/[\/]state([\/]|$)/.test(src),
+      });
+    }
+    let eng = this.childEngines.get(root);
+    if (!eng) {
+      const cfg = loadConfig(join(root, ".guidance"), { workspaceRoot: root });
+      const stateDir = join(root, ".guidance", "state");
+      mkdirSync(stateDir, { recursive: true });
+      eng = new WorkflowEngine({
+        config: cfg,
+        stateDir,
+        operationEngine: this.deps?.operationEngine,
+        clientOperationEngine: this.deps?.clientOperationEngine,
+        isChild: true,
+      });
+      this.childEngines.set(root, eng);
+    }
+    return eng;
+  }
+
+  private routedFor(sessionId: string): WorkflowEngine | undefined {
+    const eng = this.sessionRoutes.get(sessionId);
+    return eng && eng !== this ? eng : undefined;
+  }
+
   async getWorkflowState(sessionId: string): Promise<WorkflowSession> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.getWorkflowState(sessionId);
     return await this.sessions.withLock(sessionId, () => {
       // Amendment 002: getSession includes the fail-closed 'activating' check.
       const session = this.reconcileRunningOperations(
@@ -492,6 +548,8 @@ export class WorkflowEngine {
       summary?: string;
     }[];
   } {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.getOrchestrationStatus(sessionId);
     const s = this.sessions.load(sessionId);
     const phaseDef = this.definition.phases[s.currentPhase];
     const ids = [
@@ -718,6 +776,9 @@ export class WorkflowEngine {
     sessionId: string,
     operationId: string,
   ): Promise<{ id: string; status: string; summary: string }> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.runOperation(sessionId, operationId);
+
     const session = this.getSession(sessionId);
     const auditDenial = (data: Record<string, unknown>): void =>
       this.audit.append({ sessionId, eventType: "operation_invocation_denied", data });
@@ -803,12 +864,33 @@ export class WorkflowEngine {
   }
 
   async startWorkflow(input: {
-    workspaceRoot: string;
+    workspaceRoot?: string;
+    workspace?: string;
     request: string;
     workflowId?: string;
     metadata?: Record<string, unknown>;
     chain?: unknown;
   }): Promise<StartResult> {
+    // specs/008 FR-802: resolve the target workspace (name or exact root).
+    // Membership enforcement lives at the MCP tool layer (assertWorkspaceRegistered).
+    // The engine stays tolerant for sentinel/legacy callers (remote boot, tests):
+    // an unregistered candidate keeps the boot composition instead of failing.
+    const candidate = input.workspace ?? input.workspaceRoot ?? this.defaultRoot;
+    let targetRoot: string;
+    let target: WorkflowEngine = this;
+    try {
+      targetRoot = this.config.workspaces.resolve(candidate).root;
+      target = this.engineForWorkspace(targetRoot);
+    } catch (err) {
+      if (!(err instanceof GuidanceError) || err.code !== 'workspace_not_registered') throw err;
+      targetRoot = resolve(candidate);
+    }
+    if (target !== this) {
+      const child = await target.startWorkflow({ ...input, workspaceRoot: targetRoot, workspace: undefined });
+      this.sessionRoutes.set(child.sessionId, target);
+      return child;
+    }
+    input = { ...input, workspaceRoot: targetRoot, workspace: undefined };
     const sessionId = `session-${randomUUID()}`;
     const now = new Date().toISOString();
     const chainSpec =
@@ -821,7 +903,7 @@ export class WorkflowEngine {
       profile: this.config.profile,
       configurationVersion: this.config.configVersion,
       configDir: this.config.configDir,
-      workspaceRoot: input.workspaceRoot,
+      workspaceRoot: input.workspaceRoot!,
       status: "active",
       currentPhase: this.definition.initialPhase,
       previousPhase: null,
@@ -1216,6 +1298,12 @@ export class WorkflowEngine {
   }
 
   getSession(sessionId: string): WorkflowSession {
+    // Public entry may address a child-workspace session (specs/008 T8);
+    // internal callers always pass locally-known ids, so the fallback path
+    // keeps internal semantics untouched.
+    if (this.sessionRoutes.has(sessionId)) {
+      return this.sessionRoutes.get(sessionId)!.getSession(sessionId);
+    }
     // Pure read — running-op reconciliation happens under the session lock
     // via getWorkflowState (write-on-read outside the lock caused a
     // lost-update window, review Phase 10-12 Finding 1).
@@ -1288,6 +1376,8 @@ export class WorkflowEngine {
     payload: Record<string, unknown>,
     requestId?: string,
   ): Promise<SubmitResult> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.submit(sessionId, phase, payload, requestId);
     return this.sessions.withLock(sessionId, () =>
       this.submitLocked(sessionId, phase, payload, requestId),
     );
@@ -1604,6 +1694,8 @@ export class WorkflowEngine {
     report: Record<string, unknown>,
     requestId?: string,
   ): Promise<SubmitResult> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.completeWorkflow(sessionId, report, requestId);
     const result = await this.sessions.withLock(sessionId, () =>
       this.completeWorkflowLocked(sessionId, report, requestId),
     );
@@ -1911,6 +2003,9 @@ export class WorkflowEngine {
 
   /** Re-runs the current phase's required beforeExit operations (FR-040 retry). */
   async retryOperations(sessionId: string): Promise<SubmitResult> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.retryOperations(sessionId);
+
     return this.sessions.withLock(sessionId, async () => {
       // CHN-1: a crash-orphaned 'activating' chain successor fails getSession
       // (chain_activation_incomplete) — this is the documented recovery path.
@@ -2045,6 +2140,8 @@ export class WorkflowEngine {
       options?: string[];
     },
   ): Promise<SubmitResult> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.reportBlocker(sessionId, input);
     return this.sessions.withLock(sessionId, () => {
       const session = this.getSession(sessionId);
       if (session.status !== "active") {
@@ -2091,6 +2188,8 @@ export class WorkflowEngine {
     sessionId: string,
     input: { decision: string; notes?: string },
   ): Promise<SubmitResult> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.resumeWorkflow(sessionId, input);
     return this.sessions.withLock(sessionId, () => {
       const session = this.getSession(sessionId);
       if (session.status !== "blocked") {
@@ -2158,6 +2257,9 @@ export class WorkflowEngine {
   }
 
   async cancelWorkflow(sessionId: string): Promise<SubmitResult> {
+    const routed = this.routedFor(sessionId);
+    if (routed) return routed.cancelWorkflow(sessionId);
+
     return this.sessions.withLock(sessionId, () => {
       const session = this.getSession(sessionId);
       if (session.status === "cancelled") {
