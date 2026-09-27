@@ -132,6 +132,14 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
     await client.callTool({ name: "start_task", arguments: { sessionId: "s4", taskIds: ["T001", "T002"] } });
     const status = textOf(await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "s4" } }));
     expect((status.tasks as Record<string, number>)["in_progress"]).toBe(2);
+    // Lifecycle-Fix: verify_task schreibt task.verification (war read-only) —
+    // ohne diesen Write-Pfad war complete_task unerreichbar.
+    const imp = textOf(await client.callTool({ name: "submit_task_implementation", arguments: { sessionId: "s4", evidence: [{ taskId: "T001", summary: "s", changedFiles: ["a.ts"], testsAddedOrUpdated: ["t"], deviations: [], unresolvedIssues: [] }] } }));
+    expect(imp).toBeTruthy();
+    const ver = textOf(await client.callTool({ name: "verify_task", arguments: { sessionId: "s4", taskId: "T001", executions: ["vitest run"] } }));
+    expect((ver.verification as Record<string, unknown>).succeeded).toBe(true);
+    const done = textOf(await client.callTool({ name: "complete_task", arguments: { sessionId: "s4", taskId: "T001" } }));
+    expect((done.tasks as Record<string, { status: string }>).T001?.status).toBe("completed");
   });
 
   it("withState-Tools liefern ein nicht-leeres Payload (Regression: fehlendes await)", async () => {

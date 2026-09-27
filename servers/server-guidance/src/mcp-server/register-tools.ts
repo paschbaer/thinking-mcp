@@ -70,6 +70,7 @@ export const SPEC_KIT_TOOL_NAMES = [
   "start_task",
   "submit_task_implementation",
   "submit_task_review",
+  "verify_task",
   "complete_task",
   "propose_plan_change",
   "approve_plan_change",
