@@ -17,6 +17,7 @@ import type { SpecKitState } from "./integrations/spec-kit/SpecKitEngine.js";
 
 export interface Composition {
   config: LoadedConfig;
+  workspaces: import("./workspace-registry.js").WorkspaceRegistry;
   configDir: string;
   stateDir: string;
   engine: WorkflowEngine;
@@ -70,7 +71,8 @@ export function composeApplication(
   },
 ): Composition {
   if (!options?.skipScaffold) ensureConfiguration(configDir);
-  const config = loadConfig(configDir);
+  // specs/008 FR-806: registry default entry anchors on the real workspace root.
+  const config = loadConfig(configDir, { workspaceRoot });
   // Amendment 002 (FR-117 State-Brücke): pending spec-kit tasks in tasks.md
   // order — inserted here so WorkflowEngine stays free of spec-kit imports.
   // Missing state file (head never imported artifacts) ⇒ [] ⇒ silent chain end.
@@ -112,7 +114,7 @@ export function composeApplication(
     specKitTasks,
   });
   const tools = new WorkflowTools(engine);
-  return { config, configDir, stateDir, engine, tools };
+  return { config, configDir, stateDir, engine, tools, workspaces: config.workspaces };
 }
 
 export function resolveStateDir(

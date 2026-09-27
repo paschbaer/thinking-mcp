@@ -92,7 +92,8 @@ describe("HTTP transport (FR-027 loopback-only)", () => {
     expect(res.status).toBe(200); // Transport-Ebene OK
     const text = ((await res.json()) as { result: { content: { text: string }[] } }).result.content[0]!.text;
     // GuidanceError wird als Text-Error-Content zurückgegeben (kein Crash).
-    expect(text).toMatch(/escapes the configured workspace/);
+    // specs/008 FR-802: escape attempts are rejected with the registry error class.
+    expect(text).toMatch(/workspace_not_registered/);
   });
 
   it("stateless mode rejects GET/DELETE on /mcp", async () => {

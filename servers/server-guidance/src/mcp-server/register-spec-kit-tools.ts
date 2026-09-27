@@ -76,6 +76,8 @@ export class SpecKitStateStore {
 
 export interface SpecKitToolOptions {
   workspaceRoot: string;
+  /** specs/008 T6: session-specific workspace root (falls back to workspaceRoot). */
+  getSessionWorkspace?: (sessionId: string) => string | undefined;
   stateDir: string;
   configVersion: string;
   specKitConfig: ConstructorParameters<typeof SpecKitEngine>[3];
@@ -99,6 +101,21 @@ export class SpecKitEngineResolver {
 
   resolve(sessionId: string): SpecKitEngine {
     assertSafeSessionId(sessionId);
+    // specs/008 T6: the spec-kit root is the SESSION's workspace, not the
+    // server process root — feature-outside checks run against it.
+    const sessionRoot =
+      this.opts.getSessionWorkspace?.(sessionId) ?? this.opts.workspaceRoot;
+    if (sessionRoot !== this.opts.workspaceRoot) {
+      // Session-rooted engines are cheap value objects; cache only default.
+      return new SpecKitEngine(
+        sessionRoot,
+        this.opts.stateDir,
+        this.opts.configVersion,
+        this.opts.specKitConfig,
+        this.opts.audit,
+        sessionId,
+      );
+    }
     if (this.cache.size >= ENGINE_CACHE_LIMIT) {
       const oldest = this.cache.keys().next().value;
       if (oldest !== undefined) this.cache.delete(oldest);

@@ -98,7 +98,9 @@ export class WorkflowTools {
   }
 
   async getWorkflowState(sessionId: string): Promise<WorkflowSession> {
-    return this.engine.getSession(sessionId);
+    // specs/008 AC-5: agent-facing read goes through getWorkflowState, which
+    // enforces the configurationVersion binding (getSession is internal-only).
+    return this.engine.getWorkflowState(sessionId);
   }
 
   async reportBlocker(

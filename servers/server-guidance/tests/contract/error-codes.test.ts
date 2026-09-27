@@ -13,6 +13,7 @@ const EXPECTED_ERROR_CODES = [
   "workflow_not_found",
   "session_not_found",
   "session_locked",
+  "workspace_not_registered",
   "invalid_active_phase",
   "invalid_transition",
   "submission_invalid",
