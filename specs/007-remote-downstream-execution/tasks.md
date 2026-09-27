@@ -16,7 +16,7 @@
 ## Phase 2 — US2 + US3 (P2/P3)
 
 - [ ] T003 [US2] F3: `recordConnection` nach jedem Downstream-Invoke (Status + `lastSuccessfulRequestAt` aus ClientManager-Status); `ConnectionSnapshot.lastSuccessfulRequestAt?` erweitern — Teil von T001-Tests (FR-704)
-- [ ] T004 [F5] Spec-005 FR-404-Wortlaut anpassen (Opak-Token; HMAC entfällt, optional getrackt) + F7-Plan-Closure (Verweis FR-501/SC-502) — docs-only
+- [x] T004 [F5] Spec-005 FR-404-Wortlaut angepasst (Opak-Token; HMAC entfällt — Transport key-authentifiziert, optionale Härtung getrackt) + F7-Plan-Closure (Verweis FR-501/SC-502) — docs-only
 - [ ] T005 [L-4/L-5] `workspaceLockFile` via `realpathSync` (Fallback resolve); `workspaceLocks`-Cap 64 mit Eviction (ältester Key) — Tests: Cap-Verhalten
 - [ ] T006 [L-2] ps-/Eskalations-Tests robust: Polling bis Marker sichtbar (≤ 5 s), Eskalations-Untergrenze ≥ 5,5 s (FR-706)
 

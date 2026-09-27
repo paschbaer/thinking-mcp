@@ -864,3 +864,11 @@ Final-Review (fresh subagent 35f63807) über f300cf9..98c4d62: 1 HIGH (F1 metric
 Anlass: Nutzer-Befund am Niyama-Beispiel — guidance ist aktuell single-repo verdrahtet und damit nicht produktionsreif für mehrere Repos.
 - [ ] MR-1 MEDIUM: Workspace-Konzept ist singulär — `composeApplication(workspaceRoot, …)` bindet EIN Root (`src/index.ts:15-16`); `assertWorkspaceInside` (`src/mcp-server/register-tools.ts:82-98`) und `spec_kit_feature_outside_workspace` (`SpecKitEngine.ts:116-120`) lehnen alles außerhalb des EINEN Mounts ab; `.guidance/` (config+state) liegt zwingend im Workspace-Root. Kein Repo-Registry-/Workspace-Registry-Konzept. Trigger: specs/008-multi-workspace (spec.md + plan.md + tasks.md angelegt; Q1–Q5 durch Nutzer entschieden 2026-09-27: 1 Container + Registry, workspaces[] in guidance.json, statisch ohne Laufzeit-Tools, State im Repo, per-Workspace-Lock). Action required: Implementierung P1–P7.
 - [ ] MR-2 LOW: Deployment-Annahme „1 Container = 1 Repo" (docker-compose.override.yml Mount + GUIDANCE_WORKSPACE_ROOT) ist undokumentiert als Produktionsbeschränkung. Trigger: README/Dokumentation-Update. Action required.
+
+## Nachtrag Feature 007 Final-Review (0 HIGH/CRIT; 2 MEDIUM sofort gefixt)
+- [x] M1 GELÖST: F5-Wortlaut tatsächlich angepasst (specs/005 FR-404: Opak-Token, HMAC entfällt/optional getrackt); falscher GELÖST-Claim aus d19fdc4 korrigiert.
+- [x] M2 GELÖST: Remote-Metrics-Lücke executeRequired — downstreamEngine.execute wird mit Metrics-Recording gewrappt (Lifecycle/Composite zählt remote jetzt).
+- [x] L1 GELÖST: getMetrics-Live-Merge erhält lastSuccessfulRequestAt (überschreibt nicht mehr mit undefined).
+- [ ] L2 LOW: Lock-Map-Cap 64 nicht strikt (held Entries werden nicht evicted — bewusst sicher); FR-705-Wortlaut präzisieren. Trigger: Multi-Workspace > 64.
+- [ ] L3 LOW: Router-Objekt per Cast als OperationEngine — künftige Member-Zugriffe zur Laufzeit ungeschützt. Trigger: neue Engine-Member-Nutzung.
+- [ ] L4 INFO: SC-604 Remote-Parallelität nur lokal getestet (SC-503); Remote-Level-Parallelitätstest bei Bedarf. SIGKILL-Observation bleibt getrackt (siehe Feature 004-Rest).
