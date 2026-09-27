@@ -248,6 +248,20 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
   );
 
   server.tool(
+    "verify_task",
+    "Verifiziert eine implementierte Aufgabe (Setzt task.verification; Voraussetzung für complete_task)",
+    { ...sessionId, ...batchId, taskId: z.string().min(1), succeeded: z.boolean().optional(), executions: z.array(z.string()).optional() },
+    async ({ sessionId: sid, batchId: bid, taskId, succeeded = true, executions = [] }) => {
+      let payload: { taskId: string; verification: unknown } = { taskId, verification: null };
+      await withState(sid, (engine, state) => {
+        engine.verifyTask(state, taskId, executions, succeeded);
+        payload = { taskId, verification: state.tasks[taskId]?.verification ?? null };
+      });
+      return toJson(payload);
+    },
+  );
+
+  server.tool(
     "complete_task",
     "Markiert eine verifizierte Aufgabe als completed",
     { ...sessionId, taskId: z.string().min(1) },

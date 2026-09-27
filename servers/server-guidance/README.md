@@ -1332,7 +1332,8 @@ All tools operate on the Spec-Kit state of the session (created by
 | `start_task` | `sessionId`, `batchId?`, `taskIds[]` | Moves tasks into `in_progress` within a batch (batch release semantics, defaults to the active batch) |
 | `submit_task_implementation` | `sessionId`, `batchId?`, `evidence[]` | Per-task evidence: summary, changed files, tests added/updated, deviations, unresolved issues. Checkboxes in tasks.md are hints — only this evidence counts |
 | `submit_task_review` | `sessionId`, `batchId?`, `findings[]` | Review findings per task (`severity`, `fixRequired`, `fixApplied`); blocking severities gate completion |
-| `complete_task` | `sessionId`, `taskId` | Marks a task completed — only after implementation + review evidence and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing |
+| `complete_task` | `sessionId`, `taskId` | Marks a task completed — only after implementation + review + successful verification and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing |
+| `verify_task` | `sessionId`, `batchId?`, `taskId`, `succeeded?`, `executions?` | Writes `task.verification` (write path fix: was read-only, which made `complete_task` unreachable) |
 | `propose_plan_change` | `sessionId`, `changeType`, `reason`, `affectedTasks`, `impact` | Proposes a plan deviation; deterministic `minor`/`major` classification from the change type and impact flags; major changes require artifact update + approval before completion |
 | `refresh_spec_kit_artifacts` | `sessionId` | Re-imports the artifacts and activates a fresh snapshot (for approved plan changes / external edits) |
 | `get_traceability_report` | `sessionId` | Read-only: acceptance criteria ↔ task coverage |
