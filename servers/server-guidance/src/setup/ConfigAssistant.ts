@@ -760,11 +760,19 @@ export function generateFiles(answers: SetupAnswers): {
       for (const opId of nonGenericOps) {
         const refOp = nonGenericRefOps[opId];
         if (!refOp) continue;
-        const desc =
-          typeof refOp.description === "string" ? refOp.description : "";
+        if (typeof refOp.type !== "string" || refOp.type === "") {
+          throw new GuidanceError(
+            "configuration_invalid",
+            `adopt source: reference op ${opId} has no valid type — cannot copy fail-closed`,
+            { recoverable: true },
+          );
+        }
+        const desc = typeof refOp.description === "string" ? refOp.description : "";
         ops.operations[opId] = {
           ...refOp,
-          description: desc + " [adopted from reference — review args/paths]",
+          description: desc
+            ? desc + " [adopted from reference — review args/paths]"
+            : "[adopted from reference — review args/paths]",
         };
       }
       opsFile.content = JSON.stringify(ops, null, 2) + "\n";
