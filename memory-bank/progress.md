@@ -458,3 +458,7 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - feature/config-assistant-extensions: 15/15 Tasks. configSource-Frage (fresh|adopt), Adopt-Generator (Regeneration downstream/policies/responses/operations, Kopie workflow/schemas, adoption-Block), instructions.global-Slot + loadConfig-Validierung + guidanceForPublic-Injektion.
 - Tests: 341/341 im Container (inkl. 5 zuvor pre-existing final-review-gate — im Haupt-Checkout grün). tsc + build clean.
 - Offen: Merge zu develop + Push (Entscheid Nutzer), Guidance-Session session-2900015e Lifecycle per complete_workflow abschließen.
+
+## 2026-09-27: specs/009 merged, develop gepusht, Container mit Multi-Workspace + 009 neu gebaut
+- /health zeigt niyama + thinking-mcp beide reachable (T17 live).
+- Live-Validierung (Niyama-Onboarding) erfolgt durch den Nutzer mit bereitgestelltem Prompt (siehe Chat).
