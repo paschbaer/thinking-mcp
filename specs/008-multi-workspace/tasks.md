@@ -20,14 +20,14 @@
 - [x] T4 `assertWorkspaceRegistered` ersetzt
   `assertWorkspaceInside`; Fehlerklasse `workspace_not_registered`;
   ERROR_CODES-Exact-Snapshot aktualisieren. — FR-802, AC-2
-- [ ] T5 Tool-Oberfläche: `workspace`-Parameter (Name) auf
+- [x] T5 Tool-Oberfläche: `workspace`-Parameter (Name) auf
   `start_workflow` u. a.; `workspaceRoot`-Eingabe nur noch bei exakter
   Übereinstimmung nach `realpathSync` BEIDER Seiten (Registry-Root +
   Kandidat; Symlinks/Case) mit registriertem Root (Deprecation). —
   FR-802
 - [x] T6 `SpecKitEngine`-Root-Check gegen Session-Workspace;
   `spec_kit_feature_outside_workspace` beibehalten, Scoping anpassen.
-- [ ] T7 Security-Regressionstests: fremder Pfad/Namen abgelehnt;
+- [x] T7 Security-Regressionstests: fremder Pfad/Namen abgelehnt;
   Pfad-Traversal (`../../etc`), Windows-Case, Symlink-Aliase,
   Name/Pfad-Verwechslung (AC-2-Matrix).
 
@@ -73,3 +73,4 @@
 ## Fortschritt (laufend)
 - T1+T2 completed 2026-09-27 (commit e9c503c; tsc/build clean, Suite im Container: 309 passed, 6 klassifizierte Failures — Details session-73442962 Evidence).
 - T3+T4+T6 completed 2026-09-27 (commit 5e7b8b8; Suite 315-317 passed, nur 5 pre-existing Gate-Failures).
+- T5+T7 completed 2026-09-27 (workspace-binding.test.ts 3/3; Full-Suite 320 passed, 5 pre-existing).
