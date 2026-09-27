@@ -931,3 +931,10 @@ Frischer Reviewer-Subagent über feature/multi-workspace a5f8f26 vs develop (Sna
 - [x] S10-F9 (LOW): gelöst in T4 — fehlende README fail-closed, leerer specs-Baum still übersprungen, kein .git dateibasiert, .bak ausgenommen.
 - [x] S10-F10 (INFO): accepted observation (bleibt, FR-903-Anpassungsliste dokumentiert).
 - [x] S10-F11 (INFO): accepted observation (konservativ fail-safe, wie im Spec entschieden).
+
+## Spec-010 Final-Review (Completion, 2026-09-27)
+- [x] S10-FR1 (MEDIUM, gefixt Commit 3191d05): Substring-Matching → Segment-Grenz-Matching (matchesDocsPattern); Regression: near-miss-Test (docs/myspecs/a.md, src/config.tsx → none).
+- [x] S10-FR2 (MEDIUM, gefixt Commit 3191d05): AC-5-Lücken geschlossen — bare 'none' rejected, 'updated:' auf echtem Treffer getestet (4 docsImpact-Tests, 53/53 grün).
+- [x] S10-FR3 (LOW, accepted + dokumentiert): nicht-validiertes docsImpact wird bei Nicht-Treffer unverändert persistiert; Case-Sensitivität + Segment-Semantik in specs/002-Contract dokumentiert.
+- [x] S10-FR4 (INFO, verified contained): partielle Loop-Mutation bei Multi-Evidence-Throw — withState persistiert nur bei Erfolg, keine Korruption.
+- [ ] lint/test-Ops non-blocking rot (pre-existing: CRLF-Format server-clear-thought; Windows-node_modules im Container) — Vollsuite manuell im Container grün (344/344). Kein Handlungsbedarf für 010; Trigger: ops.json-Datei-Tightening (test required:true nach in-container install).

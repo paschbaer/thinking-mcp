@@ -707,3 +707,6 @@
 - docsImpact-Semantik implementiert: Substring-Match gegen DOCS_RELEVANT_PATTERNS mit Backslash-Normalisierung (Windows-Pfade); löst S10-F1 praktisch (Muster als definierte Konstante mit definierter Basis repo-root-relative changedFiles).
 - S10-F2/F6 gelöst (beforeExit vor final-review-gate; Contract specs/002 dokumentiert docsImpact inkl. submission_invalid-Verhalten).
 - Offen: Push + index-freshness beim complete_workflow; AD-1/AD-2 (Adopt) unberührt.
+
+## 2026-09-27: specs/010 Completion-Phase
+- Review-Fixes (3191d05): Segment-Matching + AC-5-Testlücken. Final-Review durch frischen Sub-Agent: 0 HIGH/CRITICAL unresolved. lint/test-Ops rot = pre-existing non-blocking (Doku in remaining-work-plan). final-review.json + session-lessons.json geschrieben; Index-Refresh nach letztem Commit.
