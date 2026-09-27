@@ -43,19 +43,25 @@ dieses Prinzip gebunden (Testpflicht).
   sind gesperrt (analog FR-908) — kopiertes `workflow.json` und
   regeneriertes `operations.json` bleiben kohärent. Post-Adopt-Validierung
   (N-2): jede in `workflow.json` referenzierte Op muss in der
-  regenerierten `operations.json` existieren, sonst fail-closed.
+  regenerierten `operations.json` existieren, sonst fail-closed mit Muster
+  `adopt coherence: workflow references unknown op <name>` (R-4).
 - **FR-902 Referenz-Pfad + Komplett-Validierung:** Die Referenzkonfiguration
   ist eine Setup-Frage (Default: deploymentspezifisch, Container:
   `/workspace/.guidance/`; bei Nicht-Existenz fail-closed mit Hinweis auf die
   manuelle Pfadangabe). Validierung umfasst ALLE zu übernehmenden Dateien
   (existieren + ladbar), nicht nur `guidance.json`: `workflow.json`,
   `policies.json`, `schemas/`, `operations.json`, `downstream-servers.json`,
-  `profiles/` (Profil-Lesbarkeit, FR-908) — fehlt oder invalide ⇒ fail-closed
+  `profiles/` (Profil-Lesbarkeit, FR-908), `guidance.json` der Referenz
+  (lesbar + `profile`-Feld auswertbar, FR-908) — fehlt oder invalide ⇒ fail-closed
+  Pfad-Sicherheit (R-5): der Referenz-Pfad muss außerhalb des Ziel-`.guidance/`
+  liegen (Selbst-Überschreibungs-Loop); die rekursive Kopie von `schemas/`
+  folgt keinen Symlinks, die den Referenz-Root verlassen (Pfad-Escape-Vektor)
   `configuration_invalid` mit Muster `adopt source: missing/unreadable file
   <name>` (N-6).
 - **FR-903 Adopt-Regeln (F-1-Entscheidung: Regeneration statt Kopie bei
   `operations.json`):**
-  - **Kopiert:** `workflow.json`, `policies.json`, `schemas/`.
+  - **Kopiert:** `workflow.json`, `schemas/`. (R-1: `policies.json` NICHT —
+    siehe FR-910, Regeneration wegen Transport-Abhängigkeit.)
   - **Regeneriert:** `operations.json` via bestehendem `buildOperations` aus
     den neuen Answers (Gate-Preset-Frage) — eliminiert das Erkennungsproblem
     repo-spezifischer Anteile vollständig. Nicht-generische Ops der Referenz
@@ -110,9 +116,12 @@ dieses Prinzip gebunden (Testpflicht).
 - **AC-2** `guidanceForPublic` liefert für JEDE Phase eine Instruction, die
   mit dem `instructions.global`-Text beginnt; Phasen-Definitionen enthalten
   den Shell-Satz nicht.
-- **AC-3** Fresh-Flow erzeugt bei identischen Answers byte-identische Dateien
-  wie der heutige Fresh-Output (kein Verhaltenwechsel; die neue
-  `configSource`-Frage ändert nur die Frage-Katalog-Länge, nicht den Output).
+- **AC-3** Fresh-Flow erzeugt bei identischen Answers Dateien, die bis auf die
+  dokumentierte FR-904-Umstellung identisch sind: `workflow.json` enthält
+  zusätzlich `instructions.global` (aus der `shell`-Antwort),
+  `responses.json` enthält den Understand-Shell-Satz nicht mehr; alle
+  übrigen Dateien byte-identisch. Die `configSource`-Frage selbst ändert am
+  Fresh-Output nichts (Goldens werden entsprechend gepflegt).
 - **AC-4** Adoption-Herkunft ist dauerhaft in der `adoption`-Block der
   regenerierten `guidance.json` prüfbar (und geht in den Hash ein).
 - **AC-5** `state/` und `workspaces[]` der Referenz werden beim Adopt nie
