@@ -691,3 +691,13 @@
 - R-2 gelöst (FR-902: Referenz-guidance.json lesbar + profile-Feld auswertbar), R-3 gelöst (AC-3 differenzierter Golden-File-Vergleich, testbar via T5), R-4 gelöst (Muster „adopt coherence: workflow references unknown op <name>", AC-9), R-5 weitgehend gelöst (Ziel-.guidance-Ausschluss + Symlink-Regel für schemas/); Restvektor: Check nicht als realpath/resolve-basiert spezifiziert → N-D2 (LOW).
 - Weitere: N-D3 (LOW) FR-909 referenziert aber nicht definiert; N-D4 (INFO) FR-902 Satzbruch durch R-5-Einschub, plan.md-Typo „und宵".
 - Urteil: 0 HIGH/CRITICAL offen → Spec FREIGEGEBEN; Plan/Tasks brauchen 1-Zeilen-Fix (N-D1) vor/vor Implementation.
+
+## 2026-09-27: Clear-Thought-Re-Routing über Guidance-Container (live verifiziert)
+- clearthought als Downstream-Server in .guidance konfiguriert (downstream-servers.json: host.docker.internal:3000/mcp, trusted, HD-1-Reconnect; policies.json: Egress-Allowlist; operations.json: reasoning-pass mcpTool, invocableByAgent:true). Teilweise vom parallelen Spec-009-Agenten committed (109d3df/5406875); invocableByAgent-Flag: d2b394a auf feature/clearthought-agent-invocable-pass.
+- Live-Test: run_operation(reasoning-pass) = succeeded, 177 ms serverseitig (get_metrics), clearthought-Status ready — vs. Timeout auf derselben Editor-Route. Guidance-Container-Neustart nötig nach Config-Änderung.
+- Ziel-Verwendung: workflow-verpflichtende Reasoning-Pässe orchestriert laufen lassen; Ad-hoc-Calls bleiben auf der Editor-Route (dort gilt die neue Timeout-Policy in responses.json).
+
+## 2026-09-27: Spec-010 Review (independent spec review, Commit 76801a2, develop, tree clean)
+- Review-Objekt: specs/010-documentation-drift-gate/spec.md (Draft, Q1–Q3 entschieden). Review auf Spec-Qualität, keine Implementierung existiert.
+- Snapshot: branch develop, HEAD 76801a2 = Review-Commit, unstaged/staged diff leer zum Review-Zeitpunkt. Kontexte verifiziert: check-final-review.mjs, check-index-freshness.mjs, .guidance/operations.json + workflow.json (lifecycle.beforeExit), ConfigAssistant QUESTIONS (9 IDs), register-tools.ts (16 SPEC_KIT + 19 WORKFLOW Tool-Namen), errors.ts ERROR_CODES (~80), spec 009 (FR-901–910).
+- Urteil: NICHT FREIGEGEBEN — 1 HIGH (F-1: FR-954 Pfadmuster-Semantik/Basis undefiniert, `src/config.ts` etc. existieren nicht als Repo-Root-Pfade → Gate tot oder arbiträr), 5 MEDIUM (F-2 Verdrahtungspunkt workflow.json beforeExit fehlt + Gate-Reihenfolge, F-3 Check-1 „Abschnitts-Verweis" unpräzise + README-Tool-Tabelle bereits 12 vs 16 driftig, F-4 ERROR_CODES-Anker existiert in README gar nicht, F-5 Check-4 Heuristik „Merge-Commit" für dieses Repo (Rebase/Squash) ungeeignet/undefiniert + Blocking ohne Ausstiegsregel), 3 LOW, 2 INFO. Details: remaining-work-plan.md Abschnitt Spec-010.
