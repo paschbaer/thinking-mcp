@@ -945,3 +945,8 @@ Frischer Reviewer-Subagent über feature/multi-workspace a5f8f26 vs develop (Sna
 - [x] FR2-M1..M3 (MEDIUM, gefixt): ERROR_CODES-Check auf Tabellenzeilenanfang statt Freitext; Override-Kommentar in spec.md statt tasks.md (Spec-Konformität); Frage-IDs auf Assistenten-Kapitel gescoped. Zusätzlich LOWs: done>0-Guard entfernt (Spec-Konform), .bak-Verzeichnisse ausgenommen, Ziffern in ERROR_CODES-Regex, leeres "updated:"-Suffix abgewiesen... (Letzteres: engine docsImpact-Validierung unverändert lässt "updated:" mit leerem Rest zu — siehe FR2-L1.)
 - [ ] FR2-L1 (LOW, accepted): docsImpact "updated:" mit leerem Nachlaut besteht die Prefix-Prüfung. Trigger: nächste SpecKitEngine-Berührung — Restlängen-Prüfung ergänzen. Accepted observation (Doku-Wert gleich Null, kein Funktionsrisiko).
 - [ ] FR2-L2 (LOW, accepted): README-Toolzeilen-Matching case-sensitiv und an exakte Tabellen-Syntax gebunden. Trigger: falls README-Format ändert. Accepted observation.
+
+## Rest-Findings-Batch Review (session-4e4471f2, 2026-09-27)
+- [x] RV-M1 (MEDIUM): Referenz-Ops werden beim Adopt-Merge jetzt minimal shape-validiert (type: string nicht-leer, sonst configuration_invalid fail-closed).
+- [x] RV-L1 (LOW): Leading-Space im Adoption-Marker behoben (separator nur bei vorhandener Beschreibung).
+- [x] RV-I1 (INFO, accepted): Near-miss-Prefixe ("Updated: x", "none:updated:x") verhalten sich dokumentiert lenient — keine Änderung.
