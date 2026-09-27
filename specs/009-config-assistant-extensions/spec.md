@@ -52,12 +52,13 @@ dieses Prinzip gebunden (Testpflicht).
   (existieren + ladbar), nicht nur `guidance.json`: `workflow.json`,
   `policies.json`, `schemas/`, `operations.json`, `downstream-servers.json`,
   `profiles/` (Profil-Lesbarkeit, FR-908), `guidance.json` der Referenz
-  (lesbar + `profile`-Feld auswertbar, FR-908) — fehlt oder invalide ⇒ fail-closed
-  Pfad-Sicherheit (R-5): der Referenz-Pfad muss außerhalb des Ziel-`.guidance/`
-  liegen (Selbst-Überschreibungs-Loop); die rekursive Kopie von `schemas/`
-  folgt keinen Symlinks, die den Referenz-Root verlassen (Pfad-Escape-Vektor)
-  `configuration_invalid` mit Muster `adopt source: missing/unreadable file
-  <name>` (N-6).
+  (lesbar + `profile`-Feld auswertbar, FR-908) — fehlt oder invalide ⇒
+  fail-closed. Pfad-Sicherheit (R-5): der Referenz-Pfad muss außerhalb des
+  Ziel-`.guidance/` liegen (Selbst-Überschreibungs-Loop) und wird über
+  aufgelöste (realpath-) Pfade geprüft; die rekursive Kopie von `schemas/`
+  folgt keinen Symlinks, die den Referenz-Root verlassen (Pfad-Escape-Vektor).
+  Verletzung ⇒ `configuration_invalid` mit Muster `adopt source:
+  missing/unreadable file <name>` (N-6).
 - **FR-903 Adopt-Regeln (F-1-Entscheidung: Regeneration statt Kopie bei
   `operations.json`):**
   - **Kopiert:** `workflow.json`, `schemas/`. (R-1: `policies.json` NICHT —
