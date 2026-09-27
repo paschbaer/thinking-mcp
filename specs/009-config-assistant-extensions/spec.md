@@ -18,6 +18,16 @@ scaffoldet `.guidance/` per Frage-Katalog. Drei Erweiterungen:
 3. **Template-Hook (reserviert):** Sprachspezifische Config-Templates
    (TypeScript/Python/C#) — Struktur wird vorbereitet, Umsetzung out of scope.
 
+## Leitprinzip (Nutzer-Klarstellung, 2026-09-27)
+
+Die Thinking-MCP-Konfiguration dient als Basis — aber **nur für
+generalisierbare Anteile** (Prozess, Phasen, Policies, generische Ops,
+Schemas). **Repo-spezifische Werte werden grundsätzlich nie vererbt**: Pfade,
+Shell/Terminal, `project.name`, `workspaceRoot`-Bezüge und
+`workspaces[]` werden ausschließlich aus den Antworten des jeweiligen
+Nutzers/der Ziel-Umgebung gesetzt bzw. neu generiert. Der Adopt-Flow ist an
+dieses Prinzip gebunden (Testpflicht).
+
 ## Functional Requirements
 
 - **FR-901 Config-Quelle:** Neue Frage `configSource` (`fresh` | `adopt`).
@@ -51,7 +61,8 @@ scaffoldet `.guidance/` per Frage-Katalog. Drei Erweiterungen:
   Konstruktion, kein Opt-out-Feld). Der alte understand-only Einbettungspfad
   entfällt. Bei Adopt wird ein ggf. vorhandener alter Shell-Satz der
   Referenz-Instructions nicht übernommen (F-4): die frische `shell`-Antwort
-  geht ausschließlich in den Slot.
+  geht ausschließlich in den Slot — Shell ist repo-spezifisch und wird nie
+  aus der Referenz vererbt (Leitprinzip).
 - **FR-905 Slot-Validierung (F-5):** `loadConfig` validiert
   `workflow.json.instructions.global` (optional; String, maxLength 512)
   fail-closed — analog `validateOperations`. Workflow-Dateien ohne Slot laden
