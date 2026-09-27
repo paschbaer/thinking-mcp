@@ -1,9 +1,11 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync, readdirSync, existsSync, readFileSync as rf } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
+import { workspaceLockFile } from "../../src/workflow/workspace-lock.js";
 import { OperationEngine } from "../../src/orchestration/OperationEngine.js";
 import type { NormalizedResult } from "../../src/types/index.js";
 
@@ -12,7 +14,7 @@ let stateDir: string;
 let configDir: string;
 
 const FIXTURE = join(import.meta.dirname, "../workflow/fixtures/guidance");
-const WORKSPACE_LOCK = "workspace-ops.lock";
+const lockPath = (): string => workspaceLockFile(stateDir, ws);
 
 function seededWorkspace(): void {
   ws = mkdtempSync(join(tmpdir(), "guidance-runop-"));
@@ -150,19 +152,35 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     expect(JSON.stringify(res)).not.toContain("sk-abc123deployment");
   });
 
-  it("hard-cancel kills a real running child, releases the lock (FR-202, SC-201)", async () => {
+  it.skipIf(process.platform === "win32")("hard-cancel kills a real running child, releases the lock (FR-202, SC-201)", async () => {
     const engine = makeEngine();
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
-    const running = engine.runOperation(start.sessionId, "slow-echo");
-    await new Promise((r) => setTimeout(r, 400)); // let the child start
-    await engine.cancelWorkflow(start.sessionId);
+    const marker = `guidance-liveness-${Math.random().toString(36).slice(2, 8)}`;
+    writeFileSync(join(configDir, "operations.json"), JSON.stringify({
+      version: 2,
+      operations: {
+        "invocable-echo": { description: "d", type: "process", executable: "node", args: ["-e", `console.log('${marker}'); setTimeout(()=>{process.exit(0)},30000)`], required: false, invocableByAgent: true, timeoutSeconds: 30, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+        "unmarked-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('nope')"], required: false, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+        "secret-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('api_key: sk-abc123deployment')"], required: false, invocableByAgent: true, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+      },
+    }));
+    const config = loadConfig(configDir);
+    const engine2 = new WorkflowEngine({ config, stateDir });
+    const running = engine2.runOperation(start.sessionId, "invocable-echo");
+    await new Promise((r) => setTimeout(r, 600)); // child started (marker in ps)
+    const psBefore = spawnSync("ps", ["ax"], { encoding: "utf8" }).stdout ?? "";
+    expect(psBefore).toContain(marker); // child läuft
+    await engine2.cancelWorkflow(start.sessionId);
     const res = await running;
     expect(res.status).toBe("failed");
     expect(res.summary).toMatch(/cancel/i);
+    // FR-503/SC-501: Child nach Cancel nicht mehr in der Prozessliste
+    const psAfter = spawnSync("ps", ["ax"], { encoding: "utf8" }).stdout ?? "";
+    expect(psAfter).not.toContain(marker);
     // lock released + child dead: another session runs immediately
     const other = await engine.startWorkflow({ workspaceRoot: ws, request: "b" });
     await expect(engine.runOperation(other.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
-  }, 15_000);
+  }, 20_000);
 
   it("real-process cross-session contention (FR-109/FR-203, R-006)", async () => {
     const engine = makeEngine();
@@ -199,17 +217,34 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     expect(res.summary).toMatch(/cancel/i);
   }, 15_000);
 
-  it("workspace lock file is cleaned up after runs (no residue)", async () => {
+  it("SC-503: different workspaces run invocable ops in parallel (R-008a)", async () => {
+    const engine = makeEngine();
+    const wsA = mkdtempSync(join(tmpdir(), "guidance-runop-wsA-"));
+    try {
+      const a = await engine.startWorkflow({ workspaceRoot: wsA, request: "A" });
+      const b = await engine.startWorkflow({ workspaceRoot: ws, request: "B" });
+      const runA = engine.runOperation(a.sessionId, "slow-echo");
+      await new Promise((r) => setTimeout(r, 400));
+      // unterschiedliche Workspace-Roots → keine Cross-Workspace-Serialisierung
+      await expect(engine.runOperation(b.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
+      await expect(runA).resolves.toMatchObject({ status: "succeeded" });
+    } finally {
+      rmSync(wsA, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("workspace lock files are cleaned up after runs (no residue, FR-502)", async () => {
     const engine = makeEngine();
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     await engine.runOperation(start.sessionId, "invocable-echo");
-    expect(existsSync(join(stateDir, WORKSPACE_LOCK))).toBe(false);
+    const residue = readdirSync(stateDir).filter((f) => f.startsWith("workspace-ops") && f.endsWith(".lock"));
+    expect(residue).toEqual([]);
   });
 
   it("stale lock recovery (Review R-004): dead-owner lock is stolen, operation proceeds", async () => {
     const engine = makeEngine();
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
-    const lock = join(stateDir, WORKSPACE_LOCK);
+    const lock = lockPath();
     writeFileSync(lock, "999999999"); // pid existiert nicht → tot
     await expect(engine.runOperation(start.sessionId, "invocable-echo")).resolves.toMatchObject({ status: "succeeded" });
     expect(existsSync(lock)).toBe(false); // regulär released nach dem Run
@@ -218,7 +253,7 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
   it("live owner is NEVER stolen (R-012c): fresh lock from a live pid → contention, lock intact", async () => {
     const engine = makeEngine();
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
-    const lock = join(stateDir, WORKSPACE_LOCK);
+    const lock = lockPath();
     writeFileSync(lock, String(process.pid)); // lebender Owner, frische mtime
     await expect(engine.runOperation(start.sessionId, "invocable-echo")).rejects.toThrowError(/operation_in_progress/);
     expect(existsSync(lock)).toBe(true); // nicht gerausgenommen

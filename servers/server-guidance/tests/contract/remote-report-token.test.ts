@@ -113,12 +113,26 @@ describe("remote report tokens (spec 005 FR-404, SC-402)", () => {
     });
     expect(ok.recorded ?? ok.accepted).toBeTruthy();
 
-    // replay → rejected
+    // replay → rejected (already reported — crash-window safe, spec 006 FR-501)
     const replay = await call("report_operation_result", {
       sessionId: sid, operationId: "client-op", status: "succeeded",
       summary: "replay", reportToken: token as string,
     });
-    expect(replay.rawError ?? "").toMatch(/client_report_invalid/);
+    expect(replay.rawError ?? "").toMatch(/client_report_invalid|already reported/);
+  });
+
+  it("SC-502 crash window: report persisted + token restored → replay rejected", async () => {
+    const { ClientOpLedger } = await import("../../src/remote/client-op-engine.js");
+    // simulate: report recorded, persist happened, burn did NOT (crash)
+    const ledger = new ClientOpLedger();
+    const token = ledger.mintToken("client-op");
+    ledger.record({ operationId: "client-op", status: "succeeded", summary: "done", reportedAt: new Date().toISOString(), token });
+    const restored = ledger.pendingSnapshot();
+    const ledger2 = new ClientOpLedger();
+    ledger2.record({ operationId: "client-op", status: "succeeded", summary: "done", reportedAt: new Date().toISOString(), token });
+    ledger2.restorePending(restored);
+    // replay attempt after crash-restore → binding check detects the report
+    expect(() => ledger2.checkReportBinding("client-op", token)).toThrowError(/already reported/);
   });
 
   it("missing or wrong token → client_report_invalid, no report recorded", async () => {

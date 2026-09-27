@@ -71,6 +71,26 @@ describe("async process execution (spec 004 FR-201)", () => {
     expect(res.status).toBe("succeeded");
   });
 
+  it("escalates to SIGKILL when the child ignores SIGTERM (R-006-residual/SC-501)", async () => {
+    const engine = new OperationEngine();
+    const t0 = Date.now();
+    const res = await engine.execute(
+      procOp({
+        operationId: "sigterm-deaf",
+        args: ["-e", "process.on('SIGTERM',()=>{});setInterval(()=>{},200);"],
+        timeoutSeconds: 2,
+      }) as never,
+      ctx,
+      1,
+    );
+    expect(res.status).toBe("timed_out");
+    const elapsed = Date.now() - t0;
+    // SIGTERM bei 2s wirkungslos → SIGKILL nach 5s Grace ≈ 7s. Ohne
+    // Eskalation würde der Test am 30s-Timeout hängen.
+    expect(elapsed).toBeGreaterThanOrEqual(6000);
+    expect(elapsed).toBeLessThan(20_000);
+  }, 30_000);
+
   it("aborts a running child via signal and resolves as cancelled (FR-202 seam)", async () => {
     const engine = new OperationEngine();
     const controller = new AbortController();

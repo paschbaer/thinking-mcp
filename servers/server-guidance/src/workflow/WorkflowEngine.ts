@@ -22,7 +22,7 @@ import type {
   WorkflowDefinition,
   WorkflowSession,
 } from "../types/index.js";
-import { WorkspaceOpLock } from "./workspace-lock.js";
+import { WorkspaceOpLock, workspaceLockFile } from "./workspace-lock.js";
 import { MetricsRepository, type MetricsSnapshot, type OperationOutcome } from "../metrics/MetricsRepository.js";
 import type { ExecuteFn } from "../orchestration/OperationEngine.js";
 import { SessionRepository } from "../state/SessionRepository.js";
@@ -272,11 +272,7 @@ export class WorkflowEngine {
       0,
       ...Object.values(this.operations).map((o) => o.timeoutSeconds ?? 0),
     );
-    this.workspaceLock = new WorkspaceOpLock(
-      join(deps.stateDir, "workspace-ops.lock"),
-      "workspace-ops.lock",
-      Math.max(120_000, 2 * maxTimeoutSeconds * 1000),
-    );
+    this.lockTtlMs = Math.max(120_000, 2 * maxTimeoutSeconds * 1000);
     const downstream = this.config.downstreamServers as
       | {
           servers?: Record<
@@ -424,7 +420,8 @@ export class WorkflowEngine {
   private clientManager?: ClientManager;
   private allowlists?: Map<string, string[]>;
   private readonly stateDir: string;
-  private readonly workspaceLock: WorkspaceOpLock;
+  private readonly workspaceLocks = new Map<string, WorkspaceOpLock>();
+  private readonly lockTtlMs: number;
   private readonly runningOps = new Set<string>();
   private readonly activeOpControllers = new Map<string, Set<AbortController>>();
   private readonly redactionPatterns: string[];
@@ -548,15 +545,24 @@ export class WorkflowEngine {
     return snap;
   }
 
-  /** spec 003 FR-309: cross-session serialization for venv-mutating ops.
-   *  Race-safe Implementierung in workspace-lock.ts (atomarer link-Acquire,
-   *  rename-basierter Steal mit verify+restore — Review R-011). */
-  private acquireWorkspaceOpLock(): void {
-    this.workspaceLock.acquire();
+  /** spec 006 FR-502 (R-008a): Lock je workspaceRoot — verschiedene
+   *  Workspaces serialisieren sich nicht mehr gegenseitig. */
+  private lockFor(workspaceRoot: string): WorkspaceOpLock {
+    const file = workspaceLockFile(this.stateDir, workspaceRoot);
+    let lock = this.workspaceLocks.get(file);
+    if (!lock) {
+      lock = new WorkspaceOpLock(file, "workspace-ops", this.lockTtlMs);
+      this.workspaceLocks.set(file, lock);
+    }
+    return lock;
   }
 
-  private releaseWorkspaceOpLock(): void {
-    this.workspaceLock.release();
+  private acquireWorkspaceOpLock(workspaceRoot: string): void {
+    this.lockFor(workspaceRoot).acquire();
+  }
+
+  private releaseWorkspaceOpLock(workspaceRoot: string): void {
+    this.lockFor(workspaceRoot).release();
   }
 
   /** spec 004 FR-202: bricht alle laufenden Operationen der Session ab
@@ -591,7 +597,7 @@ export class WorkflowEngine {
       auditDenial({ operationId, reason: "operation_in_progress" });
       throw new GuidanceError("operation_in_progress", `an operation is already running for session ${sessionId}`, { recoverable: true });
     }
-    this.acquireWorkspaceOpLock();
+    this.acquireWorkspaceOpLock(session.workspaceRoot);
     this.runningOps.add(sessionId);
     // spec 004 FR-202: AbortController je Ausführung — cancel_workflow bricht
     // alle Controller der Session ab (Hard-Kill SIGTERM→SIGKILL).
@@ -641,7 +647,7 @@ export class WorkflowEngine {
       const controllers = this.activeOpControllers.get(sessionId);
       controllers?.delete(controller);
       if (controllers && controllers.size === 0) this.activeOpControllers.delete(sessionId);
-      this.releaseWorkspaceOpLock();
+      this.releaseWorkspaceOpLock(session.workspaceRoot);
     }
   }
 
