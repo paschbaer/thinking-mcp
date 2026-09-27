@@ -10,6 +10,7 @@ import {
   writeFileSync,
   readdirSync,
   readFileSync,
+  existsSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,6 +18,7 @@ import { composeApplication } from "../../src/main.js";
 import {
   catalogOverview,
   generateFiles,
+  resolveBuiltinReferencePath,
   validateAdoptReference,
 } from "../../src/setup/ConfigAssistant.js";
 
@@ -296,19 +298,32 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
     void ws;
     const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
     try {
-      for (const f of ["guidance.json", "policies.json", "downstream-servers.json"]) writeFileSync(join(ref, f), "{}");
+      for (const f of [
+        "guidance.json",
+        "policies.json",
+        "downstream-servers.json",
+      ])
+        writeFileSync(join(ref, f), "{}");
       mkdirSync(join(ref, "schemas"), { recursive: true });
-      writeFileSync(join(ref, "guidance.json"), JSON.stringify({ profile: "plain" }));
+      writeFileSync(
+        join(ref, "guidance.json"),
+        JSON.stringify({ profile: "plain" }),
+      );
       writeFileSync(join(ref, "workflow.json"), "{}");
-      writeFileSync(join(ref, "operations.json"), JSON.stringify({
-        operations: { "broken-op": { description: "no type field" } },
-      }));
-      expect(() => generateFiles({
-        configSource: "adopt",
-        referencePath: ref,
-        projectName: "t",
-        transport: "stdio",
-      })).toThrowError(/adopt source: reference op broken-op has no valid type/);
+      writeFileSync(
+        join(ref, "operations.json"),
+        JSON.stringify({
+          operations: { "broken-op": { description: "no type field" } },
+        }),
+      );
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+        }),
+      ).toThrowError(/adopt source: reference op broken-op has no valid type/);
     } finally {
       rmSync(ref, { recursive: true, force: true });
     }
@@ -437,6 +452,164 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
       );
     } finally {
       rmSync(ref, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
+  const ENV_KEY = "GUIDANCE_BUILTIN_TEMPLATE_DIR";
+  let savedEnv: string | undefined;
+
+  beforeEach(() => {
+    savedEnv = process.env[ENV_KEY];
+    delete process.env[ENV_KEY];
+  });
+  afterEach(() => {
+    if (savedEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = savedEnv;
+  });
+
+  it("FR-971: resolveBuiltinReferencePath defaults to PKG_ROOT/examples/default-guidance (exists)", () => {
+    const p = resolveBuiltinReferencePath();
+    expect(p.replace(/\\/g, "/")).toContain("examples/default-guidance");
+    expect(existsSync(p)).toBe(true);
+  });
+
+  it("FR-971: env override GUIDANCE_BUILTIN_TEMPLATE_DIR is honored", () => {
+    const dir = mkdtempSync(join(tmpdir(), "builtin-override-"));
+    try {
+      process.env[ENV_KEY] = dir;
+      expect(resolveBuiltinReferencePath()).toBe(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('FR-971: validateAdoptReference("builtin") passes against the shipped template', () => {
+    expect(() => validateAdoptReference("builtin")).not.toThrow();
+  });
+
+  it("FR-973: builtin fail-closed when the template is missing (env override to empty dir)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "builtin-missing-"));
+    try {
+      process.env[ENV_KEY] = dir;
+      expect(() => validateAdoptReference("builtin")).toThrowError(
+        /adopt source: missing\/unreadable file guidance\.json/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  function generateBuiltin(referencePath?: string) {
+    return generateFiles({
+      configSource: "adopt",
+      ...(referencePath !== undefined ? { referencePath } : {}),
+      projectName: "target-repo",
+      transport: "stdio",
+    });
+  }
+
+  it("AC-1: adopt WITHOUT referencePath uses builtin (full file set, audit block)", () => {
+    void ws;
+    const { files, notes } = generateBuiltin();
+    const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+    for (const f of [
+      "guidance.json",
+      "workflow.json",
+      "policies.json",
+      "responses.json",
+      "operations.json",
+      "downstream-servers.json",
+    ])
+      expect(byPath[f], `${f} generated`).toBeTruthy();
+    const guidance = JSON.parse(byPath["guidance.json"]!) as {
+      adoption?: Record<string, unknown>;
+    };
+    expect(guidance.adoption?.["source"]).toBe("builtin");
+    expect(String(guidance.adoption?.["resolvedPath"])).toContain(
+      "default-guidance",
+    );
+    expect(notes.join(" ")).toContain("builtin");
+  });
+
+  it("AC-2: explicit referencePath='builtin' is equivalent to omitting it", () => {
+    void ws;
+    const implicit = generateBuiltin();
+    const explicit = generateBuiltin("builtin");
+    const strip = (r: ReturnType<typeof generateBuiltin>) =>
+      JSON.stringify(
+        Object.fromEntries(
+          r.files.map((f) => [
+            f.path,
+            JSON.parse(f.content, (k, v) =>
+              k === "date" || k === "resolvedPath" ? undefined : v,
+            ),
+          ]),
+        ),
+      );
+    expect(strip(explicit)).toBe(strip(implicit));
+  });
+
+  it("AC-3: adoption block documents source='builtin'; mounted adopt keeps source=path (AC-4)", () => {
+    void ws;
+    const { files } = generateBuiltin();
+    const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+    const guidance = JSON.parse(byPath["guidance.json"]!) as {
+      adoption?: Record<string, unknown>;
+    };
+    expect(guidance.adoption?.["source"]).toBe("builtin");
+
+    // AC-4 regression: mounted reference keeps the previous behavior
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    try {
+      for (const f of [
+        "guidance.json",
+        "workflow.json",
+        "policies.json",
+        "operations.json",
+        "downstream-servers.json",
+      ])
+        writeFileSync(join(ref, f), JSON.stringify({ profile: "plain" }));
+      mkdirSync(join(ref, "schemas"), { recursive: true });
+      const mounted = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const mountedByPath = Object.fromEntries(
+        mounted.files.map((f) => [f.path, f.content]),
+      );
+      const mountedGuidance = JSON.parse(mountedByPath["guidance.json"]!) as {
+        adoption?: Record<string, unknown>;
+      };
+      expect(mountedGuidance.adoption?.["source"]).toBe(ref);
+      // AC-4: mounted block keeps the previous shape (no resolvedPath field)
+      expect("resolvedPath" in (mountedGuidance.adoption ?? {})).toBe(false);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("AC-1 e2e: generated builtin config loads and boots a workflow (container-only layout)", async () => {
+    const ws2 = mkdtempSync(join(tmpdir(), "ws011-"));
+    try {
+      const { files } = generateBuiltin();
+      const cfgDir = join(ws2, ".guidance");
+      mkdirSync(cfgDir, { recursive: true });
+      for (const f of files) {
+        mkdirSync(join(cfgDir, f.path, ".."), { recursive: true });
+        writeFileSync(join(cfgDir, f.path), f.content);
+      }
+      const app = composeApplication(ws2, cfgDir, join(cfgDir, "state"));
+      const started = (await app.engine.startWorkflow({
+        workspaceRoot: ws2,
+        request: "r",
+      })) as unknown as { sessionId: string };
+      expect(started.sessionId).toBeTruthy();
+    } finally {
+      rmSync(ws2, { recursive: true, force: true });
     }
   });
 });

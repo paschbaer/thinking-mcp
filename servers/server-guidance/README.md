@@ -265,7 +265,8 @@ call. Flow (which tool when) — the full configuration reference follows in
 Question catalog v2: `configSource` (**fresh / adopt** — see below),
 `projectName`, `transport` (stdio / http-docker — controls `localhost` vs.
 `host.docker.internal` URLs and the egress allowlist), `referencePath`
-(adopt only: path to the reference `.guidance/` directory), `profile`
+(adopt only: `builtin` — the shipped baseline template, default — or a path
+to the reference `.guidance/` directory), `profile`
 (plain / spec-kit — locked to the reference when adopting), `shell`
 (optional, agent-facing — placed in `workflow.json` `instructions.global`
 and injected into EVERY phase instruction), `insight` and `gitnexus`
@@ -314,10 +315,23 @@ deployment where `/workspace/.guidance/` IS the reference):
 > **Deployment note:** `/workspace/.guidance/` only exists in the
 > self-hosting deployment (repo root mounted as `/workspace`). In a
 > container-only deployment (`docker compose up` from the package,
-> `/workspace` = scaffolded volume) there is no proven reference — adopt
-> then requires an explicitly mounted reference directory, or falls back to
-> `fresh`. `validateAdoptReference` fails closed with
-> `adopt source: missing/unreadable file guidance.json` in that case.
+> `/workspace` = scaffolded volume) there is no proven reference — use the
+> **builtin template** instead (see below): answer `referencePath` with
+> `builtin` or leave it empty. An explicitly mounted reference directory
+> also still works. `validateAdoptReference` fails closed with
+> `adopt source: missing/unreadable file guidance.json` if the chosen
+> reference (mounted or builtin) is incomplete.
+>
+> **Builtin template (specs/011):** `referencePath: "builtin"` (or an
+> omitted `referencePath` in adopt mode) resolves to the generic baseline
+> template shipped with the guidance package
+> (`examples/default-guidance/`). Note the distinction: the builtin
+> template is the **generic baseline** (minimal configuration), NOT the
+> Thinking-MCP reference configuration — the latter remains specific to
+> the self-hosting deployment. The resolution base can be overridden with
+> the `GUIDANCE_BUILTIN_TEMPLATE_DIR` environment variable (useful for
+> deployments that ship a different template volume). The generated
+> `adoption` block records `source: "builtin"` plus the resolved path.
 
 ### Error codes
 
