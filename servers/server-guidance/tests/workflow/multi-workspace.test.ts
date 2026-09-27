@@ -22,6 +22,11 @@ function textOf(res: unknown): Record<string, unknown> {
   return JSON.parse(((res as { content: { type: string; text: string }[] }).content)[0]!.text) as Record<string, unknown>;
 }
 
+function errText(res: unknown): string {
+  const content = (res as { content?: { type: string; text: string }[] }).content;
+  return content?.[0]?.text ?? "";
+}
+
 function scaffoldConfig(dir: string, workspaces?: unknown): void {
   const fixture = join(import.meta.dirname, "../workflow/fixtures/guidance");
   const cfgDir = join(dir, ".guidance");
@@ -90,5 +95,41 @@ describe("multi-workspace parallel sessions (specs/008 T10, AC-1)", () => {
     const stateB = textOf(await client.callTool({ name: "get_workflow_state", arguments: { sessionId: idB } }));
     expect(stateA.sessionId).toBe(idA);
     expect(stateB.sessionId).toBe(idB);
+    // specs/008 T13: orchestration context (incl. gate ops) resolves per
+    // child workspace — the child scaffold carries its own operations.json.
+    const orchB = textOf(await client.callTool({ name: "get_orchestration_status", arguments: { sessionId: idB } }));
+    expect(orchB.sessionId).toBe(idB);
+  });
+
+  it("AC-5: changing a workspace config invalidates its persisted sessions on the next operation", async () => {
+    const a = textOf(await client.callTool({ name: "start_workflow", arguments: { workspace: "main", request: "A" } }));
+    const b = textOf(await client.callTool({ name: "start_workflow", arguments: { workspace: "other", request: "B" } }));
+    const idA = a.sessionId as string;
+    const idB = b.sessionId as string;
+    await client.close();
+
+    // Mutate wsB's config (registry entry unchanged, config content changed)
+    // and recompose — the new composition binds to the new configVersion.
+    const cfgB = join(wsB, ".guidance", "guidance.json");
+    const g = JSON.parse(readFileSync(cfgB, "utf-8")) as Record<string, unknown>;
+    (g.project as Record<string, unknown>).name = "other-changed";
+    writeFileSync(cfgB, JSON.stringify(g, null, 2));
+
+    const app2 = composeApplication(wsA, join(wsA, ".guidance"), join(wsA, ".guidance", "state"));
+    const server2 = createGuidanceServer();
+    registerWorkflowTools(server2, app2.tools, wsA, app2.config.workspaces);
+    const pair2 = InMemoryTransport.createLinkedPair();
+    void server2.connect(pair2[0]);
+    client = new Client({ name: "test2", version: "1" });
+    await client.connect(pair2[1]);
+
+    // Unchanged parent workspace: persisted session still valid (AC-3).
+    const stateA = textOf(await client.callTool({ name: "get_workflow_state", arguments: { sessionId: idA } }));
+    expect(stateA.sessionId).toBe(idA);
+
+    // Changed child workspace: persisted session fails closed (AC-5).
+    const stateB = await client.callTool({ name: "get_workflow_state", arguments: { sessionId: idB } });
+    expect(stateB.isError).toBe(true);
+    expect(errText(stateB)).toMatch(/configuration_invalid|bound to/);
   });
 });

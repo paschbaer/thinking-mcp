@@ -128,7 +128,10 @@ export function createHttpApp(opts: HttpAppOptions) {
     // configured = guidance.json existiert aktuell. Nach dem Scaffold im Boot
     // ist das praktisch immer true; false signalisiert post-bootes Löschen
     // oder Scaffold=off-Betrieb (dann startet der Server aber gar nicht).
-    res.json({ server: "guidance", status: "ok", configured: existsSync(join(opts.configDir, "guidance.json")) });
+    const workspaces = composed
+      ? composed.workspaces.list().map((w) => ({ name: w.name, root: w.root, reachable: existsSync(w.root) }))
+      : undefined;
+    res.json({ server: "guidance", status: "ok", configured: existsSync(join(opts.configDir, "guidance.json")), workspaces });
   });
 
   // Stateless streamable HTTP: fresh server+transport per request; workflow

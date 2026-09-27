@@ -27,7 +27,9 @@ export interface ConnectionSnapshot {
 export interface MetricsSnapshot {
   operations: Record<string, OperationMetrics>;
   connections: ConnectionSnapshot[];
-}
+  perWorkspace?: Record<string, { operations: Record<string, OperationMetrics>; connections: ConnectionSnapshot[] }>;
+
+  }
 
 interface MetricsRecord {
   ts: string;
