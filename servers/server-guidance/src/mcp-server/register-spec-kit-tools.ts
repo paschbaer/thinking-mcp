@@ -198,6 +198,20 @@ export function registerSpecKitTools(server: McpServer, opts: SpecKitToolOptions
   );
 
   server.tool(
+    "release_batch",
+    "Löst die nächsten ablaufbereiten Aufgaben als Batch frei (single|batch|allReady|phaseGroup) — Voraussetzung für start_task (FR-066/069-Lifecycle)",
+    { ...sessionId, ...batchId, mode: z.enum(["single", "batch", "allReady", "phaseGroup"]).optional() },
+    async ({ sessionId: sid, batchId: bid, mode }) => {
+      let payload: { batchId: string | null; taskIds: string[] } = { batchId: null, taskIds: [] };
+      await withState(sid, (engine, state) => {
+        const selected = engine.releaseBatch(state, mode ?? "batch", bid ?? `batch-${Object.keys(state.batches).length + 1}`);
+        payload = { batchId: state.activeBatchId, taskIds: selected };
+      });
+      return toJson(payload);
+    },
+  );
+
+  server.tool(
     "start_task",
     "Startet Aufgaben in einem Batch (Status → in_progress)",
     { ...sessionId, ...batchId, taskIds: z.array(z.string().min(1)).min(1) },

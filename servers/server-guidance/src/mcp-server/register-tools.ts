@@ -66,6 +66,7 @@ export const SPEC_KIT_TOOL_NAMES = [
   "import_spec_kit_artifacts",
   "get_spec_kit_status",
   "get_next_task",
+  "release_batch",
   "start_task",
   "submit_task_implementation",
   "submit_task_review",
