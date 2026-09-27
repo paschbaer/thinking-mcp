@@ -6,7 +6,7 @@
 bei: Specs 006/007 (stale Checkboxen/Status), 009 (README-Katalog 7→9 Fragen,
 relative Mounts, Scaffold-Verhalten), LR-Relabel, ERROR_CODES-Erweiterung.
 **Namespace:** FR-951+ (keine Kollision: 009 nutzt FR-901…910)
-**Status:** Draft — wartet auf Spec-Review
+**Status:** Draft — Q1–Q3 entschieden (2026-09-27, blocking required-Op); bereit für Review + Plan-Phase
 **Date:** 2026-09-27
 
 ## Problem
@@ -37,22 +37,35 @@ build rot macht. Konkrete Vorfälle:
   4. **Spec-Status-Hygiene:** Kein `specs/*/spec.md` mit Status `Draft`, dessen
      Feature-Branch bereits gemerged wurde (Heuristik: Merge-Commit im Log +
      `tasks.md` ohne offene Pflicht-Checkboxen).
-- **FR-952 Gate-Verdrahtung:** Das Skript wird als **required**-Operation
-  `docs-drift` in `.guidance/operations.json` registriert (riskClass
-  `read_only`) und läuft im Completion-Flow vor `complete_workflow` — analog
-  `index-freshness`. Exit ≠ 0 blockiert die Completion mit auditierbarer
-  Meldung.
+- **FR-952 Gate-Verdrahtung (Q1: blocking):** Das Skript wird als
+  **required**-Operation `docs-drift` in `.guidance/operations.json`
+  registriert (riskClass `read_only`) und läuft im Completion-Flow vor
+  `complete_workflow` — analog `index-freshness`. Exit ≠ 0 **blockiert die
+  Completion** mit auditierbarer Meldung (keine reine Warnung).
 - **FR-953 Meldungsformat:** Funde werden zeilenweise gemeldet:
   `docs drift: <artefakt> — <erwartet> vs. <gefunden>` (maschinenlesbar,
   ein Fund je Zeile, Exit 1).
-- **FR-954 Evidence-Pflicht (Lifecycle):** `submit_task_implementation` erhält
-  ein Pflichtfeld `docsImpact` (`"none"` | `"updated: <datei>"`) — fehlt ⇒
-  `submission_invalid`. Damit wird Doku-Betroffenheit je Task explizit
-  entschieden statt vergessen.
+- **FR-954 Evidence-Pflicht (Lifecycle, Q2: bedingte Pflicht über
+  deterministische Betroffenheits-Ermittlung):** `submit_task_implementation`
+  erhält ein Feld `docsImpact`. Die **Betroffenheit wird deterministisch aus
+  den `changedFiles` des Tasks ermittelt**: Schnittmenge mit der deklarierten
+  Liste doku-relevanter Pfadmuster (`src/mcp-server/`, `src/setup/`,
+  `src/config.ts`, `src/types/errors.ts`, `specs/`, `README.md`).
+  - Treffer ⇒ `docsImpact` ist PFLICHT: `"updated: <datei>"` oder
+    `"none: <begründung>"` (fehlt/leer ⇒ `submission_invalid`).
+  - Kein Treffer ⇒ Feld optional (Default `none`), kein Verhaltenwechsel.
+  - Die Musterliste ist eine deklarierte, erweiterbare Konstante.
+  - Bekannte Grenze (dokumentiert): verhaltensrelevante Änderungen außerhalb
+    der gemusterten Pfade werden nicht erkannt — abgedeckt durch den
+    Review-Vermerk, nicht mechanisch.
 - **FR-955 Fail-Verhalten:** Das Skript ändert KEINE Dateien (rein lesend,
   read_only), kein Auto-Fix — Korrekturen bleiben dem Agenten/Nutzer sichtbar.
 
 ## Acceptance Criteria
+
+- **AC-10** (FR-954) Betroffenheits-Ermittlung: Task mit `changedFiles` ⊃
+  `src/config.ts` ohne `docsImpact` ⇒ `submission_invalid`; Task ohne
+  doku-relevante Dateien ⇒ Feld optional.
 
 - **AC-1** `docs-drift` schlägt fehl, wenn README-Tool-Tabelle ≠ Tool-Quellen
   (getestet mit je einem künstlichen Zuviel/Wenig-Fall).
@@ -65,7 +78,16 @@ build rot macht. Konkrete Vorfälle:
 - **AC-6** Vollsuite + tsc + build unverändert grün; das neue Gate läuft als
   required-Op im Completion-Flow und schlägt bei drift endend zu.
 
-## Decisions (offen)
+## Decisions (User, 2026-09-27)
+
+- **Q1:** Blocking required-Op (keine reine Warnung).
+- **Q2:** `docsImpact` nur bei nachgewiesener Doku-Betroffenheit — ermittelt
+  deterministisch über Pfadmuster-Schnittmenge mit `changedFiles` (siehe
+  FR-954).
+- **Q3:** Alt-Drift-Sanierung (006/007-Checkboxen, Spec-Status) im ersten
+  Gate-Lauf sichtbar machen und sofort fixen.
+
+## Decisions (offen — historisch)
 
 - **Q1 — Gate vs. Warnung:** FR-952 als blocking required-Op [Empfehlung] oder
   nur Warnzeile in der Completion-Antwort?
