@@ -1380,6 +1380,29 @@ Rules (fail-closed):
   unique after `realpath` resolution.
 - Missing `workspaces[]` ⇒ single implicit workspace `default` mapped to
   `GUIDANCE_WORKSPACE_ROOT` (backward compatible, AC-3).
+- A fresh scaffold (`ensureConfiguration`) now writes the default workspace
+  entry explicitly, so the registry is visible and editable from day one.
+
+### Deployment mounts (relative, no absolute host paths)
+
+The compose override mounts the repo pool once instead of one mount per repo
+(paths resolved relative to the compose file in `servers/server-guidance/`):
+
+```yaml
+volumes:
+  - ../../:/workspace        # repo root = default workspace
+  - ../../../:/workspaces    # repos pool (parent of the checkout)
+  - guidance_node_modules:/workspace/node_modules
+```
+
+Onboarding a new repository: clone it into the pool directory, add the
+`workspaces[]` entry (container path `/workspaces/<Repo>`), run
+`gitnexus analyze --no-stats` in it, add `.guidance/state/` to its
+`.gitignore` — no compose edit, no container restart.
+
+Note: the pool mount exposes everything under the pool directory to the
+container at the filesystem level; the tool layer only accepts registered
+workspaces (`workspace_not_registered` otherwise).
 
 ### Session binding
 
@@ -1404,7 +1427,9 @@ Each non-default workspace gets its own lazy composition:
   index is expected at `<root>/.gitnexus`.
 
 A workspace without `.guidance/` is scaffolded on first use with a copy of
-the boot configuration (minus state). Spec-kit task chaining (FR-117 bridge)
+the boot configuration (minus state). Likewise, the boot scaffold writes the
+default workspace entry into a fresh `guidance.json` (see Deployment mounts
+above). Spec-kit task chaining (FR-117 bridge)
 is currently parent-workspace only.
 
 ### Observability
