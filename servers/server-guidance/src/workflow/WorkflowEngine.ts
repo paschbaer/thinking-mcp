@@ -393,6 +393,7 @@ export class WorkflowEngine {
         execute: routerExecute,
         executeRequired: routerExecuteRequired,
       };
+      const forwardedCache = new Map<string, unknown>();
       this.operationEngine = new Proxy(
         routerTarget as unknown as OperationEngine,
         {
@@ -400,9 +401,11 @@ export class WorkflowEngine {
             if (prop === "then" || prop === "catch" || prop === "finally") return Reflect.get(target, prop, receiver);
             if (prop in target) return Reflect.get(target, prop, receiver);
             if (typeof prop === "string") {
+              if (forwardedCache.has(prop)) return forwardedCache.get(prop);
               const value = (downstreamEngine as unknown as Record<string, unknown>)[prop];
-              if (typeof value === "function") return (value as (...a: unknown[]) => unknown).bind(downstreamEngine);
-              return value;
+              const stable = typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(downstreamEngine) : value;
+              forwardedCache.set(prop, stable);
+              return stable;
             }
             return undefined;
           },
