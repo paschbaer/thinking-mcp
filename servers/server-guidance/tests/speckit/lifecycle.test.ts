@@ -34,6 +34,39 @@ const importState = (): { engine: SpecKitEngine; state: SpecKitState } => {
   return { engine, state };
 };
 
+describe("docsImpact enforcement (specs/010 FR-954, AC-5)", () => {
+  function startT001(engine: SpecKitEngine, state: SpecKitState) {
+    engine.releaseBatch(state, "single", "b1");
+    engine.startTask(state, "b1", ["T001"]);
+  }
+
+  it("rejects missing docsImpact when changedFiles hit docs-relevant paths", () => {
+    const { engine, state } = importState();
+    startT001(engine, state);
+    expect(() => engine.submitImplementation(state, "b1", [{ taskId: "T001", summary: "s", changedFiles: ["src/mcp-server/register-tools.ts"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [] }])).toThrowError(/submission_invalid|docsImpact/);
+  });
+
+  it("accepts docsImpact 'none: <reason>' for docs-relevant changes", () => {
+    const { engine, state } = importState();
+    startT001(engine, state);
+    engine.submitImplementation(state, "b1", [{ taskId: "T001", summary: "s", changedFiles: ["specs/010/spec.md"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [], docsImpact: "none: spec-only change, no user-facing docs affected" }]);
+    expect(state.tasks["T001"]!.implementation!.docsImpact).toContain("none:");
+  });
+
+  it("accepts docsImpact 'updated: <file>' and defaults to 'none' when not docs-relevant", () => {
+    const { engine, state } = importState();
+    startT001(engine, state);
+    engine.submitImplementation(state, "b1", [{ taskId: "T001", summary: "s", changedFiles: ["src/integrations/spec-kit/SpecKitEngine.ts"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [], docsImpact: "updated: README.md" }]);
+    expect(state.tasks["T001"]!.implementation!.docsImpact).toBe("updated: README.md");
+    engine.transitionTask(state, "T001", "completed");
+    engine.releaseBatch(state, "single", "b2");
+    // non-docs-relevant: docsImpact optional, stored default "none"
+    engine.startTask(state, "b2", ["T002"]);
+    engine.submitImplementation(state, "b2", [{ taskId: "T002", summary: "d", changedFiles: ["src/util.ts"], testsAddedOrUpdated: [], deviations: [], unresolvedIssues: [] }]);
+    expect(state.tasks["T002"]!.implementation!.docsImpact).toBe("none");
+  });
+});
+
 describe("task lifecycle + release + evidence gating (FR-066–069)", () => {
   it("releases T001 only; starting an unreleased task is rejected", () => {
     const { engine, state } = importState();

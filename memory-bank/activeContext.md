@@ -701,3 +701,9 @@
 - Review-Objekt: specs/010-documentation-drift-gate/spec.md (Draft, Q1–Q3 entschieden). Review auf Spec-Qualität, keine Implementierung existiert.
 - Snapshot: branch develop, HEAD 76801a2 = Review-Commit, unstaged/staged diff leer zum Review-Zeitpunkt. Kontexte verifiziert: check-final-review.mjs, check-index-freshness.mjs, .guidance/operations.json + workflow.json (lifecycle.beforeExit), ConfigAssistant QUESTIONS (9 IDs), register-tools.ts (16 SPEC_KIT + 19 WORKFLOW Tool-Namen), errors.ts ERROR_CODES (~80), spec 009 (FR-901–910).
 - Urteil: NICHT FREIGEGEBEN — 1 HIGH (F-1: FR-954 Pfadmuster-Semantik/Basis undefiniert, `src/config.ts` etc. existieren nicht als Repo-Root-Pfade → Gate tot oder arbiträr), 5 MEDIUM (F-2 Verdrahtungspunkt workflow.json beforeExit fehlt + Gate-Reihenfolge, F-3 Check-1 „Abschnitts-Verweis" unpräzise + README-Tool-Tabelle bereits 12 vs 16 driftig, F-4 ERROR_CODES-Anker existiert in README gar nicht, F-5 Check-4 Heuristik „Merge-Commit" für dieses Repo (Rebase/Squash) ungeeignet/undefiniert + Blocking ohne Ausstiegsregel), 3 LOW, 2 INFO. Details: remaining-work-plan.md Abschnitt Spec-010.
+
+## 2026-09-27: specs/010 Implementation abgeschlossen (T5-T10)
+- Snapshot: branch develop, HEAD d89bb25 + uncommittete Änderungen (operations.json, workflow.json, SpecKitEngine.ts, lifecycle.test.ts, Contract-Doku, tasks.md 010). Alles im Container verifiziert (344 Tests/tsc/build/Gate je Exit 0).
+- docsImpact-Semantik implementiert: Substring-Match gegen DOCS_RELEVANT_PATTERNS mit Backslash-Normalisierung (Windows-Pfade); löst S10-F1 praktisch (Muster als definierte Konstante mit definierter Basis repo-root-relative changedFiles).
+- S10-F2/F6 gelöst (beforeExit vor final-review-gate; Contract specs/002 dokumentiert docsImpact inkl. submission_invalid-Verhalten).
+- Offen: Push + index-freshness beim complete_workflow; AD-1/AD-2 (Adopt) unberührt.
