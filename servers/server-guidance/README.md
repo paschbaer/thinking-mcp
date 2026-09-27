@@ -128,6 +128,42 @@ Environment variables (HTTP):
 | `GUIDANCE_WORKSPACE_ROOT` | cwd | Workspace containing `.guidance/` |
 | `GUIDANCE_AUTH_TOKEN` | *(unset)* | If set, `/mcp` requires `Authorization: Bearer <token>` (401 otherwise). `/health` stays open |
 
+### New-system setup checklist (HTTP + multi-workspace)
+
+From a bare machine to a running multi-workspace instance:
+
+1. **Prerequisites**: Docker Desktop (with file sharing for the drive that
+   hosts the checkout), git, Node ≥ 18 (host-side builds/tests optional —
+   the container brings its own toolchain). Optional: a host-side
+   `gitnexus` CLI (e.g. via WSL) for index refreshes, and the
+   experience-memory + clear-thought downstream services if you use them.
+2. **Clone & build** (see above) — then start HTTP via
+   `docker compose -f docker-compose.yml -f docker-compose.override.yml up -d`.
+   The override mounts the checkout via **relative paths** (`../../`,
+   `../../../` repo pool) and the `guidance_node_modules` volume — no
+   absolute host paths to adapt when the checkout moves.
+3. **First boot**: `.guidance/` is scaffolded automatically (disable with
+   `GUIDANCE_SCAFFOLD=off`); the scaffold writes the default workspace
+   entry into `guidance.json`. Verify: `curl localhost:3003/health` →
+   `"configured": true` plus the workspace list.
+4. **Register additional repos**: add entries to `.guidance/guidance.json`
+   → `workspaces[]` (container path `/workspaces/<Repo>`, see
+   [Multi-Workspace Operation](#multi-workspace-operation-specs008)).
+   No compose edit, no restart. **Add `.guidance/state/` to each repo's
+   `.gitignore`.**
+5. **Per-repo analysis index**: run `gitnexus analyze --no-stats` inside
+   each registered repo (host-side pre-complete step; the freshness gate
+   checks `<root>/.gitnexus/meta.json` against git HEAD).
+6. **Hardening (optional)**: set `GUIDANCE_AUTH_TOKEN` for bearer auth on
+   `/mcp`; keep `GUIDANCE_BIND_HOST` at loopback unless the instance must
+   be reachable from other hosts.
+
+Known environment caveats: Linux containers on Windows/Docker Desktop need
+the drive enabled for file sharing; host-installed `node_modules` (Windows
+binaries) are shadowed by the `guidance_node_modules` volume; a git
+**worktree** checkout has a `.git` *file* instead of a directory, which
+breaks git-reading gates run from inside that worktree.
+
 ### Bearer authentication (HTTP)
 
 The bearer token is a **shared secret you choose yourself** — the server does
