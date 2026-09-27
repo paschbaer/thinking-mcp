@@ -217,13 +217,14 @@ export class WorkspaceOpLock {
     }
     for (const entry of entries) {
       const isOrphan = entry.startsWith(`${this.basename}.`) && entry.includes(".stolen.");
-      // Legacy (pre-FR-502): unnamensraumloses Lock-File — kann vom aktuellen
-      // Code nicht mehr gehalten werden und wird nach TTL mitgeräumt.
+      // Legacy (pre-FR-502): unnamensraumloses Lock-File. Wird erst nach
+      // TTL entfernt (M-2-Fix): im Mischbetrieb alter/neuer Versionen kann
+      // ein alter Prozess es noch aktiv halten.
       const isLegacy = entry === `${this.basename}.lock`;
       if (!isOrphan && !isLegacy) continue;
       const full = join(dir, entry);
       try {
-        if (isLegacy || Date.now() - statSync(full).mtimeMs > ORPHAN_TTL_MS) unlinkSync(full);
+        if (Date.now() - statSync(full).mtimeMs > ORPHAN_TTL_MS) unlinkSync(full);
       } catch {
         /* best effort */
       }
