@@ -767,7 +767,8 @@ export function generateFiles(answers: SetupAnswers): {
             { recoverable: true },
           );
         }
-        const desc = typeof refOp.description === "string" ? refOp.description : "";
+        const desc =
+          typeof refOp.description === "string" ? refOp.description : "";
         ops.operations[opId] = {
           ...refOp,
           description: desc
