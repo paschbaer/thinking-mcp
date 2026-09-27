@@ -6,6 +6,22 @@
 
 ## Avoid These Mistakes
 
+- **`docker compose -f <file>` does NOT auto-load `<file>.override.yml` (2026-09-27):** restarting the
+  guidance container with only `docker compose -f servers/server-guidance/docker-compose.yml up -d`
+  silently mounted `servers/server-guidance/workspace` (a near-empty dir) as `/workspace` instead of
+  the repo — existing sessions appeared "lost" and downstream status reset. Correct invocation:
+  `-f docker-compose.yml -f docker-compose.override.yml` (override mounts `../../:/workspace`, the
+  `/workspaces` pool and the node_modules volume; README documents it, the -f form ignores it).
+  → Prevention: after ANY container restart verify the mount (`docker inspect ... --format
+  '{{json .Mounts}}'`) and the workspace list (`curl localhost:3003/health`) before concluding data loss.
+- **Guidance sessions are bound to the configurationVersion snapshot — restarting the container after
+  any `.guidance` config change invalidates running sessions (specs/008 AC-5, fail-closed by design):**
+  continuation fails with `session ... is bound to sha256:..., current configuration is sha256:...`.
+  Combined with the compose trap above this looks like data loss; the session JSON survives in
+  `.guidance/state/sessions/` but is unusable.
+  → Prevention: finish or intentionally abandon a guidance session BEFORE changing `.guidance/*`
+  config or restarting its container; after drift, close out the work out-of-band (document +
+  verify results independently) instead of fighting the binding.
 - **MCP `Context server request timeout` — diagnose SERVER vs CLIENT before touching config (2026-09-27):**
   recurring timeouts on clearthought/gitnexus tool calls looked like server problems.
   Evidence chain that settled it: (1) `docker ps` + `curl /health` — all containers healthy;
