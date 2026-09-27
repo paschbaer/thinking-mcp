@@ -67,7 +67,7 @@
 
 - [x] T15 AC-5-Test: Registry-Änderung → laufende Session failt bei
   nächster Operation mit Konfigurationsfehler.
-- [ ] T16 AC-3-Regression: Bestandssuite + tsc + build grün mit
+- [x] T16 AC-3-Regression: Bestandssuite + tsc + build grün mit
   Default-Workspace-Setup; ERROR_CODES-Snapshot konsistent.
 
 ## Fortschritt (laufend)
@@ -78,3 +78,4 @@
 - T8+T9+T10 completed 2026-09-27 (9151fbc; build clean, Suite 321 passed / 5 pre-existing).
 - T11+T12 completed 2026-09-27 (FR-804 war durch Feature-006-Scoping + Child-StateDirs erfüllt; Scoping-Tests 5/5, Suite 325 passed / 5 pre-existing).
 - T13+T14+T17+T15 completed 2026-09-27 (T13 strukturell via OperationEngine cwd=Session-Workspace + Orch-Status-Test; Suite 325 passed).
+- T16 completed 2026-09-27 (Final-Regression: 326 passed / 5 pre-existing; AC-3 Default-Workspace unverändert).
