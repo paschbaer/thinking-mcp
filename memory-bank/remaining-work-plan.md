@@ -889,3 +889,8 @@ Frischer Reviewer-Subagent über feature/multi-workspace a5f8f26 vs develop (Sna
 - [ ] F2 LOW (akzeptiert): Impliziter Default-Eintrag toleriert fehlenden Root (Remote-Sentinel-Boot) — dokumentierte Ausnahme, explizite Entries strikt validiert. Trigger: falls Remote-Boot-Härtung gefordert wird.
 - [ ] F3 LOW (akzeptiert): Session-scoped SpecKitEngines werden nicht gecacht (nur Default-Root) — reine Performance, korrekt. Trigger: Messbare Latenz bei Spec-Kit-Ops.
 - [ ] F4 LOW (getrackt): release_batch/verify_task Lifecycle-Fix liegt formal außerhalb T1–T7 des Specs 008 — als eigenständiger Fix auf feature/release-batch-tool dokumentiert (b841d38, 0aad3ed); Merge zu develop noch offen. Trigger: Merge der beiden Branches.
+
+## specs/008-multi-workspace — GELÖST (2026-09-27)
+- [x] MR-1 GELÖST: Multi-Workspace implementiert (feature/multi-workspace, T1–T17 completed). WorkspaceRegistry (realpath-fail-closed), namensbasierte Session-Bindung, Per-Workspace-Compositions mit State-Isolation, Lock-Scoping verifiziert, Gates je Session-Workspace, Health/Metrics-Observability. Evidence: Commits e9c503c..73e2b42, Suite 326 passed (5 pre-existing), tsc+build clean. P2-Review-Gate: 0 HIGH/CRIT.
+- [x] MR-2 GELÖST: README-Kapitel Multi-Workspace + docker-compose-Beispiel (zweiter Mount), .guidance/state-gitignore-Pflicht dokumentiert (FR-807).
+- Verbleibend (aus Phase-2-Umsetzung): Observability-PerWorkspace-Detail-Test, Spec-Kit-Chaining-Bridge für Non-Default-Workspaces (dokumentierte Limitierung), Merges feature/multi-workspace + feature/release-batch-tool → develop (offen, Nutzer-Entscheid).
