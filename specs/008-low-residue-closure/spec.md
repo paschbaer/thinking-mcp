@@ -3,7 +3,7 @@
 **Feature ID:** `008-low-residue-closure`
 **Namespace:** FR-801+, SC-801+
 **Closes tracks:** Interleaving-Parität (Doku/Tests) · Router-Cast-Robustheit · Lock-Cap-Wortlaut · L253-Ersatz (Prompt-Auslieferung übers Paket)
-**Status:** Draft
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-27
 
 ## Overview

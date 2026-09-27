@@ -3,7 +3,7 @@
 **Feature ID:** `008-multi-workspace`
 **Closes tracks:** MR-1 (MEDIUM, Architektur) · MR-2 (LOW, Docs)
 **Namespace:** neue FRs ab FR-801 (keine Kollision mit FR-001…705)
-**Status:** Draft — Entscheidungen Q1–Q5 durch Nutzer festgeschrieben (2026-09-27); bereit für Plan-Phase
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-27
 
 ## Overview

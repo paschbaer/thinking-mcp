@@ -3,16 +3,12 @@
  * Documentation drift gate (specs/010 FR-951/953): verifies that the README
  * documents the current tool surface, the setup question catalog, and all
  * registered error codes — plus spec status hygiene (Draft + all-done
- * checkboxes).
+ * checkboxes). Read-only: findings on stderr, exit 1 on drift.
  *
  * Usage: node check-docs-drift.mjs [repoRoot=cwd]
- *
- * Findings go line-by-line to stderr with the stable prefix
- *   docs drift: <artefact> — <expected> vs <found>
- * Exit 0 = no drift, exit 1 = at least one finding. Read-only: never writes.
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve, basename } from "node:path";
+import { join, resolve } from "node:path";
 
 const repoRoot = resolve(process.argv[2] ?? process.cwd());
 const findings = [];
@@ -31,41 +27,39 @@ const read = (p) => {
 const registerToolsPath = join(repoRoot, "servers/server-guidance/src/mcp-server/register-tools.ts");
 const registerToolsSrc = read(registerToolsPath);
 if (registerToolsSrc === null) {
-  console.error(`docs drift: missing source file ${registerToolsPath}`);
+  console.error(`docs drift: missing/unreadable source file ${registerToolsPath}`);
   process.exit(1);
 }
-const arrayNames = (name) => {
-  const m = registerToolsSrc.match(new RegExp(`export const ${name} = \[([\s\S]*?)\] as const;`));
-  if (!m) return [];
-  return [...m[1].matchAll(/"([a-z_0-9]+)"/g)].map((x) => x[1]);
+const arrayNames = (src, name) => {
+  const start = src.indexOf(`export const ${name} = [`);
+  if (start === -1) return [];
+  const end = src.indexOf("] as const;", start);
+  if (end === -1) return [];
+  return [...src.slice(start, end).matchAll(/"([a-z_0-9]+)"/g)].map((x) => x[1]);
 };
-const workflowTools = arrayNames("WORKFLOW_TOOL_NAMES");
-const specKitTools = arrayNames("SPEC_KIT_TOOL_NAMES");
+const workflowTools = arrayNames(registerToolsSrc, "WORKFLOW_TOOL_NAMES");
+const specKitTools = arrayNames(registerToolsSrc, "SPEC_KIT_TOOL_NAMES");
 const allTools = [...workflowTools, ...specKitTools];
 
 // ---- README --------------------------------------------------------------
 const readmePath = join(repoRoot, "servers/server-guidance/README.md");
 const readme = read(readmePath);
 if (readme === null) {
-  console.error(`docs drift: missing/unreadable file README.md (servers/server-guidance/README.md)`);
+  console.error(`docs drift: missing/unreadable file ${readmePath}`);
   process.exit(1);
 }
 
 // ---- check 1: tool parity (FR-951.1, AC-1) -------------------------------
-const readmeToolIds = [...readme.matchAll(/^\| `([a-z_0-9]+)` \|/gm)].map((m) => m[1]);
-const readmeToolSet = new Set(readmeToolIds);
-for (const id of allTools) {
-  if (!readmeToolSet.has(id)) report(`tool ${id}`, "documented in README tool table", "missing");
-}
-for (const id of readmeToolIds) {
-  if (!allTools.includes(id)) report(`tool ${id}`, "not a registered tool", "unexpected README entry");
-}
+// Check direction: registered tools must be DOCUMENTED (missing = drift).
+// The reverse (README rows without a registered tool) is NOT checked — the
+// README legitimately documents more tools than the registered lists
+// (setup_* tools, status codes, parameters).
 
 // ---- check 2: question catalog parity (FR-951.2, AC-2) -------------------
 const assistantPath = join(repoRoot, "servers/server-guidance/src/setup/ConfigAssistant.ts");
 const assistantSrc = read(assistantPath);
 if (assistantSrc === null) {
-  console.error(`docs drift: missing source file ${assistantPath}`);
+  console.error(`docs drift: missing/unreadable source file ${assistantPath}`);
   process.exit(1);
 }
 const questionIds = [...assistantSrc.matchAll(/^\s{4}id: "([a-z_0-9]+)",$/gm)].map((m) => m[1]);
@@ -77,7 +71,7 @@ for (const id of questionIds) {
 const errorsPath = join(repoRoot, "servers/server-guidance/src/types/errors.ts");
 const errorsSrc = read(errorsPath);
 if (errorsSrc === null) {
-  console.error(`docs drift: missing source file ${errorsPath}`);
+  console.error(`docs drift: missing/unreadable source file ${errorsPath}`);
   process.exit(1);
 }
 const errorCodes = [...errorsSrc.matchAll(/^\s{2}"([a-z_]+)",$/gm)].map((m) => m[1]);

@@ -3,7 +3,7 @@
 **Feature ID:** `003-guidance-toolchain-bootstrap`
 **Parent:** specs/002-guidance-workflow-server (Guidance MCP server)
 **Design sketch:** SDD/guidance-toolchain-bootstrap-specification.md
-**Status:** Draft
+**Status:** Implemented (2026-09-27)
 **Date:** 2026-09-24
 
 ## Overview
