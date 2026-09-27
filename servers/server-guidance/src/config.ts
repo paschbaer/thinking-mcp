@@ -145,6 +145,9 @@ Object.assign(mainConfigSchema, {
   properties: {
     version: { type: "number", const: 2 },
     profile: { enum: ["plain", "spec-kit"] },
+    // FR-906/FR-974: audit metadata written by the config assistant's adopt
+    // flow (source/strategy/date/nonGenericOps/adaptedOps/resolvedPath).
+    adoption: { type: "object" },
     project: {
       type: "object",
       additionalProperties: false,

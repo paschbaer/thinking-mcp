@@ -58,7 +58,7 @@ const QUESTIONS: SetupQuestion[] = [
     id: "referencePath",
     question:
       "Adopt: path to the reference .guidance/ directory (container path, e.g. /workspace/.guidance)?",
-    help: "Required when configSource=adopt. Validated fail-closed (all files present + parseable). Adopt locks profile/insight/gitnexus/gates to the reference. A proven builtin reference ships in the guidance package: /examples/default-guidance (container: /workspace/servers/server-guidance/examples/default-guidance or the package-relative path).",
+    help: "Required when configSource=adopt. Set to 'builtin' (or leave empty) to use the template shipped with the guidance package (examples/default-guidance, override via GUIDANCE_BUILTIN_TEMPLATE_DIR). Otherwise: container path to the reference .guidance/ directory (e.g. /workspace/.guidance). Validated fail-closed (all files present + parseable). Adopt locks profile/insight/gitnexus/gates to the reference. Note: builtin is the generic baseline, not the Thinking-MCP reference.",
     required: false,
   },
   {
@@ -588,22 +588,26 @@ export function generateFiles(answers: SetupAnswers): {
   let downstreamOverride: string | undefined;
   let adoptionBlock: Record<string, unknown> | undefined;
   let nonGenericRefOps: Record<string, Record<string, unknown>> = {};
+  let resolvedReference = referencePath;
   if (adopt) {
-    if (!referencePath) {
-      throw new GuidanceError(
-        "configuration_invalid",
-        "adopt requires referencePath (path to the reference .guidance directory)",
-        { recoverable: true },
-      );
+    // FR-971 (specs/011): "builtin" (or an omitted referencePath) resolves to
+    // the template shipped with the guidance package — enables adopt in
+    // container-only deployments without a mounted reference.
+    const isBuiltin =
+      referencePath === undefined ||
+      referencePath === "" ||
+      referencePath === "builtin";
+    if (!resolvedReference || resolvedReference === "builtin") {
+      resolvedReference = resolveBuiltinReferencePath();
     }
-    validateAdoptReference(referencePath);
+    validateAdoptReference(resolvedReference);
     const refGuidance = JSON.parse(
-      readFileSync(join(referencePath, "guidance.json"), "utf8"),
+      readFileSync(join(resolvedReference, "guidance.json"), "utf8"),
     ) as Record<string, unknown>;
     profile =
       typeof refGuidance.profile === "string" ? refGuidance.profile : "plain";
     const refOps = JSON.parse(
-      readFileSync(join(referencePath, "operations.json"), "utf8"),
+      readFileSync(join(resolvedReference, "operations.json"), "utf8"),
     ) as { operations?: Record<string, Record<string, unknown>> };
     const refOpsMap = refOps.operations ?? {};
     const genericPreset = new Set([
@@ -620,10 +624,14 @@ export function generateFiles(answers: SetupAnswers): {
         nonGenericOps.push(opId);
       else adaptedOps.push(opId);
     }
-    insight = "capture-session-lessons" in refOpsMap;
+    insight = isBuiltin
+      ? "store-completion-insight" in refOpsMap ||
+        "query-project-insights" in refOpsMap ||
+        "capture-session-lessons" in refOpsMap
+      : "capture-session-lessons" in refOpsMap;
     gitnexus = "repository-analysis" in refOpsMap;
     gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
-    let wfText = readFileSync(join(referencePath, "workflow.json"), "utf8");
+    let wfText = readFileSync(join(resolvedReference, "workflow.json"), "utf8");
     if (shell) {
       const wf = JSON.parse(wfText) as Record<string, unknown>;
       wf["instructions"] = { global: shell };
@@ -633,7 +641,10 @@ export function generateFiles(answers: SetupAnswers): {
     policiesOverride = buildPolicies(transport);
     downstreamOverride = buildDownstream(insight, gitnexus, transport);
     adoptionBlock = {
-      source: referencePath,
+      // AC-3 (specs/011): audit block names the template, not the path;
+      // resolvedPath (builtin only) keeps the actual location auditable.
+      source: isBuiltin ? "builtin" : referencePath,
+      ...(isBuiltin ? { resolvedPath: resolvedReference } : {}),
       strategy: "adopt",
       date: new Date().toISOString(),
       nonGenericOps,
@@ -819,7 +830,19 @@ export function generateFiles(answers: SetupAnswers): {
  * (FR-908). Throws GuidanceError("configuration_invalid") with the
  * `adopt source: missing/unreadable file <name>` pattern.
  */
+export function resolveBuiltinReferencePath(): string {
+  // FR-971 (specs/011): deployments can point the builtin template elsewhere
+  // via this env var (e.g. a mounted, deployment-specific template volume).
+  const override = process.env.GUIDANCE_BUILTIN_TEMPLATE_DIR;
+  if (override && override.trim() !== "") return override.trim();
+  return join(PKG_ROOT, "examples", "default-guidance");
+}
+
 export function validateAdoptReference(referenceDir: string): void {
+  // FR-971 (specs/011): the named reference "builtin" resolves to the
+  // template shipped with the guidance package (fail-closed, FR-973).
+  const dir =
+    referenceDir === "builtin" ? resolveBuiltinReferencePath() : referenceDir;
   const requiredFiles = [
     "guidance.json",
     "workflow.json",
@@ -828,11 +851,11 @@ export function validateAdoptReference(referenceDir: string): void {
     "downstream-servers.json",
   ];
   for (const f of requiredFiles) {
-    const p = join(referenceDir, f);
+    const p = join(dir, f);
     if (!existsSync(p)) {
       throw new GuidanceError(
         "configuration_invalid",
-        `adopt source: missing/unreadable file ${f} (reference dir: ${referenceDir})`,
+        `adopt source: missing/unreadable file ${f} (reference dir: ${dir})`,
         { recoverable: true },
       );
     }
@@ -841,16 +864,16 @@ export function validateAdoptReference(referenceDir: string): void {
     } catch {
       throw new GuidanceError(
         "configuration_invalid",
-        `adopt source: unreadable file ${f} (reference dir: ${referenceDir})`,
+        `adopt source: unreadable file ${f} (reference dir: ${dir})`,
         { recoverable: true },
       );
     }
   }
-  const schemasDir = join(referenceDir, "schemas");
+  const schemasDir = join(dir, "schemas");
   if (!existsSync(schemasDir)) {
     throw new GuidanceError(
       "configuration_invalid",
-      `adopt source: missing/unreadable file schemas/ (reference dir: ${referenceDir})`,
+      `adopt source: missing/unreadable file schemas/ (reference dir: ${dir})`,
       { recoverable: true },
     );
   }
@@ -859,7 +882,7 @@ export function validateAdoptReference(referenceDir: string): void {
   let guidance: Record<string, unknown>;
   try {
     guidance = JSON.parse(
-      readFileSync(join(referenceDir, "guidance.json"), "utf-8"),
+      readFileSync(join(dir, "guidance.json"), "utf-8"),
     ) as Record<string, unknown>;
   } catch {
     throw new GuidanceError(
@@ -870,7 +893,7 @@ export function validateAdoptReference(referenceDir: string): void {
   }
   const profile = guidance["profile"];
   if (typeof profile === "string" && profile !== "plain") {
-    const profileFile = join(referenceDir, "profiles", `${profile}.json`);
+    const profileFile = join(dir, "profiles", `${profile}.json`);
     if (!existsSync(profileFile)) {
       throw new GuidanceError(
         "configuration_invalid",
