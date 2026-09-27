@@ -92,7 +92,18 @@ export class WorkspaceRegistry {
     if (entries && entries.length > 0) {
       for (const e of entries) add(e);
     } else {
-      add({ name: "default", root: resolve(fallbackRoot) });
+      // Implicit default (AC-3): tolerates a not-yet-existing root — remote
+      // sessions boot with sentinel roots (/remote-sessions/<id>) that are
+      // materialized later. Explicit entries stay strictly validated.
+      const abs = resolve(fallbackRoot);
+      let real: string;
+      try {
+        real = realpathSync(abs);
+      } catch {
+        real = abs;
+      }
+      byName.set("default", { name: "default", root: real, projectName: "default" });
+      byRoot.set(real, byName.get("default")!);
     }
     return new WorkspaceRegistry(byName, byRoot);
   }
