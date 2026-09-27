@@ -681,3 +681,7 @@
 - Nutzer-Befund verifiziert: guidance ist single-repo verdrahtet — ein Workspace-Root (src/index.ts:15-16), assertWorkspaceInside + spec_kit_feature_outside_workspace lehnen Fremd-Repos ab, .guidance/-Config+State bound an das eine Root, Deployment 1 Container = 1 Repo (docker-compose.override.yml).
 - Konsequenz: Für ein zweites Repo (Niyama) sind heute nur Workarounds möglich (zusätzlicher Mount + Sub-Pfad als workspaceRoot, oder zweite Container-Instanz). Produktionsreif = Workspace-Registry-Konzept nötig.
 - Getrackt als MR-1 (MEDIUM, Architektur) + MR-2 (LOW, Docs) in remaining-work-plan.md.
+
+## 2026-09-27: MCP-Timeout-Diagnose (clearthought/gitnexus) — Ursache clientseitig
+- Wiederkehrende `Context server request timeout`-Fehler verifiziert: Container healthy, Logs 24h ohne error/timeout/warn, direkter curl-MCP-Roundtrip gegen :3000/mcp = ~160 ms. Server-Seite exkulpiert → Ursache ist der Zed-MCP-Client/HTTP-Transport (eigener, kürzerer Request-Timeout; abgebrochener SSE-Stream kaskadiert).
+- Workarounds: schwere GitNexus-Ops via CLI statt MCP; nach Timeout MCP-Session im Editor neu starten. Lesson in lessonsLearned.md (Avoid These Mistakes, 2026-09-27) dokumentiert. Befund :4747 = Web-UI, kein /mcp-Endpunkt.
