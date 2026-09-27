@@ -882,3 +882,10 @@ Branch feature/low-residue-closure. Suite 314/314 + tsc + build grün (Container
 - [x] Router-Cast-Robustheit GELÖST (LR-2): Router als Proxy — unbekannte Member werden funktionsgebunden an die Downstream-Engine weitergeleitet; then/catch/finally + Target-Properties ausgenommen; Regressionstest in tools-run-operation.test.ts.
 - [x] Lock-Cap-Wortlaut GELÖST (LR-3): specs/007 FR-705 = soft cap 64, held nie evicted, temporäres Überschreiten unter Contention möglich; memory-bank L-2-Rest synchronisiert.
 - [x] L253-Ersatz GELÖST (LR-4): prompts/capture-lessons.prompt.md im Paket (files-Eintrag, Master-Header-Verweis), README-Nutzungsabschnitt. L253 bleibt obsolet-closed mit Verweis auf LR-4.
+
+## Getrackte Follow-ups (2026-09-27, P2-Review-Gate specs/008 Phase 1 — GATE BESTANDEN, 0 HIGH/CRIT)
+Frischer Reviewer-Subagent über feature/multi-workspace a5f8f26 vs develop (Snapshot-Tabelle + Evidence-Table im Gate-Report, session bb85853a).
+- [ ] F1 LOW (akzeptiert): Sub-Pfad-Ablehnung = bewusste Härtung vs. alter Prefix-Check (assertWorkspaceRegistered) — dokumentiert in AC-2-Matrix (workspace-binding.test.ts). Trigger: Nutzer-Feedback aus Praxis.
+- [ ] F2 LOW (akzeptiert): Impliziter Default-Eintrag toleriert fehlenden Root (Remote-Sentinel-Boot) — dokumentierte Ausnahme, explizite Entries strikt validiert. Trigger: falls Remote-Boot-Härtung gefordert wird.
+- [ ] F3 LOW (akzeptiert): Session-scoped SpecKitEngines werden nicht gecacht (nur Default-Root) — reine Performance, korrekt. Trigger: Messbare Latenz bei Spec-Kit-Ops.
+- [ ] F4 LOW (getrackt): release_batch/verify_task Lifecycle-Fix liegt formal außerhalb T1–T7 des Specs 008 — als eigenständiger Fix auf feature/release-batch-tool dokumentiert (b841d38, 0aad3ed); Merge zu develop noch offen. Trigger: Merge der beiden Branches.
