@@ -33,11 +33,11 @@
 
 ## P3 — Per-Workspace Config/State
 
-- [ ] T8 Pro-Workspace Config-Load + Cache + eigener
+- [x] T8 Pro-Workspace Config-Load + Cache + eigener
   `configurationVersion`-Hash. — FR-803
-- [ ] T9 State-Dir je Workspace `<root>/.guidance/state/` (Snapshots,
+- [x] T9 State-Dir je Workspace `<root>/.guidance/state/` (Snapshots,
   Pins, Audit); kein gemeinsamer State. — FR-803
-- [ ] T10 Integrationstest: 2 Workspaces, parallele Sessions,
+- [x] T10 Integrationstest: 2 Workspaces, parallele Sessions,
   State-Isolation (AC-1).
 
 ## P4 — Lock-Scoping
@@ -74,3 +74,4 @@
 - T1+T2 completed 2026-09-27 (commit e9c503c; tsc/build clean, Suite im Container: 309 passed, 6 klassifizierte Failures — Details session-73442962 Evidence).
 - T3+T4+T6 completed 2026-09-27 (commit 5e7b8b8; Suite 315-317 passed, nur 5 pre-existing Gate-Failures).
 - T5+T7 completed 2026-09-27 (workspace-binding.test.ts 3/3; Full-Suite 320 passed, 5 pre-existing).
+- T8+T9+T10 completed 2026-09-27 (commit siehe log; build clean, Suite 321 passed / 5 pre-existing).
