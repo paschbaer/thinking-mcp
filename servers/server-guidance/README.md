@@ -677,6 +677,14 @@ flow. `required` downstream operations block the transition like local
 workflows. `get_metrics` is available per remote session and includes
 connection health with `lastSuccessfulRequestAt`.
 
+## Capture-lessons prompt from other repos (L253-Ersatz)
+
+The `capture-lessons` prompt ships inside the npm package:
+`node_modules/@paschbaer/guidance/prompts/capture-lessons.prompt.md`
+(master: `.github/prompts/capture-lessons.prompt.md` in this repo — keep
+the copy in sync when the master changes). No per-repo copies needed;
+reference the packaged file from your agent workflow.
+
 ## Metrics (spec 005, FR-059)
 
 Every operation execution is recorded (counts by outcome, duration

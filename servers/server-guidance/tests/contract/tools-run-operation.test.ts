@@ -227,6 +227,34 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     expect(res.summary).toMatch(/cancel/i);
   }, 15_000);
 
+  it("FR-802: router proxies unknown members to the downstream engine (robustness)", async () => {
+    const downstreamCfgDir = join(ws, ".guidance-down");
+    mkdirSync(downstreamCfgDir, { recursive: true });
+    for (const f of ["guidance.json", "workflow.json", "responses.json", "operations.json", "downstream-servers.json", "policies.json"]) {
+      writeFileSync(join(downstreamCfgDir, f), readFileSync(join(FIXTURE, f)));
+    }
+    writeFileSync(join(downstreamCfgDir, "downstream-servers.json"), JSON.stringify({
+      version: 2,
+      servers: { g: { enabled: true, transport: { type: "http", http: { url: "http://127.0.0.1:1/mcp" } } } },
+    }));
+    writeFileSync(join(downstreamCfgDir, "policies.json"), JSON.stringify({
+      version: 2,
+      trustLevels: { trusted: { dataEgress: "project_data" } },
+      egress: { httpHostAllowlist: ["127.0.0.1:1"] },
+    }));
+    const config = loadConfig(downstreamCfgDir);
+    const engine = new WorkflowEngine({
+      config,
+      stateDir: join(ws, "state-down"),
+      clientOperationEngine: new (await import("../../src/orchestration/OperationEngine.js")).OperationEngine(),
+    } as never);
+    const op = (engine as unknown as { operationEngine: Record<string, unknown> }).operationEngine;
+    expect(typeof op["setDownstreamInvoker"]).toBe("function"); // forwarded, bound
+    expect(op["nonexistentMemberXyz"]).toBeUndefined();
+    expect(typeof op["execute"]).toBe("function");
+    expect(typeof op["executeRequired"]).toBe("function");
+  });
+
   it("SC-503: different workspaces run invocable ops in parallel (R-008a)", async () => {
     const engine = makeEngine();
     const wsA = mkdtempSync(join(tmpdir(), "guidance-runop-wsA-"));

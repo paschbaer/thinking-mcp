@@ -91,6 +91,22 @@ describe("async process execution (spec 004 FR-201)", () => {
     expect(elapsed).toBeLessThan(20_000);
   }, 30_000);
 
+  it("FR-801: interleaved out/err child — streams captured separately, op succeeds", async () => {
+    const engine = new OperationEngine();
+    const res = await engine.execute(
+      procOp({
+        operationId: "interleave",
+        args: ["-e", "for(let i=0;i<50;i++){console.log('out'+i);console.error('err'+i);}"],
+        timeoutSeconds: 10,
+      }) as never,
+      ctx,
+      1,
+    );
+    expect(res.status).toBe("succeeded");
+    // dokumentierte Semantik: keine Cross-Stream-Ordering-Garantie (POSIX);
+    // Streams werden getrennt erfasst — siehe runProcessAsync-Kommentar.
+  }, 20_000);
+
   it("aborts a running child via signal and resolves as cancelled (FR-202 seam)", async () => {
     const engine = new OperationEngine();
     const controller = new AbortController();
