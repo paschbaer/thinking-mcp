@@ -23,8 +23,9 @@ import type {
   WorkflowSession,
 } from "../types/index.js";
 import { WorkspaceOpLock, workspaceLockFile } from "./workspace-lock.js";
+import type { NormalizedResult } from "../types/index.js";
 import { MetricsRepository, type MetricsSnapshot, type OperationOutcome } from "../metrics/MetricsRepository.js";
-import type { ExecuteFn } from "../orchestration/OperationEngine.js";
+import type { DownstreamInvoker, ExecuteFn } from "../orchestration/OperationEngine.js";
 import { SessionRepository } from "../state/SessionRepository.js";
 import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
@@ -159,6 +160,10 @@ export interface EngineDeps {
   config: LoadedConfig;
   stateDir: string;
   operationEngine?: OperationEngine;
+  /** spec 007 FR-701 (Amendment 004): client-side executor for remote
+   *  sessions — ops with server/capability route to the downstream path,
+   *  everything else to this engine (token binding). */
+  clientOperationEngine?: OperationEngine;
   /** FR-117 bridge: pending spec-kit tasks of a session, tasks.md order. */
   specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
 }
@@ -304,7 +309,13 @@ export class WorkflowEngine {
     const enabled = Object.entries(servers).filter(
       ([, v]) => v.enabled !== false,
     );
-    if (enabled.length > 0) {
+    // spec 007 FR-701 (Amendment 004, Option A): Remote-Sessions injizieren
+    // einen ClientOpEngine — Ops mit server/capability laufen über den
+    // regulären Downstream-Pfad (isolierter ClientManager, Q3), alle
+    // übrigen Ops bleiben client-seitig (Token-Binding). Ohne Remote-
+    // ClientEngine gilt das bisherige Verhalten.
+    const downstreamEnabled = enabled.length > 0;
+    if (downstreamEnabled) {
       this.clientManager = new ClientManager({
         requiredServers: enabled
           .filter(([, v]) => v.required)
@@ -313,85 +324,58 @@ export class WorkflowEngine {
       this.allowlists = new Map(
         enabled.map(([id, v]) => [id, v.capabilities?.allow?.tools ?? []]),
       );
-      // An externally provided OperationEngine keeps its own invoker (test seam).
-      if (!deps.operationEngine)
-        this.operationEngine.setDownstreamInvoker({
-          invokeTool: async (serverId, toolName, args) => {
-            const allow = this.allowlists?.get(serverId) ?? [];
-            this.clientManager!.assertAllowed(serverId, toolName, allow);
-            const serverCfgE = servers[serverId];
-            const opForEgress = Object.values(this.operations).find(
-              (o) => o.server === serverId && o.capability === toolName,
-            );
-            this.policyEngine.evaluateEgress({
-              serverId,
-              // Unrecognized configured values fall back to "trusted" (documented
-              // default), keeping the egress check type-safe instead of cast.
-              trustLevel: toTrustLevel(serverCfgE?.trustLevel, serverId),
-              riskClass: opForEgress?.riskClass,
-              args,
-              approved: opForEgress?.approved === true,
-            });
-            const serverCfg = servers[serverId];
-            const transportCfg = serverCfg?.transport;
-            const conn = serverCfg?.connection;
-            const connectionOpts =
-              conn &&
-              (conn.startupTimeoutSeconds !== undefined ||
-                conn.reconnect !== undefined)
-                ? {
-                    ...(conn.startupTimeoutSeconds !== undefined
-                      ? { handshakeTimeoutSeconds: conn.startupTimeoutSeconds }
-                      : {}),
-                    ...(conn.reconnect !== undefined
-                      ? { reconnect: conn.reconnect }
-                      : {}),
-                  }
-                : undefined;
-            const status = await this.clientManager!.ensureReady(
-              serverId,
-              serverCfg && transportCfg?.type === "http" && transportCfg.http
-                ? {
-                    type: "http",
-                    url: transportCfg.http.url,
-                    headers: transportCfg.http.headers,
-                  }
-                : serverCfg && transportCfg?.command
-                  ? {
-                      type: "stdio",
-                      executable: transportCfg.command.executable ?? "",
-                      args: transportCfg.command.args ?? [],
-                      cwd: transportCfg.command.cwd,
-                    }
-                  : undefined,
-              connectionOpts,
-            );
-            const tool = status.tools.find((t) => t.name === toolName);
-            const pinnedHash = this.pinnedHashes.get(`${serverId}:${toolName}`);
-            if (pinnedHash && tool && tool.inputSchemaHash !== pinnedHash) {
-              this.clientManager!.assertNotDrifted(
-                serverId,
-                toolName,
-                pinnedHash,
-              );
-            }
-            if (tool) {
-              this.pinnedHashes.set(
-                `${serverId}:${toolName}`,
-                tool.inputSchemaHash,
-              );
-              saveCapabilityPins(deps.stateDir, this.pinnedHashes); // 2e: Pin persistieren
-            }
-            const requestTimeoutSeconds =
-              serverCfg?.connection?.requestTimeoutSeconds;
-            return await this.clientManager!.invokeTool(
-              serverId,
-              toolName,
-              args,
-              requestTimeoutSeconds,
-            );
-          },
+    }
+    if (deps.clientOperationEngine) {
+      const clientEngine = deps.clientOperationEngine;
+      let downstreamEngine: OperationEngine | undefined;
+      if (downstreamEnabled) {
+        downstreamEngine = new OperationEngine();
+        downstreamEngine.setDownstreamInvoker({
+          invokeTool: this.buildInvokerClosure(servers, deps.stateDir),
         });
+      }
+      // Router: Downstream-Ops (server-Feld) → regulärer Executor,
+      // client-seitige Ops → ClientOpEngine (executeRequired-only).
+      const isDownstreamOp = (c: OperationConfig): boolean => Boolean(c.server);
+      const clientExecuteSingle = async (
+        config: OperationConfig,
+        ctx: OperationContext,
+        attempt: number,
+        signal?: AbortSignal,
+      ): Promise<NormalizedResult> => {
+        const r = await clientEngine.executeRequired([config], ctx);
+        return r.results[0]!;
+      };
+      const routerExecute: ExecuteFn = (config, ctx, attempt, signal) =>
+        isDownstreamOp(config) && downstreamEngine
+          ? downstreamEngine.execute(config, ctx, attempt, signal)
+          : clientExecuteSingle(config, ctx, attempt, signal);
+      const routerExecuteRequired = async (
+        configs: OperationConfig[],
+        ctx: OperationContext,
+      ): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> => {
+        if (!downstreamEngine) return clientEngine.executeRequired(configs, ctx);
+        const down = configs.filter(isDownstreamOp);
+        const rest = configs.filter((c) => !isDownstreamOp(c));
+        const downRun = down.length
+          ? await downstreamEngine.executeRequired(down, ctx)
+          : { allSucceeded: true, results: [] as NormalizedResult[] };
+        const restRun = rest.length
+          ? await clientEngine.executeRequired(rest, ctx)
+          : { allSucceeded: true, results: [] as NormalizedResult[] };
+        return {
+          allSucceeded: downRun.allSucceeded && restRun.allSucceeded,
+          results: [...downRun.results, ...restRun.results],
+        };
+      };
+      this.operationEngine = {
+        execute: routerExecute,
+        executeRequired: routerExecuteRequired,
+      } as unknown as OperationEngine;
+    } else if (downstreamEnabled && !deps.operationEngine) {
+      this.operationEngine.setDownstreamInvoker({
+        invokeTool: this.buildInvokerClosure(servers, deps.stateDir),
+      });
     }
     // spec 005 FR-403: metrics recording wrapper — records every operation
     // execution (lifecycle + runOperation + composite steps) without touching
@@ -547,10 +531,18 @@ export class WorkflowEngine {
 
   /** spec 006 FR-502 (R-008a): Lock je workspaceRoot — verschiedene
    *  Workspaces serialisieren sich nicht mehr gegenseitig. */
+  /** spec 006 FR-705 (L-5): Cap für die Lock-Map — ältester Eintrag wird
+   *  entfernt (Locks sind zustandslos nach release, Neuaufbau billig). */
   private lockFor(workspaceRoot: string): WorkspaceOpLock {
     const file = workspaceLockFile(this.stateDir, workspaceRoot);
     let lock = this.workspaceLocks.get(file);
     if (!lock) {
+      if (this.workspaceLocks.size >= 64) {
+        const oldest = this.workspaceLocks.keys().next().value;
+        if (oldest !== undefined && !this.workspaceLocks.get(oldest)?.isHeld()) {
+          this.workspaceLocks.delete(oldest);
+        }
+      }
       lock = new WorkspaceOpLock(file, "workspace-ops", this.lockTtlMs);
       this.workspaceLocks.set(file, lock);
     }
@@ -563,6 +555,109 @@ export class WorkflowEngine {
 
   private releaseWorkspaceOpLock(workspaceRoot: string): void {
     this.lockFor(workspaceRoot).release();
+  }
+
+  /** spec 007 FR-702: the downstream invoker closure — EXAKT die Logik aus
+   *  dem bisherigen Konstruktor-Inline (Allowlist → Egress → ensureReady →
+   *  Pins → invoke), als Methode, damit lokal und remote denselben Code
+   *  nutzen. */
+  private buildInvokerClosure(
+    servers: Record<
+      string,
+      {
+        enabled?: boolean;
+        required?: boolean;
+        trustLevel?: string;
+        transport?: {
+          type?: string;
+          command?: { executable: string; args: string[]; cwd?: string };
+          http?: { url: string; headers?: Record<string, string> };
+        };
+        connection?: {
+          requestTimeoutSeconds?: number;
+          startupTimeoutSeconds?: number;
+          reconnect?: {
+            enabled?: boolean;
+            maximumAttempts?: number;
+            delayMilliseconds?: number;
+          };
+        };
+        capabilities?: { allow?: { tools?: string[] } };
+      }
+    >,
+    stateDir: string,
+  ): DownstreamInvoker["invokeTool"] {
+    return async (serverId, toolName, args) => {
+      const allow = this.allowlists?.get(serverId) ?? [];
+      this.clientManager!.assertAllowed(serverId, toolName, allow);
+      const serverCfgE = servers[serverId];
+      const opForEgress = Object.values(this.operations).find(
+        (o) => o.server === serverId && o.capability === toolName,
+      );
+      this.policyEngine.evaluateEgress({
+        serverId,
+        // Unrecognized configured values fall back to "trusted" (documented
+        // default), keeping the egress check type-safe instead of cast.
+        trustLevel: toTrustLevel(serverCfgE?.trustLevel, serverId),
+        riskClass: opForEgress?.riskClass,
+        args,
+        approved: opForEgress?.approved === true,
+      });
+      const serverCfg = servers[serverId];
+      const transportCfg = serverCfg?.transport;
+      const conn = serverCfg?.connection;
+      const connectionOpts =
+        conn &&
+        (conn.startupTimeoutSeconds !== undefined ||
+          conn.reconnect !== undefined)
+          ? {
+              ...(conn.startupTimeoutSeconds !== undefined
+                ? { handshakeTimeoutSeconds: conn.startupTimeoutSeconds }
+                : {}),
+              ...(conn.reconnect !== undefined
+                ? { reconnect: conn.reconnect }
+                : {}),
+            }
+          : undefined;
+      const status = await this.clientManager!.ensureReady(
+        serverId,
+        serverCfg && transportCfg?.type === "http" && transportCfg.http
+          ? {
+              type: "http",
+              url: transportCfg.http.url,
+              headers: transportCfg.http.headers,
+            }
+          : serverCfg && transportCfg?.command
+            ? {
+                type: "stdio",
+                executable: transportCfg.command.executable ?? "",
+                args: transportCfg.command.args ?? [],
+                cwd: transportCfg.command.cwd,
+              }
+            : undefined,
+        connectionOpts,
+      );
+      const tool = status.tools.find((t) => t.name === toolName);
+      const pinnedHash = this.pinnedHashes.get(`${serverId}:${toolName}`);
+      if (pinnedHash && tool && tool.inputSchemaHash !== pinnedHash) {
+        this.clientManager!.assertNotDrifted(serverId, toolName, pinnedHash);
+      }
+      if (tool) {
+        this.pinnedHashes.set(`${serverId}:${toolName}`, tool.inputSchemaHash);
+        saveCapabilityPins(stateDir, this.pinnedHashes); // 2e: Pin persistieren
+      }
+      const requestTimeoutSeconds = serverCfg?.connection?.requestTimeoutSeconds;
+      const result = await this.clientManager!.invokeTool(
+        serverId,
+        toolName,
+        args,
+        requestTimeoutSeconds,
+      );
+      // spec 005 F3/FR-704: Verbindungs-Status je Downstream-Invoke messen.
+      const st = this.clientManager!.statusOf(serverId);
+      this.metrics.recordConnection(serverId, st?.status ?? "connected", st?.lastSuccessfulRequestAt);
+      return result;
+    };
   }
 
   /** spec 004 FR-202: bricht alle laufenden Operationen der Session ab

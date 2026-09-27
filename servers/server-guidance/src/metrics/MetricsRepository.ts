@@ -21,6 +21,7 @@ export interface OperationMetrics {
 export interface ConnectionSnapshot {
   serverId: string;
   status: string;
+  lastSuccessfulRequestAt?: string;
 }
 
 export interface MetricsSnapshot {
@@ -64,8 +65,8 @@ export class MetricsRepository {
     this.persist({ ts: new Date().toISOString(), kind: "operation", operationId, outcome, durationMs });
   }
 
-  recordConnection(serverId: string, status: string): void {
-    this.connections[serverId] = { serverId, status };
+  recordConnection(serverId: string, status: string, lastSuccessfulRequestAt?: string): void {
+    this.connections[serverId] = { serverId, status, lastSuccessfulRequestAt };
     this.persist({ ts: new Date().toISOString(), kind: "connection", serverId, status });
   }
 

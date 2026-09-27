@@ -62,6 +62,10 @@ export function composeApplication(
     operationEngine?: ConstructorParameters<
       typeof WorkflowEngine
     >[0]["operationEngine"];
+    /** spec 007 FR-701: client-side executor for remote sessions. */
+    clientOperationEngine?: ConstructorParameters<
+      typeof WorkflowEngine
+    >[0]["clientOperationEngine"];
     skipScaffold?: boolean;
   },
 ): Composition {
@@ -104,6 +108,7 @@ export function composeApplication(
     config,
     stateDir,
     operationEngine: options?.operationEngine,
+    clientOperationEngine: options?.clientOperationEngine,
     specKitTasks,
   });
   const tools = new WorkflowTools(engine);

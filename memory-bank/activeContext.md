@@ -675,3 +675,9 @@
 - Rest-Fixes umgesetzt: saveCapabilityPins atomar (tmp+rename), Pin-Helfer exportiert, Regressionstest tests/workflow/capability-pins.test.ts (5 Tests: Roundtrip/Merge/Drift/Korrupt/Atomarität). Suite 197/197 grün, tsc clean.
 - remaining-work-plan.md gesynct: L264/L266 (Phase 5/6) + CB-1/CB-2/CB-9 auf [x] mit Evidence; neue Sektion „Security-/Policy-Verifikation". Verbleibende Guidance-Offenpunkte: Metrics-Tool (L260), awaiting_client-Spec (L305d), Rest-LOWs aus R-1..R-3 (akzeptiert).
 - Testumgebung-Lesson: kein Node auf Host-PATH; Container-Run braucht Repo-COPY (Mount-EACCES bei npm install) + @rollup/rollup-linux-x64-musl nachinstallieren (bekannte native-Bindings-Falle).
+
+
+## 2026-09-27: Multi-Repo-Fähigkeits-Befund (Guidance, Niyama-Beispiel)
+- Nutzer-Befund verifiziert: guidance ist single-repo verdrahtet — ein Workspace-Root (src/index.ts:15-16), assertWorkspaceInside + spec_kit_feature_outside_workspace lehnen Fremd-Repos ab, .guidance/-Config+State bound an das eine Root, Deployment 1 Container = 1 Repo (docker-compose.override.yml).
+- Konsequenz: Für ein zweites Repo (Niyama) sind heute nur Workarounds möglich (zusätzlicher Mount + Sub-Pfad als workspaceRoot, oder zweite Container-Instanz). Produktionsreif = Workspace-Registry-Konzept nötig.
+- Getrackt als MR-1 (MEDIUM, Architektur) + MR-2 (LOW, Docs) in remaining-work-plan.md.

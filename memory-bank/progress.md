@@ -412,3 +412,26 @@ detect-changes MEDIUM (erwartete Symbole).
 automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 **Current state:** Alle reconnect-Funktionstests grün — Downstream-Restarts
 (insight/gitnexus) überlebt guidance nun ohne Neustart.
+
+
+## 2026-09-27: Spec-Kit-Entwurf specs/008-multi-workspace
+- Draft spec.md angelegt (FR-801…807, US1–US4, AC-1…5, Out of Scope). Nummer 006/007 waren vergeben → 008.
+- Blockiert auf Nutzer-Entscheidungen Q1 (Topologie), Q2 (Config-Quelle), Q3 (Tool-Surface), Q4 (State-Lage), Q5 (Lock-Scope) — je mit Empfehlung.
+- Clearthought-Server war während der Planung nicht erreichbar (3x Timeout); Planung manuell strukturiert dokumentiert.
+
+
+## 2026-09-27: specs/008-multi-workspace — Entscheidungen gefasst, Plan/Tasks nachgezogen
+- User-Entscheidungen: Q1 1-Container-Registry; Q2-Q5 = Empfehlungen (guidance.json workspaces[], statisch, State im Repo, per-Workspace-Lock).
+- spec.md: Open Questions → Decisions-Sektion; FR-801..805 konkretisiert (keine Varianten-Sprache mehr). plan.md (P1-P7 + Risiken) und tasks.md (T1-T16) angelegt.
+- Naechster Schritt: Implementierung im Feature-Branch (feature/multi-workspace), Batch-Modus max 3 Tasks.
+
+
+## 2026-09-27: Clearthought-Review specs/008 (3-Personen-Kritik, 8 Findings)
+- Server wieder erreichbar (collaborative_reasoning, Kritik+Integration). Findings eingearbeitet:
+  FR-802 realpathSync beidseitig; FR-807 gitignore-Pflicht .guidance/state + Deployment-Validierung (nicht gemounteter Root = klare Meldung); FR-808 NEU Observability (/health Registry-Exposure, get_metrics Workspace-Dimension); AC-2 Traversal/Case/Symlink-Testmatrix; AC-5 globale Invalidierung bewusst festgeschrieben (workspace-scoped = Out of Scope).
+- plan.md P3 als groesster Posten markiert (Komponenten-Parametrisierung statt N Instanzen); tasks.md T5/T7/T14 erweitert, T17 neu.
+
+
+## 2026-09-27: Spec-Kit-Prompt fuer Feature 008 erstellt
+- .github/prompts/spec-008-multi-workspace.implement.prompt.md (Konvention wie capture-lessons.prompt.md: Front-matter + Procedure).
+- Inhalt: Kontext (Artefakte + Schlüsselstellen index.ts/register-tools.ts/SpecKitEngine/workspace-lock), AGENTS.md-Regeln (Feature-Branch, GitNexus impact/detect_changes, Clearthought, Review Evidence Protocol), Phasen P1-P7 mit Task-Referenzen, Evidence-gebundene Checkbox-Pflege, Acceptance AC-1..AC-5.
