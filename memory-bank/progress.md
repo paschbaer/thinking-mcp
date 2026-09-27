@@ -443,3 +443,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - detect_changes: GitNexus 2x Timeout — Ersatz via git diff (nur Kommentare/Testnamen, kein Verhalten). SUITE NICHT LOKAL GELAUFEN (kein Node auf Host); Testnamen-Renames sind string-safe.
 - LESSON: sed -i auf CRLF-Dateien (specs/005,006) hat Whole-File-Rewrite erzeugt (132/132 lines) — mit git checkout wiederhergestellt und perl -pi -e (CRLF-erhaltend) verwendet. Künftig Status-Edits in CRLF-Dateien nur mit perl oder edit_file.
 - specs/008-multi-workspace implementiert: 17/17 Tasks, Suite 326 passed (5 pre-existing), tsc+build clean, P2-Gate 0 HIGH/CRIT. Offen: Merges zu develop (feature/multi-workspace + feature/release-batch-tool), Push.
+
+## 2026-09-27: Option B Deployment + Scaffold-Default-Workspace
+- docker-compose.override.yml: relative Mounts ../../:/workspace + ../../../:/workspaces (Repo-Pool, D:/repos) — keine absoluten Pfade mehr; Niyama als /workspaces/Niyama registriert (workspaces[] in .guidance/guidance.json), /health zeigt beide reachable.
+- Scaffold erweitert: ensureConfiguration/scaffoldIfMissing nehmen workspaceRoot und schreiben den Default-Workspace explizit in die generierte guidance.json (FR-801/806) — Registry ab Tag 1 sichtbar/editierbar.
+- CRLF-Lesson erneut bestätigt (main.ts): node-Patches CRLF-safe via Regex.
