@@ -33,3 +33,12 @@
 - [ ] T11 AC-5-Test final + Vollsuite + tsc + build
 - [ ] T12 Re-Review der überarbeiteten Spec-Fassung (Review-Vermerk) +
   Memory-Bank/Progress
+
+## Ergänzung (Re-Review N-1…N-7)
+
+- [ ] T13 Regeneration `downstream-servers.json` (buildDownstream) + `policies.json`
+  (buildPolicies, neue Transport-Antwort) im Adopt-Flow — N-1/N-3
+- [ ] T14 Adopt-Kohärenz: `insight`/`gitnexus`/`gates` aus Referenz abgeleitet,
+  Fragen gesperrt; Post-Adopt-Validierung workflow-Ops ⊆ operations — N-2
+- [ ] T15 Anpassungsliste um Inhaltsvergleich (N-5) erweitert; AC-8/AC-9-Tests
+  (Profil-Sperre, Never-Inherit-Negativ-Assertionen)

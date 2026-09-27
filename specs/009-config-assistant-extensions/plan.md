@@ -59,3 +59,15 @@ loadConfig: validateWorkflowInstructions (optional, String ≤512, fail-closed)
     Multi-Workspace-Sektion verweist auf den Assistenten für (2)-Onboarding.
 12. Final-Regression: Vollsuite + tsc + build; Re-Review des Specs (vor
     Implementierungs-Freigabe laut Review-Vermerk).
+
+## Ergänzung nach Re-Review (N-1…N-7, 2026-09-27)
+
+- P3 erweitert: `downstream-servers.json` + `policies.json` werden im
+  Adopt-Flow REGENERIERT (`buildDownstream`/`buildPolicies` mit neuen
+  Antworten) — nicht kopiert (N-1/N-3).
+- `insight`/`gitnexus`/`gates`-Antworten werden im Adopt-Modus
+  deterministisch aus der Referenz abgeleitet, Fragen gesperrt (N-2a);
+  Post-Adopt-Validierung: workflow-Op-Referenzen ⊆ operations (N-2).
+- Anpassungsliste um Inhaltsvergleich erweitert (N-5).
+- Tests: AC-8 (Profil-Sperre + invalide Profil-Datei), AC-9 (Negativ-
+  Assertionen Never-Inherit), Post-Adopt-Kohärenz (N-2).
