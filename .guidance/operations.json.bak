@@ -99,26 +99,6 @@
       "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
       "output": { "returnToAgent": "normalized", "retainRawResult": false }
     },
-    "reasoning-pass": {
-      "description": "Orchestrated Clear-Thought sequential_thinking pass (timeout-resilient route: guidance ClientManager with reconnect instead of the editor's direct MCP connection). Used for the workflow-mandated reasoning minimum (AGENTS.md); ad-hoc reasoning stays on the editor tools.",
-      "type": "mcpTool",
-      "server": "clearthought",
-      "capability": "sequential_thinking",
-      "required": false,
-      "timeoutSeconds": 120,
-      "riskClass": "read_only",
-      "arguments": {
-        "mode": "template",
-        "value": {
-          "thought": "${session.request}",
-          "thoughtNumber": 1,
-          "totalThoughts": 1,
-          "nextThoughtNeeded": false
-        }
-      },
-      "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
-      "output": { "returnToAgent": "normalized", "retainRawResult": true }
-    },
     "capture-session-lessons": {
       "description": "Seed validated session lessons (see .github/prompts/capture-lessons.prompt.md pattern). The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow (empty array = no-op success; redact secrets). Idempotent per slug.",
       "type": "process",

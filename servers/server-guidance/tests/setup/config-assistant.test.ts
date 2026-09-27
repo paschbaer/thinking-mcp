@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { catalogOverview, generateFiles, nextQuestion } from "../../src/setup/ConfigAssistant.js";
 
 const FULL_ANSWERS = {
+  configSource: "fresh",
   projectName: "my-project",
   transport: "http-docker",
   profile: "plain",
@@ -15,9 +16,9 @@ describe("configuration assistant (stateless wizard)", () => {
   it("starts with the first required question (projectName)", () => {
     const overview = catalogOverview({});
     expect(overview.done).toBe(false);
-    expect(overview.nextQuestion?.id).toBe("projectName");
+    expect(overview.nextQuestion?.id).toBe("configSource");
     expect(overview.nextTool).toBe("setup_guidance_answer");
-    expect(overview.questions.length).toBe(7);
+    expect(overview.questions.length).toBe(9);
   });
 
   it("advances question by question and reports done when complete", () => {
@@ -32,17 +33,17 @@ describe("configuration assistant (stateless wizard)", () => {
     const final = catalogOverview(acc);
     expect(final.done).toBe(true);
     expect(final.nextTool).toBe("setup_guidance_generate");
-    expect(guard).toBeLessThanOrEqual(7);
+    expect(guard).toBeLessThanOrEqual(8);
   });
 
   it("nextQuestion skips optional questions (shell has a default)", () => {
-    const q = nextQuestion({ projectName: "p", transport: "stdio", profile: "plain" });
+    const q = nextQuestion({ configSource: "fresh", projectName: "p", transport: "stdio", profile: "plain" });
     // shell is optional and unanswered → not blocking; insight is the next required one
     expect(q?.id).toBe("insight");
   });
 
   it("generate requires the mandatory answers", () => {
-    expect(() => generateFiles({})).toThrowError(/incomplete, missing: projectName/);
+    expect(() => generateFiles({})).toThrowError(/incomplete, missing: (configSource, )?projectName/);
   });
 
   it("generate produces parseable config files with expected content (http-docker)", () => {
@@ -71,7 +72,7 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(operations.operations["capture-session-lessons"].required).toBe(false);
 
     const responses = JSON.parse(content("responses.json"));
-    expect(responses.responses.understand.instruction).toContain("wsl.exe -e bash");
+    expect(responses.responses.understand.instruction).not.toContain("wsl.exe -e bash");
     expect(responses.responses.plan.instruction).toContain("report_blocker");
 
     expect(notes.some((n) => n.includes("configuration is snapshotted per session"))).toBe(true);
@@ -79,6 +80,7 @@ describe("configuration assistant (stateless wizard)", () => {
 
   it("generate without insight/gitnexus omits the dependent gates and downstream entries", () => {
     const { files } = generateFiles({
+      configSource: "fresh",
       projectName: "p2",
       transport: "stdio",
       profile: "plain",

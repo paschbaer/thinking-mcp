@@ -33,6 +33,14 @@ const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const QUESTIONS: SetupQuestion[] = [
   {
+    id: "configSource",
+    question: "Adopt the proven reference configuration or create a fresh one?",
+    help: "adopt = workflow/policies/schemas are taken from the reference config (profile locked to the reference); generic operations are regenerated from your answers below. fresh = everything is generated from your answers only.",
+    options: ["fresh", "adopt"],
+    required: true,
+    default: "fresh",
+  },
+  {
     id: "projectName",
     question: "What is the project name (used as project.name and in gate descriptions)?",
     help: "Free text, kebab-case recommended. Referenced by gates and instructions.",
@@ -46,6 +54,12 @@ const QUESTIONS: SetupQuestion[] = [
     required: true,
   },
   {
+    id: "referencePath",
+    question: "Adopt: path to the reference .guidance/ directory (container path, e.g. /workspace/.guidance)?",
+    help: "Required when configSource=adopt. Validated fail-closed (all files present + parseable). Adopt locks profile/insight/gitnexus/gates to the reference.",
+    required: false,
+  },
+  {
     id: "profile",
     question: "Which profile: plain or spec-kit?",
     help: "plain = standard development flow. spec-kit additionally registers the 12 Spec-Kit tools (the wizard does not interview for spec-kit specifics in v1).",
@@ -56,7 +70,7 @@ const QUESTIONS: SetupQuestion[] = [
   {
     id: "shell",
     question: "Terminal shell the agent should use (optional, agent-facing only)?",
-    help: "Free text, e.g. 'wsl.exe -e bash'. Embedded as a setup sentence in the understand instruction. Leave empty for none. NOTE: a shell field in guidance.json is rejected by strict config validation — this is why it goes into the instruction.",
+    help: "Free text, e.g. 'wsl.exe -e bash'. Embedded as a setup sentence in the understand instruction. Leave empty for none. NOTE: FR-904 — the answer is placed in workflow.json instructions.global and injected into EVERY phase instruction.",
     required: false,
     default: "",
   },
@@ -117,7 +131,11 @@ export function catalogOverview(answers: SetupAnswers): {
 }
 
 function requireCompleted(answers: SetupAnswers): void {
-  const missing = QUESTIONS.filter((q) => q.required && !isAnswered(q, answers)).map((q) => q.id);
+  // FR-908/FR-901: in adopt mode these answers are derived from the reference
+  // configuration (profile/insight/gitnexus/gates) and are NOT required.
+  const derivedInAdopt = new Set(["profile", "insight", "gitnexus", "gates"]);
+  const adopt = answers.configSource === "adopt";
+  const missing = QUESTIONS.filter((q) => q.required && !isAnswered(q, answers) && !(adopt && derivedInAdopt.has(q.id))).map((q) => q.id);
   if (missing.length > 0) {
     throw new GuidanceError("configuration_invalid", `setup answers incomplete, missing: ${missing.join(", ")}`, { recoverable: true });
   }
@@ -423,13 +441,54 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
   requireCompleted(answers);
   const name = String(answers.projectName);
   const transport = String(answers.transport);
-  const profile = String(answers.profile ?? "plain");
+  const configSource = String(answers.configSource ?? "fresh");
+  const adopt = configSource === "adopt";
+  const referencePath = answers.referencePath !== undefined && answers.referencePath !== "" ? String(answers.referencePath) : undefined;
+  let profile = String(answers.profile ?? "plain");
   const shell = String(answers.shell ?? "");
-  const insight = answers.insight === "yes" || answers.insight === true;
-  const gitnexus = answers.gitnexus === "yes" || answers.gitnexus === true;
-  const gates = String(answers.gates ?? "standard");
+  let insight = answers.insight === "yes" || answers.insight === true;
+  let gitnexus = answers.gitnexus === "yes" || answers.gitnexus === true;
+  let gates = String(answers.gates ?? "standard");
 
+  const nonGenericOps: string[] = [];
+  const adaptedOps: string[] = [];
+  let workflowOverride: string | undefined;
+  let policiesOverride: string | undefined;
+  let downstreamOverride: string | undefined;
+  let adoptionBlock: Record<string, unknown> | undefined;
+  if (adopt) {
+    if (!referencePath) {
+      throw new GuidanceError("configuration_invalid", "adopt requires referencePath (path to the reference .guidance directory)", { recoverable: true });
+    }
+    validateAdoptReference(referencePath);
+    const refGuidance = JSON.parse(readFileSync(join(referencePath, "guidance.json"), "utf8")) as Record<string, unknown>;
+    profile = typeof refGuidance.profile === "string" ? refGuidance.profile : "plain";
+    const refOps = JSON.parse(readFileSync(join(referencePath, "operations.json"), "utf8")) as { operations?: Record<string, Record<string, unknown>> };
+    const refOpsMap = refOps.operations ?? {};
+    const genericPreset = new Set(["lint", "test", "build", "repository-analysis", "query-project-insights", "capture-session-lessons"]);
+    for (const [opId, op] of Object.entries(refOpsMap)) {
+      const argsText = JSON.stringify((op as { args?: unknown }).args ?? "");
+      if (!genericPreset.has(opId) || argsText.includes('"repo"')) nonGenericOps.push(opId);
+      else adaptedOps.push(opId);
+    }
+    insight = "capture-session-lessons" in refOpsMap;
+    gitnexus = "repository-analysis" in refOpsMap;
+    gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
+    let wfText = readFileSync(join(referencePath, "workflow.json"), "utf8");
+    if (shell) {
+      const wf = JSON.parse(wfText) as Record<string, unknown>;
+      wf["instructions"] = { global: shell };
+      wfText = JSON.stringify(wf, null, 2);
+    }
+    workflowOverride = wfText;
+    policiesOverride = buildPolicies(transport);
+    downstreamOverride = buildDownstream(insight, gitnexus, transport);
+    adoptionBlock = { source: referencePath, strategy: "adopt", date: new Date().toISOString(), nonGenericOps, adaptedOps, shellSource: "answer" };
+  }
   const notes: string[] = [];
+  if (adopt) {
+    notes.push("adopt: based on reference " + (adoptionBlock ? String(adoptionBlock.source) : "") + " — non-generic operations NOT regenerated: " + (nonGenericOps.join(", ") || "(none)") + ". Adapt these manually.");
+  }
   const guidance = {
     version: 2,
     project: { name },
@@ -452,14 +511,15 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
       restrictWorkingDirectory: true,
       redactSensitiveOutput: true,
     },
+      ...(adoptionBlock ? { adoption: adoptionBlock } : {}),
   };
   const files: GeneratedFile[] = [
     { path: "guidance.json", content: JSON.stringify(guidance, null, 2) + "\n" },
-    { path: "workflow.json", content: buildWorkflow(gates, gitnexus, insight) },
-    { path: "responses.json", content: buildResponses(shell) },
+    { path: "workflow.json", content: workflowOverride ?? buildWorkflow(gates, gitnexus, insight) },
+    { path: "responses.json", content: buildResponses("") },
     { path: "operations.json", content: buildOperations(gates, gitnexus, insight, name, transport) },
-    { path: "downstream-servers.json", content: buildDownstream(insight, gitnexus, transport) },
-    { path: "policies.json", content: buildPolicies(transport) },
+    { path: "downstream-servers.json", content: downstreamOverride ?? buildDownstream(insight, gitnexus, transport) },
+    { path: "policies.json", content: policiesOverride ?? buildPolicies(transport) },
   ];
   if (profile === "spec-kit") {
     files.push({ path: "profiles/spec-kit.json", content: JSON.stringify({ profile: "spec-kit" }, null, 2) + "\n" });
@@ -482,6 +542,28 @@ export function generateFiles(answers: SetupAnswers): { files: GeneratedFile[]; 
   notes.push("After writing the files, restart the Guidance server or start a new session: the configuration is snapshotted per session (configurationVersion).");
   if (transport === "http-docker") {
     notes.push("http-docker: downstream URLs use host.docker.internal — ensure those servers are reachable from the container (allowlist already generated).");
+  }
+  // specs/009 FR-901 Post-Adopt-Kohärenz (N-2): jede im kopierten workflow.json
+  // referenzierte Op muss in der regenerierten operations.json existieren.
+  if (adopt && workflowOverride) {
+    const wfFinal = JSON.parse(workflowOverride) as {
+      phases?: Record<string, { lifecycle?: { beforeExit?: string[] } }>;
+    };
+    const opsFile = files.find((f) => f.path === "operations.json");
+    const availableOps = new Set(
+      Object.keys(opsFile ? (JSON.parse(opsFile.content) as { operations?: Record<string, unknown> }).operations ?? {} : []),
+    );
+    for (const ph of Object.values(wfFinal.phases ?? {})) {
+      for (const op of ph.lifecycle?.beforeExit ?? []) {
+        if (!availableOps.has(op)) {
+          throw new GuidanceError(
+            "configuration_invalid",
+            `adopt coherence: workflow references unknown op ${op}`,
+            { recoverable: true },
+          );
+        }
+      }
+    }
   }
   return { files, notes };
 }
