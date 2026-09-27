@@ -107,6 +107,22 @@ describe("async process execution (spec 004 FR-201)", () => {
     // Streams werden getrennt erfasst — siehe runProcessAsync-Kommentar.
   }, 20_000);
 
+  it("SC-801: secret on stderr of a FAILING op is redacted in the error path", async () => {
+    const engine = new OperationEngine();
+    const res = await engine.execute(
+      procOp({
+        operationId: "failing-secret",
+        args: ["-e", "console.error('api_key: sk-abcdefghijklmnopqrstuvwx'); process.exit(3)"],
+        timeoutSeconds: 10,
+      }) as never,
+      ctx,
+      1,
+    );
+    expect(res.status).toBe("failed");
+    expect(JSON.stringify(res)).not.toContain("sk-abcdefghijklmnopqrstuvwx");
+    expect(JSON.stringify(res)).toContain("[REDACTED]");
+  }, 20_000);
+
   it("aborts a running child via signal and resolves as cancelled (FR-202 seam)", async () => {
     const engine = new OperationEngine();
     const controller = new AbortController();
