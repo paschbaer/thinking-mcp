@@ -453,3 +453,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - What works: Alle 5 R-Fixes in spec.md verifiziert (R-1 inhaltlich gelöst, R-2/R-3/R-4 gelöst, R-5 weitgehend); 0 HIGH/CRITICAL offen → Spec freigegeben.
 - What's left: N-D1 (plan/tasks policies-Kopie-Restdrift, MEDIUM), N-D2/N-D3 (LOW), N-D4 (INFO) — in remaining-work-plan.md getrackt.
 - Current State: Spec 009 plan-reif nach 1-Zeilen-Fix N-D1 in plan.md/tasks.md.
+
+## 2026-09-27: specs/009 Config-Assistant-Extensions implementiert
+- feature/config-assistant-extensions: 15/15 Tasks. configSource-Frage (fresh|adopt), Adopt-Generator (Regeneration downstream/policies/responses/operations, Kopie workflow/schemas, adoption-Block), instructions.global-Slot + loadConfig-Validierung + guidanceForPublic-Injektion.
+- Tests: 341/341 im Container (inkl. 5 zuvor pre-existing final-review-gate — im Haupt-Checkout grün). tsc + build clean.
+- Offen: Merge zu develop + Push (Entscheid Nutzer), Guidance-Session session-2900015e Lifecycle per complete_workflow abschließen.
