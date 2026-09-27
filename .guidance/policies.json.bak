@@ -2,7 +2,6 @@
   "version": 2,
   "egress": {
     "httpHostAllowlist": [
-      "host.docker.internal:3000",
       "host.docker.internal:3002",
       "host.docker.internal:4747"
     ]

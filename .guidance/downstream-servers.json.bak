@@ -19,33 +19,6 @@
         "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
       }
     },
-    "clearthought": {
-      "displayName": "Clear-Thought",
-      "enabled": true,
-      "required": false,
-      "trustLevel": "trusted",
-      "transport": {
-        "type": "http",
-        "http": { "url": "http://host.docker.internal:3000/mcp" }
-      },
-      "capabilities": {
-        "allow": {
-          "tools": [
-            "sequential_thinking",
-            "decision_framework",
-            "metacognitive_monitoring",
-            "debugging_approach"
-          ],
-          "resources": [],
-          "prompts": []
-        }
-      },
-      "connection": {
-        "startupTimeoutSeconds": 30,
-        "requestTimeoutSeconds": 120,
-        "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
-      }
-    },
     "insight": {
       "displayName": "Insight",
       "enabled": true,

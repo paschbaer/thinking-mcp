@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readdirSync, readFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { composeApplication } from "../../src/main.js";
-import { validateAdoptReference } from "../../src/setup/ConfigAssistant.js";
+import { catalogOverview, generateFiles, validateAdoptReference } from "../../src/setup/ConfigAssistant.js";
 
 let ws: string;
 
@@ -132,6 +132,91 @@ describe("validateAdoptReference (specs/008 FR-902, AC-6)", () => {
       expect(() => validateAdoptReference(dir)).not.toThrow();
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
+  function makeReference(dir: string): void {
+    for (const f of ["guidance.json", "workflow.json", "policies.json", "operations.json", "downstream-servers.json"]) {
+      writeFileSync(join(dir, f), JSON.stringify({
+        profile: "plain",
+        project: { name: "reference-project" },
+        operations: {
+          lint: { type: "process" },
+          test: { type: "process" },
+          build: { type: "process" },
+          "capture-session-lessons": { type: "mcpTool" },
+          "repository-analysis": { type: "composite" },
+          "legacy-custom-op": { type: "process", args: ["x", { repo: "thinking-mcp" }] },
+        },
+        instructions: { global: "OLD REFERENCE SHELL" },
+      }));
+    }
+    mkdirSync(join(dir, "schemas"), { recursive: true });
+    writeFileSync(join(dir, "schemas", "understand.schema.json"), "{}");
+  }
+
+  it("catalog exposes configSource with fresh/adopt", () => {
+    void ws;
+    const cat = catalogOverview({});
+    const q = cat.questions.find((x) => x.id === "configSource");
+    expect(q).toBeTruthy();
+    expect((q as { options?: string[] }).options).toEqual(["fresh", "adopt"]);
+  });
+
+  it("adopt: reference workflow adopted + shell in instructions.global; legacy ops on adaptation list (AC-1/AC-9)", () => {
+    void ws;
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    const target = mkdtempSync(join(tmpdir(), "adopter-"));
+    makeReference(ref);
+    try {
+      const { files, notes } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "target-repo",
+        transport: "stdio",
+        shell: "TARGET SHELL",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      const wf = JSON.parse(byPath["workflow.json"]!) as { instructions?: { global?: string } };
+      expect(wf.instructions?.global).toBe("TARGET SHELL");
+      expect(byPath["workflow.json"]).not.toContain("OLD REFERENCE SHELL");
+      // AC-9: reference project name / legacy op must not leak into regenerated files
+      expect(byPath["guidance.json"]!).toContain("target-repo");
+      expect(byPath["guidance.json"]).not.toContain("reference-project");
+      expect(byPath["operations.json"]!).not.toContain("legacy-custom-op");
+      expect(notes.join(" ")).toContain("legacy-custom-op");
+      // adoption block present
+      const guidance = JSON.parse(byPath["guidance.json"]!) as { adoption?: Record<string, unknown> };
+      expect(guidance.adoption).toBeTruthy();
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+      rmSync(target, { recursive: true, force: true });
+    }
+  });
+
+  it("adopt coherence: workflow op missing from regenerated operations fails closed (N-2)", () => {
+    void ws;
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    try {
+      for (const f of ["guidance.json", "policies.json", "downstream-servers.json"]) writeFileSync(join(ref, f), "{}");
+      mkdirSync(join(ref, "schemas"), { recursive: true });
+      writeFileSync(join(ref, "workflow.json"), JSON.stringify({
+        phases: { understand: { lifecycle: { beforeExit: ["nonexistent-op"] } } },
+      }));
+      writeFileSync(join(ref, "operations.json"), JSON.stringify({ operations: { "nonexistent-op": { type: "process" } } }));
+      expect(() => generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+        gates: "minimal",
+        insight: false,
+        gitnexus: false,
+      })).toThrowError(/adopt coherence: workflow references unknown op nonexistent-op/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
     }
   });
 });
