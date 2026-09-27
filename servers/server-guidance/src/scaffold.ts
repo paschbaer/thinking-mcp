@@ -101,9 +101,13 @@ export function scaffoldIfMissing(configDir: string): ScaffoldResult {
   const entry = join(configDir, "guidance.json");
   if (existsSync(entry)) return { scaffolded: false, createdFiles: [] };
 
-  // spec 005 FR-407 (TRACK-Scaffold): language detection — a pyproject.toml
-  // in the workspace root selects the uv-based verification op set.
-  const pythonWorkspace = existsSync(join(configDir, "..", "pyproject.toml"));
+  // spec 005 FR-407 + spec 006 FR-504 (F8): language detection — a
+  // pyproject.toml with a [project] section in the workspace root selects
+  // the uv-based verification op set. Tooling-only pyprojects (no [project])
+  // do NOT flip the op set.
+  const pyprojectPath = join(configDir, "..", "pyproject.toml");
+  const pythonWorkspace =
+    existsSync(pyprojectPath) && /\[project\]/.test(readFileSync(pyprojectPath, "utf8"));
 
   const created: string[] = [];
   const project = "my-project";

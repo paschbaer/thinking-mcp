@@ -216,10 +216,14 @@ export class WorkspaceOpLock {
       return;
     }
     for (const entry of entries) {
-      if (!entry.startsWith(`${this.basename}.`) || !entry.includes(".stolen.")) continue;
+      const isOrphan = entry.startsWith(`${this.basename}.`) && entry.includes(".stolen.");
+      // Legacy (pre-FR-502): unnamensraumloses Lock-File — kann vom aktuellen
+      // Code nicht mehr gehalten werden und wird nach TTL mitgeräumt.
+      const isLegacy = entry === `${this.basename}.lock`;
+      if (!isOrphan && !isLegacy) continue;
       const full = join(dir, entry);
       try {
-        if (Date.now() - statSync(full).mtimeMs > ORPHAN_TTL_MS) unlinkSync(full);
+        if (isLegacy || Date.now() - statSync(full).mtimeMs > ORPHAN_TTL_MS) unlinkSync(full);
       } catch {
         /* best effort */
       }

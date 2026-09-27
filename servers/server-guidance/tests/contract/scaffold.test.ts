@@ -80,6 +80,21 @@ describe("scaffold language detection (spec 005 FR-407/SC-404)", () => {
     expect(wf.phases.verify!.lifecycle.beforeExit).toEqual(["lint", "test", "check"]);
   });
 
+  it("SC-504: stray pyproject WITHOUT a [project] section does not flip the op set (F8)", () => {
+    writeFileSync(join(ws, "pyproject.toml"), "[tool.black]\nline-length = 100\n");
+    ensureConfiguration(cfgDir);
+    const ops = JSON.parse(readFileSync(join(cfgDir, "operations.json"), "utf8")) as { operations: Record<string, { executable: string }> };
+    expect(ops.operations["toolchain-sync"]).toBeUndefined();
+    expect(ops.operations["build"]!.executable).toBe("npm");
+  });
+
+  it("pyproject with a [project] section selects the uv op set", () => {
+    writeFileSync(join(ws, "pyproject.toml"), "[project]\nname='x'\n");
+    ensureConfiguration(cfgDir);
+    const ops = JSON.parse(readFileSync(join(cfgDir, "operations.json"), "utf8")) as { operations: Record<string, { executable: string }> };
+    expect(ops.operations["toolchain-sync"]!.executable).toBe("uv");
+  });
+
   it("without pyproject.toml the npm op set is unchanged (backward compatible)", () => {
     ensureConfiguration(cfgDir);
     const ops = JSON.parse(readFileSync(join(cfgDir, "operations.json"), "utf8")) as { operations: Record<string, { executable: string }> };
