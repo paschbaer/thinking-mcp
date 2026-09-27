@@ -857,6 +857,34 @@ export function loadConfig(
       hashable.push(canonical(data));
     }
   }
+  // specs/008 FR-905: validate the optional workflow.instructions.global slot
+  // fail-closed (string, non-empty, ≤ 512 chars). Old workflow files without
+  // the slot load unchanged (AC-7).
+  const wfLoaded = loaded["workflow"] as Record<string, unknown> | undefined;
+  if (wfLoaded) {
+    const instr = wfLoaded["instructions"];
+    if (instr !== undefined) {
+      if (typeof instr !== "object" || instr === null || Array.isArray(instr)) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          "workflow.instructions must be an object",
+        );
+      }
+      const globalVal = (instr as Record<string, unknown>)["global"];
+      if (globalVal !== undefined) {
+        if (
+          typeof globalVal !== "string" ||
+          globalVal.trim().length === 0 ||
+          globalVal.length > 512
+        ) {
+          throw new ConfigurationError(
+            "configuration_invalid",
+            "workflow.instructions.global must be a non-empty string of at most 512 characters",
+          );
+        }
+      }
+    }
+  }
   let specKit: SpecKitConfig | undefined;
   if (resolveProfile(cfg) === "spec-kit") {
     const profileFilePath = join(configDir, "profiles", "spec-kit.json");
