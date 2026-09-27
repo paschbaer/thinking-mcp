@@ -429,3 +429,6 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 
 ## Avoid These Mistakes
 - **sed -i auf CRLF-Dateien (Windows-Checkout):** `sed -i` rewrote komplette Datei (132/132 Zeilen im Diff) statt nur der gematchten Zeile — Zeilenenden wurden normalisiert. Preventive: edits in CRLF-Dateien mit `perl -pi -e` (erhält \r) oder `edit_file`-Tool; danach immer `git diff --stat` auf Zeilenzahl-Plausibilität prüfen.
+
+## 2026-09-27: specs/011 — Latente Adopt-Bugs erst durch echten e2e sichtbar
+- generateFiles-Unit-Tests prüften nur die generierten Strings, nie loadConfig/Workflow-Boot. Dadurch überlebten 2 Bugs aus 009 unentdeckt: (1) mainConfigSchema hatte additionalProperties:false und kein "adoption"-Property → jede adopt-Config scheiterte am Config-Load; (2) Insight-Erkennung hing am Op-Namen "capture-session-lessons", das Template heute "store-completion-insight" heißt. Preventive: Generator-Änderungen immer mit einem e2e (generate → auf Disk schreiben → composeApplication → startWorkflow) absichern; namensbasierte Erkennungen (Op-IDs) als geteilte Konstante führen statt String-Literalen zu duplizieren.

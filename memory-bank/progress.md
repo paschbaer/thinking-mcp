@@ -483,3 +483,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - T5 AD-2: referencePath-Help + README erwähnen builtin-Referenz examples/default-guidance.
 - T6 N-D1/N-D4 bereits gefixt (verifiziert); N-D3: FR-909-Block in spec.md 009 ergänzt.
 - Verification: 360/360 + 24 fokussiert nach Prettier, tsc, build, docs-drift Gate, prettier --check grün.
+
+## 2026-09-27: specs/011-adopt-templates
+- What works: builtin-Adopt-Template (FR-971–974, AC-1–AC-4) komplett implementiert + getestet (20 Fokus-Tests, Suite 369/369, tsc/build grün). Env-Override GUIDANCE_BUILTIN_TEMPLATE_DIR. 2 latente Adopt-Bugs aus 009 gefixt (adoption-Schema-Slot, Insight-Op-Erkennung).
+- What's left: Commit/Push, gitnexus analyze vor complete_workflow (Index-Freshness-Gate).
+- Current State: Implementierung auf feature/011-adopt-templates fertig, unvercommittet.
