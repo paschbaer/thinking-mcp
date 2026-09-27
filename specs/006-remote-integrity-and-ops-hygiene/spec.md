@@ -26,8 +26,8 @@ downstream MCP operations in remote sessions, **so that** the current
 **Acceptance:** `amendments/004-remote-downstream-support.md` (DRAFT) mit
 Problemstellung, Designoptionen (A: serverseitige Ausführung via
 ClientManager mit Egress-Policy, B: Proxy-Tool an den Client, C: Delegation
-an einen Second-Agent), Empfehlung A, FR-Entwürfen (FR-001+ im
-Amendment-Namespace) und offenen Entscheidungen. Keine Implementierung.
+an einen Second-Agent), Empfehlung A, FR-Entwürfen FR-601…605 (eigener
+Kreis im 006-Namespace) und offenen Entscheidungen. Keine Implementierung.
 
 ### US2: Report-Integrität härtet Crash-Fenster (F7, P1)
 
@@ -107,7 +107,9 @@ und geschlossen (Konventionsnotiz existiert in systemPatterns.md).
   `[project]`-Sektion als Python-Signal.
 - **FR-505** Inventar + Quick-Wins specs/002-Reste (US5).
 - **FR-506** Amendment 004 (L305d-Design) als DRAFT dokumentiert.
-- **FR-507** L253 → blocked (fremde Repos), Tracking-NS-Rest geschlossen.
+- **FR-507** L253 → geschlossen (2026-09-26 obsolet per User-Entscheid:
+  Verteilung über Paket/Smithery, keine Kopien nötig); Tracking-NS-Rest
+  geschlossen (Konventionsnotiz in systemPatterns.md verifiziert).
 
 ## Success Criteria
 
