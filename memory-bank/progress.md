@@ -7,6 +7,17 @@
 
 ## What Works
 
+- **Kleinkitems L256/L257/L253 (2026-09-26, Guidance-Chain session-3b7f96a5,
+  committet als `60b2eddf` auf develop)**: L256 FTS-Coverage —
+  observations_fts (Insert-Trigger + Count-Guard-Backfill, 500-Zeichen-Cap),
+  searchFullText matcht beide Indizes mit Dedupe (7 Regressionstests);
+  L257 Postgres-FTS-Parität — to_tsquery über goal_summary +
+  Observations-Auszüge, LEFT JOIN signatures, GIN-Expression-Indexe
+  (5 SQL-Contract-Tests; Live-Smoke-Test getrackt); L253 obsolet geschlossen
+  (User-Entscheid). 118/118 Tests + tsc + build grün; 2 Independent Reviews
+  APPROVED 0 HIGH/CRIT; 2 Lessons geseedet; tracked follow-ups F1/F2/F4–F6
+  + index-freshness-Race bei Parallel-Work im remaining-work-plan.
+
 - **CHN-Serie komplett (2026-09-26, 4 Guidance-Workflows + Gesamtreview,
   develop @ `7cb55be`)**: CHN-1 activating-Recovery via retry_operation
   (`17cdf15`), CHN-2 Dogfooding chain.enabled + Image-Lockstep (`49a18bc`),

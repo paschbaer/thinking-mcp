@@ -491,3 +491,13 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd
   /mnt/d/repos/Thinking-MCP && gitnexus analyze --no-stats'` — und das
   Ergebnis im Abschlussbericht nennen.
+- **Completion-Gate vs. Parallel-Work (Lesson 2026-09-26, session-3b7f96a5):**
+  Läuft ein anderer Agent/Prozess auf demselben Checkout, verliert der
+  `index-freshness`-Completion-Hook systematisch das Rennen (jede Quell-Datei
+  nach dem `analyze` macht den Index stale). Daher: VOR `complete_workflow`
+  sicherstellen, dass keine anderen Agenten in diesen Checkout schreiben —
+  entweder sequentiell arbeiten oder parallele Arbeit in separaten
+  **Worktrees** isolieren (eigenes `workspaceRoot`). Memory-bank-/Meta-Daten-
+  Updates möglichst VOR dem finalen `gitnexus analyze --no-stats` erledigen;
+  fällt der Gate trotzdem wegen fremder Änderungen aus, ist das als
+  Scope-fremd zu klassifizieren (`report_blocker` statt Reindex-Schleife).
