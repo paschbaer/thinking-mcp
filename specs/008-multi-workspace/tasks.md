@@ -5,10 +5,10 @@
 
 ## P1 — Registry & Config-Schema
 
-- [ ] T1 `workspaces[]` in `GuidanceMainConfig` + Ajv-Schema
+- [x] T1 `workspaces[]` in `GuidanceMainConfig` + Ajv-Schema
   (`{name, root, projectName?}`, Name-Regex, absoluter Root);
   fail-closed Fehlermeldungen. — FR-801
-- [ ] T2 `WorkspaceRegistry` (resolve fail-closed, Default-Eintrag
+- [x] T2 `WorkspaceRegistry` (resolve fail-closed, Default-Eintrag
   `default` aus `GUIDANCE_WORKSPACE_ROOT` bei leerer Liste,
   Eindeutigkeit Name+realpath(root), Eingang in
   `configurationVersion`). — FR-801, FR-806
@@ -69,3 +69,6 @@
   nächster Operation mit Konfigurationsfehler.
 - [ ] T16 AC-3-Regression: Bestandssuite + tsc + build grün mit
   Default-Workspace-Setup; ERROR_CODES-Snapshot konsistent.
+
+## Fortschritt (laufend)
+- T1+T2 completed 2026-09-27 (commit e9c503c; tsc/build clean, Suite im Container: 309 passed, 6 klassifizierte Failures — Details session-73442962 Evidence).
