@@ -350,6 +350,7 @@ With `profile: "spec-kit"` the agent orchestrates an existing feature folder:
 discover_spec_kit_feature { "sessionId": "…" }            → { "featureId": "001-rate-limit", "directory": "…" }
 import_spec_kit_artifacts { "sessionId": "…" }            → snapshot + validated task entities
 get_next_task { "sessionId": "…" }                        → { "nextTaskId": "T001" }
+release_batch { "sessionId": "…", "mode?": "single|batch|allReady|phaseGroup", "batchId?": "…" } → { "batchId": "…", "taskIds": [...] }
 start_task { "sessionId": "…", "taskIds": ["T001"] }      → batch state machine
 submit_task_implementation { "sessionId": "…", "evidence": [ { "taskId": "T001", "summary": "…", "changedFiles": [...], "testsAddedOrUpdated": [...] } ] }
 complete_task { "sessionId": "…", "taskId": "T001" }      → evidence-gated (checkbox ≠ proof)
@@ -1327,10 +1328,12 @@ All tools operate on the Spec-Kit state of the session (created by
 | `import_spec_kit_artifacts` | `sessionId`, `featureId?` | Imports spec.md / plan.md / tasks.md (+ optional research, data-model, contracts, checklists), validates structure (unique task IDs, dependency graph, cycles) and creates an **immutable hash-pinned snapshot** |
 | `get_spec_kit_status` | `sessionId` | Read-only: feature, active snapshot, active batch, validation findings, task-status counts, open plan changes |
 | `get_next_task` | `sessionId` | Read-only: tasks that are release-ready (dependencies satisfied) and the recommended next task |
+| `release_batch` | `sessionId`, `mode?`, `batchId?` | Releases the next ready tasks as a batch (`single`\|`batch` (default, max 3)\|`allReady`\|`phaseGroup`); prerequisite for `start_task` |
 | `start_task` | `sessionId`, `batchId?`, `taskIds[]` | Moves tasks into `in_progress` within a batch (batch release semantics, defaults to the active batch) |
 | `submit_task_implementation` | `sessionId`, `batchId?`, `evidence[]` | Per-task evidence: summary, changed files, tests added/updated, deviations, unresolved issues. Checkboxes in tasks.md are hints — only this evidence counts |
 | `submit_task_review` | `sessionId`, `batchId?`, `findings[]` | Review findings per task (`severity`, `fixRequired`, `fixApplied`); blocking severities gate completion |
-| `complete_task` | `sessionId`, `taskId` | Marks a task completed — only after implementation + review evidence and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing |
+| `complete_task` | `sessionId`, `taskId` | Marks a task completed — only after implementation + review + successful verification and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing |
+| `verify_task` | `sessionId`, `batchId?`, `taskId`, `succeeded?`, `executions?` | Writes `task.verification` (write path fix: was read-only, which made `complete_task` unreachable) |
 | `propose_plan_change` | `sessionId`, `changeType`, `reason`, `affectedTasks`, `impact` | Proposes a plan deviation; deterministic `minor`/`major` classification from the change type and impact flags; major changes require artifact update + approval before completion |
 | `refresh_spec_kit_artifacts` | `sessionId` | Re-imports the artifacts and activates a fresh snapshot (for approved plan changes / external edits) |
 | `get_traceability_report` | `sessionId` | Read-only: acceptance criteria ↔ task coverage |

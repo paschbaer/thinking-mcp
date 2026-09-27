@@ -118,6 +118,30 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
     expect((status.tasks as Record<string, number>)["pending"]).toBe(2);
   });
 
+  it("release_batch → start_task Lifecycle (Regression: Release-Tool-Lücke — releaseBatch war nicht exponiert)", async () => {
+    await start("spec-kit");
+    await client.callTool({ name: "import_spec_kit_artifacts", arguments: { sessionId: "s4" } });
+    // Ohne Release muss start_task scheitern (spec_kit_task_not_released).
+    const early = await client.callTool({ name: "start_task", arguments: { sessionId: "s4", taskIds: ["T001"] } });
+    expect(early.isError).toBe(true);
+    expect(String((early.content as { type: string; text: string }[])[0]!.text)).toMatch(/not released|no batchId supplied/);
+    // Release (Default-Modus 'batch') macht die Tasks startbar.
+    const rel = textOf(await client.callTool({ name: "release_batch", arguments: { sessionId: "s4" } }));
+    expect(rel.batchId).toBeTruthy();
+    expect((rel.taskIds as string[]).sort()).toEqual(["T001", "T002"]);
+    await client.callTool({ name: "start_task", arguments: { sessionId: "s4", taskIds: ["T001", "T002"] } });
+    const status = textOf(await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "s4" } }));
+    expect((status.tasks as Record<string, number>)["in_progress"]).toBe(2);
+    // Lifecycle-Fix: verify_task schreibt task.verification (war read-only) —
+    // ohne diesen Write-Pfad war complete_task unerreichbar.
+    const imp = textOf(await client.callTool({ name: "submit_task_implementation", arguments: { sessionId: "s4", evidence: [{ taskId: "T001", summary: "s", changedFiles: ["a.ts"], testsAddedOrUpdated: ["t"], deviations: [], unresolvedIssues: [] }] } }));
+    expect(imp).toBeTruthy();
+    const ver = textOf(await client.callTool({ name: "verify_task", arguments: { sessionId: "s4", taskId: "T001", executions: ["vitest run"] } }));
+    expect((ver.verification as Record<string, unknown>).succeeded).toBe(true);
+    const done = textOf(await client.callTool({ name: "complete_task", arguments: { sessionId: "s4", taskId: "T001" } }));
+    expect((done.tasks as Record<string, { status: string }>).T001?.status).toBe("completed");
+  });
+
   it("withState-Tools liefern ein nicht-leeres Payload (Regression: fehlendes await)", async () => {
     await start("spec-kit");
     await client.callTool({ name: "import_spec_kit_artifacts", arguments: { sessionId: "s2" } });

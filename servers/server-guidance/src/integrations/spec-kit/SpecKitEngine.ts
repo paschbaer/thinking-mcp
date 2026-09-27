@@ -466,6 +466,15 @@ export class SpecKitEngine {
     }
   }
 
+  /** specs/008-Lifecycle-Fix: write path for task.verification (was read-only). */
+  verifyTask(state: SpecKitState, taskId: string, executions: string[], succeeded: boolean): void {
+    const task = state.tasks[taskId];
+    if (!task) throw new GuidanceError("spec_kit_task_not_found", taskId, { recoverable: true });
+    if (!task.implementation) throw new GuidanceError("spec_kit_task_review_required", `${taskId} has no implementation evidence`, { recoverable: true });
+    task.verification = { executions, succeeded };
+    if (succeeded) this.transitionTask(state, taskId, "verified");
+  }
+
   completeTask(state: SpecKitState, taskId: string): void {
     const task = state.tasks[taskId]!;
     if (!task.implementation) throw new GuidanceError("spec_kit_task_review_required", `${taskId} has no implementation evidence`, { recoverable: true });
