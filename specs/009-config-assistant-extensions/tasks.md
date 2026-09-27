@@ -2,9 +2,9 @@
 
 ## P1 — Slot + Validierung
 
-- [ ] T1 `instructions.global` in Workflow-Laden + `validateWorkflowInstructions`
+- [x] T1 `instructions.global` in Workflow-Laden + `validateWorkflowInstructions`
   (optional, String ≤ 512, fail-closed) — FR-904/905, AC-7
-- [ ] T2 `guidanceForPublic`: Global-Präfix vor jeder agent-facing Instruction
+- [x] T2 `guidanceForPublic`: Global-Präfix vor jeder agent-facing Instruction
   — FR-904
 - [ ] T3 Contract-Test: alle Phasen enthalten Global-Präfix (AC-2)
 
@@ -17,7 +17,7 @@
 
 ## P3 — Adopt-Pfad
 
-- [ ] T6 Referenz-Validierung: alle Dateien existieren + laden; Profil-Gleichheit
+- [x] T6 Referenz-Validierung: alle Dateien existieren + laden; Profil-Gleichheit
   (FR-902/908, AC-6)
 - [ ] T7 Adopt-Generator: Kopie workflow/schemas; Regeneration policies
   (buildPolicies, FR-910), responses (ohne Referenz-Shell-Satz, F-4) + operations (buildOperations,
@@ -42,3 +42,4 @@
   Fragen gesperrt; Post-Adopt-Validierung workflow-Ops ⊆ operations — N-2
 - [ ] T15 Anpassungsliste um Inhaltsvergleich (N-5) erweitert; AC-8/AC-9-Tests
   (Profil-Sperre, Never-Inherit-Negativ-Assertionen)
+- Batch 1 (T1+T2+T6) completed 2026-09-27: Katalog configSource, Adopt-Generator (Kopie workflow/schemas, Regeneration downstream/policies/responses/operations/guidance+adoption-Block), instructions.global-Slot + loadConfig-Validierung + guidanceForPublic-Injektion, 7 Contract-Tests.
