@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { resolve } from "node:path";
+import type { WorkspaceRegistry } from "../workspace-registry.js";
 import { GuidanceError } from "../types/errors.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WorkflowTools } from "./ToolHandlers.js";
@@ -84,36 +85,30 @@ export const SPEC_KIT_TOOL_NAMES = [
  * HIGH-Fix (HTTP-Review): ein client-supplied workspaceRoot muss innerhalb des
  * serverkonfigurierten Roots liegen (resolve + Prefix-Check, separator-bewusst).
  */
-export function assertWorkspaceInside(
-  serverRoot: string,
+/**
+ * specs/008 FR-802: membership ONLY — candidate must be a registered name or
+ * a realpath-exact registered root. Sub-paths of registered roots are
+ * rejected (documented hardening, AC-2 matrix).
+ */
+export function assertWorkspaceRegistered(
+  registry: WorkspaceRegistry,
   candidate: string,
 ): string {
-  const resolved = resolve(candidate);
-  const root = resolve(serverRoot);
-  if (
-    resolved !== root &&
-    !resolved.startsWith(root + "/") &&
-    !resolved.startsWith(root + "\\")
-  ) {
-    throw new GuidanceError(
-      "configuration_invalid",
-      `workspaceRoot escapes the configured workspace: ${candidate}`,
-      { recoverable: false },
-    );
-  }
-  return resolved;
+  return registry.resolve(candidate).root;
 }
 
 export function registerWorkflowTools(
   server: McpServer,
   tools: WorkflowTools,
   workspaceRoot: string,
+  registry: WorkspaceRegistry,
 ): void {
   server.tool(
     "start_workflow",
     "Startet eine Workflow-Session im Workspace",
     {
-      workspaceRoot: z.string(),
+      workspaceRoot: z.string().optional(),
+      workspace: z.string().optional(),
       request: z.string(),
       workflowId: z.string().optional(),
       metadata: z.record(z.unknown()).optional(),
@@ -123,10 +118,12 @@ export function registerWorkflowTools(
       toJson(
         await tools.startWorkflow({
           ...input,
-          workspaceRoot: assertWorkspaceInside(
-            workspaceRoot,
-            input.workspaceRoot ?? workspaceRoot,
-          ),
+          workspaceRoot: input.workspace
+            ? assertWorkspaceRegistered(registry, input.workspace)
+            : assertWorkspaceRegistered(
+                registry,
+                input.workspaceRoot ?? workspaceRoot,
+              ),
         }),
       ),
   );
