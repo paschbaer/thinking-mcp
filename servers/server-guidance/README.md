@@ -1369,7 +1369,7 @@ Register workspaces in `guidance.json`:
   "project": { "name": "guidance" },
   "workspaces": [
     { "name": "thinking-mcp", "root": "/workspace", "projectName": "Thinking-MCP" },
-    { "name": "niyama", "root": "/workspaces/niyama", "projectName": "Niyama" }
+    { "name": "niyama", "root": "/workspaces/Niyama", "projectName": "Niyama" }
   ]
 }
 ```
