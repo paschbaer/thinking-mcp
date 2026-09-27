@@ -32,17 +32,27 @@ dieses Prinzip gebunden (Testpflicht).
 
 - **FR-901 Config-Quelle:** Neue Frage `configSource` (`fresh` | `adopt`).
   **Fresh:** Verhalten exakt wie heute (AC-3). **Adopt:** Es werden übernommen:
-  `workflow.json`, `policies.json`, `schemas/` aus der Referenz (Datei-Liste
-  gem. FR-903); `responses.json` wird **regeneriert** (FR-904); `operations.json`
-  wird **regeneriert** (F-1-Entscheidung, siehe FR-903); `guidance.json` wird
-  **immer regeneriert** (neue Identity + Adoption-Provenance, FR-906).
+  `workflow.json`, `schemas/` aus der Referenz (Datei-Liste gem. FR-903);
+  **regeneriert** werden `responses.json` (FR-904), `operations.json`
+  (FR-903, F-1), `downstream-servers.json` (FR-909, via `buildDownstream`
+  aus den neuen Antworten — N-1) und `policies.json` (FR-910, via
+  `buildPolicies` mit der neuen Transport-Antwort — N-3); `guidance.json`
+  wird **immer regeneriert** (neue Identity + Adoption-Provenance, FR-906).
+  Fragen, deren Antworten im Adopt-Modus deterministisch aus der Referenz
+  abgeleitet werden (`insight`, `gitnexus`, `gates`; N-2, Variante (a)),
+  sind gesperrt (analog FR-908) — kopiertes `workflow.json` und
+  regeneriertes `operations.json` bleiben kohärent. Post-Adopt-Validierung
+  (N-2): jede in `workflow.json` referenzierte Op muss in der
+  regenerierten `operations.json` existieren, sonst fail-closed.
 - **FR-902 Referenz-Pfad + Komplett-Validierung:** Die Referenzkonfiguration
   ist eine Setup-Frage (Default: deploymentspezifisch, Container:
   `/workspace/.guidance/`; bei Nicht-Existenz fail-closed mit Hinweis auf die
   manuelle Pfadangabe). Validierung umfasst ALLE zu übernehmenden Dateien
   (existieren + ladbar), nicht nur `guidance.json`: `workflow.json`,
-  `policies.json`, `schemas/`, `operations.json` (als Regenerations-Basis für
-  den Op-Umfang) — fehlt oder invalide ⇒ fail-closed mit definierter Meldung.
+  `policies.json`, `schemas/`, `operations.json`, `downstream-servers.json`,
+  `profiles/` (Profil-Lesbarkeit, FR-908) — fehlt oder invalide ⇒ fail-closed
+  `configuration_invalid` mit Muster `adopt source: missing/unreadable file
+  <name>` (N-6).
 - **FR-903 Adopt-Regeln (F-1-Entscheidung: Regeneration statt Kopie bei
   `operations.json`):**
   - **Kopiert:** `workflow.json`, `policies.json`, `schemas/`.
@@ -51,7 +61,10 @@ dieses Prinzip gebunden (Testpflicht).
     repo-spezifischer Anteile vollständig. Nicht-generische Ops der Referenz
     werden maschinell erkannt (Ops mit `repo:`-Argument, Ops deren Name nicht
     im generischen Preset-Set liegt) und als **Anpassungsliste** in `notes`
-    + Adoption-Block (FR-906) geliefert.
+    + Adoption-Block (FR-906) geliefert. Inhaltsvergleich (N-5): ein
+    Referenz-Op, dessen Payload vom `buildOperations`-Output abweicht
+    (Name im Preset-Set, Inhalt angepasst), landet ebenfalls auf der
+    Anpassungsliste — keine stillen Überschreibungen.
   - **Immer neu generiert:** `guidance.json`, `responses.json`.
   - **Nie:** `state/`, `workspaces[]` der Referenz, Quell-`project.name`.
 - **FR-904 Shell-Promotion (Q3):** Neuer optionaler globaler
@@ -71,6 +84,11 @@ dieses Prinzip gebunden (Testpflicht).
   erhält einen persistenten `adoption`-Block: `{ source: "<pfad>", date,
   strategy: "adopt", nonGenericOps: [...], shellSource: "answer" }` — Teil
   der gehashten Config, damit die Herkunft dauerhaft prüfbar ist.
+- **FR-910 Policies-Regeneration (N-3):** `policies.json` ist transport-/
+  umgebungsabhängig (`buildPolicies(transport)`: Egress-Allowlist localhost vs.
+  host.docker.internal, Ports) und wird im Adopt-Flow daher IMMER via
+  `buildPolicies` mit der neuen `transport`-Antwort regeneriert — eine
+  Kopie würde Umgebungs-/Host-Werte vererben (Widerspruch zum Leitprinzip).
 - **FR-907 Template-Hook (reserviert, F-8):** Reiner Platzhalter — eine
   künftige Spec führt den Template-Parameter für `generateFiles` ein. Keine
   Anforderung an diese Spec.
@@ -80,6 +98,10 @@ dieses Prinzip gebunden (Testpflicht).
   Nutzer wählt `fresh`. Begründung: `workflow.json`/`operations.json` einer
   spec-kit-Referenz enthalten Spec-Kit-Gates, die im plain-Ziel fehlbinden
   (und umgekehrt) — eine Konversion ist nicht Teil dieses Specs.
+  Profil-Leseregel (N-4): Referenz-Profil = `profile`-Feld der Referenz-
+  `guidance.json` kombiniert mit Presence + Ladbarkeit von
+  `profiles/<profil>.json`; invalide Profil-Datei ⇒ fail-closed gem.
+  FR-902-Muster. AC-8 deckt das Verhalten ab.
 
 ## Acceptance Criteria
 
@@ -99,6 +121,12 @@ dieses Prinzip gebunden (Testpflicht).
   definierten Meldung (fehlende Datei wird benannt).
 - **AC-7** `workflow.json` ohne `instructions.global` lädt unverändert;
   Slot-Verletzung (nicht-String/>512) → `configuration_invalid`.
+- **AC-8** (FR-908) Profil-Sperre: Adopt übernimmt das Referenz-Profil,
+  `profile`-Frage ist gesperrt; invalide Referenz-Profil-Datei ⇒ fail-closed.
+- **AC-9** (Leitprinzip) Negativ-Assertionen: Adopt-Output von einer Referenz
+  mit abweichendem `project.name`, Shell-Satz und Pfaden enthält
+  ausschließlich Ziel-Antworten. Post-Adopt-Validierung: fehlende
+  Op-Referenz ⇒ fail-closed.
 
 ## Decisions (User, 2026-09-27)
 
