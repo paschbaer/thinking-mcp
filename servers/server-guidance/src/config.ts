@@ -8,8 +8,10 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { isAbsolute, join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
+import type { RawWorkspaceEntry } from "./workspace-registry.js";
+import { WorkspaceRegistry } from "./workspace-registry.js";
 
 export type ProfileId = "plain" | "spec-kit";
 
@@ -17,6 +19,7 @@ export interface GuidanceMainConfig {
   version: number;
   profile?: ProfileId;
   project: { name: string };
+  workspaces?: RawWorkspaceEntry[];
   workflow?: { file: string };
   responses?: { file: string };
   operations?: { file: string };
@@ -131,6 +134,7 @@ export interface LoadedConfig {
   downstreamServers?: Record<string, unknown>;
   policies?: Record<string, unknown>;
   specKit?: SpecKitConfig;
+  workspaces: WorkspaceRegistry;
 }
 
 const mainConfigSchema: Record<string, unknown> = {};
@@ -146,6 +150,19 @@ Object.assign(mainConfigSchema, {
       additionalProperties: false,
       required: ["name"],
       properties: { name: { type: "string", minLength: 1 } },
+    },
+    workspaces: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "root"],
+        properties: {
+          name: { type: "string", pattern: "^[a-z][a-z0-9-]{0,63}$" },
+          root: { type: "string" },
+          projectName: { type: "string" },
+        },
+      },
     },
     workflow: { $ref: "#/$defs/fileRef" },
     responses: { $ref: "#/$defs/fileRef" },
@@ -781,7 +798,10 @@ function validateOperations(operationsFile: Record<string, unknown>): void {
  * Load and validate the configuration in `configDir` (the `.guidance/`
  * directory). Deterministic: identical content ⇒ identical configVersion.
  */
-export function loadConfig(configDir: string): LoadedConfig {
+export function loadConfig(
+  configDir: string,
+  opts?: { workspaceRoot?: string },
+): LoadedConfig {
   const mainPath = join(configDir, "guidance.json");
   const main = readJsonFile(mainPath, "guidance.json") as unknown;
   const validateMain = getValidateMain();
@@ -878,6 +898,14 @@ export function loadConfig(configDir: string): LoadedConfig {
     maxStepsPerManifest: cfg.chain?.maxStepsPerManifest ?? 16,
   };
   hashable.push(canonical(chain));
+  // specs/008 FR-801: registry serialization feeds configurationVersion, so
+  // runtime registry changes invalidate sessions (AC-5). Deterministic input
+  // (list() sorts by name); build throws configuration_invalid fail-closed.
+  const workspaces = WorkspaceRegistry.build(
+    cfg.workspaces,
+    opts?.workspaceRoot ?? resolve(configDir, ".."),
+  );
+  hashable.push(canonical(workspaces.list()));
   const configVersion = `sha256:${hash.copy().update(hashable.join("\n")).digest("hex")}`;
   // Resolution happens AFTER the hash: secrets stay out of configVersion.
   applyHttpTransports(loaded);
@@ -894,5 +922,6 @@ export function loadConfig(configDir: string): LoadedConfig {
     downstreamServers: loaded["downstreamServers"],
     policies: loaded["policies"],
     specKit,
+    workspaces,
   };
 }
