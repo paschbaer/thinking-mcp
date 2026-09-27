@@ -17,6 +17,7 @@ import type { SpecKitState } from "./integrations/spec-kit/SpecKitEngine.js";
 
 export interface Composition {
   config: LoadedConfig;
+  workspaces: import("./workspace-registry.js").WorkspaceRegistry;
   configDir: string;
   stateDir: string;
   engine: WorkflowEngine;
@@ -113,7 +114,7 @@ export function composeApplication(
     specKitTasks,
   });
   const tools = new WorkflowTools(engine);
-  return { config, configDir, stateDir, engine, tools };
+  return { config, configDir, stateDir, engine, tools, workspaces: config.workspaces };
 }
 
 export function resolveStateDir(

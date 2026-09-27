@@ -1353,3 +1353,62 @@ npm run typecheck
 - Spec: [`specs/002-guidance-workflow-server/spec.md`](../../specs/002-guidance-workflow-server/spec.md)
 - Contracts: [`specs/002-guidance-workflow-server/contracts/`](../../specs/002-guidance-workflow-server/contracts/)
 - Example configuration: [`examples/default-guidance/`](./examples/default-guidance/)
+
+
+## Multi-Workspace Operation (specs/008)
+
+One guidance instance can serve multiple registered repositories.
+
+### Configuration
+
+Register workspaces in `guidance.json`:
+
+```json
+{
+  "version": 2,
+  "project": { "name": "guidance" },
+  "workspaces": [
+    { "name": "thinking-mcp", "root": "/workspace", "projectName": "Thinking-MCP" },
+    { "name": "niyama", "root": "/workspaces/niyama", "projectName": "Niyama" }
+  ]
+}
+```
+
+Rules (fail-closed):
+
+- `name`: `^[a-z][a-z0-9-]{0,63}$`, unique; `root`: absolute, must exist,
+  unique after `realpath` resolution.
+- Missing `workspaces[]` ⇒ single implicit workspace `default` mapped to
+  `GUIDANCE_WORKSPACE_ROOT` (backward compatible, AC-3).
+
+### Session binding
+
+`start_workflow` accepts `workspace` (a registered **name**, preferred) or
+`workspaceRoot` (deprecated: only accepted when it realpath-matches a
+registered root exactly). Anything else is rejected with
+`workspace_not_registered` — including sub-paths of registered roots
+(intentional hardening, AC-2).
+
+### Isolation
+
+Each non-default workspace gets its own lazy composition:
+
+- Config from `<root>/.guidance/` with its own `configurationVersion`
+  (registry changes invalidate sessions, AC-5).
+- State in `<root>/.guidance/state/` (sessions, snapshots, capability pins,
+  audit). **`.guidance/state` MUST be gitignored in every workspace repo** —
+  otherwise the dirty tree breaks `check-final-review` /
+  `index-freshness` gates.
+- Operation locks are scoped per workspace (FR-502 soft-cap semantics).
+- Spec-kit gates run with `cwd` = the session workspace root; the GitNexus
+  index is expected at `<root>/.gitnexus`.
+
+A workspace without `.guidance/` is scaffolded on first use with a copy of
+the boot configuration (minus state). Spec-kit task chaining (FR-117 bridge)
+is currently parent-workspace only.
+
+### Observability
+
+- `/health` lists all registered workspaces with reachability.
+- `get_metrics` aggregates child-workspace counters and reports a
+  `perWorkspace` breakdown.

@@ -521,6 +521,19 @@ export class WorkflowEngine {
     return eng;
   }
 
+  /** specs/008 AC-5: after a restart the in-memory routes are gone — probe
+   *  registered (non-default) workspace state dirs for the session file. */
+  private probeWorkspaceRoutes(sessionId: string): void {
+    if (this.sessionRoutes.has(sessionId)) return;
+    for (const w of this.config.workspaces.list()) {
+      if (w.root === this.defaultRoot) continue;
+      if (existsSync(join(w.root, ".guidance", "state", "sessions", `${sessionId}.json`))) {
+        this.sessionRoutes.set(sessionId, this.engineForWorkspace(w.root));
+        return;
+      }
+    }
+  }
+
   private routedFor(sessionId: string): WorkflowEngine | undefined {
     const eng = this.sessionRoutes.get(sessionId);
     return eng && eng !== this ? eng : undefined;
@@ -625,6 +638,30 @@ export class WorkflowEngine {
         existing.status = c.status ?? existing.status;
         existing.lastSuccessfulRequestAt = c.lastSuccessfulRequestAt ?? prev?.lastSuccessfulRequestAt;
       } else snap.connections.push({ serverId: c.id, status: c.status ?? "unknown", lastSuccessfulRequestAt: c.lastSuccessfulRequestAt });
+    }
+    // specs/008 T17 (FR-808): aggregate child-workspace metrics with a
+    // per-workspace breakdown; top-level counters become cross-workspace sums.
+    if (this.childEngines.size > 0) {
+      snap.perWorkspace = {};
+      for (const [root, child] of this.childEngines) {
+        const name = this.config.workspaces.resolve(root).name;
+        const childSnap = await child.getMetrics();
+        snap.perWorkspace[name] = { operations: childSnap.operations, connections: childSnap.connections };
+        for (const [opId, m] of Object.entries(childSnap.operations)) {
+          const agg = (snap.operations[opId] ??= { runs: 0, succeeded: 0, failed: 0, cancelled: 0, timedOut: 0, durationMs: { count: 0, sum: 0, max: 0 } });
+          agg.runs += m.runs;
+          agg.succeeded += m.succeeded;
+          agg.failed += m.failed;
+          agg.cancelled += m.cancelled;
+          agg.timedOut += m.timedOut;
+          agg.durationMs.count += m.durationMs.count;
+          agg.durationMs.sum += m.durationMs.sum;
+          agg.durationMs.max = Math.max(agg.durationMs.max, m.durationMs.max);
+        }
+        for (const c of childSnap.connections) {
+          if (!snap.connections.some((x) => x.serverId === c.serverId)) snap.connections.push(c);
+        }
+      }
     }
     return snap;
   }
@@ -1301,6 +1338,7 @@ export class WorkflowEngine {
     // Public entry may address a child-workspace session (specs/008 T8);
     // internal callers always pass locally-known ids, so the fallback path
     // keeps internal semantics untouched.
+    if (!this.isChild) this.probeWorkspaceRoutes(sessionId);
     if (this.sessionRoutes.has(sessionId)) {
       return this.sessionRoutes.get(sessionId)!.getSession(sessionId);
     }
@@ -1308,6 +1346,16 @@ export class WorkflowEngine {
     // via getWorkflowState (write-on-read outside the lock caused a
     // lost-update window, review Phase 10-12 Finding 1).
     const session = this.sessions.load(sessionId);
+    // specs/008 AC-5 (FR-019 enforcement): a persisted session bound to an
+    // older configurationVersion fails closed on the next operation instead
+    // of silently continuing on stale config.
+    if (session.configurationVersion !== this.config.configVersion) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `session ${sessionId} is bound to ${session.configurationVersion}, current configuration is ${this.config.configVersion} (registry/config changed; specs/008 AC-5)`,
+        { recoverable: false },
+      );
+    }
     // Amendment 002 (Crash-Fenster-Fix, Plan-Review F1): eine Successor-Session,
     // deren Lifecycle-Aktivierung nie abgeschlossen hat, wird fail-closed
     // abgelehnt — stiller Gate-Bypass (beforeEnter lief nie) ist ausgeschlossen.
