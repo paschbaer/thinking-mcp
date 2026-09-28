@@ -595,6 +595,9 @@ function buildDownstream(
         },
       },
       connection: conn(300),
+      // FR-035 amendment: read-only graph queries fall back over the same
+      // endpoint when the primary transport times out (see REV-1).
+      containerRoute: { url: gitnexusUrl(transport) },
     };
   }
   if (insight) {

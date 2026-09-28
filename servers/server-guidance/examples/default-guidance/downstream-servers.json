@@ -18,7 +18,10 @@
         "requestTimeoutSeconds": 300,
         "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
       },
-      "environment": { "inherit": false, "variables": { "PATH": { "fromHost": "PATH" } } }
+      "environment": { "inherit": false, "variables": { "PATH": { "fromHost": "PATH" } } },
+      "containerRoute": {
+        "url": "http://localhost:4747/api/mcp"
+      }
     },
     "insight": {
       "displayName": "Insight",
