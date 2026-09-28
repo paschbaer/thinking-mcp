@@ -298,18 +298,22 @@ receives a copy hint instead of an error).
 Example prompt (fresh):
 
 > Use the configuration assistant to create a `.guidance/` configuration for
-> this project: run `setup_guidance_start`, walk me through every question
-> with its options, and once complete generate the files and write them to
-> the project root.
+> this project: run `setup_guidance_start`, ask me each question one at a
+> time and WAIT for my answer before continuing — do not answer on my behalf
+> and do not assume defaults. Once complete, generate the files and write
+> them to the project root.
 
 Example prompt (adopt the builtin template — generic baseline, works in
 container-only deployments without any mounted reference):
 
 > This repo should work with Guidance. Run `setup_guidance_start`, answer
 > `configSource` with `adopt` and leave `referencePath` empty (or set it to
-> `builtin`), walk me through the remaining questions, generate the files,
-> and write them to the project root. Then add `.guidance/state/` to the
-> `.gitignore` and remind me to run `gitnexus analyze --no-stats` here.
+> `builtin`). Then ask me the remaining questions one at a time and WAIT for
+> my answer before continuing — do not answer on my behalf and do not assume
+> defaults (profile/insight/gitnexus/gates are derived from the template and
+> will not be asked). Once complete, generate the files and write them to
+> the project root. Then add `.guidance/state/` to the `.gitignore` and
+> remind me to run `gitnexus analyze --no-stats` here.
 
 Example prompt (adopt the proven reference configuration — self-hosting
 deployment where `/workspace/.guidance/` IS the reference):
@@ -317,10 +321,12 @@ deployment where `/workspace/.guidance/` IS the reference):
 > This repo should work with Guidance using the proven reference
 > configuration instead of a fresh one. Run `setup_guidance_start`, answer
 > `configSource` with `adopt`, use `/workspace/.guidance/` as the
-> reference path, walk me through the remaining questions, generate the
-> files, and write them to this project's root. Then add `.guidance/state/`
-> to the `.gitignore` and remind me to run `gitnexus analyze --no-stats`
-> here.
+> reference path. Then ask me the remaining questions one at a time and WAIT
+> for my answer before continuing — do not answer on my behalf and do not
+> assume defaults (profile/insight/gitnexus/gates are derived from the
+> reference and will not be asked). Once complete, generate the files and
+> write them to this project's root. Then add `.guidance/state/` to the
+> `.gitignore` and remind me to run `gitnexus analyze --no-stats` here.
 
 > **Deployment note:** `/workspace/.guidance/` only exists in the
 > self-hosting deployment (repo root mounted as `/workspace`). In a

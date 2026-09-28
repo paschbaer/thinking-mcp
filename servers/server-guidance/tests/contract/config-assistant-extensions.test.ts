@@ -18,6 +18,7 @@ import { composeApplication } from "../../src/main.js";
 import {
   catalogOverview,
   generateFiles,
+  nextQuestion,
   resolveBuiltinReferencePath,
   validateAdoptReference,
 } from "../../src/setup/ConfigAssistant.js";
@@ -649,5 +650,83 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
     } finally {
       rmSync(ws2, { recursive: true, force: true });
     }
+  });
+});
+
+describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => {
+  it("derived questions (profile/insight/gitnexus/gates) are NOT asked in adopt mode", () => {
+    const adopt = {
+      configSource: "adopt",
+      projectName: "t",
+      transport: "stdio",
+    };
+    expect(nextQuestion(adopt as never)).toBeNull();
+    const cat = catalogOverview(adopt as never);
+    expect(cat.done).toBe(true);
+    expect(cat.nextTool).toBe("setup_guidance_generate");
+  });
+
+  it("fresh mode still asks the derived questions", () => {
+    const fresh = {
+      configSource: "fresh",
+      projectName: "t",
+      transport: "stdio",
+    };
+    const next = nextQuestion(fresh as never);
+    expect(next?.id).toBe("profile");
+  });
+
+  it("clearthought is predefined in generated downstream-servers (fresh + adopt)", () => {
+    void ws;
+    for (const answers of [
+      {
+        configSource: "fresh",
+        projectName: "t",
+        transport: "stdio",
+        profile: "plain",
+        insight: false,
+        gitnexus: false,
+        gates: "minimal",
+      },
+      { configSource: "adopt", projectName: "t", transport: "stdio" },
+    ]) {
+      const { files } = generateFiles(answers as never);
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      const downstream = JSON.parse(byPath["downstream-servers.json"]!) as {
+        servers: Record<
+          string,
+          {
+            displayName?: string;
+            enabled?: boolean;
+            transport?: { http?: { url?: string } };
+          }
+        >;
+      };
+      expect(
+        downstream.servers.clearthought,
+        JSON.stringify(Object.keys(downstream.servers)),
+      ).toBeTruthy();
+      expect(downstream.servers.clearthought!.enabled).toBe(true);
+      expect(downstream.servers.clearthought!.transport?.http?.url).toContain(
+        ":3000/mcp",
+      );
+      // policies egress allowlist must include the clearthought host
+      const policies = JSON.parse(byPath["policies.json"]!) as {
+        egress: { httpHostAllowlist: string[] };
+      };
+      expect(
+        policies.egress.httpHostAllowlist.some((h) => h.endsWith(":3000")),
+      ).toBe(true);
+    }
+  });
+
+  it("shipped builtin template defines clearthought in its downstream-servers.json", () => {
+    const tpl = JSON.parse(
+      readFileSync(
+        join(resolveBuiltinReferencePath(), "downstream-servers.json"),
+        "utf8",
+      ),
+    ) as { servers: Record<string, unknown> };
+    expect(tpl.servers.clearthought).toBeTruthy();
   });
 });

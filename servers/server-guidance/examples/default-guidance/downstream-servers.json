@@ -43,6 +43,37 @@
       },
       "environment": { "inherit": false, "variables": { "PATH": { "fromHost": "PATH" } } }
     },
+    "clearthought": {
+      "displayName": "Clear-Thought",
+      "enabled": true,
+      "required": false,
+      "trustLevel": "trusted",
+      "transport": {
+        "type": "http",
+        "http": { "url": "http://localhost:3000/mcp" }
+      },
+      "capabilities": {
+        "allow": {
+          "tools": [
+            "sequential_thinking",
+            "decision_framework",
+            "metacognitive_monitoring",
+            "debugging_approach",
+            "assumption_xray",
+            "socratic_method",
+            "argument_map",
+            "structured_argumentation"
+          ],
+          "resources": [],
+          "prompts": []
+        }
+      },
+      "connection": {
+        "startupTimeoutSeconds": 30,
+        "requestTimeoutSeconds": 120,
+        "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+      }
+    },
     "memory": {
       "displayName": "Memory",
       "enabled": false,
