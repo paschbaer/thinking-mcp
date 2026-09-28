@@ -1715,6 +1715,16 @@ export class WorkflowEngine {
     const stored = session.requestPayloadHashes?.[requestId];
     const payloadMismatch =
       stored !== undefined && stored !== stablePayloadHash(payload);
+    // RID-1 review RID-3: count BEFORE the policy throw — rejected mismatches
+    // are replay traffic too and must show up in the metrics.
+    this.metrics.recordRequestIdReplay(payloadMismatch);
+    // RID-1 review RID-4: persistent audit trail for replay traffic.
+    this.audit.append({
+      sessionId: session.sessionId,
+      eventType: "request_replayed",
+      phase: session.currentPhase,
+      data: { requestId, payloadMismatch },
+    });
     if (payloadMismatch && this.requestIdReuseMode() === "reject-mismatch") {
       throw new GuidanceError(
         "requestId_reuse_payload_mismatch",
@@ -1722,7 +1732,6 @@ export class WorkflowEngine {
         { recoverable: true },
       );
     }
-    this.metrics.recordRequestIdReplay(payloadMismatch);
     return {
       ...cached,
       replayed: true,
@@ -2064,10 +2073,12 @@ export class WorkflowEngine {
         session.requestIds[requestId] as SubmitResult,
       );
     }
-    // RID-1: record the first-seen payload hash up front — later replays of
-    // this requestId compare against it (submitLocked stores its hash at the
-    // result-registration site instead).
-    if (requestId && session.requestPayloadHashes?.[requestId] === undefined) {
+    // RID-1: keep the first-seen payload hash per requestId up to date — the
+    // hash must always reflect the LATEST attempt, otherwise a failed attempt
+    // poisons the fingerprint and wrongfully flags the later successful
+    // attempt's replays as mismatched (review RID-2). Overwrite on every
+    // non-replay path; replays (registered requestIds) return above.
+    if (requestId) {
       this.sessions.update(sessionId, (s) => {
         s.requestPayloadHashes ??= {};
         s.requestPayloadHashes[requestId] = stablePayloadHash(report);
