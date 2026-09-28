@@ -889,247 +889,249 @@ servers:
           - "insight://project/*"
         prompts: []
 
-   *connection:
-      startupTimeoutSe*onds: 30
-      requestTimeoutSecon*s: 120
+     connection:
+      startupTimeoutSeconds: 30
+      requestTimeoutSeconds: 120
       reconnect:
-        en*bled: true
-        maximumAttempts* 2
+        enabled: true
+        maximumAttempts: 2
         delayMilliseconds: 1000*```
 
 ---
 
-## 16. Transport Support*
+## 16. Transport Support
 Guidance v2 SHOULD support:
 
-```t*xt
+```text
 stdio
 Streamable HTTP
 ```
 
-Addi*ional transports MAY be supported *y the selected MCP SDK.
+Additional transports MAY be supported by the selected MCP SDK.
 
-### Stdio*servers
+### Stdio servers
 
-For stdio servers, Guidan*e starts and supervises the downst*eam process.
+For stdio servers, Guidance starts and supervises the downstream process.
 
-Guidance MUST define*
+Guidance MUST define:
 
 - executable
 - argument list
-- w*rking directory
+- working directory
 - environment
-- st*rtup timeout
+- startup timeout
 - shutdown timeout
-- *estart behavior
+- Restart behavior
 - output handling
 *### Remote servers
 
-For remote MCP*servers, Guidance MUST define:
+For remote MCP servers, Guidance MUST define:
 
-- *erver URL
+- server URL
 - authorization strategy*- TLS requirements
-- connection ti*eout
+- connection timeout
 - request timeout
-- redirect *olicy
+- redirect policy
 - credential reference
-- per*itted scopes
-- server identity val*dation
+- permitted scopes
+- server identity validation
 
 ---
 
-## 17. Operation Conf*guration
+## 17. Operation Configuration
 
-Example `.guidance/opera*ions.yaml`:
+Example `.guidance/operations.yaml`:
 
 ```yaml
 version: 2
 
-o*erations:
+operations:
   repository-analysis:
- *  description: Analyze the reposit*ry using GitNexus.
+ *  description: Analyze the repository using GitNexus.
 
-    type: mcpT*ol
+    type: mcpTool
     server: gitnexus
-    capabi*ity: analyze
+    capability: analyze
 
     arguments:
-     *mode: fixed
+       mode: fixed
       value:
-        n*Stats: true
+        noStats: true
 
     required: true
   * timeoutSeconds: 900
 
     retry:
  *    maximumAttempts: 2
-      retry*n:
+      retryOn:
         - connection_lost
      *  - server_unavailable
-        - t*meout
+        - timeout
 
     validation:
-      proto*olRequestMustSucceed: true
-      t*olResultMustNotBeError: true
-     *requiredContent: true
+      protocolRequestMustSucceed: true
+      toolResultMustNotBeError: true
+       requiredContent: true
 
-    output:*      returnToAgent: summary_and_e*rors
+    output:
+      returnToAgent: raw
+      retainRawResult: true
       retainRawResult: true
  *    maximumBytes: 5242880
 
-    fai*ure:
+    failure:
       remainInPhase: true
    *  allowManualRetry: true
-      rep*rtToAgent: true
+      reportToAgent: true
 
-  query-project-i*sights:
-    description: Retrieve *xisting development insights.
+  query-project-insights:
+    description: Retrieve Existing development insights.
 
-   *type: mcpTool
+     type: mcpTool
     server: insight
 *   capability: query_insights
 
-   *arguments:
+     arguments:
       mode: template
   *   value:
-        query: "${sessio*.request}"
-        scope: "${proje*t.name}"
+        query: "${session.request}"
+        scope: "${project.name}"
 
     required: false
-    *imeoutSeconds: 60
+      imeoutSeconds: 60
 
-    validation:*      protocolRequestMustSucceed: *rue
-      toolResultMustNotBeError* true
+    validation:*      protocolRequestMustSucceed: true
+      toolResultMustNotBeError: true
 
     output:
-      returnToA*ent: normalized
-      retainRawRes*lt: false
+      returnToAgent: normalized
+      retainRawResult: false
 ```
 
 ---
 
-## 18. Argumen* Sources
+## 18. Arguments Sources
 
-Operation arguments MAY *riginate from approved sources.
+Operation arguments MAY originate from approved sources.
 
-S*pported sources SHOULD include:
+Supported sources SHOULD include:
 
-`*`text
+```text
 fixed configuration
-session *etadata
-validated phase submission*
-previous normalized operation res*lts
+session metadata
+validated phase submissions
+previous normalized operation results
 project configuration
-approved*user elicitation
-trusted environme*t references
+approved user elicitation
+trusted environment references
 ```
 
 Example:
 
-```yam*
+```yaml
 arguments:
   mode: mapped
-  value*
+  values:
     repository:
-      source: ses*ion.workspaceRoot
+      source: session.workspaceRoot
 
-    taskSummary*
-      source: submissions.underst*nd.summary
+    taskSummary:
+      source: submissions.understand.summary
 
     changedFiles:
-    * source: submissions.implement.cha*gedFiles
+    * source: submissions.implement.changedFiles
 ```
 
-Arguments MUST NOT b* copied from untrusted model outpu* without validation.
+Arguments MUST NOT be copied from untrusted model output without validation.
 
 ---
 
-## 19. *rgument Templates
+## 19. Argument Templates
 
-Templates MAY r*ference an explicitly defined cont*xt.
+Templates MAY reference an explicitly defined context.
 
 Recommended namespaces:
 
-```t*xt
+```text
 project
 session
 workflow
 phase
-*ubmissions
+Submissions
 operations
-userDecision*
+userDecision:
 ```
 
 Example:
 
 ```yaml
 value:
-  q*ery: "${submissions.understand.sum*ary}"
-  repository: "${session.wor*spaceRoot}"
+  query: "${submissions.understand.summary}"
+  repository: "${session.workspaceRoot}"
 ```
 
-Unknown variables*MUST cause configuration validatio* or operation preparation to fail.*
-Template evaluation MUST NOT exec*te arbitrary code.
+Unknown variables MUST cause configuration validation or operation preparation to fail.
+Template evaluation MUST NOT execute arbitrary code.
 
 ---
 
-## 20. Wo*kflow Binding
+## 20. Workflow Binding
 
-Example `.guidance/*orkflow.yaml`:
+Example `.guidance/workflow.yaml`:
 
 ```yaml
 version: 2*
 workflow:
-  id: standard-developm*nt-v2
+  id: standard-development-v2
   initialPhase: understand
 
-*hases:
+  hases:
   understand:
-    response:*understand
+    response: understand
 
     lifecycle:
-      a*terEnter:
+      afterEnter:
         operations:
     *     - query-project-insights
 
-   *transitions:
+     transitions:
       - to: plan
     *   when: submission_valid
 
   plan:*    response: plan
 
-    transition*:
-      - to: review_and_adjust_pl*n
+    transitions:
+      - to: review_and_adjust_plan
         when: submission_valid
 
 * review_and_adjust_plan:
-    respo*se: review_and_adjust_plan
+    response: review_and_adjust_plan
 
-    tr*nsitions:
+    transitions:
       - to: plan
-       *reason: major_plan_revision_requir*d
+         reason: major_plan_revision_required
 
       - to: implement
-        w*en: submission_valid
+        when: submission_valid
 
   implement:*    response: implement
 
-    trans*tions:
-      - to: review_and_fix_*mplementation
-        when: submis*ion_valid
+    transitions:
+      - to: review_and_fix_implementation
+        when: submission_valid
 
-  review_and_fix_implem*ntation:
-    response: review_and_*ix_implementation
+  review_and_fix_implementation:
+    response: review_and_fix_implementation
 
-    transitions*
+    transitions:
       - to: implement
-        rea*on: implementation_changes_require*
+        reason: implementation_changes_required
 
       - to: verify
-        when:*submission_valid
+        when: submission_valid
 
   verify:
-    re*ponse: verify
+    response: verify
 
     lifecycle:
     * beforeExit:
@@ -1139,145 +1141,145 @@ workflow:
   *       - build
 
     transitions:
- *    - to: review_and_fix_implement*tion
-        reason: verification_*ailed
+ *    - to: review_and_fix_implementation
+        reason: verification_failed
 
       - to: complete
-      * when: required_operations_succeed*d
+       when: required_operations_succeeded
 
   complete:
-    response: compl*te
+    response: complete
 
     lifecycle:
-      beforeExi*:
+      beforeExit:
         operations:
-          - *epository-analysis
-          - sto*e-completion-insight
+          - Repository-analysis
+          - store-completion-insight
 
-    transiti*ns:
+    transitions:
       - to: completed
-        *hen: required_operations_succeeded*
+          when: required_operations_succeeded:
 states:
   completed:
-    terminal* true
+    terminal: true
 
   blocked:
-    system: true*
+    system: true
   cancelled:
     terminal: true
-`*`
+```
 
 ---
 
-## 21. GitNexus Completion*Integration
+## 21. GitNexus Completion Integration
 
-The Guidance v1 compl*tion invariant used a local comman*:
+The Guidance v1 completion invariant used a local command:
 
 ```bash
-gitnexus analyze --no-s*ats
+gitnexus analyze --no-stats
 ```
 
-Guidance v2 SHOULD suppor* this requirement through a logica* operation.
+Guidance v2 SHOULD support this requirement through a logical operation.
 
-Preferred v2 behavior*
+Preferred v2 behavior:
 
 ```text
 complete_workflow
       * |
         v
-validate completion r*port
+validate completion report
         |
         v
-resolve r*pository-analysis operation
+resolve repository-analysis operation
       * |
         v
-connect to GitNexus M*P server
+connect to GitNexus MCP server
         |
         v
-invok* configured analysis tool
+invoke configured analysis tool
         *
         v
-validate MCP and tool r*sult
+validate MCP and tool result
         |
         v
-record no*malized result
+record normalized result
         |
-        v*transition to completed
+        via transition to completed
 ```
 
-Examp*e operation:
+Example operation:
 
 ```yaml
-repository-a*alysis:
+repository-analysis:
   type: mcpTool
-  server: *itnexus
+  server: GitNexus
   capability: analyze
 
-  a*guments:
+  arguments:
     mode: fixed
-    value*
+    values:
       noStats: true
 
-  required: *rue
+  required: true
 
   validation:
-    protocolReq*estMustSucceed: true
-    toolResul*MustNotBeError: true
+    protocolRequestMustSucceed: true
+    toolResultMustNotBeError: true
 ```
 
-If the c*nfigured GitNexus MCP server does *ot provide an equivalent tool, Gui*ance MAY retain the v1 local proce*s hook as a fallback:
+If the configured GitNexus MCP server does not provide an equivalent tool, Guidance MAY retain the v1 local process hook as a fallback:
 
 ```yaml
-rep*sitory-analysis:
-  strategy: first*vailable
+repository-analysis:
+  strategy: firstavailable
 
   alternatives:
-    - ty*e: mcpTool
+    - type: mcpTool
       server: gitnexus
 *     capability: analyze
-      arg*ments:
+      arguments:
         noStats: true
 
     * type: process
-      executable: g*tnexus
+      executable: gitnexus
       args:
-        - analy*e
+        - analyze
         - --no-stats
 ```
 
-Fallba*k execution MUST be explicit. Guid*nce MUST NOT silently replace an M*P operation with a process command*unless configuration permits it.
+Fallback execution MUST be explicit. Guidance MUST NOT silently replace an MCP operation with a process command unless configuration permits it.
 
 *--
 
 ## 22. Capability Discovery
 
-W*en connecting to a downstream serv*r, Guidance MUST:
+When connecting to a downstream server, Guidance MUST:
 
-1. initialize t*e MCP session
-2. negotiate the pro*ocol version
-3. record server iden*ity and declared capabilities
-4. l*st allowed tools when tools are re*uired
-5. resolve required resource* or prompts when configured
-6. ver*fy that every required operation c*n be mapped
-7. reject invalid or a*biguous mappings
-8. cache the reso*ved capability information
-9. pers*st an audit event
+1. initialize the MCP session
+2. negotiate the protocol version
+3. record server identity and declared capabilities
+4. list allowed tools when tools are required
+5. resolve required resources or prompts when configured
+6. verify that every required operation can be mapped
+7. reject invalid or ambiguous mappings
+8. cache the resolved capability information
+9. persist an audit event
 
-Example interna* discovery result:
+Example internal discovery result:
 
 ```json
 {
-  "s*rverId": "gitnexus",
-  "status": "*eady",
+  "serverId": "gitnexus",
+  "status": "ready",
   "serverInfo": {
-    "name*: "gitnexus",
+    "name": "gitnexus",
     "version": "1.0.*"
   },
   "capabilities": {
-    "to*ls": true,
+    "tools": true,
     "resources": false,*    "prompts": false
   },
-  "allow*dTools": [
+  "allowedTools": [
     {
       "name": "analyze",
       "inputSchemaHash": "sha256:..."
@@ -1290,301 +1292,309 @@ Example interna* discovery result:
 
 ##*23. Capability Drift
 
-A downstream*server may change its tool schema *r capability list.
+A downstream server may change its tool schema *r capability list.
 
-Guidance MUST *etect relevant capability drift.
+Guidance MUST detect relevant capability drift.
 
-*ossible responses include:
+possible responses include:
 
-```tex*
+```text
 invalidate cached mapping
-reject *he operation
+reject the operation
 re-run discovery
-mark*the session blocked
-require config*ration review
-continue only if the*change is backward compatible
+mark the session blocked
+require configuration review
+continue only if the change is backward compatible
 ```
-*For active workflow sessions, the *ecommended behavior is:
+  For active workflow sessions, the recommended behavior is:
 
-- pin the*discovered operation contract by s*hema hash
-- permit compatible chan*es only when configured
-- reject r*moved or incompatible required cap*bilities
-- record the drift in the*audit history
+- pin the discovered operation contract by schema hash
+- permit compatible changes only when configured
+- reject removed or incompatible required capabilities
+- record the drift in the audit history
 
 ---
 
-## 24. Tool In*ocation
+## 24. Tool Invocation
 
-Guidance invokes a downst*eam MCP tool using the configured *lient connection.
+Guidance invokes a downstream MCP tool using the configured client connection.
 
-The invocation *esult MUST distinguish between:
+The invocation result MUST distinguish between:
 
 1* transport or protocol failure
 2. *CP request failure
-3. tool-reporte* error
+3. tool-reported error
 4. successful tool result
-5* incomplete or input-required resu*t
+5* incomplete or input-required result
 6. cancelled operation
-7. timed-*ut operation
-8. result validation *ailure
+7. timed-but operation
+8. result validation failure
 
 Example normalized result:*
 ```json
 {
-  "operationId": "repos*tory-analysis",
-  "executionId": "*peration-01K5...",
-  "serverId": "*itnexus",
+  "operationId": "repository-analysis",
+  "executionId": "operation-01K5...",
+  "serverId": "GitNexus",
   "capabilityType": "too*",
   "capabilityName": "analyze",
 * "status": "succeeded",
-  "require*": true,
+  "required": true,
   "startedAt": "2026-09-2*T15:00:00Z",
   "finishedAt": "2026*09-22T15:00:07Z",
   "durationMs": *000,
   "attempt": 1,
-  "isError": *alse,
-  "summary": "GitNexus repos*tory analysis completed.",
-  "cont*nt": [],
+  "isError": false,
+  "summary": "GitNexus repository analysis completed.",
+  "content": [],
   "warnings": [],
-  "erro*s": []
+  "errors": []
 }
 ```
 
 ---
 
-## 25. Input-Re*uired Downstream Operations
+## 25. Input-Required Downstream Operations
 
-A dow*stream tool may require additional*input.
+A downstream tool may require additional input.
 
-Guidance MUST NOT fabricat* that input.
+Guidance MUST NOT fabricated that input.
 
-It MUST apply one of*the configured strategies:
+It MUST apply one of the configured strategies:
 
-```tex*
-use a validated existing session *alue
+```text
+use a validated existing session value
 request upstream elicitation
-*eturn a structured blocker
-reject *he operation
+return a structured blocker
+reject the operation
 ```
 
 Example:
 
-```yam*
+```yaml
 inputRequired:
-  strategy: elicit*or_block
+  strategy: elicit_or_block
   allowFields:
-    - arch*tectureChoice
-    - compatibilityM*de
+    - architectureChoice
+    - compatibilityMode
   denyFields:
     - password
   * - apiKey
     - accessToken
 ```
 
-T*e workflow MUST remain in a recove*able state while waiting for input*
+The workflow MUST remain in a recoverable state while waiting for input.
 
 ---
 
 ## 26. Result Validation
 
-E*ery required operation MUST define*an explicit success policy.
+Every required operation MUST define an explicit success policy.
 
-Possi*le validators include:
+Possible validators include:
 
 ```text
-MC* request completed
-tool result is *ot marked as an error
-required con*ent exists
-structured content matc*es a JSON Schema
-specific field ha* an accepted value
-warning count i* below a threshold
-maximum severit* is below a threshold
-resource con*ent matches an expected media type*result is newer than a configured *imestamp
-result refers to the corr*ct workspace
+MCP request completed
+tool result is not marked as an error
+required content exists
+structured content matches a JSON Schema
+specific field has an accepted value
+warning count is below a threshold
+maximum severity is below a threshold
+resource content matches an expected media type, result is newer than a configured timestamp
+result refers to the correct workspace
 ```
 
 Example:
 
-```yam*
+```yaml
 validation:
-  protocolRequestMust*ucceed: true
-  toolResultMustNotBe*rror: true
+  protocolRequestMustSucceed: true
+  toolResultMustNotBeerror: true
 
   structuredContent:
- *  schema: schemas/gitnexus-analysi*-result.schema.json
+ *  schema: schemas/gitnexus-analysis-result.schema.json
 
   rules:
     * path: "$.repository"
-      equals*emplate: "${session.workspaceRoot}*
+      equals template: "${session.workspaceRoot}*
 
     - path: "$.status"
-      one*f:
+      one of:
         - completed
-        - u*changed
+        - unchanged
 ```
 
 ---
 
-## 27. Result Co*position
+## 27. Result Composition
 
-A downstream result may *ontribute to the response returned*to the coding agent.
+A downstream result may contribute to the response returned to the coding agent.
 
 Example:
 
-``*json
+```json
 {
   "accepted": false,
-  "cur*entPhase": "complete",
+  "currentPhase": "complete",
   "reason":*"required_operation_failed",
-  "op*ration": {
-    "id": "repository-a*alysis",
+  "operation": {
+    "id": "repository-analysis",
     "server": "gitnexus",*    "status": "failed",
-    "summa*y": "Repository analysis failed.",*    "errors": [
+    "summary": "Repository analysis failed.",*    "errors": [
       {
-        "c*de": "index_update_failed",
-      * "message": "The repository graph *ould not be updated."
+        "code": "index_update_failed",
+      * "message": "The repository graph should not be updated."
       }
     *
   },
   "allowedActions": [
-    "r*try_operation",
-    "get_workflow_*tate",
+    "retry_operation",
+    "get_workflow_state",
     "report_blocker"
   ]
 }
 *``
 
-Raw downstream content SHOULD *OT be returned automatically when *t:
+Raw downstream content SHOULD NOT be returned automatically when *t:
 
 - contains secrets
-- exceeds c*nfigured limits
-- includes unrelat*d repository data
-- is intended on*y for internal validation
-- is unt*usted prompt content
+- exceeds configured limits
+- includes unrelated repository data
+- is intended only for internal validation
+- is untrusted prompt content
 
 ---
 
-## 28. *omposite Operations
+## 28. composite Operations
 
-A composite o*eration groups multiple operations*
+A composite operation groups multiple operations:
 
 Example:
 
 ```yaml
-completion-fin*lization:
+completion-finalization:
   type: composite
-  stra*egy: sequential
+  strategy: sequential
 
   steps:
-    - re*ository-analysis
-    - update-proj*ct-memory
-    - store-completion-i*sight
+    - repository-analysis
+    - update-project-memory
+    - store-completion-insight
 
-  failurePolicy: stop_on_re*uired_failure
+  failurePolicy: stop_on_required_failure
 ```
 
-Supported execu*ion strategies MAY include:
+Supported execution strategies MAY include:
 
-```te*t
+```text
 sequential
 parallel
-dependencyGr*ph
+dependencyGraph
 firstSuccessful
 firstAvailable
 *``
 
-Parallel execution MUST only b* used when the operations are inde*endent.
+Parallel execution MUST only be used when the operations are independent.
 
 ---
 
-## 29. Conditional O*erations
+## 29. Conditional Operations
 
-Operations MAY run condi*ionally.
+Operations MAY run conditionally.
 
 Example:
 
 ```yaml
-securi*y-analysis:
+security-analysis:
   type: mcpTool
-  serv*r: security-scanner
+  server: security-scanner
   capability: *can_changes
 
   condition:
     any:*      - changedFileMatches: "src/a*th/**"
       - changedFileMatches:*"src/security/**"
-      - dependen*yChangesPresent: true
+      - dependencyChangesPresent: true
 ```
 
-Conditi*n evaluation MUST be deterministic*and based on validated workflow da*a.
+Condition evaluation MUST be deterministic and based on validated workflow data.
 
-Model-generated free text MUST*NOT be used directly as an executa*le condition.
+Model-generated free text MUST NOT be used directly as an executable condition.
 
 ---
 
-## 30. Exposin* Downstream Results to the Agent
+## 30. Exposing Downstream Results to the Agent
 
-*uidance SHOULD expose normalized r*sults, not raw downstream implemen*ation details.
+Default exposure mode is `raw` (transparent-proxy principle, GDS-5): the
+guidance container route MUST deliver the downstream tool response in its
+original schema, identical to what a direct tool call returns.
 
-Possible exposure *odes:
+- `raw` (default):
+  - mcpTool operations carry the downstream CallToolResult verbatim after
+    redaction — the `content` array unchanged, plus `structuredContent` at
+    top level when the downstream server provided one.
+  - process operations carry the captured stdout (maxBuffer-capped,
+    redacted) in `content`.
+  - Routing metadata (id/status/summary/errors) travels alongside the
+    original schema; it MUST NOT replace or re-shape it.
+- Restriction modes are opt-out per operation: `normalized`,
+  `summary_and_errors`, `summary`, `status_only`, `none`.
+- `structuredContent` is forwarded ONLY in `raw` mode.
+- Redaction is ALWAYS active, independent of the exposure mode (applied
+  upstream in the OperationEngine, before exposure filtering).
+
+Opt-out example (noisy process operation):
+
+```yaml
+output:
+  returnToAgent: normalized
+  retainRawResult: true
+```
+
+The coding agent may use these results to fix problems, but it does not
+control whether the required operation is considered successful.
+
+---
+
+## 31. New Guidance MCP Tools
+
+Guidance v2 SHOULD add the following upstream tools:
 
 ```text
-none
-status_only
-su*mary
-summary_and_errors
-normalized*raw
-```
-
-Example configuration:
-
-`*`yaml
-output:
-  returnToAgent: sum*ary_and_errors
-  retainRawResult: *rue
-```
-
-The coding agent may use *hese results to fix problems, but *t does not control whether the req*ired operation is considered succe*sful.
-
----
-
-## 31. New Guidance MC* Tools
-
-Guidance v2 SHOULD add the*following upstream tools:
-
-```text*get_orchestration_status
-list_conf*gured_operations
-get_operation_res*lt
+get_orchestration_status
+list_configured_operations
+get_operation_result
 retry_operation
-resolve_operati*n_input
+resolve_operation_input
 get_downstream_status
 ```
-*Administrative tools MAY be expose* separately and SHOULD NOT be mode*-accessible by default.
+Administrative tools MAY be exposed separately and SHOULD NOT be mode-accessible by default.
 
 ---
 
 ## 3*. Tool: `get_orchestration_status`*
 ### Purpose
 
-Return the operation*status for the active phase.
+Return the operation status for the active phase.
 
-### *nput
+### input
 
 ```json
 {
-  "sessionId": "se*sion-123"
+  "sessionId": "session-123"
 }
 ```
 
 ### Output
 
-```js*n
+```json
 {
   "sessionId": "session-123",
 * "currentPhase": "complete",
-  "op*rations": [
+  "operations": [
     {
-      "id": "rep*sitory-analysis",
-      "status": *failed",
+      "id": "repository-analysis",
+      "status": "failed",
       "required": true,
  *    "retryAllowed": true
     }
@@ -1593,15 +1603,15 @@ Return the operation*status for the active phase.
 
 ---
 
-## 33. Tool: `list_con*igured_operations`
+## 33. Tool: `list_configured_operations`
 
 ### Purpose
 
-R*turn the logical operations releva*t to the current session.
+Return the logical operations relevant to the current session.
 
-This to*l MUST NOT reveal secrets, credent*als, unrestricted server configura*ion, or hidden operations.
+This tool MUST NOT reveal secrets, credentials, unrestricted server configuration, or hidden operations.
 
-### Ou*put
+### Output
 
 ```json
 {
@@ -1622,73 +1632,73 @@ This to*l MUST NOT reveal secrets, credent*als, unrestricted server configura*io
 
 *## Purpose
 
-Return a filtered oper*tion result.
+Return a filtered operation result.
 
 ### Input
 
 ```json
 {*  "sessionId": "session-123",
-  "e*ecutionId": "operation-01K5...",
+  "executionId": "operation-01K5...",
  *"includeContent": true
 }
 ```
 
-Guid*nce MUST apply the configured outp*t and redaction policy before retu*ning content.
+Guidance MUST apply the configured output and redaction policy before returning content.
 
 ---
 
-## 35. Tool: `*etry_operation`
+## 35. Tool: `retry_operation`
 
 ### Purpose
 
-Retr* a failed orchestration operation.*
+Retrieve a failed orchestration operation.*
 ### Input
 
 ```json
 {
-  "sessionId*: "session-123",
-  "operationId": *repository-analysis",
-  "requestId*: "retry-request-456"
+  "sessionId": "session-123",
+  "operationId": "repository-analysis",
+  "requestId": "retry-request-456"
 }
 ```
 
-A ret*y is allowed only when:
+A retry is allowed only when:
 
-- the ope*ation previously failed
-- the oper*tion permits retry
-- the session i* still at the applicable lifecycle*point
-- retry limits have not been*exceeded
-- the operation input rem*ins valid
-- no incompatible state *hange has occurred
+- the operation previously failed
+- the operation permits retry
+- the session is still at the applicable lifecycle point
+- retry limits have not been exceeded
+- the operation input remains valid
+- no incompatible state change has occurred
 
 ---
 
-## 36. To*l: `resolve_operation_input`
+## 36. Tool: `resolve_operation_input`
 
-### *urpose
+### Purpose
 
-Submit approved input requ*sted by an operation when upstream*elicitation is unavailable or deli*erately not used.
+Submit approved input requested by an operation when upstream elicitation is unavailable or deliverately not used.
 
 ### Input
 
-```j*on
+```json
 {
-  "sessionId": "session-123",*  "operationId": "architecture-rev*ew",
+  "sessionId": "session-123",*  "operationId": "architecture-review",
   "inputRequestId": "input-78*",
   "values": {
-    "compatibilit*Mode": "preserve"
+    "compatibilityMode": "preserve"
   }
 }
 ```
 
-The v*lues MUST be validated against the*stored input request schema.
+The values MUST be validated against the stored input request schema.
 
 ---
-*## 37. Tool: `get_downstream_statu*`
+*## 37. Tool: `get_downstream_status`
 
 ### Purpose
 
-Return a safe summ*ry of downstream server health.
+Return a safe summary of downstream server health.
 
 #*# Output
 
@@ -1710,59 +1720,59 @@ Return a safe summ*ry of downstream server health.
 }
 ```
 
-*ensitive transport and authorizati*n information MUST NOT be returned*
+sensitive transport and authorization information MUST NOT be returned.
 
 ---
 
-## 38. Connection Lifecycle*
-A downstream client connection ha* the states:
+## 38. Connection Lifecycle
+A downstream client connection has the states:
 
 ```text
-unconfigured*disabled
+unconfigured, disabled
 disconnected
 connecting
-i*itializing
+initializing
 discovering
 ready
-degra*ed
+degraded
 reconnecting
 failed
 closing
-clo*ed
+closed
 ```
 
-A required operation may r*n only when its downstream connect*on is `ready`, unless a configured*fallback is available.
+A required operation may run only when its downstream connection is `ready`, unless a configured fallbacklback is available.
 
 ---
 
 ## 39* Connection Strategies
 
-Guidance S*OULD support:
+Guidance SHOULD support:
 
-### Eager connectio*
+### Eager connection
 
 Connect when Guidance starts.
 
-A*vantages:
+Advantages:
 
-- early configuration v*lidation
-- predictable operation l*tency
-- immediate detection of mis*ing servers
+- early configuration validation
+- predictable operation latency
+- immediate detection of missing servers
 
 ### Lazy connection
 
-*onnect when the first operation re*uires the server.
+connect when the first operation requires the server.
 
 Advantages:
 
-- *ower startup cost
-- unused optiona* servers are not started
-- fewer b*ckground processes
+- lower startup cost
+- unused optional servers are not started
+- fewer background processes
 
-Recommended de*ault:
+Recommended default:
 
 ```text
-required servers: e*ger
+required servers: eager
 optional servers: lazy
 ```
 
@@ -1770,187 +1780,187 @@ optional servers: lazy
 
 ## 40. Retry Policy
 
-Retries MUS* distinguish transient failures fr*m deterministic failures.
+Retries MUST distinguish transient failures from deterministic failures.
 
-Potenti*lly retryable:
+Potentially retryable:
 
 ```text
-connection*reset
+connection reset
 temporary unavailability
-req*est timeout
+request timeout
 server restart
-transpo*t interruption
+transport interruption
 ```
 
-Normally not r*tryable:
+Normally not retryable:
 
 ```text
-invalid argument*
+invalid arguments
 tool not found
 schema mismatch
-au*horization denied
-policy rejection*tool returned a deterministic doma*n error
+authorization denied
+policy rejection, tool returned a deterministic domain error
 ```
 
 Example:
 
 ```yaml
-ret*y:
+retry:
   maximumAttempts: 3
-  initialD*layMilliseconds: 500
-  backoffMult*plier: 2
-  maximumDelayMillisecond*: 5000
+  initialDelayMilliseconds: 500
+  backoffMultiplier: 2
+  maximumDelayMilliseconds: 5000
   retryOn:
-    - connection*lost
+    - connection lost
     - server_unavailable
     * timeout
 ```
 
 ---
 
-## 41. Cancella*ion and Progress
+## 41. Cancellation and Progress
 
-If supported, Gu*dance SHOULD propagate cancellatio* to downstream operations.
+If supported, Guidance SHOULD propagate cancellation to downstream operations.
 
-Progre*s notifications MAY be normalized *nd recorded.
+Progress notifications MAY be normalized and recorded.
 
 Example:
 
 ```json
 {
-* "operationId": "repository-analys*s",
+* "operationId": "repository-analysis",
   "status": "running",
-  "prog*ess": {
+  "progress": {
     "completed": 65,
-    "*otal": 100,
-    "message": "Analyz*ng dependency graph."
+    "total": 100,
+    "message": "Analyzing dependency graph."
   }
 }
 ```
 
-P*ogress MUST NOT be treated as evid*nce that the operation succeeded.
+Progress MUST NOT be treated as evidence that the operation succeeded.
 *---
 
 ## 42. Security Model
 
-MCP to*l execution and arbitrary data acc*ss create significant security ris*s. Guidance v2 MUST treat every do*nstream connection as a security b*undary.
+MCP tool execution and arbitrary data access create significant security risks. Guidance v2 MUST treat every downstream connection as a security boundary.
 
-## 42.1 Trusted configura*ion only
+## 42.1 Trusted configuration only
 
-The coding agent MUST NO* be allowed to:
+The coding agent MUST NOT be allowed to:
 
-- add downstream *ervers
+- add downstream servers
 - change server commands
-- *hange remote URLs
-- add credential*
+- change remote URLs
+- add credentials
 - expand capability allowlists
-- *eplace validators
-- convert an opt*onal operation into an unrestricte* operation
-- select arbitrary down*tream tool names
+- replace validators
+- convert an optional operation into an unrestricted operation
+- select arbitrary downstream tool names
 
-## 42.2 Capabili*y allowlisting
+## 42.2 Capability allowlisting
 
-Guidance MUST invo*e only capabilities listed in trus*ed configuration.
+Guidance MUST invoke only capabilities listed in trusted configuration.
 
-Discovery does *ot imply permission.
+Discovery does not imply permission.
 
 ```text
-Disc*vered capability != Allowed capabi*ity
+Discovered capability != Allowed capability
 ```
 
-## 42.3 Tool descriptions*are untrusted
+## 42.3 Tool descriptions are untrusted
 
-Descriptions, annot*tions, prompts, and tool results f*om downstream servers MUST be trea*ed as untrusted content.
+Descriptions, annotations, prompts, and tool results from downstream servers MUST be treated as untrusted content.
 
-They MUS* NOT override:
+They MUST NOT override:
 
 - Guidance policy
 * system configuration
-- workspace *estrictions
+- workspace restrictions
 - credential rules
-- t*ansition requirements
-- user appro*al requirements
+- transition requirements
+- user approval requirements
 
-## 42.4 Credentia* isolation
+## 42.4 Credential isolation
 
-Credentials MUST be re*erenced indirectly.
+Credentials MUST be referenced indirectly.
 
 Example:
 
-```*aml
+```yaml
 authorization:
   type: bearer
 * token:
-    fromSecretStore: guida*ce/gitnexus/token
+    fromSecretStore: guidance/gitnexus/token
 ```
 
-Credentials*MUST NOT appear in:
+Credentials MUST NOT appear in:
 
-- workflow st*te
+- workflow state
 - agent-facing responses
-- oper*tion templates
+- operation templates
 - audit logs
-- raw *rror messages
+- raw error messages
 
-## 42.5 Workspace b*undaries
+## 42.5 Workspace boundaries
 
-Guidance MUST canonicali*e and validate workspace paths its*lf.
+Guidance MUST canonicalize and validate workspace paths itself.
 
-Filesystem access MUST NOT re*y only on information supplied by *he coding agent or on deprecated r*ot hints.
+Filesystem access MUST NOT rely only on information supplied by the coding agent or on deprecated rnot hints.
 
-## 42.6 Per-server envi*onment
+## 42.6 Per-server environment
 
-Stdio servers SHOULD recei*e a minimal environment.
+Stdio servers SHOULD receive a minimal environment.
 
-Environm*nt variables MUST be individually *llowed.
+Environment variables MUST be individually allowed.
 
-## 42.7 Remote server aut*orization
+## 42.7 Remote server authorization
 
-Remote authorization MU*T use appropriate OAuth and MCP au*horization practices.
+Remote authorization MUST use appropriate OAuth and MCP authorization practices.
 
-Guidance MU*T prevent credential forwarding to*unintended servers and MUST valida*e remote server identity.
+Guidance MUST prevent credential forwarding to unintended servers and MUST validate remote server identity.
 
-## 42.8*Data egress policy
+## 42.8 Data egress policy
 
-Before sending*values to a downstream server, Gui*ance MUST evaluate:
+Before sending values to a downstream server, Guidance MUST evaluate:
 
-- which data *ields are being sent
-- whether the*server is permitted to receive the*
-- whether source-code content is *ncluded
-- whether personal or secr*t data is included
-- whether user *pproval is required
+- which data fields are being sent
+- whether the server is permitted to receive the content
+- whether source-code content is included
+- whether personal or secret data is included
+- whether user approval is required
 
-## 42.9 Promp* injection resistance
+## 42.9 Prompt injection resistance
 
-Downstream *ontent may contain instructions di*ected at the agent or Guidance.
+Downstream content may contain instructions directed at the agent or Guidance.
 
-G*idance MUST treat downstream conte*t as data unless configuration exp*icitly designates it as an approve* prompt source.
+Guidance MUST treat downstream content as data unless configuration explicitly designates it as an approve* prompt source.
 
-Even approved pro*pt sources MUST NOT modify determi*istic workflow policy.
+Even approved prompt sources MUST NOT modify deterministic workflow policy.
 
-## 42.10 R*cursive call limits
+## 42.10 Recursive call limits
 
-If downstream*servers can themselves initiate sa*pling or input requests, Guidance *UST enforce:
+If downstream servers can themselves initiate sampling or input requests, Guidance *UST enforce:
 
-- maximum nested dep*h
+- maximum nested depth
 - maximum requests per operation*- timeout budgets
-- user approval *olicy
+- user approval policy
 - tool allowlists
-- result s*ze limits
+- result size limits
 
-## 42.11 Destructive op*ration approval
+## 42.11 Destructive operation approval
 
-Operations classi*ied as destructive MUST require ex*licit authorization.
+Operations classified as destructive MUST require explicit authorization.
 
 Examples:
 
-`*`text
+```text
 delete data
 push commits
-cre*te releases
+create releases
 modify remote issues
-s*nd external messages
-deploy softwa*e
+sand external messages
+deploy software
 rotate credentials
 ```
 
@@ -1958,38 +1968,38 @@ rotate credentials
 
 ## *3. Trust Levels
 
-Recommended downs*ream trust levels:
+Recommended downstream trust levels:
 
 ```text
-untrus*ed
+untrusted
 restricted
 trusted
 privileged
-`*`
+```
 
 ### Untrusted
 
-May return data *ut cannot receive sensitive projec* content.
+May return data but cannot receive sensitive project content.
 
 ### Restricted
 
-May rec*ive limited validated inputs and e*ecute allowlisted read-only operat*ons.
+May receive limited validated inputs and execute allowlisted read-only operations.
 
 ### Trusted
 
-May receive pro*ect data required for configured d*velopment operations.
+May receive project data required for configured development operations.
 
-### Privile*ed
+### Privileged
 
-May perform explicitly authori*ed state-changing actions.
+May perform explicitly authorized state-changing actions.
 
-Trust *evel alone MUST NOT grant capabili*y access. The capability allowlist*remains authoritative.
+Trust level alone MUST NOT grant capability access. The capability allowlist remains authoritative.
 
 ---
 
 ## 44* Operation Risk Classes
 
-Recommend*d risk classes:
+Recommended risk classes:
 
 ```text
 read_only
