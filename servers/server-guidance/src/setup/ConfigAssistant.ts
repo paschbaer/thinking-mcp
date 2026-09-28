@@ -106,6 +106,11 @@ const QUESTIONS: SetupQuestion[] = [
   },
 ];
 
+// FR-908/FR-901: in adopt mode these answers are derived from the reference
+// configuration (profile/insight/gitnexus/gates) and are NOT required — and
+// the wizard must not ASK them (they would be overwritten by generateFiles).
+const DERIVED_IN_ADOPT = new Set(["profile", "insight", "gitnexus", "gates"]);
+
 function isAnswered(q: SetupQuestion, answers: SetupAnswers): boolean {
   const v = answers[q.id];
   return v !== undefined && v !== "";
@@ -113,8 +118,14 @@ function isAnswered(q: SetupQuestion, answers: SetupAnswers): boolean {
 
 /** Returns the first unanswered required question, or null when complete. */
 export function nextQuestion(answers: SetupAnswers): SetupQuestion | null {
+  const adopt = answers.configSource === "adopt";
   for (const q of QUESTIONS) {
-    if (q.required && !isAnswered(q, answers)) return q;
+    if (
+      q.required &&
+      !isAnswered(q, answers) &&
+      !(adopt && DERIVED_IN_ADOPT.has(q.id))
+    )
+      return q;
   }
   return null;
 }
@@ -138,15 +149,12 @@ export function catalogOverview(answers: SetupAnswers): {
 }
 
 function requireCompleted(answers: SetupAnswers): void {
-  // FR-908/FR-901: in adopt mode these answers are derived from the reference
-  // configuration (profile/insight/gitnexus/gates) and are NOT required.
-  const derivedInAdopt = new Set(["profile", "insight", "gitnexus", "gates"]);
   const adopt = answers.configSource === "adopt";
   const missing = QUESTIONS.filter(
     (q) =>
       q.required &&
       !isAnswered(q, answers) &&
-      !(adopt && derivedInAdopt.has(q.id)),
+      !(adopt && DERIVED_IN_ADOPT.has(q.id)),
   ).map((q) => q.id);
   if (missing.length > 0) {
     throw new GuidanceError(
@@ -175,11 +183,21 @@ function emmsUrl(transport: string): string {
     : "http://localhost:3002/mcp";
 }
 
+function clearthoughtUrl(transport: string): string {
+  return transport === "http-docker"
+    ? "http://host.docker.internal:3000/mcp"
+    : "http://localhost:3000/mcp";
+}
+
 function buildPolicies(transport: string): string {
   const hosts =
     transport === "http-docker"
-      ? ["host.docker.internal:3002", "host.docker.internal:4747"]
-      : ["localhost:3002", "localhost:4747"];
+      ? [
+          "host.docker.internal:3000",
+          "host.docker.internal:3002",
+          "host.docker.internal:4747",
+        ]
+      : ["localhost:3000", "localhost:3002", "localhost:4747"];
   const policies = {
     version: 2,
     egress: { httpHostAllowlist: hosts },
@@ -524,6 +542,33 @@ function buildDownstream(
     reconnect: { enabled: true, maximumAttempts: 2, delayMilliseconds: 1000 },
   });
   const servers: Record<string, unknown> = {};
+  // Clear-Thought is part of the default profile: the generated phase
+  // instructions reference its reasoning tools, so the server must be
+  // predefined even when the operator answers "no" to insight/gitnexus.
+  servers.clearthought = {
+    displayName: "Clear-Thought",
+    enabled: true,
+    required: false,
+    trustLevel: "trusted",
+    transport: { type: "http", http: { url: clearthoughtUrl(transport) } },
+    capabilities: {
+      allow: {
+        tools: [
+          "sequential_thinking",
+          "decision_framework",
+          "metacognitive_monitoring",
+          "debugging_approach",
+          "assumption_xray",
+          "socratic_method",
+          "argument_map",
+          "structured_argumentation",
+        ],
+        resources: [],
+        prompts: [],
+      },
+    },
+    connection: conn(120),
+  };
   if (gitnexus) {
     servers.gitnexus = {
       displayName: "GitNexus",

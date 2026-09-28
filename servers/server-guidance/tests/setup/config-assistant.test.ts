@@ -98,6 +98,8 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(workflow.phases.verify.lifecycle.beforeExit).toEqual(["build"]);
     expect(workflow.phases.complete.lifecycle.beforeExit).toEqual([]);
     const downstream = JSON.parse(content("downstream-servers.json"));
-    expect(downstream.servers).toEqual({});
+    // clearthought is part of the default profile (specs/011 follow-up):
+    // always predefined, independent of insight/gitnexus answers.
+    expect(Object.keys(downstream.servers)).toEqual(["clearthought"]);
   });
 });
