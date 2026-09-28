@@ -501,3 +501,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - Merge: feature/012-adopt-response-wisdom → develop per --ff-only. Pre- und Post-Merge-Suite je 386/386 grün. Feature-Branch gelöscht.
 - Inhalt: Responses-Adoption (FR-981), responses.json-Pflicht + Phasen-Deckung (FR-982, breaking für Alt-Referenzen), generischer Spec-Drift-Gate im Default-Profil (FR-983/984, neues Embedded-Skript check-spec-drift.mjs), Hardening (FR-985).
 - Offen: Push auf origin/develop (ahead 4) — wartet auf Nutzerentscheid. niyama: Regenerate mit neuem Wizard-Stand (ab 3356d1e) für Responses-Wisdom + Spec-Drift-Gate.
+
+## 2026-09-28: specs/013-wisdom-baseline — Workflow abgeschlossen (session-14fd6161, feature/013-wisdom-baseline)
+- Alle Completion-Ops grün (docs-drift, final-review-gate, index-freshness, repository-analysis, capture-session-lessons). HEAD nach Doku-Commits: c491ef9 (amend: spec-Status Implemented).
+- What works: Zwei Responses-Baselines (fresh generisch + Drift-Guard; adopt rendert kuratierte Wisdom-Baseline mit Platzhaltern/Bedingungsblöcken), mounted-Fallback 012-kompatibel, Renderer fail-closed. 395/395 Tests, tsc/build grün, detect-changes LOW, beide Reviews 0 HIGH/CRITICAL.
+- What's left: Push + Merge nach develop; niyama-Regenerate mit Stand ≥ deaa1de.
