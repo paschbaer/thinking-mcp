@@ -444,9 +444,9 @@ function buildOperations(
   };
   if (gates === "standard") {
     operations.lint = proc(
-      "Check formatting with Prettier.",
-      "npx",
-      ["prettier", "--check", "servers/*/src/**/*.{ts,tsx}"],
+      "Run the project lint script.",
+      "npm",
+      ["run", "lint"],
       false,
       300,
       "read_only",
@@ -640,6 +640,7 @@ export function generateFiles(answers: SetupAnswers): {
 
   const nonGenericOps: string[] = [];
   const adaptedOps: string[] = [];
+  const divergentOps: string[] = [];
   let workflowOverride: string | undefined;
   let policiesOverride: string | undefined;
   let downstreamOverride: string | undefined;
@@ -668,6 +669,13 @@ export function generateFiles(answers: SetupAnswers): {
       readFileSync(join(resolvedReference, "operations.json"), "utf8"),
     ) as { operations?: Record<string, Record<string, unknown>> };
     const refOpsMap = refOps.operations ?? {};
+    insight = isBuiltin
+      ? "store-completion-insight" in refOpsMap ||
+        "query-project-insights" in refOpsMap ||
+        "capture-session-lessons" in refOpsMap
+      : "capture-session-lessons" in refOpsMap;
+    gitnexus = "repository-analysis" in refOpsMap;
+    gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
     const genericPreset = new Set([
       "lint",
       "test",
@@ -676,19 +684,39 @@ export function generateFiles(answers: SetupAnswers): {
       "query-project-insights",
       "capture-session-lessons",
     ]);
-    for (const [opId, op] of Object.entries(refOpsMap)) {
-      const argsText = JSON.stringify((op as { args?: unknown }).args ?? "");
-      if (!genericPreset.has(opId) || argsText.includes('"repo"'))
-        nonGenericOps.push(opId);
-      else adaptedOps.push(opId);
+    // Structural genericity (Niyama incident class): preset operations are
+    // ALWAYS regenerated from the target-fresh template — never copied from
+    // the reference. This is safe in both directions: repo-specific args under
+    // a generic name (globs, foreign paths) cannot leak into the target, and
+    // target-derived args (scopes, URLs) cannot be replaced by the reference's
+    // deployment values. Divergent reference args are surfaced as a note for
+    // review. Non-preset ops are copied with the [adopted] review marker.
+    let freshOpsMap: Record<string, Record<string, unknown>> = {};
+    try {
+      freshOpsMap =
+        (
+          JSON.parse(
+            buildOperations(gates, gitnexus, insight, name, transport),
+          ) as {
+            operations?: Record<string, Record<string, unknown>>;
+          }
+        ).operations ?? {};
+    } catch {
+      freshOpsMap = {};
     }
-    insight = isBuiltin
-      ? "store-completion-insight" in refOpsMap ||
-        "query-project-insights" in refOpsMap ||
-        "capture-session-lessons" in refOpsMap
-      : "capture-session-lessons" in refOpsMap;
-    gitnexus = "repository-analysis" in refOpsMap;
-    gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
+    for (const [opId, op] of Object.entries(refOpsMap)) {
+      const freshOp = freshOpsMap[opId];
+      if (!genericPreset.has(opId) || freshOp === undefined) {
+        nonGenericOps.push(opId);
+        continue;
+      }
+      adaptedOps.push(opId);
+      if (
+        JSON.stringify((op as { args?: unknown }).args ?? null) !==
+        JSON.stringify((freshOp as { args?: unknown }).args ?? null)
+      )
+        divergentOps.push(opId);
+    }
     let wfText = readFileSync(join(resolvedReference, "workflow.json"), "utf8");
     if (shell) {
       const wf = JSON.parse(wfText) as Record<string, unknown>;
@@ -781,6 +809,14 @@ export function generateFiles(answers: SetupAnswers): {
     nonGenericRefOps = refOpsMap;
   }
   const notes: string[] = [];
+  if (adopt && divergentOps.length > 0) {
+    notes.push(
+      "adopt: preset operations with divergent reference args were REGENERATED " +
+        "from the target-fresh template (reference args discarded): " +
+        divergentOps.join(", ") +
+        ". Review if the reference args were intentional.",
+    );
+  }
   if (adopt) {
     notes.push(
       "adopt: based on reference " +

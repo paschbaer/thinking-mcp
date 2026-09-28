@@ -806,6 +806,40 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
     );
   });
 
+  it("fresh operations contain no repo-layout fragments; lint is npm run lint", () => {
+    void ws;
+    for (const gates of ["standard", "minimal"] as const) {
+      const { files } = generateFiles({
+        configSource: "fresh",
+        projectName: "t",
+        transport: "stdio",
+        profile: "plain",
+        insight: true,
+        gitnexus: true,
+        gates,
+      });
+      const ops = JSON.parse(
+        files.find((f) => f.path === "operations.json")!.content,
+      ) as {
+        operations: Record<
+          string,
+          { args?: string[]; required?: boolean; description?: string }
+        >;
+      };
+      for (const [opId, op] of Object.entries(ops.operations)) {
+        for (const a of op.args ?? []) {
+          // repo-specific glob/paths (Niyama incident class) must never appear
+          // in generated args — the generator must stay target-agnostic
+          expect(a, `${opId}: ${a}`).not.toMatch(/servers\/\*\/src/);
+        }
+      }
+      if (gates === "standard") {
+        expect(ops.operations["lint"]?.args).toEqual(["run", "lint"]);
+        expect(ops.operations["lint"]?.required).toBe(false);
+      }
+    }
+  });
+
   it("mounted reference with legacy package paths gets a loud warning note", () => {
     void ws;
     const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
@@ -854,6 +888,172 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
       expect(
         notes.some((n) => n.includes("WARNING: copied reference operations")),
       ).toBe(true);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("adopt genericity hardening (niyama incident class)", () => {
+  function makeGenericityRef(ops: Record<string, unknown>): string {
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-genericity-"));
+    for (const f of [
+      "guidance.json",
+      "workflow.json",
+      "policies.json",
+      "operations.json",
+      "downstream-servers.json",
+    ])
+      writeFileSync(join(ref, f), JSON.stringify({ profile: "plain" }));
+    mkdirSync(join(ref, "schemas"), { recursive: true });
+    writeFileSync(
+      join(ref, "workflow.json"),
+      JSON.stringify({
+        phases: {
+          understand: {},
+          complete: { lifecycle: { beforeExit: [] } },
+        },
+      }),
+    );
+    writeFileSync(
+      join(ref, "responses.json"),
+      JSON.stringify({
+        version: 2,
+        responses: { understand: {}, complete: {} },
+      }),
+    );
+    writeFileSync(
+      join(ref, "operations.json"),
+      JSON.stringify({ operations: ops }),
+    );
+    return ref;
+  }
+
+  function readAdoptionBlock(r: ReturnType<typeof generateFiles>) {
+    const byPath = Object.fromEntries(r.files.map((f) => [f.path, f.content]));
+    const guidance = JSON.parse(byPath["guidance.json"]!) as {
+      adoption?: { nonGenericOps?: string[]; adaptedOps?: string[] };
+    };
+    const ops = JSON.parse(byPath["operations.json"]!) as {
+      operations: Record<
+        string,
+        { description?: string; args?: string[]; required?: boolean }
+      >;
+    };
+    return { adoption: guidance.adoption ?? {}, ops };
+  }
+
+  it("lint op with repo-specific args is regenerated, divergence noted loudly", () => {
+    void ws;
+    const ref = makeGenericityRef({
+      lint: {
+        type: "process",
+        executable: "npx",
+        args: ["prettier", "--check", "servers/*/src/**/*.{ts,tsx}"],
+      },
+      test: { type: "process", executable: "npm", args: ["test"] },
+      build: { type: "process", executable: "npm", args: ["run", "build"] },
+    });
+    try {
+      const r = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const { adoption, ops } = readAdoptionBlock(r);
+      // preset ops are ALWAYS regenerated — divergent ref args never copied
+      expect(adoption.nonGenericOps ?? []).not.toContain("lint");
+      expect(adoption.adaptedOps).toEqual(
+        expect.arrayContaining(["lint", "test", "build"]),
+      );
+      const lint = ops.operations["lint"]!;
+      expect(lint.description).not.toMatch(/\[adopted/);
+      expect(lint.args).toEqual(["run", "lint"]);
+      expect(
+        r.notes.some(
+          (n) => n.includes("REGENERATED") && n.includes("lint"),
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("unmutated generic reference ops stay adapted without divergence note", () => {
+    void ws;
+    const ref = makeGenericityRef({
+      lint: { type: "process", executable: "npm", args: ["run", "lint"] },
+      test: { type: "process", executable: "npm", args: ["test"] },
+      build: { type: "process", executable: "npm", args: ["run", "build"] },
+    });
+    try {
+      const r = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const { adoption, ops } = readAdoptionBlock(r);
+      expect(adoption.nonGenericOps ?? []).not.toContain("lint");
+      expect(adoption.adaptedOps).toEqual(
+        expect.arrayContaining(["lint", "test", "build"]),
+      );
+      expect(ops.operations["lint"]!.description).not.toMatch(/\[adopted/);
+      expect(ops.operations["lint"]!.args).toEqual(["run", "lint"]);
+      expect(r.notes.some((n) => n.includes("REGENERATED"))).toBe(false);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("builtin adopt classifies preset ops as adapted (template/generator sync pin)", () => {
+    void ws;
+    // Niyama recurrence path: builtin template and generator can drift
+    // independently (incl. via GUIDANCE_BUILTIN_TEMPLATE_DIR) — this pins
+    // that the shipped template's process ops match fresh generation, so
+    // they regenerate cleanly instead of being copied as non-generic.
+    const r = generateFiles({
+      configSource: "adopt",
+      projectName: "t",
+      transport: "stdio",
+    });
+    const { adoption } = readAdoptionBlock(r);
+    expect(adoption.adaptedOps).toEqual(
+      expect.arrayContaining(["lint", "test", "build"]),
+    );
+    // non-preset gates from the template are copied, not lost
+    expect(adoption.nonGenericOps).toEqual(
+      expect.arrayContaining(["final-review-gate"]),
+    );
+    // true sync pin: a drifted builtin template (args differing from fresh
+    // generation) would surface as a REGENERATED note — its absence proves
+    // template and generator are in lockstep
+    expect(r.notes.some((n) => n.includes("REGENERATED"))).toBe(false);
+  });
+
+  it("preset op absent from fresh generation is non-generic by definition", () => {
+    void ws;
+    const ref = makeGenericityRef({
+      "query-project-insights": {
+        type: "mcpTool",
+        server: "insight",
+        capability: "query_insights",
+        arguments: { query: "x" },
+      },
+    });
+    try {
+      const r = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const { adoption } = readAdoptionBlock(r);
+      // mounted reference derives insight only from capture-session-lessons,
+      // so the fresh generator emits no query-project-insights op
+      expect(adoption.nonGenericOps).toContain("query-project-insights");
+      expect(adoption.adaptedOps ?? []).toEqual([]);
     } finally {
       rmSync(ref, { recursive: true, force: true });
     }

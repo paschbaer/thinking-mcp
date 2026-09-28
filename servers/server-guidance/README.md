@@ -287,6 +287,24 @@ project name, workspaces, shell) are **never inherited** — they always come
 from your answers. Non-generic reference operations are **copied** into the
 generated `operations.json` with an `[adopted from reference]` marker in
 their description — review their args/paths before relying on them.
+
+**Genericity rule (structural):** well-known generated operations (`lint`,
+`test`, `build`, `repository-analysis`, `query-project-insights`,
+`capture-session-lessons`) are **always regenerated** from the target-fresh
+template — never copied from the reference. This is safe in both directions:
+repo-specific args under a generic name (e.g. a `lint` op hard-coding
+`servers/*/src/**/*.{ts,tsx}`) cannot leak into a generated workspace config,
+and target-derived args (scopes, URLs) cannot be replaced by the reference's
+deployment values. When the reference args differ from the fresh ones, the
+result notes the divergence loudly (`REGENERATED ... reference args
+discarded`) for review. All other (non-preset) reference operations are
+copied with an `[adopted from reference — review args/paths]` marker.
+Fresh generation itself is target-agnostic: the lint gate delegates to the
+project (`npm run lint`, non-blocking) and all process ops assume the
+npm/npx/sh convention with `package.json` scripts. `lint` and `test` are
+non-blocking (`required: false`), so a target without the matching script
+degrades gracefully; `build` stays blocking (`required: true`).
+
 `responses.json` is **adopted from the reference** (specs/012 FR-981): the
 reference's phase instructions — including any process wisdom they carry —
 are kept, and only the `instructions.global` slot is swapped to the target's
