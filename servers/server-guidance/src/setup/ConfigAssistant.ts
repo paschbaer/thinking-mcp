@@ -327,7 +327,8 @@ function questionsSentence(field: string): string {
   return ` Ask open questions in the chat before submitting and reference them in \`${field}\`; escalate via \`report_blocker\` ONLY when the answer would materially change this submission (a different plan or different code) — otherwise document the question, state your working assumption explicitly, and proceed.`;
 }
 
-function buildResponses(shell: string): string {
+/** Builds the generic (fresh) baseline responses — exported for the FR-991 drift-guard test. */
+export function buildResponses(shell: string): string {
   const shellSentence = shell
     ? ` Set up your terminal shell first: run all commands through ${shell}.`
     : "";
@@ -687,18 +688,58 @@ export function generateFiles(answers: SetupAnswers): {
     workflowOverride = wfText;
     policiesOverride = buildPolicies(transport);
     downstreamOverride = buildDownstream(insight, gitnexus, transport);
+    // FR-981/FR-992..994 (specs/012+013): adopt the reference RESPONSES.
+    // Builtin adopt renders the wisdom baseline (fail-closed if missing);
+    // mounted references use their responses-wisdom.json when present,
+    // otherwise their responses.json (012 behavior).
+    const wisdomFile = join(resolvedReference, "responses-wisdom.json");
+    const responsesSource =
+      isBuiltin || existsSync(wisdomFile)
+        ? wisdomFile
+        : join(resolvedReference, "responses.json");
+    if (isBuiltin && !existsSync(responsesSource)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "adopt source: missing/unreadable file responses-wisdom.json",
+        { recoverable: true },
+      );
+    }
+    const refResponses = JSON.parse(
+      readFileSync(responsesSource, "utf8"),
+    ) as Record<string, unknown>;
+    // Phase coverage on the file actually adopted (FR-982).
+    const wfPhases = Object.keys(
+      ((JSON.parse(wfText) as { phases?: Record<string, unknown> }).phases ??
+        {}) as Record<string, unknown>,
+    );
+    const responseIds = new Set(
+      Object.keys((refResponses.responses ?? {}) as Record<string, unknown>),
+    );
+    for (const phaseId of wfPhases) {
+      if (!responseIds.has(phaseId)) {
+        throw new GuidanceError(
+          "configuration_invalid",
+          `adopt source: responses missing phase ${phaseId}`,
+          { recoverable: true },
+        );
+      }
+    }
+    responsesOverride = renderAdoptedResponses(refResponses, {
+      shell,
+      transport,
+      enabledServers: new Set<string>([
+        "clearthought",
+        ...(gitnexus ? ["gitnexus"] : []),
+        ...(insight ? ["insight"] : []),
+      ]),
+      projectName: name,
+    });
     // FR-981 (specs/012): adopt the reference responses (process wisdom)
     // instead of regenerating generic ones. Only the instructions.global
     // slot is swapped to the target's shell answer; an empty shell answer
     // removes the slot. Note: the workflow swap above behaves differently
     // on empty shell (it keeps the reference instructions) — that is the
     // established 011 mounted-adopt behavior and intentionally untouched.
-    const refResponses = JSON.parse(
-      readFileSync(join(resolvedReference, "responses.json"), "utf8"),
-    ) as Record<string, unknown>;
-    if (shell) refResponses["instructions"] = { global: shell };
-    else delete refResponses["instructions"];
-    responsesOverride = JSON.stringify(refResponses, null, 2);
     adoptionBlock = {
       // AC-3 (specs/011): audit block names the template, not the path;
       // resolvedPath (builtin only) keeps the actual location auditable.
@@ -930,6 +971,72 @@ export function generateFiles(answers: SetupAnswers): {
 }
 
 /**
+ * FR-993 (specs/013): render the wisdom baseline onto the target repo.
+ * Replaces transport-dependent URL/project tokens, renders {{#server:NAME}}
+ * conditional blocks only for enabled downstream servers, sets/removes the
+ * instructions.global slot (FR-981 semantics), and fails closed on unknown
+ * leftover {{tokens}}.
+ */
+export function renderAdoptedResponses(
+  wisdom: Record<string, unknown>,
+  target: {
+    shell: string;
+    transport: string;
+    enabledServers: Set<string>;
+    projectName: string;
+  },
+): string {
+  const tokens: Record<string, string> = {
+    CLEARTHOUGHT_URL: clearthoughtUrl(target.transport),
+    INSIGHT_URL: insightUrl(target.transport),
+    GITNEXUS_URL: gitnexusUrl(target.transport),
+    PROJECT_NAME: target.projectName,
+  };
+  const renderText = (text: string): string => {
+    let out = text.replace(
+      /\{\{#server:([a-z-]+)\}\}([\s\S]*?)\{\{\/server:[a-z-]+\}\}/g,
+      (_m, name: string, body: string) =>
+        target.enabledServers.has(name) ? body : "",
+    );
+    out = out.replace(/\{\{([A-Z_]+)\}\}/g, (m, token: string) => {
+      if (!(token in tokens)) {
+        throw new GuidanceError(
+          "configuration_invalid",
+          `adopt source: unknown responses placeholder {{${token}}}`,
+          { recoverable: true },
+        );
+      }
+      return tokens[token] as string;
+    });
+    if (/\{\{[#/]/.test(out)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "adopt source: unbalanced server-conditional block in responses",
+        { recoverable: true },
+      );
+    }
+    return out;
+  };
+  const renderValue = (value: unknown): unknown => {
+    if (typeof value === "string") return renderText(value);
+    if (Array.isArray(value)) return value.map(renderValue);
+    if (value !== null && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+          k,
+          renderValue(v),
+        ]),
+      );
+    }
+    return value;
+  };
+  const rendered = renderValue(wisdom) as Record<string, unknown>;
+  if (target.shell) rendered["instructions"] = { global: target.shell };
+  else delete rendered["instructions"];
+  return JSON.stringify(rendered, null, 2);
+}
+
+/**
  * specs/008 FR-902 (adopt flow, N-6): fail-closed validation of the adopt
  * reference configuration. Checks presence + JSON-parseability of every file
  * the adopt flow needs, plus readability of the reference profile file
@@ -1009,14 +1116,18 @@ export function validateAdoptReference(referenceDir: string): void {
       );
     }
   }
-  // FR-982 (specs/012): responses-adoption requires phase coverage — every
-  // phase of the copied workflow.json must have a response in the reference.
+  // FR-982 (specs/012) + FR-994 (specs/013): responses-adoption requires
+  // phase coverage on the file actually adopted — responses-wisdom.json when
+  // present, otherwise responses.json.
+  const responsesFile = existsSync(join(dir, "responses-wisdom.json"))
+    ? join(dir, "responses-wisdom.json")
+    : join(dir, "responses.json");
   const workflow = JSON.parse(
     readFileSync(join(dir, "workflow.json"), "utf-8"),
   ) as { phases?: Record<string, unknown> };
-  const responses = JSON.parse(
-    readFileSync(join(dir, "responses.json"), "utf-8"),
-  ) as { responses?: Record<string, unknown> };
+  const responses = JSON.parse(readFileSync(responsesFile, "utf-8")) as {
+    responses?: Record<string, unknown>;
+  };
   const responseIds = new Set(Object.keys(responses.responses ?? {}));
   for (const phaseId of Object.keys(workflow.phases ?? {})) {
     if (!responseIds.has(phaseId)) {

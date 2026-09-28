@@ -304,6 +304,17 @@ before the final-review gate and fails when a `specs/*/spec.md` is still
 marked Draft while its `tasks.md` has no open checkboxes (escape hatch: a
 `docs-drift: status ok` comment in the spec).
 
+> **Two response baselines (specs/013):** `responses.json` is the generic
+> baseline — byte-identical to what a fresh generation produces (a drift
+> guard test enforces this). `responses-wisdom.json` is the curated
+> **wisdom baseline** used by adopt mode: it carries accumulated process
+> wisdom and contains placeholders (`{{CLEARTHOUGHT_URL}}`,
+> `{{INSIGHT_URL}}`, `{{GITNEXUS_URL}}`, `{{PROJECT_NAME}}`) plus
+> server-conditional paragraphs (`{{#server:insight}}…{{/server:insight}}`)
+> that the config assistant renders onto the target (transport-dependent
+> URLs, enabled servers, shell slot). Mounted references use their
+> `responses-wisdom.json` when present, otherwise their `responses.json`.
+
 Example prompt (fresh):
 
 > Use the configuration assistant to create a `.guidance/` configuration for
