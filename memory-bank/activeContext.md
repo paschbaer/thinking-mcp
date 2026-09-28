@@ -3,6 +3,10 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-09-28: FR-035-Container-Route — Review-Runde 1 gefixt (worktree fr035-fix, 34b029c)
+- Independent Review (Sub-Agent, CHANGES REQUIRED, 1 HIGH): F1 SSRF-Bypass (stdio + containerRoute übersprang Allowlist) → behoben (Block vor Transport-Typ-continue, 2 Regressionstests); F4 Timeout-Guard, F5 recordConnection im Fallback-Pfad → behoben; F2 → FR-611 auf Wisdom-Baseline re-gescope't (Follow-up CR-1 in remaining-work-plan); F3 Engine-Test-Debt → getrackt (CR-2, GDS4-Konfliktvermeidung). Zielgerichtet 110/110 grün, tsc clean; Full-Suite im Worktree: 7 Umgebungsartefakte (final-review-gate vs. Windows-.git-File im Container; im Haupt-Checkout grün).
+- **Prozess-Anmerkung:** GDS4-Agent arbeitet parallel im Haupt-Checkout (HEAD auf feature/gds4-expose-op-content, uncommittete WorkflowEngine-Änderungen) — Review-Fixes bewusst im separaten Worktree committet; Merge/Rebase nach GDS4-Abschluss.
+
 ## 2026-09-28: FR-035-Amendment „Container-Route vor lokalem Fallback“ (session-1afb793f, feature/fr035-container-route)
 - **Scope (Nutzerentscheid):** Textregel + maschinell; FR-035 amendiert (Amendment 005 in specs/002); RID-1 folgt separat.
 - **Umgesetzt:** (1) FR-035-Text in responses-wisdom.json + live .guidance/responses.json auf Reihenfolge retry → Container-Route → lokal → report_blocker (7 Phasen je Datei); (2) `containerRoute`-Feld in downstream-servers.json (fail-closed Validierung + SSRF-Allowlist + ${ENV}-Header in config.ts), Template + Live-Config für clearthought befüllt; (3) Engine-Fallback: EIN automatischer Versuch über containerRoute bei read_only-Timeout (ClientManager.invokeOnTransientHttpRoute + Gate in WorkflowEngine.buildInvokerClosure), Metric containerRouteFallbacks in get_metrics; (4) Tests tests/contract/container-route-fallback.test.ts (11) — Suite 221/221 grün, tsc clean; (5) Doku: README downstream-Attributtabelle + specs/002/amendments/005.
