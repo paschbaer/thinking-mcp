@@ -367,6 +367,10 @@ export class WorkflowEngine {
       this.allowlists = new Map(
         enabled.map(([id, v]) => [id, v.capabilities?.allow?.tools ?? []]),
       );
+      // GDS-1: keep enabled server configs for on-demand status probes.
+      this.downstreamServers = new Map(
+        enabled as [string, Record<string, unknown>][],
+      );
     }
     if (deps.clientOperationEngine) {
       const clientEngine = deps.clientOperationEngine;
@@ -512,6 +516,8 @@ export class WorkflowEngine {
 
   private clientManager?: ClientManager;
   private allowlists?: Map<string, string[]>;
+  /** GDS-1: enabled downstream server configs for on-demand status probes. */
+  private downstreamServers?: Map<string, Record<string, unknown>>;
   private readonly stateDir: string;
   private readonly workspaceLocks = new Map<string, WorkspaceOpLock>();
   private readonly lockTtlMs: number;
@@ -680,6 +686,7 @@ export class WorkflowEngine {
       status?: string;
       required?: boolean;
       lastSuccessfulRequestAt?: string;
+      error?: string;
     }[]
   > {
     if (!this.clientManager) return [];
@@ -688,14 +695,36 @@ export class WorkflowEngine {
       status?: string;
       required?: boolean;
       lastSuccessfulRequestAt?: string;
+      error?: string;
     }[] = [];
     for (const id of this.allowlists?.keys() ?? []) {
+      // GDS-1: the HTTP transport is stateless (fresh engine+ClientManager
+      // per request), so in-memory status is always empty. Probe enabled
+      // http-transport servers on demand for the REAL state; non-http
+      // transports are not probed (no process spawning).
+      const cfg = this.downstreamServers?.get(id);
+      const transport = cfg?.transport as { type?: string } | undefined;
+      if (transport?.type === "http") {
+        const conn = cfg?.connection as
+          | { startupTimeoutSeconds?: number }
+          | undefined;
+        try {
+          await this.clientManager.ensureReady(
+            id,
+            cfg?.transport as never,
+            { handshakeTimeoutSeconds: Math.min(5, conn?.startupTimeoutSeconds ?? 5) },
+          );
+        } catch {
+          /* ensureReady records failed status itself */
+        }
+      }
       const st = this.clientManager.statusOf(id);
       out.push({
         id,
         status: st?.status ?? "disconnected",
         required: st?.required,
         lastSuccessfulRequestAt: st?.lastSuccessfulRequestAt,
+        ...(st?.error ? { error: st.error } : {}),
       });
     }
     return out;
