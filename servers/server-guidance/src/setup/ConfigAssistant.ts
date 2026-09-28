@@ -689,8 +689,10 @@ export function generateFiles(answers: SetupAnswers): {
     downstreamOverride = buildDownstream(insight, gitnexus, transport);
     // FR-981 (specs/012): adopt the reference responses (process wisdom)
     // instead of regenerating generic ones. Only the instructions.global
-    // slot is swapped to the target's shell answer (mirror of the workflow
-    // swap above; an empty shell answer removes the slot).
+    // slot is swapped to the target's shell answer; an empty shell answer
+    // removes the slot. Note: the workflow swap above behaves differently
+    // on empty shell (it keeps the reference instructions) — that is the
+    // established 011 mounted-adopt behavior and intentionally untouched.
     const refResponses = JSON.parse(
       readFileSync(join(resolvedReference, "responses.json"), "utf8"),
     ) as Record<string, unknown>;

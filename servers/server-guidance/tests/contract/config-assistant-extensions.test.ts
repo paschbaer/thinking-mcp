@@ -828,10 +828,6 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
         JSON.stringify({ version: 2, responses: { complete: {} } }),
       );
       writeFileSync(
-        join(ref, "responses.json"),
-        JSON.stringify({ version: 2, responses: { complete: {} } }),
-      );
-      writeFileSync(
         join(ref, "operations.json"),
         JSON.stringify({
           operations: {
@@ -1051,6 +1047,63 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       ).not.toThrow();
     } finally {
       rmSync(ws2, { recursive: true, force: true });
+    }
+  });
+
+  it("AC-3/AC-4 golden: generation is deterministic (fresh + mounted adopt), stripped of timestamps", () => {
+    void ws;
+    const strip = (r: ReturnType<typeof generateFiles>) =>
+      JSON.stringify(
+        Object.fromEntries(
+          r.files.map((f) => [
+            f.path,
+            f.path.endsWith(".json")
+              ? JSON.parse(f.content, (k, v) =>
+                  k === "date" || k === "resolvedPath" ? undefined : v,
+                )
+              : f.content,
+          ]),
+        ),
+      );
+    const fresh1 = generateFiles({
+      configSource: "fresh",
+      projectName: "t",
+      transport: "stdio",
+      profile: "plain",
+      insight: true,
+      gitnexus: true,
+      gates: "standard",
+    });
+    const fresh2 = generateFiles({
+      configSource: "fresh",
+      projectName: "t",
+      transport: "stdio",
+      profile: "plain",
+      insight: true,
+      gitnexus: true,
+      gates: "standard",
+    });
+    expect(strip(fresh1)).toBe(strip(fresh2));
+
+    const ref = makeAdoptRef({ wisdomMarker: true, refShell: "OLD SHELL" });
+    try {
+      const mounted1 = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+        shell: "SHELL",
+      });
+      const mounted2 = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+        shell: "SHELL",
+      });
+      expect(strip(mounted1)).toBe(strip(mounted2));
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
     }
   });
 
