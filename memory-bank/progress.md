@@ -492,3 +492,7 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 ## 2026-09-28: specs/011 gemerged (develop, fast-forward 395ae1e..2fe7338)
 - Merge: feature/011-adopt-templates → develop per --ff-only (Rebase entfiel, develop war nicht weitergelaufen). Post-Merge-Suite 370/370 grün. Feature-Branch gelöscht.
 - Offen: Push auf origin/develop (ahead 6) — wartet auf Nutzerentscheid.
+
+## 2026-09-28: specs/011 Follow-ups gemerged (develop, fast-forward d809e92..47c0c9f)
+- Merge: feature/011-adopt-wizard-fixes → develop per --ff-only. Pre- und Post-Merge-Suite je 377/377 grün. Feature-Branch gelöscht. Enthält: Wizard-Warte-Pflicht in Sample-Prompts, clearthought Default-Profil (downstream + policies :3000 + Template), derived-Fragen-Skip im Adopt-Mode, Container-Only-Self-Containment (eingebettete Gate-Skripte, zero-dep-Seeder, mounted-Warnung).
+- Offen: Push auf origin/develop (ahead 3) — wartet auf Nutzerentscheid. niyama: Regenerate mit korrigiertem Wizard nötig (Alt-Config enthält Paket-Pfad-Referenzen).
