@@ -489,6 +489,44 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
     expect(() => validateAdoptReference("builtin")).not.toThrow();
   });
 
+  it("FR-971/F-01: env override also governs embedded schemas (generateFiles)", () => {
+    void ws;
+    const dir = mkdtempSync(join(tmpdir(), "builtin-override-schemas-"));
+    try {
+      mkdirSync(join(dir, "schemas"), { recursive: true });
+      for (const s of [
+        "understand",
+        "plan",
+        "review-plan",
+        "implement",
+        "review-implementation",
+        "verify",
+        "complete",
+      ])
+        writeFileSync(
+          join(dir, "schemas", `${s}.schema.json`),
+          JSON.stringify({ marker: "override-template" }),
+        );
+      process.env[ENV_KEY] = dir;
+      const { files } = generateFiles({
+        configSource: "fresh",
+        projectName: "t",
+        transport: "stdio",
+        profile: "plain",
+        insight: false,
+        gitnexus: false,
+        gates: "standard",
+      });
+      const understand = files.find(
+        (f) => f.path === "schemas/understand.schema.json",
+      );
+      expect(understand).toBeTruthy();
+      expect(understand!.content).toContain("override-template");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("FR-973: builtin fail-closed when the template is missing (env override to empty dir)", () => {
     const dir = mkdtempSync(join(tmpdir(), "builtin-missing-"));
     try {

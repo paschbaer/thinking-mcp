@@ -724,7 +724,10 @@ export function generateFiles(answers: SetupAnswers): {
       "spec-kit profile: copy the integrations block and spec-kit-specific questions from examples/default-guidance/profiles — the wizard does not interview for spec-kit specifics in v1.",
     );
   }
-  const schemasDir = join(PKG_ROOT, "examples", "default-guidance", "schemas");
+  // F-01 (specs/011 final review): route through resolveBuiltinReferencePath()
+  // so GUIDANCE_BUILTIN_TEMPLATE_DIR also governs embedded schemas — not just
+  // the adopt reference.
+  const schemasDir = join(resolveBuiltinReferencePath(), "schemas");
   const schemaFiles = [
     "understand",
     "plan",
