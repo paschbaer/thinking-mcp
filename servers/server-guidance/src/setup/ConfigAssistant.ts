@@ -1007,6 +1007,9 @@ export function renderAdoptedResponses(
     );
     out = out.replace(/\{\{([A-Z_]+)\}\}/g, (m, token: string) => {
       if (!(token in tokens)) {
+        // Lenient fallback responses.json keeps 012 pass-through behavior;
+        // wisdom sources fail closed (strictLeftovers catch below too).
+        if (!opts?.strictLeftovers) return m;
         throw new GuidanceError(
           "configuration_invalid",
           `adopt source: unknown responses placeholder {{${token}}}`,
@@ -1023,8 +1026,9 @@ export function renderAdoptedResponses(
       );
     }
     // FR-995 (specs/013): wisdom sources must render completely — any
-    // leftover {{...}} (wrong case, typos, spaces) fails closed instead of
-    // silently reaching the target config.
+    // leftover {{...}} (wrong case, typos, spaces, unknown tokens) fails
+    // closed instead of silently reaching the target config. Mounted
+    // fallback responses.json stays lenient (012 pass-through behavior).
     if (opts?.strictLeftovers && /\{\{/.test(out)) {
       throw new GuidanceError(
         "configuration_invalid",
