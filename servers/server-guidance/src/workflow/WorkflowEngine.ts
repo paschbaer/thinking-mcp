@@ -703,15 +703,27 @@ export class WorkflowEngine {
       // http-transport servers on demand for the REAL state; non-http
       // transports are not probed (no process spawning).
       const cfg = this.downstreamServers?.get(id);
-      const transport = cfg?.transport as { type?: string } | undefined;
+      const transport = cfg?.transport as
+        | {
+            type?: string;
+            http?: { url?: string; headers?: Record<string, string> };
+            command?: { executable?: string; args?: string[]; cwd?: string };
+          }
+        | undefined;
       if (transport?.type === "http") {
         const conn = cfg?.connection as
           | { startupTimeoutSeconds?: number }
           | undefined;
         try {
+          // GDS-1: ensureReady expects the flattened transport config
+          // (same mapping as the invoker closure).
+          const probeCfg =
+            transport.type === "http" && transport.http
+              ? { type: "http", url: transport.http.url, headers: transport.http.headers }
+              : undefined;
           await this.clientManager.ensureReady(
             id,
-            cfg?.transport as never,
+            probeCfg as never,
             { handshakeTimeoutSeconds: Math.min(5, conn?.startupTimeoutSeconds ?? 5) },
           );
         } catch {
