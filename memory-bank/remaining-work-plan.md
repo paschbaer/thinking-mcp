@@ -969,3 +969,8 @@ Frischer Reviewer-Subagent über feature/multi-workspace a5f8f26 vs develop (Sna
 - F-04 (LOW, accepted): adoption-Schema-Slot permissiv ({type:"object"}, keine additionalProperties:false). Bewusst: Audit-Feld, kein downstream Consumer; Konsistenz mit strengem project-Schema fehlt. Trigger: falls je ein Consumer adoption liest → Schema verschärfen.
 - F-05 (INFO): Duplikat-builtin-Bedingung ( deckt FR5 ab, bleibt getriggert). F-06 (INFO): source bleibt "builtin" auch bei Override — korrekt, audit-relevant dokumentiert. F-07: README akkurat.
 - Gate neu verankert: final-review.json headCommit auf neuen HEAD, 0 open HIGH/CRITICAL.
+
+## 2026-09-28: specs/012 Final-Review (Sub-Agent 7d3ca207) — Findings-Bilanz
+- Final-Review (frischer Sub-Agent, HEAD a55d381+Follow-ups): 0 HIGH/CRITICAL. 2 MEDIUM: F-1 (FR-981-Kommentar behauptete Mirror-Verhalten, das nur für responses.json gilt — Kommentar korrigiert, 011-workflow-Verhalten bewusst unberührt), F-2 (Golden-Tests fehlten → Determinismus-Tests fresh+mounted ergänzt, Timestamps gestrippt). LOWs: F-3 (Spec-ohne-tasks-Skip jetzt in spec.md dokumentiert), F-4 (Duplikat-Write entfernt).
+- Getrackte Follow-ups (Trigger: nächste Testrunde an config-assistant-extensions): wisdom-e2e über composeApplication-Boot mit Marker; indented-checkbox-Test für check-spec-drift; env-Override-e2e (011-Erbe).
+- FR-982 Breaking (Alt-Referenzen ohne responses.json) final bestätigt akzeptiert + dokumentiert.

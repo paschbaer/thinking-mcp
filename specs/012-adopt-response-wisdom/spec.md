@@ -7,7 +7,7 @@ verworfen, obwohl genau das der Sinn des Adopt-Modus ist; (2) das
 Docs-Drift-Gate (specs/010) fehlt im Builtin-Template komplett; (3) drei
 offene LOW-Findings aus dem 011-Final-Re-Review (F-02/F-03/F-07).
 **Namespace:** FR-981+
-**Status:** Draft
+**Status:** Implemented (2026-09-28, feature/012-adopt-response-wisdom)
 **Date:** 2026-09-28
 **Vorgänger:** 009 (Adopt-Infrastruktur), 010 (Docs-Drift-Gate),
 011 (Builtin-Template, Self-Containment)
@@ -43,9 +43,11 @@ Containment-Regel (specs/011).
   Tool-Table, ERROR_CODES) ist nicht generalisierbar und geht NICHT ins
   Template. Stattdessen erhält das Builtin-Template ein neues,
   dependency-freies Embedded-Skript `.guidance/scripts/check-spec-drift.mjs`
-  mit generischer Spec-Status-Hygiene: für jede `specs/*/spec.md` muss gelten
-  — Status != Draft sobald keine offenen Checkboxen mehr existieren;
-  Escape-Hatch via Override-Kommentar in der spec.md (Konzept FR-951.4).
+  mit generischer Spec-Status-Hygiene: für jede `specs/*/spec.md` mit
+  vorhandenem `tasks.md`-Geschwister muss gelten — Status != Draft sobald
+  keine offenen Checkboxen mehr existieren (Specs ohne tasks.md werden
+  übersprungen — sie haben keine Checkbox-Basis); Escape-Hatch via
+  Override-Kommentar in der spec.md (Konzept FR-951.4).
 - **FR-985 Hardening (011-Rest-Findings):** (a) `referencePath`-Antwort wird
   wie die Env-Var getrimmt — konsistentes Fail-closed-Verhalten bei
   Whitespace; (b) Testlücken geschlossen: whitespace-env-Fall, env-Override
