@@ -516,6 +516,59 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
         );
       }
     }
+    // FR-035 amendment: optional containerRoute — the tool's HTTP endpoint
+    // reachable from the guidance container, used as ONE automatic fallback
+    // attempt on read-only/idempotent call timeouts (fail-closed validation:
+    // same URL rules as transport.http.url).
+    const containerRoute = raw["containerRoute"];
+    if (containerRoute !== undefined) {
+      if (typeof containerRoute !== "object" || Array.isArray(containerRoute)) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute must be an object`,
+        );
+      }
+      const cr = containerRoute as { url?: unknown; headers?: unknown };
+      if (typeof cr.url !== "string" || cr.url.length === 0) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute.url is required`,
+        );
+      }
+      let crParsed: URL;
+      try {
+        crParsed = new URL(cr.url);
+      } catch {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute.url is not a valid URL`,
+        );
+      }
+      if (crParsed.protocol !== "http:" && crParsed.protocol !== "https:") {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute.url must use http(s)`,
+        );
+      }
+      if (cr.headers !== undefined) {
+        if (typeof cr.headers !== "object" || Array.isArray(cr.headers)) {
+          throw new ConfigurationError(
+            "configuration_invalid",
+            `downstreamServers.${id}: containerRoute.headers must be an object of strings`,
+          );
+        }
+        for (const [k, v] of Object.entries(
+          cr.headers as Record<string, unknown>,
+        )) {
+          if (typeof v !== "string") {
+            throw new ConfigurationError(
+              "configuration_invalid",
+              `downstreamServers.${id}: containerRoute.headers.${k} must be a string`,
+            );
+          }
+        }
+      }
+    }
     const transport = raw["transport"];
     if (transport === undefined) continue;
     if (typeof transport !== "object" || Array.isArray(transport)) {
@@ -627,7 +680,8 @@ function applyHttpTransports(
   const usesHttp = Object.entries(servers).some(
     ([id, raw]) =>
       raw["enabled"] !== false &&
-      (raw["transport"] as { type?: string } | undefined)?.type === "http",
+      ((raw["transport"] as { type?: string } | undefined)?.type === "http" ||
+        raw["containerRoute"] !== undefined),
   );
   if (!usesHttp) return;
   const policies = loaded["policies"] as
@@ -687,6 +741,47 @@ function applyHttpTransports(
         );
       }
       transport.http!.headers = resolved;
+    }
+    // FR-035 amendment: containerRoute is HTTP egress too — same allowlist +
+    // env-resolution rules as transport.http (fail-closed).
+    const cr = raw["containerRoute"] as
+      | { url?: string; headers?: Record<string, string> }
+      | undefined;
+    if (cr?.url) {
+      let crParsed: URL;
+      try {
+        crParsed = new URL(cr.url);
+      } catch {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute.url is not a valid URL`,
+        );
+      }
+      if (!allowlist.includes(crParsed.host)) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute host "${crParsed.host}" is not allowlisted in policies.egress.httpHostAllowlist`,
+        );
+      }
+      if (cr.headers) {
+        const crResolved: Record<string, string> = {};
+        for (const [key, value] of Object.entries(cr.headers)) {
+          crResolved[key] = value.replace(
+            /\$\{([A-Z_][A-Z0-9_]*)\}/g,
+            (_match, name: string) => {
+              const env = process.env[name];
+              if (env === undefined || env === "") {
+                throw new ConfigurationError(
+                  "configuration_invalid",
+                  `downstreamServers.${id}: environment variable ${name} (containerRoute.headers.${key}) is not set`,
+                );
+              }
+              return env;
+            },
+          );
+        }
+        cr.headers = crResolved;
+      }
     }
   }
 }
