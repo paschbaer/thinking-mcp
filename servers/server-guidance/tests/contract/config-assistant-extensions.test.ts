@@ -807,7 +807,6 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
       for (const f of [
         "guidance.json",
         "workflow.json",
-        "responses.json",
         "policies.json",
         "operations.json",
         "downstream-servers.json",
@@ -1000,6 +999,24 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
     expect(ops.operations["docs-drift"]!.args).toContain(
       ".guidance/scripts/check-spec-drift.mjs",
     );
+  });
+
+  it("FR-982: malformed responses.json fails closed with the documented contract", () => {
+    void ws;
+    const ref = makeAdoptRef();
+    try {
+      writeFileSync(join(ref, "responses.json"), "{ not json");
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+        }),
+      ).toThrowError(/adopt source: unreadable file responses\.json/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
   });
 
   it("FR-984: check-spec-drift detects Draft-with-done-tasks and honors the override", () => {

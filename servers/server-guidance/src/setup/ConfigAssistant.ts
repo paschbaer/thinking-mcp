@@ -622,7 +622,7 @@ export function generateFiles(answers: SetupAnswers): {
       ? String(answers.referencePath).trim()
       : undefined;
   let profile = String(answers.profile ?? "plain");
-  const shell = String(answers.shell ?? "");
+  const shell = String(answers.shell ?? "").trim();
   let insight = answers.insight === "yes" || answers.insight === true;
   let gitnexus = answers.gitnexus === "yes" || answers.gitnexus === true;
   let gates = String(answers.gates ?? "standard");

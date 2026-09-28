@@ -46,7 +46,7 @@ if (existsSync(specsDir)) {
     )
       continue;
     const tasks = read(tasksFile) ?? "";
-    const open = (tasks.match(/^- \[ \] /gm) ?? []).length;
+    const open = (tasks.match(/^\s*- \[ \] /gm) ?? []).length;
     if (open === 0) {
       findings.push(
         `spec drift: spec ${id} — expected: status updated (no open checkboxes, status still Draft) vs found: Draft`,
