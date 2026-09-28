@@ -24,8 +24,11 @@ schließt T5–T10 ab.
 
 ## Verbindliche Konventionen aus dieser Umgebung
 
-1. **Kein Node auf dem Host** — tsc/vitest/build laufen im Container
-   (`docker exec server-guidance-guidance-1 sh -c "cd /workspace/servers/server-guidance && npx …"`).
+1. **Node nur über WSL, nicht über die Windows-Shell** — `node`/`npx`,
+   tsc/vitest/build laufen via `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/Thinking-MCP && <cmd>'`
+   (nvm geladen wie bei `gitnexus analyze --no-stats` in AGENTS.md).
+   Bekommst du „node: command not found“, wird die falsche Shell genutzt.
+   Alternative: Container (`docker exec server-guidance-guidance-1 sh -c "cd /workspace/servers/server-guidance && npx …"`).
 2. **CRLF-Falle:** `.md`-Dateien dieses Repos teils CRLF — niemals `sed -i`
    für gezielte Edits (normalisiert ganze Dateien); stattdessen `perl -pi` oder
    Container-Node. Nach jedem Bulk-Edit `git diff --stat` auf Plausibilität.

@@ -13,7 +13,7 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "test": {
-      "description": "Run the automated test suite. Non-blocking while the Docker workspace has no Linux-native node_modules (esbuild/vitest and better-sqlite3 are installed for Windows on the host); the agent verifies the suite container-side via `docker exec server-guidance-guidance-1 sh -c 'cd /workspace/servers/server-guidance && npx vitest run'`. Convergence path: one-time in-container npm install (Linux-native node_modules) then tighten to required:true.",
+      "description": "Run the automated test suite. Non-blocking while the Docker workspace has no Linux-native node_modules (esbuild/vitest and better-sqlite3 are installed for Windows on the host). Preferred execution shell is WSL (node v24 via nvm): `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/Thinking-MCP/servers/server-guidance && npx vitest run'` — do NOT use the Windows shell (no node there); container fallback: `docker exec server-guidance-guidance-1 sh -c 'cd /workspace/servers/server-guidance && npx vitest run'`. Convergence path: one-time npm install (Linux-native node_modules) then tighten to required:true.",
       "type": "process",
       "executable": "npm",
       "args": ["test"],
