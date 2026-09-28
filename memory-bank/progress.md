@@ -496,3 +496,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 ## 2026-09-28: specs/011 Follow-ups gemerged (develop, fast-forward d809e92..47c0c9f)
 - Merge: feature/011-adopt-wizard-fixes → develop per --ff-only. Pre- und Post-Merge-Suite je 377/377 grün. Feature-Branch gelöscht. Enthält: Wizard-Warte-Pflicht in Sample-Prompts, clearthought Default-Profil (downstream + policies :3000 + Template), derived-Fragen-Skip im Adopt-Mode, Container-Only-Self-Containment (eingebettete Gate-Skripte, zero-dep-Seeder, mounted-Warnung).
 - Offen: Push auf origin/develop (ahead 3) — wartet auf Nutzerentscheid. niyama: Regenerate mit korrigiertem Wizard nötig (Alt-Config enthält Paket-Pfad-Referenzen).
+
+## 2026-09-28: specs/012 gemerged (develop, fast-forward 1b5ba2f..3356d1e)
+- Merge: feature/012-adopt-response-wisdom → develop per --ff-only. Pre- und Post-Merge-Suite je 386/386 grün. Feature-Branch gelöscht.
+- Inhalt: Responses-Adoption (FR-981), responses.json-Pflicht + Phasen-Deckung (FR-982, breaking für Alt-Referenzen), generischer Spec-Drift-Gate im Default-Profil (FR-983/984, neues Embedded-Skript check-spec-drift.mjs), Hardening (FR-985).
+- Offen: Push auf origin/develop (ahead 4) — wartet auf Nutzerentscheid. niyama: Regenerate mit neuem Wizard-Stand (ab 3356d1e) für Responses-Wisdom + Spec-Drift-Gate.
