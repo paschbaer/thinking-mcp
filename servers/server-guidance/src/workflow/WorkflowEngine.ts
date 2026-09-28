@@ -914,7 +914,8 @@ export class WorkflowEngine {
             requestTimeoutSeconds,
             `__containerRoute__${serverId}`,
           );
-          const succeeded = fb.kind === "success" || fb.kind === "tool_reported";
+          const succeeded =
+            fb.kind === "success" || fb.kind === "tool_reported";
           this.metrics.recordContainerRouteFallback(serverId, succeeded);
           // FR-035 review F5: keep FR-704 connection-status recording symmetric
           // with the primary path (the early return below must not skip it).
@@ -1704,8 +1705,7 @@ export class WorkflowEngine {
   private requestIdReuseMode(): "warn" | "reject-mismatch" {
     const mode = (
       this.config.policies as
-        | { submission?: { requestIdReuse?: unknown } }
-        | undefined
+        { submission?: { requestIdReuse?: unknown } } | undefined
     )?.submission?.requestIdReuse;
     return mode === "reject-mismatch" ? "reject-mismatch" : "warn";
   }
