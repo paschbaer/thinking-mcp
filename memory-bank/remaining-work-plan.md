@@ -1019,3 +1019,15 @@ Frischer Reviewer-Subagent über feature/multi-workspace a5f8f26 vs develop (Sna
   - Regression-Coverage: +2 Contract-Tests (raw forwarded content/data/warnings vollständig; `summary_and_errors` stripped weiter — SC-004 erhalten); profile-config-Test auf objectContaining umgestellt. Contract-Suite 206/206 (2 Bestätigungsläufe), `tsc --noEmit` grün.
   - Live verifiziert: Guidance-Container neu gebaut/deployed; `run_operation reasoning-pass` über :3003 liefert die vollständige `sequential_thinking`-Antwort (Thought + sessionContext) im `content`-Feld.
 - Parallel-Work-Vorfall (2026-09-28): Commit 025b682 (13:55, Niyama-Session auf develop) hat uncommittete memory-bank-Änderungen dieses Agenten (GDS-1..3-Nachtrag + aktiveContext/progress/lessons) eingesammelt; der später geschriebene GDS-4-Eintrag ging dabei verloren. Befund dokumentiert; deckt sich mit der Completion-Gate-Lesson (2026-09-26, session-3b7f96a5): parallele Agenten auf demselben Checkout brauchen Worktree-Isolation oder strikte Datei-Zuständigkeit. | Trigger: nächstes Parallel-Work-Scope — Datei-Zuständigkeit (memory-bank) pro Agent vereinbaren oder memory-bank-Edits sofort committen. | accepted with rationale (Vorfall dokumentiert; technische Folge GDS-4 ist durch den Neueintrag behoben)
+
+## RF-2 — GELÖST (2026-09-28, docs/rf2-fr981-merge)
+
+- [RF-2] LOW — GELÖST: FR-981-Semantikänderung (replace → merge für den
+  `instructions.global`-Slot, GDS-5) ist dokumentiert: Amendment-Notiz in
+  `specs/012-adopt-response-wisdom/spec.md` (FR-981) mit Verweis auf die
+  implementierenden Stellen (`ConfigAssistant.generateFiles`,
+  `renderAdoptedResponses`) und die kodierenden Contract-Tests. SDD v2
+  beschreibt die Replace-Semantik nicht (geprüft, 0 Treffer) — kein
+  Update nötig. Regression: Contract-Tests
+  `config-assistant-extensions.test.ts` kodieren die Merge-Erwartung;
+  docs-drift-Grün im Workflow-Abschluss.
