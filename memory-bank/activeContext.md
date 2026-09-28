@@ -3,13 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-## 2026-09-28: Config-Assistant generic patterns (session-2c0c15fe, feature/config-assistant-generic-patterns)
+## 2026-09-28: Config-Assistant generic patterns (session-2c0c15fe, MERGED: develop @ 42e37bf)
 - **Root cause (Niyama-Folge):** der FRESH-Generator selbst war nicht generisch — `buildOperations` (ConfigAssistant.ts) hardcodete den Lint-Op als `npx prettier --check servers/*/src/**/*.{ts,tsx}` (Thinking-MCP-Glob) → exit 2 in jedem Repo ohne `servers/`-Layout. Zweitbefund: Adopt-Klassifikation prüfte Genericität nur über Op-NAMEN (+ kryptische `includes('"repo"')`-Heuristik) — repo-spezifische Args unter generischem Name entkamen dem `[adopted]`-Marker.
 - **Umgesetzt:** (1) Lint-Op → `npm run lint` (required:false, aligned mit examples/default-guidance); (2) strukturelle Genericitätsregel (nach Review-Verfeinerung): Preset-Ops werden IMMER aus dem Target-Fresh-Template regeneriert — divergente Ref-Args erzeugen eine laute `REGENERATED … reference args discarded`-Note statt Kopie; nur Non-Preset-Ops werden mit `[adopted — review args/paths]`-Marker kopiert (deckt beide Fehlerichtungen: Glob-Leak UND Scope-Kontamination); (3) Tests: Fresh-Args frei von Repo-Globs + Lint-Shape gepinnt; Niyama-Klasse (mutierter Lint-Args → regeneriert + Note), Builtin-Konvergenz + Builtin-Sync-Pin, Preset-Op ohne Fresh-Entsprechung → nonGeneric; (4) README: Genericity-Rule + npm/npx/sh-Konventionsannahme dokumentiert.
 - **Validierung:** ConfigAssistant-Suiten 57/57 grün, tsc --noEmit clean; Guidance-Suite 429/429 grün; Verify-Gates: build (required) GRÜN, lint-Fail = prä-existierender Prettier-Drift in 5 fremden Dateien (TMPL-1), test-Fail = better-sqlite3-musl-dlopen im Container (TMPL-2) — beide required:false, nicht durch diesen Diff verursacht. Independent Review (Sub-Agent): 0 HIGH/CRITICAL; GitNexus-MCP-Timeouts (2×) → grep-Fallback je FR-035.
-- **Offen:** Commit/Merge der Branch folgt; Niyama-Container-Reparatur bleibt bei NIY-CFG-1/2 (remaining-work-plan).
+- **Status:** merged (rebase/fast-forward) in develop @ `42e37bf`, Feature-Branch gelöscht, Index frisch; Niyama-Container-Reparatur bleibt bei NIY-CFG-1/2, Prettier-Drift bei TMPL-1 (remaining-work-plan).
 
-## 2026-09-28: Independent Review RID-1 (develop fbd5bdc) — CHANGES REQUIRED
 ## 2026-09-28: Niyama Guidance-Session session-46a43aeb-6a87-4730-ac64-c73e613ae8d9 abgebrochen (Infrastruktur-Blocker)
 - **Kontext:** Session erreichte Phase `complete` nach Task 1 (gesamter C0+C1-Scope); verpflichtende Verification-Ops schlugen umgebungsbedingt fehl. Eigene Änderung (Standalone-.mjs + Markdown) kann build/lint/test nicht beeinflussen.
 - **Befunde:** (1) lint exit 2 — Pattern `servers/*/src/**/*.{ts,tsx}` existiert im Repo nicht (Verification-Config aus fremdem Repo-Layout kopiert, vermutlich Thinking-MCP `servers/`-Monorepo); (2) test exit 1 — `Cannot find module @rollup/rollup-linux-x64-musl` (Guidance-Container `/workspaces/Niyama`, pnpm-Store unvollständig/musl-inkompatibel). Keine der beiden Ops ist agent-invocable → nicht nachführbar.
