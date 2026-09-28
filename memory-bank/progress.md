@@ -511,3 +511,13 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - Merge: feature/013-wisdom-baseline → develop per --ff-only. Pre- und Post-Merge-Suite je 395/395 grün. Feature-Branch gelöscht.
 - Inhalt: Zwei Responses-Baselines (fresh generisch + Drift-Guard; adopt rendert responses-wisdom.json mit Platzhaltern/Bedingungsblöcken), mounted-Fallback 012-kompatibel, Renderer fail-closed (Unknown-Token/Unbalanced/Strict-Leftovers für Wisdom).
 - Offen: Push auf origin/develop (ahead 5) — wartet auf Nutzerentscheid. niyama: Regenerate mit Stand ≥ a0266d1.
+
+## 2026-09-28: Timeout-Diagnose guidance→clearthought abgeschlossen (getrackt als GDS-1..3)
+- Was works: komplette Kette live verifiziert gesund — clearthought /health 200 (82 ms aus Container), MCP-Handshake 200, `run_operation reasoning-pass` succeeded; get_metrics: reasoning-pass 13/13, 0 timedOut, max 177 ms. Guidance-Route timed out NICHT; beobachtete Timeouts = clientseitig (konsistent mit Diagnose 2026-09-27).
+- Was left: [GDS-1] `get_downstream_status` auf HTTP-Transport strukturell immer "disconnected" (zustandsloser Per-Request-Engine-Bau) — Fix offen. [GDS-2] Stale Session-IDs → stilles `session_not_found` bei forced first use. [GDS-3] Widersprüchlicher Alt-Eintrag 2026-09-27 ("Status ready") zu korrigieren. Details in remaining-work-plan.md.
+- Current state: Diagnose-Sitzung abgeschlossen, Test-Workflow-Session (session-83429b58) sauber gecancelt; alle Befunde in activeContext.md + remaining-work-plan.md persistiert.
+
+## 2026-09-28: requestId-Reuse-Stall diagnostizert + Prävention umgesetzt (feature/requestid-reuse-prevention)
+- What works: Niyama-Stall (session-46a43aeb) auf Root Cause aufgelöst — WorkflowEngine.submitLocked replays gecachte Results bei wiederverwendeter requestId still; Phase-Advance erzwungen via frischer requestId (req-plan-review-adjusted-c0c1 → implement). Regel in beide Config-Assistant-Templates (responses.json + buildResponses-Drift-Guard, responses-wisdom.json, 6 Submission-Phasen) eingearbeitet; tests/contract+setup 210/210 grün. Commits e0b756a (Templates) + f6a39a0 (Memory-Bank).
+- What's left: [RID-1] Server-Hardening (Replay-Marker, Payload-Hash-Check, Replay-Metric) — Plan in remaining-work-plan.md, noch nicht implementiert. Live-.guidance/responses.json bestehender Workspaces (u. a. Niyama) enthalten die Regel noch nicht → neu generieren. detect_changes zeichnete 2× Timeout auf (FR-035-Pfad dokumentiert).
+- Current state: Feature-Branch feature/requestid-reuse-prevention bereit (develop @ 0c4ccec), Merge/Review pending Nutzerentscheid.

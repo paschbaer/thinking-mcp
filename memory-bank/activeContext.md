@@ -3,6 +3,11 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-09-28: requestId-Reuse-Stall (Niyama session-46a43aeb) — Diagnose + Prävention
+- **Befund:** `WorkflowEngine.submitLocked` (~L1617) replays still das gecachte Result bei bereits registrierter requestId — 3× `accepted: true` ohne Phase-Advance in review_and_adjust_plan. Fix: Resubmission mit frischer requestId (`req-plan-review-adjusted-c0c1`) → sofort `implement`.
+- **Umgesetzt:** Lesson in memory-bank/lessonsLearned.md (Avoid-These-Mistakes + datierter Eintrag); Hardening-Plan RID-1 in memory-bank/remaining-work-plan.md; Regel-Satz „Submission idempotency …“ in beide Config-Assistant-Templates (examples/default-guidance/responses-wisdom.json + responses.json, alle 6 Submission-Phasen, JSON-Validierung grün).
+- **Offen:** Live-.guidance/responses.json bestehender Workspaces (u. a. Niyama /workspaces/Niyama/.guidance) enthalten die Regel noch nicht → bei nächster Gelegenheit via setup_guidance_generate neu generieren oder hand-nachziehen; Server-Hardening (RID-1) umsetzen, siehe remaining-work-plan.
+
 ## 2026-09-26: Kleinkitems L256/L257/L253 (Guidance-Chain session-3b7f96a5)
 - **L256 FTS-Coverage (GELÖST):** `observations_fts` (FTS5, 500-Zeichen-Cap) + Insert-Trigger + Count-Guard-Backfill in `SqliteAdapter.init()`; `searchFullText` matcht beide Indizes (Dedupe bei Dual-Match). Tests `tests/contracts/fts-observation-coverage.test.ts` (7).
 - **L257 Postgres-FTS-Parität (GELÖST, Contract-Level):** `searchFullText` → sanitisierte AND-`tsquery` über goal_summary + Observations-Auszüge, INNER→**LEFT** JOIN signatures (2026-09-22-Bugklasse im zweiten Backend behoben), GIN-Expression-Indexe; SQL-Contract gepinnt in `tests/contracts/postgres-fts-parity.test.ts` (5). Offen: Live-Smoke-Test bei erster `EMMS_STORAGE_BACKEND=postgres`-Aktivierung.
@@ -752,6 +757,12 @@
 - Order-Bug beim ersten Lauf: enabledServers wurde VOR dem Adopt-Block aus initialen insight/gitnexus-Werten gebaut (immer clearthought-only) → Bedingungsblöcke rendernten nie; Fix: Set erst am Render-Aufruf.
 - Verification: Suite 393/393, tsc/build exit 0, detect-changes 4 Dateien/5 Symbole/LOW.
 
-## 2026-09-28: specs/013 Final-Review (Sub-Agent fd7b22e1) — Findings-Bilanz
+## 2026-09-28: specs/013 Final-Review (Sub-Agent fd7b22e1) — Findings-Bilanz [L755-758]
+
+## 2026-09-28: Guidance `get_downstream_status` zeigt auf HTTP-Transport strukturell immer "disconnected" (Diagnose-Sitzung, live verifiziert)
+- **Befund:** Der HTTP-Endpoint von server-guidance ist zustandslos — pro Request wird ein frischer McpServer + WorkflowEngine + ClientManager gebaut (server.ts L170-174: "Stateless streamable HTTP: fresh server+transport per request"). Der Verbindungsstatus (`ClientManager.statuses`, in-memory) wird nach jedem Request verworfen. Daher kann `get_downstream_status` über :3003/mcp niemals `ready` oder `failed` melden — nur den Default `disconnected` (WorkflowEngine.getDownstreamStatus L668: `st?.status ?? "disconnected"`). Live verifiziert: `run_operation reasoning-pass` = succeeded, unmittelbar danach Status weiterhin `disconnected`.
+- **Widerspruch zu Alt-Eintrag:** Der Eintrag 2026-09-27 (L697) meldet "clearthought-Status ready" — auf dem HTTP-Transport nach heutigem Befund nicht reproduzierbar (evtl. In-Process-Beobachtung oder anderes Build). Alt-Befund ist als review-quality issue zu betrachten; der technische Inhalt (Route funktioniert, 177 ms) bleibt gültig.
+- **Timeout-Einordnung (Folge der Diagnose):** guidance→clearthought timed out NICHT: get_metrics zeigt reasoning-pass 13/13 succeeded, 0 timedOut, max 177 ms; query-project-insights 22/22, max 258 ms. Beobachtete Timeouts stammen von einer anderen Route —primärverdacht: direkte Editor-MCP-Verbindung (clientseitiger Request-Timeout, konsistent mit Diagnose 2026-09-27 L685). Ausstehend: konkrete Fehlermeldung/Quelle eines Timeouts zuordnen.
+- **Nebenfunde:** (a) Alte Workflow-Session-IDs aus früheren Container-Läufen liefern `session_not_found` bei run_operation — ein "forced first use" schlägt damit still fehl und erzeugt keinen Downstream-Kontakt. (b) `get_metrics`-Zählwerte überleben Container-Restarts (persistiert in .guidance/state/metrics.jsonl), Verbindungsstatus nicht.
 - Final-Review (frischer Sub-Agent, HEAD deaa1de): 0 HIGH/CRITICAL. F-1 (LOW, gefixt): Unknown-Token-Throw + Strict-Leftover jetzt gekoppelt — wisdom fail-closed, lenient fallback behält 012-Pass-through (Regressionstest). F-2 (LOW, gefixt): GITNEXUS_URL wird in der Wisdom genutzt (complete-Phase, gitnexus-konditional). F-3 (LOW, gefixt): Mismatched-Close-Tag-Regressionstest ergänzt. F-4 (INFO, tracked): Coverage-Logik dupliziert (generateFiles/validateAdoptReference) — Trigger: nächste Änderung an Responses-File-Selection/Coverage → gemeinsamen Helper extrahieren. Weitere Getrackte: PROJECT_NAME-Render-Assert; AC-6 Self-Containment-Scan auf responses-wisdom.json ausweiten.
 - Implementation-Review (cb51d48e): F-1 MEDIUM (Non-kanonische {{…}}-Reste) → strictLeftovers-Lösung; F-2 Backreference; F-4 Tokens shipped. Alle in der Bilanz oben referenziert.
