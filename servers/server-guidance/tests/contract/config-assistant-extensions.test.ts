@@ -698,7 +698,6 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
   });
 
   it("clearthought is predefined in generated downstream-servers (fresh + adopt)", () => {
-    void ws;
     for (const answers of [
       {
         configSource: "fresh",
@@ -738,6 +737,39 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
       expect(
         policies.egress.httpHostAllowlist.some((h) => h.endsWith(":3000")),
       ).toBe(true);
+    }
+  });
+
+  it("gitnexus gets a containerRoute on fresh generation (REV-1)", () => {
+    void ws;
+    for (const transport of ["stdio", "http-docker"] as const) {
+      const { files } = generateFiles({
+        configSource: "fresh",
+        projectName: "t",
+        transport,
+        profile: "plain",
+        insight: false,
+        gitnexus: true,
+        gates: "minimal",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      const downstream = JSON.parse(byPath["downstream-servers.json"]!) as {
+        servers: Record<
+          string,
+          { containerRoute?: { url?: string }; transport?: { http?: { url?: string } } }
+        >;
+      };
+      const gitnexus = downstream.servers["gitnexus"]!;
+      expect(gitnexus.containerRoute?.url).toBeDefined();
+      expect(gitnexus.containerRoute!.url).toContain(":4747/api/mcp");
+      // the route host must be allowlisted in the generated policies
+      const policies = JSON.parse(byPath["policies.json"]!) as {
+        egress: { httpHostAllowlist: string[] };
+      };
+      expect(
+        policies.egress.httpHostAllowlist.some((h) => h.endsWith(":4747")),
+      ).toBe(true);
+      void gitnexus.transport;
     }
   });
 
