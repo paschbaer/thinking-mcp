@@ -6,7 +6,7 @@ Container-Only-Deployment existiert keine proven Reference — Adopt war dort nu
 mit explizit gemounteter Referenz möglich. Diese Spec liefert die gebündelte
 Alternative.
 **Namespace:** FR-971+
-**Status:** Draft — Implementierung folgt in dieser Session (Basis: 009-Adopt-Infrastruktur)
+**Status:** Implemented (2026-09-27, feature/011-adopt-templates)
 **Date:** 2026-09-27
 
 ## Overview
