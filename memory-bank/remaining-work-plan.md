@@ -9,23 +9,22 @@
 
 ## Tracked Follow-ups
 
-- [REV-1] LOW (Session-Review 2026-09-28, session-2c0c15fe, accepted with
-  rationale + Klärungs-Follow-up) | FR-035-Timeout-Fallback-Reihenfolge:
-  nach 2× Timeout von GitNexus-MCP `impact` bin ich direkt auf
-  grep/terminal-CLI gefallen statt erst `report_blocker` (bzw. Container-
-  Route). Reproduzierbar: Session-Transkript (2× Context server request
-  timeout auf impact/generateFiles). ABER: Container-Route war für gitnexus
-  gar nicht verfügbar — nur clearthought hat `containerRoute` in
-  downstream-servers.json; und der FR-035-Zusatz erlaubt ausdrücklich
-  "route heavy GitNexus work (analyze/reindex) through the terminal CLI
-  instead of MCP". Deviation also dokumentiert und funktional harmlos
-  (Fallback erfolgreich), aber Regel-Text und Verhalten klaffen.
-  | Trigger: nächster FR-035-Kontakt — Entscheidung: (a) FR-035-Text
-  erweitern (read-only Graph-Queries → CLI/grep-Fallback ausdrücklich
-  erlaubt, report_blocker nur bei nicht verfügbarem Fallback) ODER (b)
-  gitnexus containerRoute in downstream-servers.json ergänzen. Der
-  clearthought-`sequential_thinking`-Timeout (1×, Retry erfolgreich) war
-  regelkonform. | accepted with rationale + Klärung action required.
+- [REV-1] LOW (Session-Review 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-28) |
+  FR-035-Timeout-Fallback für GitNexus: gitnexus hatte keine Container-Route
+  → GEFIXT: `containerRoute` für gitnexus definiert (live
+  .guidance/downstream-servers.json + Template + buildDownstream-Generator;
+  Endpoint `:4747/api/mcp`, per Initialize-Probe verifiziert; Egress-
+  Allowlist :4747 war bereits vorhanden; Live-Config im Container per
+  loadConfig validiert; Regressionstest für beide Transports; Suite 430/430).
+  Commit ff3dc1d. Regeltext-Klärung (report_blocker vs. CLI-Fallback nach
+  2. Timeout) verbleibt als akzeptierte Anmerkung in REV-1-Historie — der
+  praktische Fall (route unavailable → lokal) ist nun obsolet.
+  | — | resolved
+- [REV-1-HISTORIE] LOW (Session-Review 2026-09-28, session-2c0c15fe, accepted
+  with rationale) | FR-035-Timeout-Fallback-Reihenfolge: nach 2× Timeout von
+  GitNexus-MCP `impact` direkt auf grep/terminal-CLI statt report_blocker/
+  Container-Route. Fundstelle siehe REV-1 (resolved). | — | resolved
+  (subsumed)
 - [REV-2] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
   required) | `get_next_task` auf einer Session ohne importierte Spec-Kit-
   Artefakte wirft `spec_kit_artifact_missing` (reproduziert, auch nach
