@@ -699,6 +699,49 @@ function applyHttpTransports(
   const allowlist = allowlistRaw as string[];
   for (const [id, raw] of Object.entries(servers)) {
     if (raw["enabled"] === false) continue;
+    // FR-035 amendment (review F1): containerRoute is HTTP egress regardless
+    // of the primary transport type — enforce allowlist + env-resolution for
+    // EVERY enabled server BEFORE the transport-type-specific block, so a
+    // stdio server's containerRoute cannot bypass egress policy.
+    const crEarly = raw["containerRoute"] as
+      | { url?: string; headers?: Record<string, string> }
+      | undefined;
+    if (crEarly?.url) {
+      let crParsed: URL;
+      try {
+        crParsed = new URL(crEarly.url);
+      } catch {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute.url is not a valid URL`,
+        );
+      }
+      if (!allowlist.includes(crParsed.host)) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: containerRoute host "${crParsed.host}" is not allowlisted in policies.egress.httpHostAllowlist`,
+        );
+      }
+      if (crEarly.headers) {
+        const crResolved: Record<string, string> = {};
+        for (const [key, value] of Object.entries(crEarly.headers)) {
+          crResolved[key] = value.replace(
+            /\$\{([A-Z_][A-Z0-9_]*)\}/g,
+            (_match, name: string) => {
+              const env = process.env[name];
+              if (env === undefined || env === "") {
+                throw new ConfigurationError(
+                  "configuration_invalid",
+                  `downstreamServers.${id}: environment variable ${name} (containerRoute.headers.${key}) is not set`,
+                );
+              }
+              return env;
+            },
+          );
+        }
+        crEarly.headers = crResolved;
+      }
+    }
     const transport = raw["transport"] as
       | {
           type?: string;
@@ -741,47 +784,6 @@ function applyHttpTransports(
         );
       }
       transport.http!.headers = resolved;
-    }
-    // FR-035 amendment: containerRoute is HTTP egress too — same allowlist +
-    // env-resolution rules as transport.http (fail-closed).
-    const cr = raw["containerRoute"] as
-      | { url?: string; headers?: Record<string, string> }
-      | undefined;
-    if (cr?.url) {
-      let crParsed: URL;
-      try {
-        crParsed = new URL(cr.url);
-      } catch {
-        throw new ConfigurationError(
-          "configuration_invalid",
-          `downstreamServers.${id}: containerRoute.url is not a valid URL`,
-        );
-      }
-      if (!allowlist.includes(crParsed.host)) {
-        throw new ConfigurationError(
-          "configuration_invalid",
-          `downstreamServers.${id}: containerRoute host "${crParsed.host}" is not allowlisted in policies.egress.httpHostAllowlist`,
-        );
-      }
-      if (cr.headers) {
-        const crResolved: Record<string, string> = {};
-        for (const [key, value] of Object.entries(cr.headers)) {
-          crResolved[key] = value.replace(
-            /\$\{([A-Z_][A-Z0-9_]*)\}/g,
-            (_match, name: string) => {
-              const env = process.env[name];
-              if (env === undefined || env === "") {
-                throw new ConfigurationError(
-                  "configuration_invalid",
-                  `downstreamServers.${id}: environment variable ${name} (containerRoute.headers.${key}) is not set`,
-                );
-              }
-              return env;
-            },
-          );
-        }
-        cr.headers = crResolved;
-      }
     }
   }
 }
