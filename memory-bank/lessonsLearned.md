@@ -6,6 +6,11 @@
 
 ## Avoid These Mistakes
 
+- **`git diff`/`git log` ohne `--no-pager` im Agent-Terminal hängt (2026-09-28, rezidiv):** im
+  non-interaktiven pty startet der Pager und blockiert den Call endlos (User-Abbruch nötig).
+  AGENTS.md fordert `--no-pager` für JEADEN read-only-git-Befehl — der Verstoß passierte genau bei
+  `git diff --stat`. → Prevention: nie einen git-Befehl ohne `--no-pager` absetzen (oder `PAGER=cat`),
+  auch bei "sicher kurzen" Diffs; bei Hanging-Call primär Pager vermuten, nicht git selbst.
 - **Config-assistant generators must be target-agnostic (Niyama incident, 2026-09-28):** the FRESH
   generator hardcoded a Thinking-MCP lint glob (`npx prettier --check 'servers/*/src/**/*.{ts,tsx}'`)
   into every generated workspace config — exit 2 in any repo without that layout. Fix + rule now in

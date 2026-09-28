@@ -9,6 +9,45 @@
 
 ## Tracked Follow-ups
 
+- [REV-1] LOW (Session-Review 2026-09-28, session-2c0c15fe, accepted with
+  rationale + Klärungs-Follow-up) | FR-035-Timeout-Fallback-Reihenfolge:
+  nach 2× Timeout von GitNexus-MCP `impact` bin ich direkt auf
+  grep/terminal-CLI gefallen statt erst `report_blocker` (bzw. Container-
+  Route). Reproduzierbar: Session-Transkript (2× Context server request
+  timeout auf impact/generateFiles). ABER: Container-Route war für gitnexus
+  gar nicht verfügbar — nur clearthought hat `containerRoute` in
+  downstream-servers.json; und der FR-035-Zusatz erlaubt ausdrücklich
+  "route heavy GitNexus work (analyze/reindex) through the terminal CLI
+  instead of MCP". Deviation also dokumentiert und funktional harmlos
+  (Fallback erfolgreich), aber Regel-Text und Verhalten klaffen.
+  | Trigger: nächster FR-035-Kontakt — Entscheidung: (a) FR-035-Text
+  erweitern (read-only Graph-Queries → CLI/grep-Fallback ausdrücklich
+  erlaubt, report_blocker nur bei nicht verfügbarem Fallback) ODER (b)
+  gitnexus containerRoute in downstream-servers.json ergänzen. Der
+  clearthought-`sequential_thinking`-Timeout (1×, Retry erfolgreich) war
+  regelkonform. | accepted with rationale + Klärung action required.
+- [REV-2] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
+  required) | `get_next_task` auf einer Session ohne importierte Spec-Kit-
+  Artefakte wirft `spec_kit_artifact_missing` (reproduziert, auch nach
+  Phase completed) — Profil war spec-kit, aber Import wurde nie gemacht.
+  Korrekt gehandhabt (Orchestrator-Batch existierte nicht → 
+  submit_implementation-Pfad), aber der Fehlaufruf kostet einen Turn und
+  der Hinweis "import_spec_kit_artifacts first" führt in die Irre, wenn
+  bewusst KEIN Spec-Kit-Flow genutzt wird.
+  | Trigger: nächste Session mit spec-kit-Profil — vorab entscheiden:
+  import_spec_kit_artifacts (wenn Task-Tracking gewünscht) ODER Task-Tools
+  komplett meiden (wie hier); langfristig Guidance-Guidance-Text für
+  spec-kit-Profil ohne Import präzisieren. | action required.
+- [REV-3] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
+  required — Regelverstoß) | `git diff --stat` ohne `--no-pager` in WSL
+  ließ das Terminal hängen (User musste abbrechen); Retry mit `--no-pager`
+  sofort grün. Verstoß gegen AGENTS.md-Terminal-Regel ("read-only git
+  commands MUST include --no-pager"). Reproduzierbar: Pager-Start bei
+  langem Diff im non-interaktiven pty.
+  | Trigger: ab sofort JEDER git-Lesebefehl mit `--no-pager` (steht schon
+  in AGENTS.md); Lesson in lessonsLearned.md ergänzt. | action required
+  (Verhaltensregel, kein Code-Fix).
+
 - [TMPL-1] LOW (Guidance-Session 2026-09-28, session-2c0c15fe, action required) |
   Prettier-Drift in 5 Dateien (src/config.ts, metrics/MetricsRepository.ts,
   remote/remote-session-manager.ts, state/SessionRepository.ts,
