@@ -523,3 +523,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - Current state: Feature-Branch feature/requestid-reuse-prevention bereit (develop @ 0c4ccec), Merge/Review pending Nutzerentscheid.
 - 2026-09-28 (nachmittag): GDS-4 umgesetzt — run_operation forwards complete tool responses (exposeOpResult-Vollresult, alle Ops auf returnToAgent:"raw"); Contract-Suite 206/206 (2×), tsc grün, live über neu deployten Guidance-Container verifiziert. Branch: feature/gds4-expose-op-content (uncommitted). Vorfall: fremder Commit 025b682 hatte uncommittete memory-bank-Edits eingesammelt (GDS-4-Eintrag verloren, neu geschrieben); Parallel-Work-Notiz in remaining-work-plan.md.
 - 2026-09-28: GDS-4 gemerged — feature/gds4-expose-op-content (377193c) per Rebase auf develop, Branch gelöscht. develop ahead 1 of origin (Push wartet auf Nutzerentscheid). Contract-Suite 206/206 vor Merge, live verifiziert.
+
+## 2026-09-28: RID-1 requestId-Replay-Hardening (session-dcd3ddc5, develop fbd5bdc)
+- What works: requestId-Replays sichtbar (replayed/duplicateOf/warning auf geklontem Result), Payload-Hash + Policy submission.requestIdReuse (warn Default / reject-mismatch → requestId_reuse_payload_mismatch), Metric requestIdReplays, 8 Contract-Tests, Doku (README + Amendment 006). Suite grün, tsc clean. Parallel-Agent-Revert von WorkflowEngine.ts durch Worktree-Isolation (worktrees/rid1) überstanden.
+- What's left: Push develop (ahead 2 of origin). Fresh-Baseline FR-035-Policy [CR-1] und Engine-Gating-Test [CR-2] weiterhin getrackt.
+- Current state: RID-1 umgesetzt und gemerged; Session-Completion via Container-Route (Guidance-Server lebt, Editor-MCP-Route stale).

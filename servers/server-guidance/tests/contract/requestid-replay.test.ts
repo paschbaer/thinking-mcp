@@ -6,7 +6,7 @@
  * always stay legal (both modes); fresh requestIds always advance the phase.
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, cpSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, cpSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
@@ -15,7 +15,7 @@ import { WorkflowTools } from "../../src/mcp-server/ToolHandlers.js";
 
 const FIXTURE_CONFIG = join(import.meta.dirname, "../workflow/fixtures/guidance");
 
-function makeTools(opts: { policies?: object } = {}): {
+function makeTools(opts: { policies?: object; reachableCompletion?: boolean } = {}): {
   tools: WorkflowTools;
   ws: string;
 } {
@@ -32,10 +32,24 @@ function makeTools(opts: { policies?: object } = {}): {
     }),
   );
   let configDir = FIXTURE_CONFIG;
-  if (opts.policies) {
+  if (opts.policies || opts.reachableCompletion) {
     configDir = join(ws, "config");
     cpSync(FIXTURE_CONFIG, configDir, { recursive: true });
-    writeFileSync(join(configDir, "policies.json"), JSON.stringify(opts.policies));
+    if (opts.policies) {
+      writeFileSync(join(configDir, "policies.json"), JSON.stringify(opts.policies));
+    }
+    if (opts.reachableCompletion) {
+      // RID-1 review RID-2: disable the lifecycle gates so the phase walk can
+      // actually reach 'completed' in tests (verify gates run host-side
+      // scripts that are unavailable in the unit environment).
+      const wfPath = join(configDir, "workflow.json");
+      const wf = JSON.parse(readFileSync(wfPath, "utf8"));
+      wf.phases.complete.lifecycle.beforeExit = [];
+      if (wf.phases.verify?.lifecycle?.beforeExit) {
+        wf.phases.verify.lifecycle.beforeExit = [];
+      }
+      writeFileSync(wfPath, JSON.stringify(wf, null, 2));
+    }
   }
   const config = loadConfig(configDir);
   return {
@@ -241,6 +255,77 @@ describe("requestId replay hardening (RID-1)", () => {
     );
     const metrics = await engine.getMetrics();
     expect(metrics.requestIdReplays).toEqual({ total: 2, payloadMismatches: 1 });
+  });
+
+  it("review RID-2: a failed completion does not poison the payload hash (reject-mismatch)", async () => {
+    const { tools, ws } = makeTools({
+      reachableCompletion: true,
+      policies: { version: 2, submission: { requestIdReuse: "reject-mismatch" } },
+    });
+    cleanup.push(ws);
+    const start = (await tools.startWorkflow({
+      workspaceRoot: mkdtempSync(join(tmpdir(), "guidance-rid1-ws-")),
+      request: "r",
+    })) as { sessionId: string };
+    const sid = start.sessionId;
+    await tools.submitUnderstanding(sid, { summary: "v1" }, "req-A");
+    await tools.submitPlan(
+      sid,
+      { tasks: [{ id: "T1", title: "t", files: [], tests: "", dependsOn: [] }] },
+      "req-P",
+    );
+    await tools.submitPlanReview(
+      sid,
+      { findings: [], approvedPlan: { tasks: [] } },
+      "req-PR",
+    );
+    await tools.submitImplementation(
+      sid,
+      { implementedTasks: ["T1"], changedFiles: ["a.ts"] },
+      "req-I",
+    );
+    await tools.submitImplementationReview(
+      sid,
+      { findings: [] },
+      "req-IR",
+    );
+    await tools.submitVerification(
+      sid,
+      { verificationSummary: ["all green"] },
+      "req-V",
+    );
+    // Attempt 1: INVALID report (schema requires summary) → rejected, no
+    // result registered, but the first-seen hash was stored.
+    await tools.completeWorkflow(
+      sid,
+      { knownLimitations: ["x"] } as unknown as Record<string, unknown>,
+      "req-C",
+    );
+    // Attempt 2: corrected payload → must succeed and UPDATE the hash.
+    const done = (await tools.completeWorkflow(
+      sid,
+      { summary: "final report" },
+      "req-C",
+    )) as Record<string, unknown>;
+    expect(done.status).toBe("completed");
+    // Replay of the accepted attempt-2 payload: legal idempotency retry —
+    // poisoned-hash would wrongfully reject it here (reject-mismatch mode).
+    const replay = (await tools.completeWorkflow(
+      sid,
+      { summary: "final report" },
+      "req-C",
+    )) as Record<string, unknown>;
+    expect(replay.replayed).toBe(true);
+    expect(replay.payloadMismatch).toBeUndefined();
+    // Negative control: the rejected attempt-1 payload IS a mismatch —
+    // under reject-mismatch that means a hard rejection.
+    await expect(
+      tools.completeWorkflow(
+        sid,
+        { knownLimitations: ["x"] } as unknown as Record<string, unknown>,
+        "req-C",
+      ),
+    ).rejects.toThrowError(/requestId_reuse_payload_mismatch/);
   });
 
   it("policies validation fails closed on an unknown requestIdReuse value", () => {
