@@ -724,16 +724,22 @@ export function generateFiles(answers: SetupAnswers): {
         );
       }
     }
-    responsesOverride = renderAdoptedResponses(refResponses, {
-      shell,
-      transport,
-      enabledServers: new Set<string>([
-        "clearthought",
-        ...(gitnexus ? ["gitnexus"] : []),
-        ...(insight ? ["insight"] : []),
-      ]),
-      projectName: name,
-    });
+    responsesOverride = renderAdoptedResponses(
+      refResponses,
+      {
+        shell,
+        transport,
+        enabledServers: new Set<string>([
+          "clearthought",
+          ...(gitnexus ? ["gitnexus"] : []),
+          ...(insight ? ["insight"] : []),
+        ]),
+        projectName: name,
+      },
+      // FR-995: wisdom sources must render completely; mounted fallback
+      // responses.json keeps the lenient 012 behavior.
+      { strictLeftovers: responsesSource.endsWith("responses-wisdom.json") },
+    );
     // FR-981 (specs/012): adopt the reference responses (process wisdom)
     // instead of regenerating generic ones. Only the instructions.global
     // slot is swapped to the target's shell answer; an empty shell answer
@@ -985,6 +991,7 @@ export function renderAdoptedResponses(
     enabledServers: Set<string>;
     projectName: string;
   },
+  opts?: { strictLeftovers?: boolean },
 ): string {
   const tokens: Record<string, string> = {
     CLEARTHOUGHT_URL: clearthoughtUrl(target.transport),
@@ -994,7 +1001,7 @@ export function renderAdoptedResponses(
   };
   const renderText = (text: string): string => {
     let out = text.replace(
-      /\{\{#server:([a-z-]+)\}\}([\s\S]*?)\{\{\/server:[a-z-]+\}\}/g,
+      /\{\{#server:([a-z-]+)\}\}([\s\S]*?)\{\{\/server:\1\}\}/g,
       (_m, name: string, body: string) =>
         target.enabledServers.has(name) ? body : "",
     );
@@ -1012,6 +1019,16 @@ export function renderAdoptedResponses(
       throw new GuidanceError(
         "configuration_invalid",
         "adopt source: unbalanced server-conditional block in responses",
+        { recoverable: true },
+      );
+    }
+    // FR-995 (specs/013): wisdom sources must render completely — any
+    // leftover {{...}} (wrong case, typos, spaces) fails closed instead of
+    // silently reaching the target config.
+    if (opts?.strictLeftovers && /\{\{/.test(out)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `adopt source: unrendered placeholder in wisdom responses: ${out.match(/\{\{[^}]*\}\}/)?.[0]}`,
         { recoverable: true },
       );
     }
