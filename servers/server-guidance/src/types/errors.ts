@@ -8,6 +8,7 @@ export const ERROR_CODES = [
   "session_locked",
   "workspace_not_registered",
   "invalid_active_phase",
+  "requestId_reuse_payload_mismatch",
   "invalid_transition",
   "submission_invalid",
   "required_field_missing",

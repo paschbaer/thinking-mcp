@@ -145,6 +145,8 @@ export interface WorkflowSession {
   submissions: Record<PhaseId, Submission>;
   blockers: Blocker[];
   requestIds: Record<string, unknown>;
+  /** RID-1: SHA-256 of the first submission payload per requestId (sorted-key JSON). */
+  requestPayloadHashes?: Record<string, string>;
   /** Amendment 002 (Workflow-Chaining): optional — absent = legacy session. */
   chainFrom?: string | null;
   /** Position in the chain, 0-based (0 = chain head). */

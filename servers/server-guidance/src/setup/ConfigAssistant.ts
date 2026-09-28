@@ -201,6 +201,7 @@ function buildPolicies(transport: string): string {
   const policies = {
     version: 2,
     egress: { httpHostAllowlist: hosts },
+    submission: { requestIdReuse: "warn" },
     trustLevels: {
       untrusted: { dataEgress: "none" },
       restricted: { dataEgress: "validated_inputs_only" },

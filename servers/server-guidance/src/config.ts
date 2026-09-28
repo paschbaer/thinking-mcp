@@ -788,6 +788,29 @@ function applyHttpTransports(
   }
 }
 
+function validatePolicies(policiesFile: Record<string, unknown>): void {
+  // RID-1: submission.requestIdReuse — optional enum, fail-closed.
+  const submission = policiesFile["submission"];
+  if (submission === undefined) return;
+  if (typeof submission !== "object" || Array.isArray(submission)) {
+    throw new ConfigurationError(
+      "configuration_invalid",
+      "policies.submission must be an object",
+    );
+  }
+  const mode = (submission as { requestIdReuse?: unknown }).requestIdReuse;
+  if (
+    mode !== undefined &&
+    mode !== "warn" &&
+    mode !== "reject-mismatch"
+  ) {
+    throw new ConfigurationError(
+      "configuration_invalid",
+      'policies.submission.requestIdReuse must be "warn" or "reject-mismatch"',
+    );
+  }
+}
+
 function validateOperations(operationsFile: Record<string, unknown>): void {
   const ops = operationsFile["operations"];
   if (ops === undefined) return;
@@ -953,6 +976,7 @@ export function loadConfig(
       const data = readJsonFile(path, key);
       if (key === "operations") validateOperations(data);
       if (key === "downstreamServers") validateDownstreamServers(data);
+      if (key === "policies") validatePolicies(data);
       loaded[key] = data;
       hashable.push(canonical(data));
     }

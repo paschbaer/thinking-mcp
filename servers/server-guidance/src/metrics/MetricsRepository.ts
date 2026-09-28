@@ -40,6 +40,8 @@ export interface MetricsSnapshot {
     string,
     { attempted: number; succeeded: number; failed: number }
   >;
+  /** RID-1: requestId replay counters (in-memory). */
+  requestIdReplays?: { total: number; payloadMismatches: number };
 }
 
 interface MetricsRecord {
@@ -75,6 +77,8 @@ export class MetricsRepository {
   /** FR-035 amendment: containerRoute fallback counters per server. */
   private readonly containerRouteFallbacks: Record<string, ContainerRouteBucket> =
     {};
+  /** RID-1: requestId replay counters (in-memory, not persisted). */
+  private readonly requestIdReplays = { total: 0, payloadMismatches: 0 };
   private replaying = false;
 
   constructor(private readonly file: string | null = null) {
@@ -130,6 +134,12 @@ export class MetricsRepository {
     else bucket.failed += 1;
   }
 
+  /** RID-1: count one requestId replay (payloadMismatch when the stored hash differs). */
+  recordRequestIdReplay(payloadMismatch: boolean): void {
+    this.requestIdReplays.total += 1;
+    if (payloadMismatch) this.requestIdReplays.payloadMismatches += 1;
+  }
+
   containerRouteFallbackSnapshot(): Record<string, ContainerRouteBucket> {
     return Object.fromEntries(
       Object.entries(this.containerRouteFallbacks).map(([k, v]) => [
@@ -150,6 +160,9 @@ export class MetricsRepository {
       connections: Object.values(this.connections).map((c) => ({ ...c })),
       ...(Object.keys(this.containerRouteFallbacks).length > 0
         ? { containerRouteFallbacks: this.containerRouteFallbackSnapshot() }
+        : {}),
+      ...(this.requestIdReplays.total > 0
+        ? { requestIdReplays: { ...this.requestIdReplays } }
         : {}),
     };
   }
