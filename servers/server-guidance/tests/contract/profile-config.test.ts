@@ -87,8 +87,9 @@ describe("profile customization (US2, SC-006, FR-006/008)", () => {
     const config = loadConfig(join(ws, ".guidance"));
     const engine = new WorkflowEngine({ config, stateDir: join(ws, "state") });
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
-    // understand.afterEnter runs at session start
-    expect(start.operations).toEqual([{ id: "custom-op", status: "succeeded", summary: expect.stringContaining("succeeded") }]);
+    // understand.afterEnter runs at session start (GDS-4: results now carry
+    // the full exposure-filtered payload, so assert via objectContaining)
+    expect(start.operations).toEqual([expect.objectContaining({ id: "custom-op", status: "succeeded", summary: expect.stringContaining("succeeded") })]);
     const out = await engine.submit(start.sessionId, "understand", { summary: "s" });
     expect(out.accepted).toBe(true);
     // plan.beforeExit (custom-op) runs when plan is exited later; entering plan runs no ops

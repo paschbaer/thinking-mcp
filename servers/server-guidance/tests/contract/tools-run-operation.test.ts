@@ -49,6 +49,7 @@ function seededWorkspace(): void {
       "unmarked-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('nope')"], required: false, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
       "slow-echo": { description: "d", type: "process", executable: "node", args: ["-e", "setTimeout(()=>{process.exit(0)},3000)"], required: false, invocableByAgent: true, timeoutSeconds: 30, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
       "secret-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('api_key: sk-abc123deployment')"], required: false, invocableByAgent: true, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "summary_and_errors" } },
+      "content-echo": { description: "d", type: "process", executable: "node", args: ["-e", "console.log('hi')"], required: false, invocableByAgent: true, timeoutSeconds: 10, validation: { exitCodeMustBeZero: true }, output: { returnToAgent: "raw" } },
     },
   }));
 }
@@ -150,6 +151,44 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     const res = await engine.runOperation(start.sessionId, "secret-echo");
     expect(JSON.stringify(res)).not.toContain("sk-abc123deployment");
+  });
+
+  it("GDS-4: forwards the complete downstream payload (content, data, warnings) for returnToAgent raw", async () => {
+    const contentBearing = {
+      execute: (config: { operationId: string }): Promise<NormalizedResult> =>
+        Promise.resolve({
+          operationId: config.operationId, capabilityType: "process", capabilityName: config.operationId,
+          status: "succeeded", summary: "reasoning done", validated: true,
+          data: { structured: { thoughtNumber: 1 } },
+          content: [{ type: "text", text: "SEQUENTIAL-THINKING-PAYLOAD" }],
+          warnings: [{ code: "demo", message: "advisory" }],
+          errors: [], protocolMetadata: {},
+        } as unknown as NormalizedResult),
+    } as unknown as OperationEngine;
+    const engine = makeEngine(contentBearing);
+    const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    const res = await engine.runOperation(start.sessionId, "content-echo");
+    expect(res.status).toBe("succeeded");
+    expect(JSON.stringify(res.content)).toContain("SEQUENTIAL-THINKING-PAYLOAD");
+    expect(res.data).toMatchObject({ structured: { thoughtNumber: 1 } });
+    expect(res.warnings).toEqual([{ code: "demo", message: "advisory" }]);
+  });
+
+  it("GDS-4: returnToAgent summary_and_errors still strips content (SC-004 semantics preserved)", async () => {
+    const contentBearing = {
+      execute: (config: { operationId: string }): Promise<NormalizedResult> =>
+        Promise.resolve({
+          operationId: config.operationId, capabilityType: "process", capabilityName: config.operationId,
+          status: "succeeded", summary: "done", validated: true,
+          data: {}, content: [{ type: "text", text: "SHOULD-NOT-LEAK" }],
+          warnings: [], errors: [], protocolMetadata: {},
+        } as unknown as NormalizedResult),
+    } as unknown as OperationEngine;
+    const engine = makeEngine(contentBearing);
+    const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    const res = await engine.runOperation(start.sessionId, "secret-echo");
+    expect(JSON.stringify(res)).not.toContain("SHOULD-NOT-LEAK");
+    expect(res.content).toEqual([]);
   });
 
   it.skipIf(process.platform === "win32")("hard-cancel kills a real running child, releases the lock (FR-202, SC-201)", async () => {
