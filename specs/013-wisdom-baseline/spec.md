@@ -8,7 +8,7 @@ gesammelte Prozess-Wissen. Nutzerentscheidung 2026-09-28: ZWEI Baselines —
 Fresh = generische Baseline, Adopt = **Wisdom-Baseline**, die der
 Config-Assistent auf das Ziel-Repo rendert.
 **Namespace:** FR-991+
-**Status:** Draft
+**Status:** Implemented (2026-09-28, feature/013-wisdom-baseline)
 **Date:** 2026-09-28
 **Vorgänger:** 009/011/012 (Adopt-Infrastruktur, Builtin-Template,
 Responses-Adoption)
