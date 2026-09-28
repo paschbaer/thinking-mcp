@@ -57,6 +57,9 @@ function readGitHead(repoRoot) {
       candidates.push("/mnt/" + driveMatch[1].toLowerCase() + "/" + driveMatch[2]);
       candidates.push("/workspace/" + driveMatch[2]);
       candidates.push("/workspaces/" + driveMatch[2]);
+      // D:\repos\<name> is mounted at /workspaces/<name> in the container
+      const reposMount = rawPointer.match(/^[A-Za-z]:\/(?:repos|workspaces)\/([^\/]+)(\/.*)$/);
+      if (reposMount) candidates.push("/workspaces/" + reposMount[1] + reposMount[2]);
     }
     const hit = candidates.find((c) => existsSync(c));
     if (!hit) fail(`worktree git dir does not exist in this container (tried: ${candidates.join(", ")})`);
