@@ -386,7 +386,10 @@ export class RemoteSessionManager {
     }
     const metaPath = this.metaPath(effectiveId);
     if (!existsSync(metaPath)) {
-      throw new Error("session_not_found");
+      throw new Error(
+        "session_not_found" +
+          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+      );
     }
     const meta = JSON.parse(
       readFileSync(metaPath, "utf-8"),
@@ -437,7 +440,10 @@ export class RemoteSessionManager {
   assertSessionBinding(meta: RemoteSessionMeta, bearerToken: string): void {
     if (!this.pairs.configured) return; // anonymer Fallback (FR-101.6)
     if (meta.key === null || !this.pairs.authenticate(meta.key, bearerToken)) {
-      throw new Error("session_not_found"); // kein Existenz-Oracle
+      throw new Error(
+        "session_not_found" +
+          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+      ); // kein Existenz-Oracle
     }
   }
 
@@ -517,7 +523,10 @@ export class RemoteSessionManager {
     // H1-Fix: Idle-Alter aus dem VOR-touch lastAccessAt berechnen.
     const idleDays =
       (Date.now() - new Date(meta.lastAccessAt).getTime()) / 86_400_000;
-    if (idleDays > TTL_DAYS) throw new Error("session_not_found");
+    if (idleDays > TTL_DAYS) throw new Error(
+        "session_not_found" +
+          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+      );
     meta.lastAccessAt = new Date().toISOString();
     writeFileSync(p, JSON.stringify(meta, null, 2));
   }
