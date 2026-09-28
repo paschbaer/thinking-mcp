@@ -117,6 +117,20 @@ export function saveCapabilityPins(
   renameSync(tmp, file);
 }
 
+/** GDS-4: full exposure-filtered operation result as returned to the agent
+ *  (run_operation, phase-activation ops, submit/complete operations arrays). */
+export interface ExposedOpResult {
+  id: string;
+  status: string;
+  summary: string;
+  content?: unknown[];
+  data?: Record<string, unknown>;
+  errors?: { code?: string; message: string }[];
+  warnings?: { code?: string; message?: string }[];
+  /** FR-404: one-time token for awaiting_client results. */
+  opToken?: string;
+}
+
 export interface StartResult {
   accepted: true;
   sessionId: string;
@@ -124,7 +138,7 @@ export interface StartResult {
   currentPhase: string;
   status: string;
   guidance: PhaseInstruction;
-  operations: { id: string; status: string; summary: string }[];
+  operations: ExposedOpResult[];
 }
 
 export interface ChainStep {
@@ -152,7 +166,7 @@ export interface SubmitResult {
   currentPhase: string;
   status: string;
   guidance?: PhaseInstruction;
-  operations?: { id: string; status: string; summary: string }[];
+  operations?: ExposedOpResult[];
   error?: { code: string; message: string; recoverable: boolean };
   /** Amendment 002: set when a chain successor was created for this completion. */
   nextSessionId?: string;
@@ -893,7 +907,7 @@ export class WorkflowEngine {
   async runOperation(
     sessionId: string,
     operationId: string,
-  ): Promise<{ id: string; status: string; summary: string }> {
+  ): Promise<ExposedOpResult> {
     const routed = this.routedFor(sessionId);
     if (routed) return routed.runOperation(sessionId, operationId);
 
@@ -1566,7 +1580,11 @@ export class WorkflowEngine {
     );
   }
 
-  /** FR-037/§30: op result filtered per returnToAgent exposure before agent-facing use. */
+  /** FR-037/§30: op result filtered per returnToAgent exposure before agent-facing use.
+   *  GDS-4: the full exposure-filtered payload (content, data, errors, warnings)
+   *  is forwarded — never just {id,status,summary}. Downstream content is
+   *  redacted upstream (OperationEngine), so this is a projection, not a
+   *  sanitization step. */
   private exposeOpResult(
     r: {
       operationId: string;
@@ -1574,9 +1592,11 @@ export class WorkflowEngine {
       summary: string;
       content?: unknown[];
       data?: Record<string, unknown>;
+      errors?: { code?: string; message?: string }[];
+      warnings?: { code?: string; message?: string }[];
     },
     config?: OperationConfig,
-  ): { id: string; status: string; summary: string } {
+  ): ExposedOpResult {
     const mode = config?.output?.returnToAgent ?? "summary_and_errors";
     const exposed = this.policyEngine.applyExposure(
       {
@@ -1584,18 +1604,16 @@ export class WorkflowEngine {
         content: r.content ?? [],
         data: r.data ?? {},
         errors: [],
-        warnings: [],
-        protocolMetadata: {},
+        warnings: r.warnings ?? [],
       },
       mode,
     );
     const errorMessages: string[] =
-      (r as { errors?: { message: string }[] }).errors?.map((e) =>
-        this.redactor.redact(e.message),
-      ) ?? [];
+      r.errors?.map((e) => this.redactor.redact(String(e.message ?? ""))) ?? [];
+    const includeErrors =
+      mode === "summary_and_errors" || mode === "normalized" || mode === "raw";
     const suffix =
-      errorMessages.length > 0 &&
-      (mode === "summary_and_errors" || mode === "normalized" || mode === "raw")
+      errorMessages.length > 0 && includeErrors
         ? `: ${errorMessages.join("; ").slice(0, 500)}`
         : "";
     // spec 005 FR-404: awaiting_client-Resultate tragen den One-Time-Token,
@@ -1605,6 +1623,15 @@ export class WorkflowEngine {
       id: r.operationId,
       status: r.status,
       summary: exposed.summary + suffix,
+      content: exposed.content as unknown[],
+      data: exposed.data as Record<string, unknown>,
+      errors: includeErrors
+        ? errorMessages.map((message) => ({ message }))
+        : [],
+      warnings: (exposed.warnings ?? []) as {
+        code?: string;
+        message?: string;
+      }[],
       ...(opToken ? { opToken } : {}),
     };
   }
@@ -2281,7 +2308,7 @@ export class WorkflowEngine {
           ...err.toResponse(),
           sessionId,
           operations: opResults,
-        } as SubmitResult;
+        } as unknown as SubmitResult;
       }
       const target = this.selectTransition(phaseDef?.transitions ?? [], true);
       if (target) {
