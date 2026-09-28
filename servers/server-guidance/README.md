@@ -328,6 +328,32 @@ deployment where `/workspace/.guidance/` IS the reference):
 > write them to this project's root. Then add `.guidance/state/` to the
 > `.gitignore` and remind me to run `gitnexus analyze --no-stats` here.
 
+Example prompt (regenerate an existing configuration — e.g. after upgrading
+the guidance server so the target repo picks up the new wizard behavior):
+
+> This repo should have its Guidance configuration regenerated with the
+> current wizard. Run `setup_guidance_start`, answer `configSource` with
+> `adopt` and leave `referencePath` empty (or set it to `builtin`). Then ask
+> me the remaining questions one at a time and wait for my answer before
+> continuing — do not answer on my behalf and do not assume defaults
+> (profile/insight/gitnexus/gates are derived from the template and will not
+> be asked). Once complete, generate the files and write them to the project
+> root. Then add `.guidance/state/` to the `.gitignore` and remind me to run
+> `gitnexus analyze --no-stats` here.
+>
+> Notes for regeneration:
+>
+> - Replace the old `.guidance/` directory instead of merging into it — the
+>   previous fileset may reference scripts inside the guidance package that
+>   no longer exist in this repo. Keep `.guidance/state/` if present.
+> - The regenerated configuration must be self-contained: the only allowed
+>   occurrences of guidance-package paths are provenance metadata
+>   (`adoption.resolvedPath` in `guidance.json`); gate helper scripts are
+>   embedded under `.guidance/scripts/` and referenced target-locally.
+> - Old sessions die by design: configurations are snapshotted per session
+>   (`configurationVersion`), so a restart/new session is required and prior
+>   sessions fail closed after regeneration.
+
 > **Self-containment rule (container-only):** a generated configuration must
 > not depend on files outside the target repository. Gate helper scripts
 > (`.guidance/scripts/check-final-review.mjs`,
