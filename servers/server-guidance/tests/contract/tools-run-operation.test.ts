@@ -107,6 +107,8 @@ describe("run_operation: on-demand invocation (spec 003 US1, FR-101..107)", () =
     const start = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
     await expect(engine.runOperation(start.sessionId, "nope")).rejects.toThrowError(/operation_not_configured/);
     await expect(engine.runOperation("session-does-not-exist", "invocable-echo")).rejects.toThrowError(/session_not_found/);
+    // GDS-2: the error carries a recovery hint (hint only, no id listing)
+    await expect(engine.runOperation("session-does-not-exist", "invocable-echo")).rejects.toThrowError(/start_workflow/);
   });
 
   it("records an operation_invoked audit event with the outcome (FR-103)", async () => {

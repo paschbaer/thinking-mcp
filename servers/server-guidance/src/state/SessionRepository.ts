@@ -57,7 +57,11 @@ export class SessionRepository {
   load(sessionId: string): WorkflowSession {
     const path = this.pathOf(sessionId);
     if (!existsSync(path)) {
-      throw new GuidanceError("session_not_found", `no session ${sessionId}`, {
+      throw new GuidanceError(
+        "session_not_found",
+        `no session ${sessionId}` +
+          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+        {
         recoverable: true,
       });
     }
