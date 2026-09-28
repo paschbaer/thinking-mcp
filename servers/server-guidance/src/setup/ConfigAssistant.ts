@@ -617,8 +617,9 @@ export function generateFiles(answers: SetupAnswers): {
   const configSource = String(answers.configSource ?? "fresh");
   const adopt = configSource === "adopt";
   const referencePath =
-    answers.referencePath !== undefined && answers.referencePath !== ""
-      ? String(answers.referencePath)
+    answers.referencePath !== undefined &&
+    String(answers.referencePath).trim() !== ""
+      ? String(answers.referencePath).trim()
       : undefined;
   let profile = String(answers.profile ?? "plain");
   const shell = String(answers.shell ?? "");
@@ -631,6 +632,7 @@ export function generateFiles(answers: SetupAnswers): {
   let workflowOverride: string | undefined;
   let policiesOverride: string | undefined;
   let downstreamOverride: string | undefined;
+  let responsesOverride: string | undefined;
   let adoptionBlock: Record<string, unknown> | undefined;
   let nonGenericRefOps: Record<string, Record<string, unknown>> = {};
   let resolvedReference = referencePath;
@@ -685,6 +687,16 @@ export function generateFiles(answers: SetupAnswers): {
     workflowOverride = wfText;
     policiesOverride = buildPolicies(transport);
     downstreamOverride = buildDownstream(insight, gitnexus, transport);
+    // FR-981 (specs/012): adopt the reference responses (process wisdom)
+    // instead of regenerating generic ones. Only the instructions.global
+    // slot is swapped to the target's shell answer (mirror of the workflow
+    // swap above; an empty shell answer removes the slot).
+    const refResponses = JSON.parse(
+      readFileSync(join(resolvedReference, "responses.json"), "utf8"),
+    ) as Record<string, unknown>;
+    if (shell) refResponses["instructions"] = { global: shell };
+    else delete refResponses["instructions"];
+    responsesOverride = JSON.stringify(refResponses, null, 2);
     adoptionBlock = {
       // AC-3 (specs/011): audit block names the template, not the path;
       // resolvedPath (builtin only) keeps the actual location auditable.
@@ -745,7 +757,10 @@ export function generateFiles(answers: SetupAnswers): {
       path: "workflow.json",
       content: workflowOverride ?? buildWorkflow(gates, gitnexus, insight),
     },
-    { path: "responses.json", content: buildResponses("") },
+    {
+      path: "responses.json",
+      content: responsesOverride ?? buildResponses(""),
+    },
     {
       path: "operations.json",
       content: buildOperations(gates, gitnexus, insight, name, transport),
@@ -819,6 +834,10 @@ export function generateFiles(answers: SetupAnswers): {
     [
       ".guidance/scripts/seed-lessons.mjs",
       join(PKG_ROOT, "scripts", "embedded", "seed-lessons.mjs"),
+    ],
+    [
+      ".guidance/scripts/check-spec-drift.mjs",
+      join(PKG_ROOT, "scripts", "embedded", "check-spec-drift.mjs"),
     ],
   ];
   for (const [relPath, absPath] of embeddedScripts) {
@@ -931,6 +950,7 @@ export function validateAdoptReference(referenceDir: string): void {
   const requiredFiles = [
     "guidance.json",
     "workflow.json",
+    "responses.json",
     "policies.json",
     "operations.json",
     "downstream-servers.json",
@@ -983,6 +1003,24 @@ export function validateAdoptReference(referenceDir: string): void {
       throw new GuidanceError(
         "configuration_invalid",
         `adopt source: missing/unreadable file profiles/${profile}.json (FR-908)`,
+        { recoverable: true },
+      );
+    }
+  }
+  // FR-982 (specs/012): responses-adoption requires phase coverage — every
+  // phase of the copied workflow.json must have a response in the reference.
+  const workflow = JSON.parse(
+    readFileSync(join(dir, "workflow.json"), "utf-8"),
+  ) as { phases?: Record<string, unknown> };
+  const responses = JSON.parse(
+    readFileSync(join(dir, "responses.json"), "utf-8"),
+  ) as { responses?: Record<string, unknown> };
+  const responseIds = new Set(Object.keys(responses.responses ?? {}));
+  for (const phaseId of Object.keys(workflow.phases ?? {})) {
+    if (!responseIds.has(phaseId)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `adopt source: responses missing phase ${phaseId}`,
         { recoverable: true },
       );
     }

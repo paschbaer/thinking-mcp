@@ -45,6 +45,17 @@
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
       "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
     },
+    "docs-drift": {
+      "description": "Spec status drift gate (specs/012): verifies every specs/*/spec.md with a completed tasks.md is no longer Draft. Read-only.",
+      "type": "process",
+      "executable": "node",
+      "args": [".guidance/scripts/check-spec-drift.mjs", "."],
+      "required": true,
+      "timeoutSeconds": 60,
+      "riskClass": "read_only",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+    },
     "repository-analysis": {
       "description": "Analyze the repository using GitNexus (fallback: local CLI).",
       "type": "composite",

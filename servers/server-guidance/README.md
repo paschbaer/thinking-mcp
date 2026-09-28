@@ -287,13 +287,22 @@ project name, workspaces, shell) are **never inherited** — they always come
 from your answers. Non-generic reference operations are **copied** into the
 generated `operations.json` with an `[adopted from reference]` marker in
 their description — review their args/paths before relying on them.
+`responses.json` is **adopted from the reference** (specs/012 FR-981): the
+reference's phase instructions — including any process wisdom they carry —
+are kept, and only the `instructions.global` slot is swapped to the target's
+own shell answer (removed when no shell answer is given).
 A proven builtin reference ships with the guidance package at
 `examples/default-guidance` — use `referencePath: "builtin"` (or leave it
 empty in adopt mode) to select it; `GUIDANCE_BUILTIN_TEMPLATE_DIR` can point
 the resolver at a different template directory. Generation returns all six
 config files plus the seven submission schemas (from the resolved template's
 `schemas/`; if the directory is missing from the installation, the agent
-receives a copy hint instead of an error).
+receives a copy hint instead of an error). The builtin template also ships a
+generic **spec drift gate**: a `docs-drift` operation
+(`.guidance/scripts/check-spec-drift.mjs`) runs in the `complete` phase
+before the final-review gate and fails when a `specs/*/spec.md` is still
+marked Draft while its `tasks.md` has no open checkboxes (escape hatch: a
+`docs-drift: status ok` comment in the spec).
 
 Example prompt (fresh):
 

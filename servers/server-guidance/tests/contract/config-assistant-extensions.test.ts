@@ -3,6 +3,7 @@
  * adopt-reference validation helper (FR-902, AC-6).
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { execFileSync } from "node:child_process";
 import {
   mkdtempSync,
   rmSync,
@@ -164,6 +165,7 @@ describe("validateAdoptReference (specs/008 FR-902, AC-6)", () => {
     for (const f of [
       "guidance.json",
       "workflow.json",
+      "responses.json",
       "policies.json",
       "operations.json",
       "downstream-servers.json",
@@ -220,6 +222,7 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
     for (const f of [
       "guidance.json",
       "workflow.json",
+      "responses.json",
       "policies.json",
       "operations.json",
       "downstream-servers.json",
@@ -311,6 +314,7 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
         JSON.stringify({ profile: "plain" }),
       );
       writeFileSync(join(ref, "workflow.json"), "{}");
+      writeFileSync(join(ref, "responses.json"), "{}");
       writeFileSync(
         join(ref, "operations.json"),
         JSON.stringify({
@@ -348,6 +352,10 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
             understand: { lifecycle: { beforeExit: ["nonexistent-op"] } },
           },
         }),
+      );
+      writeFileSync(
+        join(ref, "responses.json"),
+        JSON.stringify({ version: 2, responses: { understand: {} } }),
       );
       // op is NOT in the reference operations.json → cannot be copied → coherence still fails closed (AD-1)
       writeFileSync(
@@ -402,6 +410,10 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
             },
           },
         }),
+      );
+      writeFileSync(
+        join(ref, "responses.json"),
+        JSON.stringify({ version: 2, responses: { complete: {} } }),
       );
       writeFileSync(
         join(ref, "operations.json"),
@@ -607,6 +619,7 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
       for (const f of [
         "guidance.json",
         "workflow.json",
+        "responses.json",
         "policies.json",
         "operations.json",
         "downstream-servers.json",
@@ -794,6 +807,7 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
       for (const f of [
         "guidance.json",
         "workflow.json",
+        "responses.json",
         "policies.json",
         "operations.json",
         "downstream-servers.json",
@@ -809,6 +823,14 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
             },
           },
         }),
+      );
+      writeFileSync(
+        join(ref, "responses.json"),
+        JSON.stringify({ version: 2, responses: { complete: {} } }),
+      );
+      writeFileSync(
+        join(ref, "responses.json"),
+        JSON.stringify({ version: 2, responses: { complete: {} } }),
       );
       writeFileSync(
         join(ref, "operations.json"),
@@ -833,6 +855,205 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
       ).toBe(true);
     } finally {
       rmSync(ref, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
+  function makeAdoptRef(opts?: {
+    wisdomMarker?: boolean;
+    refShell?: string;
+    omitResponses?: boolean;
+    responsesWithoutComplete?: boolean;
+  }): string {
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    for (const f of [
+      "guidance.json",
+      "workflow.json",
+      "policies.json",
+      "operations.json",
+      "downstream-servers.json",
+    ])
+      writeFileSync(join(ref, f), JSON.stringify({ profile: "plain" }));
+    mkdirSync(join(ref, "schemas"), { recursive: true });
+    writeFileSync(
+      join(ref, "workflow.json"),
+      JSON.stringify({
+        phases: {
+          understand: {},
+          complete: { lifecycle: { beforeExit: [] } },
+        },
+      }),
+    );
+    if (!opts?.omitResponses) {
+      const responses: Record<string, unknown> = {
+        version: 2,
+        responses: opts?.responsesWithoutComplete
+          ? { understand: {} }
+          : {
+              understand: {},
+              complete: {
+                title: "c",
+                instruction: opts?.wisdomMarker
+                  ? "REFERENCE WISDOM MARKER do the thing"
+                  : "generic",
+                requiredActions: [],
+              },
+            },
+      };
+      if (opts?.refShell) responses["instructions"] = { global: opts.refShell };
+      writeFileSync(join(ref, "responses.json"), JSON.stringify(responses));
+    }
+    return ref;
+  }
+
+  it("AC-1: reference response wisdom is adopted (marker survives)", () => {
+    void ws;
+    const ref = makeAdoptRef({ wisdomMarker: true, refShell: "OLD REF SHELL" });
+    try {
+      const { files } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+        shell: "NEW TARGET SHELL",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      expect(byPath["responses.json"]!).toContain("REFERENCE WISDOM MARKER");
+      expect(byPath["responses.json"]!).toContain("NEW TARGET SHELL");
+      expect(byPath["responses.json"]!).not.toContain("OLD REF SHELL");
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("AC-2: empty shell answer removes the instructions slot", () => {
+    void ws;
+    const ref = makeAdoptRef();
+    try {
+      const { files } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      const responses = JSON.parse(byPath["responses.json"]!) as {
+        instructions?: unknown;
+      };
+      expect(responses.instructions).toBeUndefined();
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-982: missing responses.json fails closed", () => {
+    void ws;
+    const ref = makeAdoptRef({ omitResponses: true });
+    try {
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+        }),
+      ).toThrowError(/adopt source: missing\/unreadable file responses\.json/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-982: workflow phase without response fails closed", () => {
+    void ws;
+    const ref = makeAdoptRef({ responsesWithoutComplete: true });
+    try {
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+        }),
+      ).toThrowError(/adopt source: responses missing phase complete/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-984/AC-5: builtin adopt embeds check-spec-drift and wires docs-drift first", () => {
+    void ws;
+    const { files } = generateFiles({
+      configSource: "adopt",
+      projectName: "t",
+      transport: "stdio",
+    });
+    const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+    expect(byPath[".guidance/scripts/check-spec-drift.mjs"]).toBeTruthy();
+    const wf = JSON.parse(byPath["workflow.json"]!) as {
+      phases: Record<string, { lifecycle?: { beforeExit?: string[] } }>;
+    };
+    expect(wf.phases.complete!.lifecycle!.beforeExit![0]).toBe("docs-drift");
+    const ops = JSON.parse(byPath["operations.json"]!) as {
+      operations: Record<string, { args?: string[] }>;
+    };
+    expect(ops.operations["docs-drift"]!.args).toContain(
+      ".guidance/scripts/check-spec-drift.mjs",
+    );
+  });
+
+  it("FR-984: check-spec-drift detects Draft-with-done-tasks and honors the override", () => {
+    const ws2 = mkdtempSync(join(tmpdir(), "specdrift-"));
+    const script = join(
+      resolveBuiltinReferencePath(),
+      "..",
+      "..",
+      "scripts",
+      "embedded",
+      "check-spec-drift.mjs",
+    );
+    try {
+      mkdirSync(join(ws2, "specs", "demo"), { recursive: true });
+      writeFileSync(
+        join(ws2, "specs", "demo", "spec.md"),
+        "**Status:** Draft\n",
+      );
+      writeFileSync(
+        join(ws2, "specs", "demo", "tasks.md"),
+        "- [x] done thing\n",
+      );
+      expect(() =>
+        execFileSync("node", [script, ws2], { stdio: "pipe" }),
+      ).toThrow();
+      writeFileSync(
+        join(ws2, "specs", "demo", "spec.md"),
+        "**Status:** Implemented\n<!-- docs-drift: status ok -->\n",
+      );
+      expect(() =>
+        execFileSync("node", [script, ws2], { stdio: "pipe" }),
+      ).not.toThrow();
+    } finally {
+      rmSync(ws2, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-985/AC-7: whitespace referencePath trims to builtin; whitespace env falls back to default", () => {
+    void ws;
+    const ENV_KEY = "GUIDANCE_BUILTIN_TEMPLATE_DIR";
+    const saved = process.env[ENV_KEY];
+    try {
+      process.env[ENV_KEY] = "   ";
+      expect(resolveBuiltinReferencePath()).not.toBe("   ");
+      const { files } = generateFiles({
+        configSource: "adopt",
+        referencePath: "   ",
+        projectName: "t",
+        transport: "stdio",
+      });
+      expect(files.length).toBeGreaterThan(0);
+    } finally {
+      if (saved === undefined) delete process.env[ENV_KEY];
+      else process.env[ENV_KEY] = saved;
     }
   });
 });
