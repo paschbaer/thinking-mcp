@@ -511,7 +511,7 @@ function buildOperations(
       executable: "sh",
       args: [
         "-c",
-        `EMMS_HTTP_URL=${emmsUrl(transport)} EMMS_LESSON_SCOPE=thinking-mcp-lessons node servers/server-insight/scripts/seed-lessons.mjs .guidance/state/session-lessons.json`,
+        `EMMS_HTTP_URL=${emmsUrl(transport)} EMMS_LESSON_SCOPE=${projectName}-lessons node .guidance/scripts/seed-lessons.mjs .guidance/state/session-lessons.json`,
       ],
       required: false,
       timeoutSeconds: 120,
@@ -806,6 +806,43 @@ export function generateFiles(answers: SetupAnswers): {
     notes.push(
       "http-docker: downstream URLs use host.docker.internal — ensure those servers are reachable from the container (allowlist already generated).",
     );
+  }
+  // Container-only self-containment (specs/011 follow-up): the generated
+  // config must not reference files outside the TARGET repo. The gate ops
+  // need helper scripts — embed them into .guidance/scripts/ at generation
+  // time (fail-closed: the scripts ship with the guidance package).
+  const embeddedScripts: [string, string][] = [
+    [
+      ".guidance/scripts/check-final-review.mjs",
+      join(PKG_ROOT, "scripts", "check-final-review.mjs"),
+    ],
+    [
+      ".guidance/scripts/seed-lessons.mjs",
+      join(PKG_ROOT, "scripts", "embedded", "seed-lessons.mjs"),
+    ],
+  ];
+  for (const [relPath, absPath] of embeddedScripts) {
+    let content: string;
+    try {
+      content = readFileSync(absPath, "utf8");
+    } catch {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `embedded gate script missing from the guidance package: ${absPath.replace(/\\/g, "/")}`,
+        { recoverable: false },
+      );
+    }
+    files.push({ path: relPath, content });
+  }
+  if (adopt && nonGenericRefOps) {
+    // Mounted references authored before the self-containment rule may copy
+    // ops pointing at guidance-package paths — surface them loudly.
+    const copied = JSON.stringify(nonGenericRefOps);
+    if (/servers\/(server-guidance|server-insight)\//.test(copied)) {
+      notes.push(
+        "WARNING: copied reference operations still reference scripts inside the guidance package (servers/server-guidance or servers/server-insight). Container-only deployments require self-contained configs — rewrite those args to .guidance/scripts/ (embedded copies are generated) or drop the ops.",
+      );
+    }
   }
   // AD-1 (specs/009 follow-up): merge non-generic reference ops into the
   // regenerated operations.json, marked in their description — the copied

@@ -328,6 +328,15 @@ deployment where `/workspace/.guidance/` IS the reference):
 > write them to this project's root. Then add `.guidance/state/` to the
 > `.gitignore` and remind me to run `gitnexus analyze --no-stats` here.
 
+> **Self-containment rule (container-only):** a generated configuration must
+> not depend on files outside the target repository. Gate helper scripts
+> (`.guidance/scripts/check-final-review.mjs`,
+> `.guidance/scripts/seed-lessons.mjs`) are embedded into the generated
+> fileset at generation time, and generated operations reference only these
+> target-local copies. Adopting a mounted reference whose operations still
+> point at guidance-package paths produces a loud warning note — rewrite or
+> drop such ops.
+>
 > **Deployment note:** `/workspace/.guidance/` only exists in the
 > self-hosting deployment (repo root mounted as `/workspace`). In a
 > container-only deployment (`docker compose up` from the package,

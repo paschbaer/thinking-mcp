@@ -581,9 +581,11 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
         Object.fromEntries(
           r.files.map((f) => [
             f.path,
-            JSON.parse(f.content, (k, v) =>
-              k === "date" || k === "resolvedPath" ? undefined : v,
-            ),
+            f.path.endsWith(".json")
+              ? JSON.parse(f.content, (k, v) =>
+                  k === "date" || k === "resolvedPath" ? undefined : v,
+                )
+              : f.content,
           ]),
         ),
       );
@@ -728,5 +730,109 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
       ),
     ) as { servers: Record<string, unknown> };
     expect(tpl.servers.clearthought).toBeTruthy();
+  });
+});
+
+describe("container-only self-containment (specs/011 follow-up, niyama finding)", () => {
+  const OFFENDER = /servers\/(server-guidance|server-insight)\//;
+
+  function assertSelfContained(r: ReturnType<typeof generateFiles>) {
+    const byPath = Object.fromEntries(r.files.map((f) => [f.path, f.content]));
+    // embedded helper scripts are part of the generated fileset
+    expect(byPath[".guidance/scripts/check-final-review.mjs"]).toBeTruthy();
+    expect(byPath[".guidance/scripts/seed-lessons.mjs"]).toBeTruthy();
+    // seeder must be dependency-free (target repo has no node_modules for the SDK)
+    expect(byPath[".guidance/scripts/seed-lessons.mjs"]).not.toMatch(
+      /from ["']@modelcontextprotocol/,
+    );
+    // NO generated file may reference guidance-package-internal paths as a
+    // dependency. Exception: adoption.resolvedPath in guidance.json is
+    // provenance metadata only (nothing reads or executes it).
+    for (const [p, c] of Object.entries(byPath)) {
+      const check =
+        p === "guidance.json"
+          ? JSON.stringify(
+              JSON.parse(c, (k, v) => (k === "resolvedPath" ? undefined : v)),
+            )
+          : c;
+      expect(check, p).not.toMatch(OFFENDER);
+    }
+    for (const n of r.notes) expect(n).not.toMatch(OFFENDER);
+    return byPath;
+  }
+
+  it("fresh generation embeds gate scripts and references no package-internal paths", () => {
+    void ws;
+    assertSelfContained(
+      generateFiles({
+        configSource: "fresh",
+        projectName: "t",
+        transport: "stdio",
+        profile: "plain",
+        insight: true,
+        gitnexus: true,
+        gates: "standard",
+      }),
+    );
+  });
+
+  it("builtin adopt embeds gate scripts and references no package-internal paths", () => {
+    void ws;
+    assertSelfContained(
+      generateFiles({
+        configSource: "adopt",
+        projectName: "t",
+        transport: "stdio",
+      }),
+    );
+  });
+
+  it("mounted reference with legacy package paths gets a loud warning note", () => {
+    void ws;
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    try {
+      for (const f of [
+        "guidance.json",
+        "workflow.json",
+        "policies.json",
+        "operations.json",
+        "downstream-servers.json",
+      ])
+        writeFileSync(join(ref, f), JSON.stringify({ profile: "plain" }));
+      mkdirSync(join(ref, "schemas"), { recursive: true });
+      writeFileSync(
+        join(ref, "workflow.json"),
+        JSON.stringify({
+          phases: {
+            complete: {
+              lifecycle: { beforeExit: ["legacy-gate"] },
+            },
+          },
+        }),
+      );
+      writeFileSync(
+        join(ref, "operations.json"),
+        JSON.stringify({
+          operations: {
+            "legacy-gate": {
+              type: "process",
+              executable: "node",
+              args: ["servers/server-guidance/scripts/old-gate.mjs"],
+            },
+          },
+        }),
+      );
+      const { notes } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      expect(
+        notes.some((n) => n.includes("WARNING: copied reference operations")),
+      ).toBe(true);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
   });
 });
