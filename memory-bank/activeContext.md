@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-09-28: FR-035-Amendment „Container-Route vor lokalem Fallback“ (session-1afb793f, feature/fr035-container-route)
+- **Scope (Nutzerentscheid):** Textregel + maschinell; FR-035 amendiert (Amendment 005 in specs/002); RID-1 folgt separat.
+- **Umgesetzt:** (1) FR-035-Text in responses-wisdom.json + live .guidance/responses.json auf Reihenfolge retry → Container-Route → lokal → report_blocker (7 Phasen je Datei); (2) `containerRoute`-Feld in downstream-servers.json (fail-closed Validierung + SSRF-Allowlist + ${ENV}-Header in config.ts), Template + Live-Config für clearthought befüllt; (3) Engine-Fallback: EIN automatischer Versuch über containerRoute bei read_only-Timeout (ClientManager.invokeOnTransientHttpRoute + Gate in WorkflowEngine.buildInvokerClosure), Metric containerRouteFallbacks in get_metrics; (4) Tests tests/contract/container-route-fallback.test.ts (11) — Suite 221/221 grün, tsc clean; (5) Doku: README downstream-Attributtabelle + specs/002/amendments/005.
+- **Live bestätigt:** reasoning-pass über Container-Route erfolgreich, während direct-MCP gestern 2× timeoutete — die neue Regel ist genau der bewährte Workaround.
+- **Offen (nächster Schritt):** RID-1-Session nach Merge dieses Scopes starten; Refresh der Workspace-Configs (Niyama) auf den neuen Template-Stand.
+
 ## 2026-09-28: requestId-Reuse-Stall (Niyama session-46a43aeb) — Diagnose + Prävention
 - **Befund:** `WorkflowEngine.submitLocked` (~L1617) replays still das gecachte Result bei bereits registrierter requestId — 3× `accepted: true` ohne Phase-Advance in review_and_adjust_plan. Fix: Resubmission mit frischer requestId (`req-plan-review-adjusted-c0c1`) → sofort `implement`.
 - **Umgesetzt:** Lesson in memory-bank/lessonsLearned.md (Avoid-These-Mistakes + datierter Eintrag); Hardening-Plan RID-1 in memory-bank/remaining-work-plan.md; Regel-Satz „Submission idempotency …“ in beide Config-Assistant-Templates (examples/default-guidance/responses-wisdom.json + responses.json, alle 6 Submission-Phasen, JSON-Validierung grün).

@@ -44,6 +44,9 @@
         "startupTimeoutSeconds": 30,
         "requestTimeoutSeconds": 120,
         "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+      },
+      "containerRoute": {
+        "url": "http://host.docker.internal:3000/mcp"
       }
     },
     "insight": {

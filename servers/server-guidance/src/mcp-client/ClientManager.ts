@@ -298,6 +298,94 @@ export class ClientManager {
   }
 
   /**
+   * FR-035 amendment: ONE invocation over a transient HTTP route (the
+   * server's configured `containerRoute`), independent of the primary
+   * connection. Callers gate this on read-only/idempotent operations and
+   * on a prior `timedOut` transport failure — this method never retries
+   * and never touches the primary client for `serverId`.
+   * `routeKey` is the test seam: a custom transport registered under that
+   * key (via useTransport) replaces the real HTTP transport.
+   */
+  async invokeOnTransientHttpRoute(
+    route: { url: string; headers?: Record<string, string> },
+    toolName: string,
+    args: Record<string, unknown>,
+    requestTimeoutSeconds?: number,
+    routeKey?: string,
+  ): Promise<
+    | { kind: "success"; content: unknown[]; structuredContent?: unknown }
+    | { kind: "tool_reported"; message: string; content: unknown[] }
+    | { kind: "transport"; message: string; timedOut?: boolean }
+  > {
+    let client: Client;
+    try {
+      client = new Client({ name: "guidance", version: "0.1.0" });
+      const custom = routeKey ? this.customTransports.get(routeKey) : undefined;
+      const transport = custom
+        ? await custom(routeKey ?? route.url)
+        : new StreamableHTTPClientTransport(new URL(route.url), {
+            requestInit: { headers: route.headers },
+          });
+      await client.connect(transport);
+    } catch (err) {
+      return {
+        kind: "transport",
+        message: `containerRoute connect failed: ${String(err)}`,
+      };
+    }
+    let timer: NodeJS.Timeout | undefined;
+    let timedOut = false;
+    try {
+      const call = client.callTool({ name: toolName, arguments: args });
+      call.catch(() => {}); // abandoned-on-timeout isolation, as in invokeOnce
+      const response = (await (requestTimeoutSeconds === undefined
+        ? call
+        : Promise.race([
+            call,
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(() => {
+                timedOut = true;
+                reject(
+                  new Error(
+                    `containerRoute request timed out after ${requestTimeoutSeconds}s`,
+                  ),
+                );
+              }, requestTimeoutSeconds * 1000);
+            }),
+          ]))) as {
+        isError?: boolean;
+        content?: unknown[];
+        structuredContent?: unknown;
+      };
+      if (response.isError) {
+        return {
+          kind: "tool_reported",
+          message: JSON.stringify(response.content ?? []),
+          content: response.content ?? [],
+        };
+      }
+      return {
+        kind: "success",
+        content: response.content ?? [],
+        structuredContent: response.structuredContent,
+      };
+    } catch (err) {
+      return {
+        kind: "transport",
+        message: String(err),
+        ...(timedOut ? { timedOut: true } : {}),
+      };
+    } finally {
+      if (timer) clearTimeout(timer);
+      try {
+        await client.close();
+      } catch {
+        /* isolate */
+      }
+    }
+  }
+
+  /**
    * HD-1: after a transport failure, drop the dead client and re-run the
    * handshake (with the original transport/handshake parameters) up to
    * `maximumAttempts` times, retrying the invocation after each successful

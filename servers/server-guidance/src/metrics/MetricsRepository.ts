@@ -35,6 +35,11 @@ export interface MetricsSnapshot {
       connections: ConnectionSnapshot[];
     }
   >;
+  /** FR-035 amendment: containerRoute fallback counters per server. */
+  containerRouteFallbacks?: Record<
+    string,
+    { attempted: number; succeeded: number; failed: number }
+  >;
 }
 
 interface MetricsRecord {
@@ -45,6 +50,12 @@ interface MetricsRecord {
   durationMs?: number;
   serverId?: string;
   status?: string;
+}
+
+interface ContainerRouteBucket {
+  attempted: number;
+  succeeded: number;
+  failed: number;
 }
 
 function emptyBucket(): OperationMetrics {
@@ -61,6 +72,9 @@ function emptyBucket(): OperationMetrics {
 export class MetricsRepository {
   private readonly operations: Record<string, OperationMetrics> = {};
   private readonly connections: Record<string, ConnectionSnapshot> = {};
+  /** FR-035 amendment: containerRoute fallback counters per server. */
+  private readonly containerRouteFallbacks: Record<string, ContainerRouteBucket> =
+    {};
   private replaying = false;
 
   constructor(private readonly file: string | null = null) {
@@ -104,6 +118,27 @@ export class MetricsRepository {
     });
   }
 
+  /** FR-035 amendment: count one containerRoute fallback attempt outcome. */
+  recordContainerRouteFallback(serverId: string, succeeded: boolean): void {
+    const bucket = (this.containerRouteFallbacks[serverId] ??= {
+      attempted: 0,
+      succeeded: 0,
+      failed: 0,
+    });
+    bucket.attempted += 1;
+    if (succeeded) bucket.succeeded += 1;
+    else bucket.failed += 1;
+  }
+
+  containerRouteFallbackSnapshot(): Record<string, ContainerRouteBucket> {
+    return Object.fromEntries(
+      Object.entries(this.containerRouteFallbacks).map(([k, v]) => [
+        k,
+        { ...v },
+      ]),
+    );
+  }
+
   snapshot(): MetricsSnapshot {
     return {
       operations: Object.fromEntries(
@@ -113,6 +148,9 @@ export class MetricsRepository {
         ]),
       ),
       connections: Object.values(this.connections).map((c) => ({ ...c })),
+      ...(Object.keys(this.containerRouteFallbacks).length > 0
+        ? { containerRouteFallbacks: this.containerRouteFallbackSnapshot() }
+        : {}),
     };
   }
 

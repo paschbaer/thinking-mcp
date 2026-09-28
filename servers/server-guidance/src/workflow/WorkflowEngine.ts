@@ -809,6 +809,10 @@ export class WorkflowEngine {
             delayMilliseconds?: number;
           };
         };
+        containerRoute?: {
+          url: string;
+          headers?: Record<string, string>;
+        };
         capabilities?: { allow?: { tools?: string[] } };
       }
     >,
@@ -881,6 +885,35 @@ export class WorkflowEngine {
         args,
         requestTimeoutSeconds,
       );
+      // FR-035 amendment: after a read-only/idempotent call timed out on the
+      // primary transport, make exactly ONE automatic attempt over the
+      // server's configured containerRoute before surfacing the failure.
+      // Non-timeout transport failures keep the reconnect path; non-idempotent
+      // risk classes never auto-replay (the call may already have run).
+      if (
+        result.kind === "transport" &&
+        result.timedOut === true &&
+        opForEgress?.riskClass === "read_only"
+      ) {
+        const cr = serverCfg?.containerRoute;
+        if (cr?.url) {
+          const fb = await this.clientManager!.invokeOnTransientHttpRoute(
+            { url: cr.url, headers: cr.headers },
+            toolName,
+            args,
+            requestTimeoutSeconds,
+            `__containerRoute__${serverId}`,
+          );
+          const succeeded = fb.kind === "success" || fb.kind === "tool_reported";
+          this.metrics.recordContainerRouteFallback(serverId, succeeded);
+          if (fb.kind !== "transport") return fb;
+          return {
+            kind: "transport",
+            message: `${result.message}; containerRoute fallback failed: ${fb.message}`,
+            timedOut: true,
+          };
+        }
+      }
       // spec 005 F3/FR-704: Verbindungs-Status je Downstream-Invoke messen.
       const st = this.clientManager!.statusOf(serverId);
       this.metrics.recordConnection(
