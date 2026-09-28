@@ -127,6 +127,8 @@ export interface ExposedOpResult {
   data?: Record<string, unknown>;
   errors?: { code?: string; message: string }[];
   warnings?: { code?: string; message?: string }[];
+  /** GDS-5: original MCP structuredContent (mcpTool ops, raw mode only). */
+  structuredContent?: unknown;
   /** FR-404: one-time token for awaiting_client results. */
   opToken?: string;
 }
@@ -1643,10 +1645,14 @@ export class WorkflowEngine {
       data?: Record<string, unknown>;
       errors?: { code?: string; message?: string }[];
       warnings?: { code?: string; message?: string }[];
+      protocolMetadata?: { structuredContent?: unknown } | null;
     },
     config?: OperationConfig,
   ): ExposedOpResult {
-    const mode = config?.output?.returnToAgent ?? "summary_and_errors";
+    // GDS-5: raw is the DEFAULT - the container route is a transparent
+    // proxy (agent-facing response identical to a direct tool call).
+    // Restriction modes are opt-out per operation.
+    const mode = config?.output?.returnToAgent ?? "raw";
     const exposed = this.policyEngine.applyExposure(
       {
         ...r,
@@ -1673,6 +1679,11 @@ export class WorkflowEngine {
       status: r.status,
       summary: exposed.summary + suffix,
       content: exposed.content as unknown[],
+      ...(mode === "raw" &&
+      exposed.protocolMetadata?.structuredContent !== undefined &&
+      exposed.protocolMetadata?.structuredContent !== null
+        ? { structuredContent: exposed.protocolMetadata.structuredContent }
+        : {}),
       data: exposed.data as Record<string, unknown>,
       errors: includeErrors
         ? errorMessages.map((message) => ({ message }))

@@ -692,7 +692,14 @@ export function generateFiles(answers: SetupAnswers): {
     let wfText = readFileSync(join(resolvedReference, "workflow.json"), "utf8");
     if (shell) {
       const wf = JSON.parse(wfText) as Record<string, unknown>;
-      wf["instructions"] = { global: shell };
+      // GDS-5/FR-981: MERGE the shell sentence with an existing template
+      // instructions.global (e.g. the worktree-isolation rule) instead of
+      // replacing the slot.
+      const existing = (wf["instructions"] as { global?: string } | undefined)
+        ?.global;
+      wf["instructions"] = {
+        global: [existing, shell].filter(Boolean).join("\n"),
+      };
       wfText = JSON.stringify(wf, null, 2);
     }
     workflowOverride = wfText;
@@ -1062,8 +1069,16 @@ export function renderAdoptedResponses(
     return value;
   };
   const rendered = renderValue(wisdom) as Record<string, unknown>;
-  if (target.shell) rendered["instructions"] = { global: target.shell };
-  else delete rendered["instructions"];
+  // GDS-5/FR-981: merge with an existing wisdom instructions.global slot
+  // instead of replacing it (keeps template-embedded rules on adopt).
+  const existingGlobal = (
+    rendered["instructions"] as { global?: string } | undefined
+  )?.global;
+  if (target.shell || existingGlobal) {
+    rendered["instructions"] = {
+      global: [existingGlobal, target.shell].filter(Boolean).join("\n"),
+    };
+  } else delete rendered["instructions"];
   return JSON.stringify(rendered, null, 2);
 }
 

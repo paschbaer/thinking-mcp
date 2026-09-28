@@ -9,6 +9,9 @@
       "cancelled"
     ]
   },
+    "instructions": {
+    "global": "Worktree isolation: parallel agents on the same checkout MUST isolate concurrent changes in separate git worktrees, each with its own workspaceRoot and .guidance state. Never commit, rebase, or write shared files (memory-bank/, .guidance/, SDD/) in a checkout another agent is actively working in; coordinate explicitly or work in your own worktree."
+  },
   "phases": {
     "understand": {
       "response": "understand",

@@ -73,7 +73,7 @@ async function startAndSubmitUnderstanding(
     start.sessionId,
     { summary, assumptions: [], acceptanceCriteria: [] },
     requestId,
-  )) as Record<string, unknown>;
+  )) as unknown as Record<string, unknown>;
 }
 
 describe("requestId replay hardening (RID-1)", () => {
@@ -94,13 +94,13 @@ describe("requestId replay hardening (RID-1)", () => {
       start.sessionId,
       { summary: "v1" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(first.replayed).toBeUndefined();
     const replay = (await tools.submitUnderstanding(
       start.sessionId,
       { summary: "v1" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(replay.accepted).toBe(true);
     expect(replay.replayed).toBe(true);
     expect(replay.duplicateOf).toBe("req-A");
@@ -120,12 +120,12 @@ describe("requestId replay hardening (RID-1)", () => {
       start.sessionId,
       { summary: "v1" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     const r2 = (await tools.submitUnderstanding(
       start.sessionId,
       { summary: "v1" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(r1).toEqual(r2); // stacked markers would break equality
   });
 
@@ -141,7 +141,7 @@ describe("requestId replay hardening (RID-1)", () => {
       start.sessionId,
       { summary: "TOTALLY DIFFERENT" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(replay.replayed).toBe(true);
     expect(replay.payloadMismatch).toBe(true);
   });
@@ -168,7 +168,7 @@ describe("requestId replay hardening (RID-1)", () => {
       start.sessionId,
       { summary: "v1" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(ok.replayed).toBe(true);
     expect(ok.payloadMismatch).toBeUndefined();
   });
@@ -184,7 +184,7 @@ describe("requestId replay hardening (RID-1)", () => {
       start.sessionId,
       { summary: "v1" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(s1.currentPhase).toBe("plan");
     // Phase-locked submissions: understanding again would fail with
     // invalid_active_phase regardless of requestId — the advance path is the
@@ -193,7 +193,7 @@ describe("requestId replay hardening (RID-1)", () => {
       start.sessionId,
       { tasks: [{ id: "T1", title: "t", files: [], tests: "", dependsOn: [] }] },
       "req-B",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(s2.replayed).toBeUndefined();
     expect(s2.previousPhase).toBe("plan");
     expect(s2.currentPhase).toBe("review_and_adjust_plan");
@@ -220,7 +220,7 @@ describe("requestId replay hardening (RID-1)", () => {
       start.sessionId,
       { summary: "v1" },
       "req-A",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(replay.replayed).toBe(true);
     expect(replay.duplicateOf).toBe("req-A");
     expect((replay as { error?: unknown }).error).toBeUndefined();
@@ -298,7 +298,7 @@ describe("requestId replay hardening (RID-1)", () => {
     // result registered, but the first-seen hash was stored.
     await tools.completeWorkflow(
       sid,
-      { knownLimitations: ["x"] } as unknown as Record<string, unknown>,
+      { knownLimitations: ["x"] } as unknown as unknown as Record<string, unknown>,
       "req-C",
     );
     // Attempt 2: corrected payload → must succeed and UPDATE the hash.
@@ -306,7 +306,7 @@ describe("requestId replay hardening (RID-1)", () => {
       sid,
       { summary: "final report" },
       "req-C",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(done.status).toBe("completed");
     // Replay of the accepted attempt-2 payload: legal idempotency retry —
     // poisoned-hash would wrongfully reject it here (reject-mismatch mode).
@@ -314,7 +314,7 @@ describe("requestId replay hardening (RID-1)", () => {
       sid,
       { summary: "final report" },
       "req-C",
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     expect(replay.replayed).toBe(true);
     expect(replay.payloadMismatch).toBeUndefined();
     // Negative control: the rejected attempt-1 payload IS a mismatch —
@@ -322,7 +322,7 @@ describe("requestId replay hardening (RID-1)", () => {
     await expect(
       tools.completeWorkflow(
         sid,
-        { knownLimitations: ["x"] } as unknown as Record<string, unknown>,
+        { knownLimitations: ["x"] } as unknown as unknown as Record<string, unknown>,
         "req-C",
       ),
     ).rejects.toThrowError(/requestId_reuse_payload_mismatch/);

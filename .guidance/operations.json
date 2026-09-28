@@ -10,7 +10,7 @@
       "timeoutSeconds": 300,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "test": {
       "description": "Run the automated test suite. Non-blocking while the Docker workspace has no Linux-native node_modules (esbuild/vitest and better-sqlite3 are installed for Windows on the host); the agent verifies the suite container-side via `docker exec server-guidance-guidance-1 sh -c 'cd /workspace/servers/server-guidance && npx vitest run'`. Convergence path: one-time in-container npm install (Linux-native node_modules) then tighten to required:true.",
@@ -21,7 +21,7 @@
       "timeoutSeconds": 900,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "build": {
       "description": "Build the project.",
@@ -32,7 +32,7 @@
       "timeoutSeconds": 600,
       "riskClass": "workspace_write",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "docs-drift": {
       "description": "Documentation-Drift-Gate (specs/010, FR-951/952): read-only deterministic checks — README tool table vs. tool-name sources, assistant question catalog, ERROR_CODES table coverage, spec status hygiene. Fails closed on missing README; exit 1 on any finding.",
@@ -43,7 +43,7 @@
       "timeoutSeconds": 60,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "final-review-gate": {
       "description": "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates the gate), no open HIGH/CRITICAL findings.",
@@ -54,7 +54,7 @@
       "timeoutSeconds": 60,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "index-freshness": {
       "description": "Verify the GitNexus index is FRESH: .gitnexus/meta.json (lastCommit + branch) must match git HEAD. Deterministic freshness check (GUID-6) — the git state is resolved by reading .git files, no git binary required. Refresh host-side via gitnexus analyze --no-stats.",
@@ -65,7 +65,7 @@
       "timeoutSeconds": 60,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "repository-analysis": {
       "description": "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh via analyze --no-stats). The index REFRESH itself stays a host-side pre-complete step (AGENTS.md): the HTTP server exposes no analyze tool.",
@@ -92,7 +92,7 @@
         "toolResultMustNotBeError": true,
         "requiredContent": true
       },
-      "output": { "returnToAgent": "raw", "retainRawResult": true },
+      "output": { "returnToAgent": "normalized", "retainRawResult": true },
       "failure": { "remainInPhase": true, "allowManualRetry": true, "reportToAgent": true }
     },
     "query-project-insights": {
@@ -108,7 +108,7 @@
         "value": { "query": "${session.request}", "scope_id": "${project.name}" }
       },
       "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": false }
+      "output": { "returnToAgent": "normalized", "retainRawResult": false }
     },
     "reasoning-pass": {
       "description": "Orchestrated Clear-Thought sequential_thinking pass (timeout-resilient route: guidance ClientManager with reconnect instead of the editor's direct MCP connection). Used for the workflow-mandated reasoning minimum (AGENTS.md); ad-hoc reasoning stays on the editor tools.",
@@ -129,7 +129,7 @@
         }
       },
       "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true }
+      "output": { "retainRawResult": true }
     },
     "capture-session-lessons": {
       "description": "Seed validated session lessons (see .github/prompts/capture-lessons.prompt.md pattern). The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow (empty array = no-op success; redact secrets). Idempotent per slug.",
@@ -144,7 +144,7 @@
       "timeoutSeconds": 120,
       "riskClass": "external_write",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "raw", "retainRawResult": true },
+      "output": { "returnToAgent": "normalized", "retainRawResult": true },
       "failure": { "remainInPhase": true, "allowManualRetry": true, "reportToAgent": true }
     }
   }

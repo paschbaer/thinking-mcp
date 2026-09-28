@@ -10,7 +10,7 @@
       "timeoutSeconds": 300,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "test": {
       "description": "Run the automated test suite.",
@@ -21,7 +21,7 @@
       "timeoutSeconds": 900,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "build": {
       "description": "Build the project.",
@@ -32,7 +32,7 @@
       "timeoutSeconds": 600,
       "riskClass": "workspace_write",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "final-review-gate": {
       "description": "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates the gate), no open HIGH/CRITICAL findings.",
@@ -43,7 +43,7 @@
       "timeoutSeconds": 60,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "docs-drift": {
       "description": "Spec status drift gate (specs/012): verifies every specs/*/spec.md with a completed tasks.md is no longer Draft. Read-only.",
@@ -54,7 +54,7 @@
       "timeoutSeconds": 60,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "repository-analysis": {
       "description": "Analyze the repository using GitNexus (fallback: local CLI).",
@@ -81,7 +81,7 @@
         "toolResultMustNotBeError": true,
         "requiredContent": true
       },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true },
+      "output": { "returnToAgent": "normalized", "retainRawResult": true },
       "failure": { "remainInPhase": true, "allowManualRetry": true, "reportToAgent": true }
     },
     "query-project-insights": {
@@ -97,7 +97,7 @@
         "value": { "query": "${session.request}", "scope": "${project.name}" }
       },
       "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
-      "output": { "returnToAgent": "normalized", "retainRawResult": false }
+      "output": { "retainRawResult": false }
     },
     "store-completion-insight": {
       "description": "Store a completion insight for the finished feature.",

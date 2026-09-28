@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -20,13 +20,47 @@ let evidencePath: string;
 
 /** Resolve HEAD without git binary (mirrors the script's readGitHead). */
 function readHead(): string {
-  const gitDir = join(REPO_ROOT, ".git");
+  // GDS-5: linked worktrees carry .git as a FILE with "gitdir: <path>".
+  const gitPath = join(REPO_ROOT, ".git");
+  let gitDir: string;
+  if (existsSync(gitPath) && statSync(gitPath).isFile()) {
+    const pointer = readFileSync(gitPath, "utf8").trim();
+    if (!pointer.startsWith("gitdir:")) throw new Error("cannot parse .git pointer");
+    gitDir = resolve(REPO_ROOT, pointer.slice("gitdir:".length).trim());
+    const driveIdx = gitDir.search(/[A-Za-z]:\//);
+    if (driveIdx >= 0) {
+      const rawWin = gitDir.slice(driveIdx).replace(/\\/g, "/");
+      const dm = rawWin.match(/^([A-Za-z]):\/(.*)$/);
+      const candidates = dm ? [
+        "/mnt/" + dm[1]!.toLowerCase() + "/" + dm[2]!,
+        "/workspace/" + dm[2],
+        "/workspaces/" + dm[2],
+      ] : [];
+      gitDir = candidates.find((c) => existsSync(c)) ?? gitDir;
+    }
+  } else {
+    gitDir = gitPath;
+  }
   const head = readFileSync(join(gitDir, "HEAD"), "utf8").trim();
   if (!head.startsWith("ref: ")) return head;
   const ref = head.slice(5).trim();
-  const loose = join(gitDir, ref);
-  if (existsSync(loose)) return readFileSync(loose, "utf8").trim();
-  const packed = readFileSync(join(gitDir, "packed-refs"), "utf8");
+  // GDS-5: loose refs may live in the worktree gitdir OR the common dir.
+  const commonDirFile = join(gitDir, "commondir");
+  const commonDir = existsSync(commonDirFile)
+    ? resolve(gitDir, readFileSync(commonDirFile, "utf8").trim())
+    : gitDir;
+  const looseCandidates = [join(gitDir, ref), join(commonDir, ref)];
+  for (const loose of looseCandidates) {
+    if (existsSync(loose)) return readFileSync(loose, "utf8").trim();
+  }
+
+  // packed-refs live in the COMMON dir for linked worktrees
+  const packedPaths = [join(commonDir, "packed-refs"), join(gitDir, "packed-refs")];
+  const packed = packedPaths
+    .filter((p) => existsSync(p))
+    .map((p) => readFileSync(p, "utf8"))
+    .find((c) => c.split("\n").some((line) => line.endsWith(" " + ref)));
+  if (packed === undefined) throw new Error("cannot resolve " + ref);
   for (const line of packed.split("\n")) {
     if (line.endsWith(` ${ref}`)) return line.split(" ")[0]!.trim();
   }
