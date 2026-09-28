@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { composeApplication } from "../../src/main.js";
 import {
+  buildResponses,
   catalogOverview,
   generateFiles,
   nextQuestion,
@@ -654,6 +655,9 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
       mkdirSync(cfgDir, { recursive: true });
       for (const f of files) {
         mkdirSync(join(cfgDir, f.path, ".."), { recursive: true });
+        // AC-6: no renderer leftovers reach the target config
+        if (f.path === "responses.json")
+          expect(f.content).not.toMatch(/\{\{[#A-Z_]/);
         writeFileSync(join(cfgDir, f.path), f.content);
       }
       const app = composeApplication(ws2, cfgDir, join(cfgDir, "state"));
@@ -1124,6 +1128,222 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
     } finally {
       if (saved === undefined) delete process.env[ENV_KEY];
       else process.env[ENV_KEY] = saved;
+    }
+  });
+});
+
+describe("wisdom baseline (specs/013 FR-991..995)", () => {
+  const GENERIC_KEY_TOKEN = /\{\{[A-Z_]+\}\}/;
+
+  it('AC-1: template responses.json === buildResponses("") (drift guard)', () => {
+    void ws;
+    const tpl = readFileSync(
+      join(resolveBuiltinReferencePath(), "responses.json"),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    expect(tpl).toBe(buildResponses(""));
+  });
+
+  it("FR-992: wisdom baseline exists, covers all phases, differs from generic, only defined tokens", () => {
+    void ws;
+    const wisdomPath = join(
+      resolveBuiltinReferencePath(),
+      "responses-wisdom.json",
+    );
+    const wisdom = JSON.parse(readFileSync(wisdomPath, "utf8")) as {
+      responses: Record<string, unknown>;
+    };
+    const generic = JSON.parse(
+      readFileSync(
+        join(resolveBuiltinReferencePath(), "responses.json"),
+        "utf8",
+      ),
+    ) as { responses: Record<string, unknown> };
+    expect(Object.keys(wisdom.responses).sort()).toEqual(
+      Object.keys(generic.responses).sort(),
+    );
+    expect(JSON.stringify(wisdom)).not.toBe(JSON.stringify(generic));
+    const tokens = [
+      ...JSON.stringify(wisdom).matchAll(/\{\{([A-Z_]+)\}\}/g),
+    ].map((m) => m[1]);
+    for (const t of tokens)
+      expect([
+        "CLEARTHOUGHT_URL",
+        "INSIGHT_URL",
+        "GITNEXUS_URL",
+        "PROJECT_NAME",
+      ]).toContain(t);
+    const blocks = [
+      ...JSON.stringify(wisdom).matchAll(/\{\{#server:([a-z-]+)\}\}/g),
+    ].map((m) => m[1]);
+    for (const b of blocks)
+      expect(["clearthought", "insight", "gitnexus"]).toContain(b);
+  });
+
+  function makeWisdomRef(
+    wisdomResponses: Record<string, unknown>,
+    opts?: { insight?: boolean },
+  ): string {
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    const operations: Record<string, unknown> = opts?.insight
+      ? {
+          "capture-session-lessons": {
+            type: "mcpTool",
+            server: "insight",
+            capability: "experience_seed_lessons",
+            arguments: { mode: "template", value: { lessons: [] } },
+          },
+        }
+      : {};
+    for (const f of [
+      "guidance.json",
+      "workflow.json",
+      "responses.json",
+      "policies.json",
+      "downstream-servers.json",
+    ])
+      writeFileSync(join(ref, f), JSON.stringify({ profile: "plain" }));
+    writeFileSync(join(ref, "operations.json"), JSON.stringify({ operations }));
+    mkdirSync(join(ref, "schemas"), { recursive: true });
+    writeFileSync(
+      join(ref, "responses-wisdom.json"),
+      JSON.stringify({ version: 2, responses: wisdomResponses }),
+    );
+    return ref;
+  }
+
+  it("AC-2: builtin adopt renders wisdom with transport-correct URLs, no leftover tokens", () => {
+    void ws;
+    for (const transport of ["stdio", "http-docker"] as const) {
+      const { files } = generateFiles({
+        configSource: "adopt",
+        projectName: "my-project",
+        transport,
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      expect(byPath["responses.json"]!).not.toMatch(/\{\{[A-Z_]+\}\}/);
+      expect(byPath["responses.json"]!).toContain(
+        transport === "stdio"
+          ? "http://localhost:3000/mcp"
+          : "http://host.docker.internal:3000/mcp",
+      );
+    }
+  });
+
+  it("AC-3: server-conditional blocks follow the insight answer", () => {
+    void ws;
+    const wisdom = {
+      understand: {
+        instruction:
+          "{{#server:insight}}INSIGHT PRESENT {{INSIGHT_URL}}{{/server:insight}}BASE",
+      },
+      complete: {},
+    };
+    // insight=false (no insight op in reference) → block removed
+    const refOff = makeWisdomRef(wisdom);
+    try {
+      const off = generateFiles({
+        configSource: "adopt",
+        referencePath: refOff,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const a = Object.fromEntries(off.files.map((f) => [f.path, f.content]));
+      expect(a["responses.json"]!).not.toContain("INSIGHT PRESENT");
+      expect(a["responses.json"]!).toContain("BASE");
+    } finally {
+      rmSync(refOff, { recursive: true, force: true });
+    }
+    // insight=true (store-completion-insight op) → block rendered with URL
+    const refOn = makeWisdomRef(wisdom, { insight: true });
+    try {
+      const on = generateFiles({
+        configSource: "adopt",
+        referencePath: refOn,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const b = Object.fromEntries(on.files.map((f) => [f.path, f.content]));
+      expect(b["responses.json"]!).toContain("INSIGHT PRESENT");
+      expect(b["responses.json"]!).toContain("http://localhost:3002/mcp");
+    } finally {
+      rmSync(refOn, { recursive: true, force: true });
+    }
+  });
+
+  it("AC-4: mounted reference WITHOUT wisdom file adopts its responses.json (012 behavior)", () => {
+    void ws;
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    try {
+      for (const f of [
+        "guidance.json",
+        "workflow.json",
+        "responses.json",
+        "policies.json",
+        "operations.json",
+        "downstream-servers.json",
+      ])
+        writeFileSync(
+          join(ref, f),
+          JSON.stringify({
+            profile: "plain",
+            responses: {
+              understand: { instruction: "MOUNTED 012 WISDOM" },
+              complete: {},
+            },
+          }),
+        );
+      mkdirSync(join(ref, "schemas"), { recursive: true });
+      const { files } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      expect(byPath["responses.json"]!).toContain("MOUNTED 012 WISDOM");
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-993: unknown placeholder token fails closed", () => {
+    void ws;
+    const ref = makeWisdomRef({
+      understand: { instruction: "oops {{BOGUS_TOKEN}}" },
+      complete: {},
+    });
+    try {
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+        }),
+      ).toThrowError(/unknown responses placeholder \{\{BOGUS_TOKEN\}\}/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-993: unbalanced conditional block fails closed", () => {
+    void ws;
+    const ref = makeWisdomRef({
+      understand: { instruction: "oops {{#server:insight}}never closed" },
+      complete: {},
+    });
+    try {
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+        }),
+      ).toThrowError(/unbalanced server-conditional block/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
     }
   });
 });
