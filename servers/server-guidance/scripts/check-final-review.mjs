@@ -45,13 +45,20 @@ function readGitHead(repoRoot) {
     const pointer = readFileSync(gitPath, "utf8").trim();
     if (!pointer.startsWith("gitdir:")) fail(`cannot parse ${gitPath} (.git file without gitdir pointer)`);
     gitDir = resolve(repoRoot, pointer.slice("gitdir:".length).trim());
-    for (const [from, to] of [
-      ["D:/repos/Thinking-MCP", "/workspace"],
-      ["/mnt/d/repos/Thinking-MCP", "/workspace"],
-    ]) {
-      if (gitDir.startsWith(from)) gitDir = to + gitDir.slice(from.length);
+    // GDS-5: generic candidate resolution - raw relative, WSL drive mapping
+    // (D:/... -> /mnt/d/...), and the guidance container mounts (/workspace,
+    // /workspaces/<name>). First existing candidate wins.
+    const rawPointer = pointer.slice("gitdir:".length).trim().replace(/\\/g, "/");
+    const candidates = [gitDir];
+    const driveMatch = rawPointer.match(/^([A-Za-z]):\/(.*)$/);
+    if (driveMatch) {
+      candidates.push("/mnt/" + driveMatch[1].toLowerCase() + "/" + driveMatch[2]);
+      candidates.push("/workspace/" + driveMatch[2]);
+      candidates.push("/workspaces/" + driveMatch[2]);
     }
-    if (!existsSync(gitDir)) fail(`worktree git dir does not exist in this container: ${gitDir}`);
+    const hit = candidates.find((c) => existsSync(c));
+    if (!hit) fail(`worktree git dir does not exist in this container (tried: ${candidates.join(", ")})`);
+    gitDir = hit;
   }
   const headPath = join(gitDir, "HEAD");
   if (!existsSync(headPath)) fail(`no HEAD at ${headPath}`);

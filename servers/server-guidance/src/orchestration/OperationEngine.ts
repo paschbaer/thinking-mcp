@@ -407,6 +407,16 @@ export class OperationEngine {
       ...base,
       status: ok ? "succeeded" : "failed",
       validated: ok,
+      // GDS-5: raw transparency - carry capped+redacted stdout; exposure
+      // filtering strips it for restriction modes.
+      content: run.stdout
+        ? [
+            {
+              type: "text",
+              text: redactor.redact(run.stdout).slice(0, maxBuffer),
+            },
+          ]
+        : [],
       summary: ok
         ? `${config.operationId} succeeded`
         : `${config.operationId} failed with exit code ${exitCode}`,

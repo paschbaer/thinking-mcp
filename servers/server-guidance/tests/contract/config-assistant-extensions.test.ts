@@ -277,8 +277,10 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
       const wf = JSON.parse(byPath["workflow.json"]!) as {
         instructions?: { global?: string };
       };
-      expect(wf.instructions?.global).toBe("TARGET SHELL");
-      expect(byPath["workflow.json"]).not.toContain("OLD REFERENCE SHELL");
+      expect(wf.instructions?.global).toBe("OLD REFERENCE SHELL\nTARGET SHELL");
+      expect(byPath["workflow.json"]).toContain("OLD REFERENCE SHELL");
+      // GDS-5/FR-981 merge: the shell is APPENDED to the template global
+      expect(byPath["workflow.json"]).toContain("TARGET SHELL");
       // AC-9: reference project name must not leak into regenerated files
       expect(byPath["guidance.json"]!).toContain("target-repo");
       expect(byPath["guidance.json"]).not.toContain("reference-project");
@@ -920,7 +922,8 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
       expect(byPath["responses.json"]!).toContain("REFERENCE WISDOM MARKER");
       expect(byPath["responses.json"]!).toContain("NEW TARGET SHELL");
-      expect(byPath["responses.json"]!).not.toContain("OLD REF SHELL");
+      expect(byPath["responses.json"]!).toContain("OLD REF SHELL");
+      expect(byPath["responses.json"]!).toContain("TARGET SHELL");
     } finally {
       rmSync(ref, { recursive: true, force: true });
     }
