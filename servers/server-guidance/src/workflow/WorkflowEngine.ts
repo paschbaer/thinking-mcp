@@ -906,6 +906,14 @@ export class WorkflowEngine {
           );
           const succeeded = fb.kind === "success" || fb.kind === "tool_reported";
           this.metrics.recordContainerRouteFallback(serverId, succeeded);
+          // FR-035 review F5: keep FR-704 connection-status recording symmetric
+          // with the primary path (the early return below must not skip it).
+          const stFb = this.clientManager!.statusOf(serverId);
+          this.metrics.recordConnection(
+            serverId,
+            stFb?.status ?? "connected",
+            stFb?.lastSuccessfulRequestAt,
+          );
           if (fb.kind !== "transport") return fb;
           return {
             kind: "transport",

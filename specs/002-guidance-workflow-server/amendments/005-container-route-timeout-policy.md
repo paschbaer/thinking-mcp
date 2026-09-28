@@ -28,11 +28,16 @@ Timeout, über die Container-Route (`run_operation`) erfolgreich,
 ## 3. Entwurf
 
 - **FR-611 (Textregel):** Die FR-035-Policy in allen Phase-Instruktionen
-  (`examples/default-guidance/responses-wisdom.json`, `responses.json`
-  via `buildResponses`) wird zur Reihenfolge
+  der **Wisdom-Baseline** (`examples/default-guidance/responses-wisdom.json`)
+  sowie den davon abgeleiteten Workspace-Configs wird zur Reihenfolge
   **(1) retry ONCE (read-only/idempotent) → (2) Container-Route des
   Tools, sofern verfügbar → (3) lokale Tools/CLI → (4) `report_blocker`
-  (infrastructure)** erweitert. Schwere GitNexus-Arbeit (analyze/
+  (infrastructure)** erweitert. **Re-Scope nach Review F2:** die
+  Fresh-Baseline (`buildResponses`/`responses.json`) enthält historisch
+  keine FR-035-Policy — das bleibt zunächst unverändert (grüner
+  Drift-Guard ist daher kein FR-611-Nachweis); das Nachziehen in die
+  Fresh-Baseline ist als Follow-up getrackt (memory-bank/
+  remaining-work-plan.md). Schwere GitNexus-Arbeit (analyze/
   reindex) bleibt über das Terminal-CLI statt MCP geroutet.
 - **FR-612 (maschinell):** `downstream-servers.json` erhält das
   optionale Feld `servers.<id>.containerRoute`
@@ -74,11 +79,18 @@ Timeout, über die Container-Route (`run_operation`) erfolgreich,
   `buildInvokerClosure` (nur `timedOut` + `riskClass "read_only"` +
   konfigurierte Route) + `recordContainerRouteFallback`.
 - `src/metrics/MetricsRepository.ts`: `containerRouteFallbacks`-Zähler
-  im Snapshot (additiv).
+  im Snapshot (additiv; in-memory, nicht persistiert — Reset beim
+  Neustart, siehe README).
 - Templates: FR-035-Text in `responses-wisdom.json` (7 Phasen) und den
   davon abgeleiteten Workspace-Configs; `containerRoute`-Beispiel für
   Clear-Thought in `examples/default-guidance/downstream-servers.json`.
 - Tests: `tests/contract/container-route-fallback.test.ts` (Config-
   Validierung inkl. SSRF-/Allowlist-Fälle, transiente Route, Metrik);
-  Suite `tests/contract` + `tests/setup` 221/221 grün (Baseline
-  210/210 + 11 neue), `tsc --noEmit` clean.
+  Suite `tests/contract` + `tests/setup` grün, `tsc --noEmit` clean.
+- **Review-Fixes (Runde 1, F1–F5):** F1 HIGH (SSRF-Bypass für stdio-
+  Server) — Allowlist/Env-Block vor den Transport-Typ-`continue`
+  gezogen + 2 Regressionstests; F4 — Timeout-Guard in
+  `invokeOnTransientHttpRoute`; F5 — `recordConnection` auch im
+  Fallback-Pfad. F3 (Engine-Gating-Test) als Test-Debt getrackt
+  (remaining-work-plan.md, Trigger: nächste Berührung von
+  `buildInvokerClosure` — GDS4 arbeitet parallel an WorkflowEngine).

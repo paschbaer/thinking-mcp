@@ -117,6 +117,52 @@ describe("containerRoute config validation (FR-035 amendment, fail-closed)", () 
     expect(() => loadConfig(dir)).toThrowError(/containerRoute host.*not allowlisted/);
   });
 
+  it("fail-closed (review F1): stdio server containerRoute host must be allowlisted too", () => {
+    // Regression for the appliedHttpTransports continue-before-containerRoute
+    // gap: a stdio server's containerRoute must not bypass egress policy.
+    writeScenario({
+      gitnexus: {
+        enabled: true,
+        trustLevel: "trusted",
+        transport: {
+          type: "stdio",
+          command: { executable: "gitnexus", args: ["mcp"] },
+        },
+        containerRoute: { url: "http://evil.example.com/mcp" },
+      },
+    }, ["localhost:4747"]);
+    expect(() => loadConfig(dir)).toThrowError(/containerRoute host.*not allowlisted/);
+  });
+
+  it("resolves ${ENV} references in a stdio server's containerRoute.headers too (review F1)", () => {
+    process.env.CR_TEST_TOKEN = "cr-secret";
+    writeScenario({
+      gitnexus: {
+        enabled: true,
+        trustLevel: "trusted",
+        transport: {
+          type: "stdio",
+          command: { executable: "gitnexus", args: ["mcp"] },
+        },
+        containerRoute: {
+          url: "http://localhost:4747/api/mcp",
+          headers: { Authorization: "Bearer ${CR_TEST_TOKEN}" },
+        },
+      },
+    }, ["localhost:4747"]);
+    const cfg = loadConfig(dir);
+    const servers = cfg.downstreamServers as {
+      servers: Record<
+        string,
+        { containerRoute: { headers: Record<string, string> } }
+      >;
+    };
+    expect(servers.servers.gitnexus!.containerRoute.headers.Authorization).toBe(
+      "Bearer cr-secret",
+    );
+    delete process.env.CR_TEST_TOKEN;
+  });
+
   it("fail-closed: containerRoute on an enabled server requires an egress allowlist", () => {
     write("downstream-servers.json", {
       version: 2,

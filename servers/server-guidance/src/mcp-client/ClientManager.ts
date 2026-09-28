@@ -317,6 +317,19 @@ export class ClientManager {
     | { kind: "tool_reported"; message: string; content: unknown[] }
     | { kind: "transport"; message: string; timedOut?: boolean }
   > {
+    // FR-035 review F4: same guard as invokeTool — invalid timeout values are
+    // config errors, not connectivity problems (defense-in-depth for future
+    // direct callers; the engine gate only passes the primary's validated
+    // value today).
+    if (
+      requestTimeoutSeconds !== undefined &&
+      (!Number.isFinite(requestTimeoutSeconds) || requestTimeoutSeconds <= 0)
+    ) {
+      return {
+        kind: "transport",
+        message: `invalid requestTimeoutSeconds: ${requestTimeoutSeconds}`,
+      };
+    }
     let client: Client;
     try {
       client = new Client({ name: "guidance", version: "0.1.0" });
