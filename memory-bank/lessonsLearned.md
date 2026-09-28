@@ -6,6 +6,21 @@
 
 ## Avoid These Mistakes
 
+- **Config-assistant generators must be target-agnostic (Niyama incident, 2026-09-28):** the FRESH
+  generator hardcoded a Thinking-MCP lint glob (`npx prettier --check 'servers/*/src/**/*.{ts,tsx}'`)
+  into every generated workspace config — exit 2 in any repo without that layout. Fix + rule now in
+  `ConfigAssistant.buildOperations`/`generateFiles`: generated ops delegate to the target's own
+  scripts (`npm run lint`, non-blocking); adopt-mode preset ops are ALWAYS regenerated from the
+  target-fresh template (divergent ref args → loud `REGENERATED` note), never copied; only non-preset
+  ops are copied with an `[adopted]` marker. → Prevention: any new generated op must be expressible
+  for an arbitrary repo (template vars or delegation to package scripts, never repo-layout globs);
+  pinned by the self-containment tests (no `servers/*/src` fragments in generated args).
+- **better-sqlite3 glibc binding cannot dlopen in the musl (Alpine) guidance container (2026-09-28):**
+  the entire server-insight suite fails there with `Error relocating .../better_sqlite3.node: fcntl64:
+  symbol not found` — 72 failures, while the same suite is green on the host. Symmetric to the
+  Niyama rollup/musl store issue (NIY-CFG-2). → Prevention: container test-gates that depend on
+  native modules need the binding rebuilt for the container platform (or a glibc-based image);
+  before attributing container test failures to a diff, check for `ERR_DLOPEN_FAILED` first.
 - **`docker compose -f <file>` does NOT auto-load `<file>.override.yml` (2026-09-27):** restarting the
   guidance container with only `docker compose -f servers/server-guidance/docker-compose.yml up -d`
   silently mounted `servers/server-guidance/workspace` (a near-empty dir) as `/workspace` instead of

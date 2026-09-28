@@ -9,6 +9,62 @@
 
 ## Tracked Follow-ups
 
+- [TMPL-1] LOW (Guidance-Session 2026-09-28, session-2c0c15fe, action required) |
+  Prettier-Drift in 5 Dateien (src/config.ts, metrics/MetricsRepository.ts,
+  remote/remote-session-manager.ts, state/SessionRepository.ts,
+  workflow/WorkflowEngine.ts) — lint-Gate (required:false) failt seit
+  Container-Lauf. Keine dieser Dateien ist Teil des Genericity-Diffs.
+  | Trigger: nächster Touch einer der 5 Dateien ODER Aufräumdurchlauf —
+  gezielt `npx prettier --write` auf genau diese 5 Dateien (nie breiter,
+  siehe CHN-3-R2-Lektion). | action required.
+- [TMPL-2] MEDIUM (Guidance-Session 2026-09-28, dieselbe Session, action
+  required) | server-insight-Tests failen im Guidance-Container komplett
+  (72 Failures): better-sqlite3 native Binding glibc-vs-musl —
+  `fcntl64: symbol not found` beim dlopen. Test-Gate (required:false)
+  failt daher im Container grundsätzlich; auf dem Host grün.
+  | Trigger: zusammen mit NIY-CFG-2 — Container-Image auf Alpine fixen
+  (better-sqlite3 für musl rebuilden ODER glibc-basiertes Image) VOR dem
+  nächsten Batch, sonst ist das Container-Test-Gate dauerhaft unbrauchbar.
+  | action required.
+- [TMPL-3] LOW (Round-2-Review 2026-09-28, session-2c0c15fe, action required) |
+  Divergenz-Erkennung vergleicht nur Top-Level `args` — mcpTool/composite
+  Preset-Ops (`repository-analysis`, `query-project-insights`) tragen
+  `arguments`/`steps`-nested args, ihre Divergenz wird nicht als Note
+  gemeldet. Folge benign (Preset-Ops werden ohnehin regeneriert — nur
+  beratende Note fehlt evtl.); README-Satz leicht übertribut.
+  | Trigger: nächster Touch von ConfigAssistant generateFiles — Divergenz-
+  vergleich auf `arguments`/steps ausweiten ODER README-Satz präzisieren;
+  `divergentOps` zusätzlich im machine-readable adoption-Block führen
+  (aktuell nur notes[]). | action required.
+- [TMPL-4] LOW (Round-1/2-Reviews, accepted with rationale) | catch→
+  freshOpsMap={}-Fallback und empty-refOpsMap-Adopt ungetestet (by-inspection
+  korrekt + konservativ); capture-session-lessons-Divergenz und
+  mcpTool-arguments-Adopt-Pfad nur transitiv abgedeckt.
+  | Trigger: nächster Test-Ausbau an config-assistant-extensions.test.ts.
+  | accepted with rationale.
+
+- [NIY-CFG-1] MEDIUM (Infrastruktur-Blocker 2026-09-28, session-46a43aeb-6a87-4730-ac64-c73e613ae8d9, action required) |
+  Lint-Op im Guidance-Container schlägt grundsätzlich fehl: Pattern
+  `servers/*/src/**/*.{ts,tsx}` existiert im Niyama-Repo nicht (Config aus
+  fremdem Repo-Layout, vermutlich Thinking-MCP `servers/`-Monorepo).
+  | Trigger: VOR der nächsten Niyama-Batch-Session — Lint-Glob in der
+  Verification-Config des Containers korrigieren; dabei die GESAMTE Config
+  auf weitere fremde Pfade/Mounts auditieren (gleiche Ursache könnte
+  build/test-Tasks betreffen). | action required.
+- [NIY-CFG-2] MEDIUM (Infrastruktur-Blocker 2026-09-28, dieselbe Session,
+  action required) | Test-Op schlägt grundsätzlich fehl: `Cannot find
+  module @rollup/rollup-linux-x64-musl` — pnpm-Store im Container
+  (`/workspaces/Niyama`) unvollständig/musl-inkompatibel.
+  | Trigger: zusammen mit NIY-CFG-1 vor der nächsten Batch-Session —
+  Store/Mount reparieren (vollständiger `pnpm install` im Container mit
+  korrekter Plattform-Zielarchitektur). | action required.
+- [NIY-CFG-3] INFO (gleicher Ursachenkomplex, accepted with rationale) |
+  Verbleibende C0-Tasks (Task 1 war abgeschlossen) laufen in einer FRISCHEN
+  Guidance-Session pro Batch, nicht in der abgebrochenen — Session war
+  bereits in Phase `complete`; Weiterbetrieb würde die Lifecycle-Gates
+  (release_batch/start_task/verify_task) umgehen.
+  | Trigger: Start des nächsten C0-Batches. | accepted with rationale.
+
 - [CHN-R2-1] LOW (Final Comprehensive Review 2026-09-26, bb37f6c, accepted) |
   Replay-Staleness durch CHN-5-Fix: Crasht der Wrapper NACH Successor-
   Aktivierung, aber VOR Re-Cache des requestIds-Resultats, liefert ein

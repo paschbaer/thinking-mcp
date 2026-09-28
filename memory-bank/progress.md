@@ -3,9 +3,25 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-26
+**Last updated:** 2026-09-28
 
 ## What Works
+
+- **Config-Assistant generische Patterns (2026-09-28, Guidance-Session
+  session-2c0c15fe, Branch feature/config-assistant-generic-patterns,
+  UNcommitted)**: Niyama-Wurzelursache behoben — der FRESH-Generator
+  hardcodete den Thinking-MCP-Prettier-Glob als Lint-Op; jetzt `npm run lint`
+  (non-blocking). Adopt-Klassifikation: Preset-Ops werden IMMER aus dem
+  Target-Fresh-Template regeneriert (divergente Ref-Args → laute
+  REGENERATED-Note), nur Non-Preset-Ops werden mit `[adopted]`-Marker
+  kopiert; Builtin-Sync-Test gepinnt. README genericity rule dokumentiert.
+  Validierung: 57/57 targeted, tsc clean, Guidance-Suite 429/429; build-Gate
+  grün; lint/test-Gate-Fails als prä-existierend (Prettier-Drift TMPL-1)
+  bzw. umgebungsbedingt (better-sqlite3/musl, TMPL-2) klassifiziert.
+  Independent Review: 0 HIGH/CRITICAL.
+- **Niyama-Blocker dokumentiert (2026-09-28, NIY-CFG-1/2/3)**:
+  session-46a43aeb als infrastructure-blocked gecancelt; Container-Fixes
+  (Lint-Glob in Verification-Config, pnpm/musl-Store) getrackt.
 
 - **Kleinkitems L256/L257/L253 (2026-09-26, Guidance-Chain session-3b7f96a5,
   committet als `60b2eddf` auf develop)**: L256 FTS-Coverage —
