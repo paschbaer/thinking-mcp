@@ -506,3 +506,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - Alle Completion-Ops grün (docs-drift, final-review-gate, index-freshness, repository-analysis, capture-session-lessons). HEAD nach Doku-Commits: c491ef9 (amend: spec-Status Implemented).
 - What works: Zwei Responses-Baselines (fresh generisch + Drift-Guard; adopt rendert kuratierte Wisdom-Baseline mit Platzhaltern/Bedingungsblöcken), mounted-Fallback 012-kompatibel, Renderer fail-closed. 395/395 Tests, tsc/build grün, detect-changes LOW, beide Reviews 0 HIGH/CRITICAL.
 - What's left: Push + Merge nach develop; niyama-Regenerate mit Stand ≥ deaa1de.
+
+## 2026-09-28: specs/013 gemerged (develop, fast-forward fa4271a..a0266d1)
+- Merge: feature/013-wisdom-baseline → develop per --ff-only. Pre- und Post-Merge-Suite je 395/395 grün. Feature-Branch gelöscht.
+- Inhalt: Zwei Responses-Baselines (fresh generisch + Drift-Guard; adopt rendert responses-wisdom.json mit Platzhaltern/Bedingungsblöcken), mounted-Fallback 012-kompatibel, Renderer fail-closed (Unknown-Token/Unbalanced/Strict-Leftovers für Wisdom).
+- Offen: Push auf origin/develop (ahead 5) — wartet auf Nutzerentscheid. niyama: Regenerate mit Stand ≥ a0266d1.
