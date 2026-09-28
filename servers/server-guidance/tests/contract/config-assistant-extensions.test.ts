@@ -1307,7 +1307,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
     }
   });
 
-  it("FR-993: unknown placeholder token fails closed", () => {
+  it("FR-993: unknown placeholder token fails closed (wisdom) but lenient fallback passes through", () => {
     void ws;
     const ref = makeWisdomRef({
       understand: { instruction: "oops {{BOGUS_TOKEN}}" },
@@ -1322,6 +1322,66 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
           transport: "stdio",
         }),
       ).toThrowError(/unknown responses placeholder \{\{BOGUS_TOKEN\}\}/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-995: lenient fallback responses.json passes unknown {{…}} through (012 behavior)", () => {
+    void ws;
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-"));
+    try {
+      for (const f of [
+        "guidance.json",
+        "workflow.json",
+        "responses.json",
+        "policies.json",
+        "operations.json",
+        "downstream-servers.json",
+      ])
+        writeFileSync(
+          join(ref, f),
+          JSON.stringify({
+            profile: "plain",
+            responses: {
+              understand: {
+                instruction: "legacy text with {{WEIRD_TOKEN}} inside",
+              },
+              complete: {},
+            },
+          }),
+        );
+      mkdirSync(join(ref, "schemas"), { recursive: true });
+      const { files } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      expect(byPath["responses.json"]!).toContain("{{WEIRD_TOKEN}}");
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("FR-993: mismatched conditional close tag fails closed", () => {
+    void ws;
+    const ref = makeWisdomRef({
+      understand: {
+        instruction: "oops {{#server:insight}}x{{/server:gitnexus}}",
+      },
+      complete: {},
+    });
+    try {
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+        }),
+      ).toThrowError(/unbalanced server-conditional block/);
     } finally {
       rmSync(ref, { recursive: true, force: true });
     }
