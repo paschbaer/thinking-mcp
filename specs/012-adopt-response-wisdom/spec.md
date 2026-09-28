@@ -29,6 +29,13 @@ Containment-Regel (specs/011).
   `instructions.global`-Slot wird gegen die Shell-Antwort des Ziels getauscht
   (gleicher Mechanismus wie bei `workflow.json`; leere Shell-Antwort ⇒ Slot
   wird entfernt). Nicht-Adopt (fresh) bleibt unverändert byte-identisch.
+- **FR-981 Amendment (2026-09-28, GDS-5/RF-2):** Der Slot wird nicht mehr
+  **ersetzt**, sondern **gemerged**: eine bestehende Referenz-/Template-
+  `instructions.global` bleibt erhalten, die Shell-Antwort wird angehängt
+  (Template-Regeln wie die Worktree-Isolations-Regel überleben damit den
+  Adopt). Implementiert in `ConfigAssistant.generateFiles` und
+  `renderAdoptedResponses`; Contract-Tests
+  (`config-assistant-extensions.test.ts`) kodieren die Merge-Erwartung.
 - **FR-982 Responses-Validierung:** `validateAdoptReference` validiert
   zusätzlich, dass die Referenz-`responses.json` existiert, parsebar ist und
   alle Phasen-Responses des kopierten `workflow.json` enthält (fail-closed mit
