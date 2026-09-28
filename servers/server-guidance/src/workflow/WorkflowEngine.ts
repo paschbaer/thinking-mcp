@@ -2,7 +2,7 @@
  * Authoritative workflow state machine (FR-001–005, FR-019, FR-022, FR-028).
  * Phase guidance and transitions come exclusively from configuration.
  */
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import {
   existsSync,
@@ -170,6 +170,14 @@ export interface SubmitResult {
   error?: { code: string; message: string; recoverable: boolean };
   /** Amendment 002: set when a chain successor was created for this completion. */
   nextSessionId?: string;
+  /** RID-1: present when this result is a replay of an already-registered requestId. */
+  replayed?: true;
+  /** RID-1: the requestId whose cached result is being replayed. */
+  duplicateOf?: string;
+  /** RID-1: agent guidance for requestId hygiene. */
+  warning?: string;
+  /** RID-1: set (warn mode) when the replay payload differs from the first submission. */
+  payloadMismatch?: true;
   chain?: {
     sessionId: string;
     request: string;
@@ -1677,6 +1685,54 @@ export class WorkflowEngine {
     };
   }
 
+  /**
+   * RID-1: requestId-reuse policy. Default "warn" keeps existing
+   * idempotency-retries working (marker only); "reject-mismatch" additionally
+   * rejects replays whose payload hash differs from the first submission.
+   */
+  private requestIdReuseMode(): "warn" | "reject-mismatch" {
+    const mode = (
+      this.config.policies as
+        | { submission?: { requestIdReuse?: unknown } }
+        | undefined
+    )?.submission?.requestIdReuse;
+    return mode === "reject-mismatch" ? "reject-mismatch" : "warn";
+  }
+
+  /**
+   * RID-1: replay of an already-registered requestId. The cached result is
+   * NEVER mutated (the Amendment-002 successor-race logic relies on replays);
+   * a shallow clone carries the additive replay fields. Same-payload replays
+   * always pass; mismatched payloads are rejected under the strict policy and
+   * flagged under the default.
+   */
+  private replaySubmitResult(
+    session: import("../types/index.js").WorkflowSession,
+    requestId: string,
+    payload: Record<string, unknown>,
+    cached: SubmitResult,
+  ): SubmitResult {
+    const stored = session.requestPayloadHashes?.[requestId];
+    const payloadMismatch =
+      stored !== undefined && stored !== stablePayloadHash(payload);
+    if (payloadMismatch && this.requestIdReuseMode() === "reject-mismatch") {
+      throw new GuidanceError(
+        "requestId_reuse_payload_mismatch",
+        `requestId ${requestId} was already used with a different payload — issue a fresh requestId for a new submission`,
+        { recoverable: true },
+      );
+    }
+    this.metrics.recordRequestIdReplay(payloadMismatch);
+    return {
+      ...cached,
+      replayed: true,
+      duplicateOf: requestId,
+      warning:
+        "requestId already used — phase unchanged; issue a fresh requestId per phase submission",
+      ...(payloadMismatch ? { payloadMismatch: true } : {}),
+    };
+  }
+
   private async submitLocked(
     sessionId: string,
     phase: string,
@@ -1686,7 +1742,12 @@ export class WorkflowEngine {
     const session = this.getSession(sessionId);
 
     if (requestId && session.requestIds[requestId] !== undefined) {
-      return session.requestIds[requestId] as SubmitResult;
+      return this.replaySubmitResult(
+        session,
+        requestId,
+        payload,
+        session.requestIds[requestId] as SubmitResult,
+      );
     }
 
     const fail = (
@@ -1936,7 +1997,11 @@ export class WorkflowEngine {
       s.currentPhase = target;
       s.previousPhase = previousPhase;
       s.submissions[phase] = session.submissions[phase]!;
-      if (requestId) s.requestIds[requestId] = result;
+      if (requestId) {
+        s.requestIds[requestId] = result;
+        s.requestPayloadHashes ??= {};
+        s.requestPayloadHashes[requestId] = stablePayloadHash(payload);
+      }
     });
     return result;
   }
@@ -1992,7 +2057,21 @@ export class WorkflowEngine {
   ): Promise<SubmitResult> {
     const session = this.getSession(sessionId);
     if (requestId && session.requestIds[requestId] !== undefined) {
-      return session.requestIds[requestId] as SubmitResult;
+      return this.replaySubmitResult(
+        session,
+        requestId,
+        report,
+        session.requestIds[requestId] as SubmitResult,
+      );
+    }
+    // RID-1: record the first-seen payload hash up front — later replays of
+    // this requestId compare against it (submitLocked stores its hash at the
+    // result-registration site instead).
+    if (requestId && session.requestPayloadHashes?.[requestId] === undefined) {
+      this.sessions.update(sessionId, (s) => {
+        s.requestPayloadHashes ??= {};
+        s.requestPayloadHashes[requestId] = stablePayloadHash(report);
+      });
     }
     if (session.status === "completed") {
       const err = new GuidanceError(
@@ -2608,3 +2687,26 @@ function createRequireShim(): (id: string) => unknown {
 }
 
 export { AuditRepository };
+
+/**
+ * RID-1: deterministic payload fingerprint for requestId-reuse detection —
+ * recursive key-sort so equivalent payloads (different insertion order)
+ * hash identically.
+ */
+function stablePayloadHash(payload: Record<string, unknown>): string {
+  const stable = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(stable);
+    if (value && typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.keys(obj)
+          .sort()
+          .map((k) => [k, stable(obj[k])]),
+      );
+    }
+    return value;
+  };
+  return createHash("sha256")
+    .update(JSON.stringify(stable(payload)))
+    .digest("hex");
+}

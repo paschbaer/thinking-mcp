@@ -21,6 +21,9 @@
     "rejectDependencyCycles": true,
     "rejectEmptyArtifacts": true
   },
+  "submission": {
+    "requestIdReuse": "warn"
+  },
   "reviewFindings": {
     "blockingSeverities": [
       "high",
