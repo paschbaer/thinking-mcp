@@ -288,11 +288,12 @@ from your answers. Non-generic reference operations are **copied** into the
 generated `operations.json` with an `[adopted from reference]` marker in
 their description — review their args/paths before relying on them.
 A proven builtin reference ships with the guidance package at
-`examples/default-guidance` (pass that directory's path as `referencePath`,
-e.g. the container path `/workspace/servers/server-guidance/examples/default-guidance`).
-Generation returns all six config files plus the seven submission schemas
-(from `examples/default-guidance/schemas`; if the directory is missing from
-the installation, the agent receives a copy hint instead of an error).
+`examples/default-guidance` — use `referencePath: "builtin"` (or leave it
+empty in adopt mode) to select it; `GUIDANCE_BUILTIN_TEMPLATE_DIR` can point
+the resolver at a different template directory. Generation returns all six
+config files plus the seven submission schemas (from the resolved template's
+`schemas/`; if the directory is missing from the installation, the agent
+receives a copy hint instead of an error).
 
 Example prompt (fresh):
 
@@ -300,6 +301,15 @@ Example prompt (fresh):
 > this project: run `setup_guidance_start`, walk me through every question
 > with its options, and once complete generate the files and write them to
 > the project root.
+
+Example prompt (adopt the builtin template — generic baseline, works in
+container-only deployments without any mounted reference):
+
+> This repo should work with Guidance. Run `setup_guidance_start`, answer
+> `configSource` with `adopt` and leave `referencePath` empty (or set it to
+> `builtin`), walk me through the remaining questions, generate the files,
+> and write them to the project root. Then add `.guidance/state/` to the
+> `.gitignore` and remind me to run `gitnexus analyze --no-stats` here.
 
 Example prompt (adopt the proven reference configuration — self-hosting
 deployment where `/workspace/.guidance/` IS the reference):
