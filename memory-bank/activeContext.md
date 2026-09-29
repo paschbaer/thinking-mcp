@@ -821,6 +821,10 @@
 - Live-Verifikation: Guidance-Container neu gebaut + deployed; run_operation reasoning-pass über :3003 liefert jetzt die vollständige sequential_thinking-Antwort (content mit Thought + sessionContext).
 - Hinweis: GitNexus impact()/sequential_thinking über die Editor-Route sind während der Session mit dem bekannten clientseitigen Timeout (GDS-Diagnose 2026-09-27) ausgestiegen — Aufrufer-Analyse manuell per grep, plan dokumentiert im Chat statt im Tool.
 
+### 2026-09-29 — WC-4 Shipped-Config-Contract (feature/wc4-shipped-config-contract, Guidance-Session session-e782866b — COMPLETED, alle Gates grün)
+- Fix: tests/contract/shipped-configs.test.ts lädt alle 5 ausgelieferten Config-Sets gegen loadConfig (einzige Substitution: workspaces[]-Key; Container-Roots host-seitig nicht existent); Egress-Konsistenz inkl. disabled Server (raw URL.host wie Validator) + Negative-Control. 7/7 Tests, Suite 458/458 grün. Unabhängiger Review APPROVED 0 HIGH/CRIT; F1/F2 post-review gefixt.
+- Änderungen UNCOMMITTED auf dem Feature-Branch; Merge nach develop ausständig. Keine neuen getrackten Findings (F3/F4 als INFO accepted dokumentiert im final-review.json).
+
 ### 2026-09-29 — WC-1 Wildcard↔TrustLevel-Coupling (feature/wc1-wildcard-trustlevel-coupling, Guidance-Session session-22e9b598 — COMPLETED, alle Gates grün)
 - Fix: validateDownstreamServers lehnt Wildcard ["*"] bei effektiver trustLevel != "trusted" fail-closed ab; nicht-string trustLevel abgelehnt (Review-F1); toTrustLevel nach src/trust-level.ts extrahiert (Validator+Runtime eine Semantik). 6 neue Tests, Suite 451/451, unabhängiger Review APPROVED 0 HIGH/CRIT.
 - Offene getrackte Findings aus diesem Run: **WC-1-B** (trusted Wildcard-Server + unkonfigurierte destructive Tools — Runtime-Hardening, Trigger: destructive Non-Operation-Tools auf gitnexus/clearthought/insight) und **WC-4** (Contract-Test für shipped Configs vs. Validator) in remaining-work-plan.md.
