@@ -270,8 +270,13 @@ Question catalog v2: `configSource` (**fresh / adopt** — see below),
 `projectName`, `transport` (stdio / http-docker — controls `localhost` vs.
 `host.docker.internal` URLs and the egress allowlist), `referencePath`
 (adopt only: `builtin` — the shipped baseline template, default — or a path
-to the reference `.guidance/` directory), `profile`
-(plain / spec-kit — locked to the reference when adopting), `shell`
+`to the reference `.guidance/` directory), `profile`
+(plain / spec-kit — locked to the reference when adopting), `target`
+(**repo-config** / **registry-edit** — specs/014: repo-config generates
+the full repo file set without any `workspaces[]` block; registry-edit
+generates ONLY the instance registry `guidance.json` for
+`GUIDANCE_WORKSPACE_ROOT` — process truth is the repo, registry truth
+is the instance), `shell`
 (optional, agent-facing — placed in `workflow.json` `instructions.global`
 and injected into EVERY phase instruction), `workspaceRoot` and
 `extraWorkspaces` (optional multi-workspace registry — see below),
