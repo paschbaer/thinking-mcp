@@ -551,3 +551,8 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
   2. GDS-2 (feature/gds2-session-hint, 68b9d77): session_not_found mit Recovery-Hint (hint only, keine IDs) an allen 4 Raise-Sites; Contract-Assertion ergänzt.
   3. RF-2 (docs/rf2-fr981-merge, f8c6709): FR-981-Amendment (replace->merge) in specs/012; SDD v2 geprüft (kein Update nötig); RF-2 resolved.
   Offen: Push develop->origin (10 ahead), GDS-1-Patch-Nachweise im Container (rebuild erfolgt bereits, Live-Status 'ready' verifiziert), lint/test-Debt, Editor-Route-Timeouts.
+
+## 2026-09-29: Rust-Verifikationsprofil für Guidance (feature/rust-guidance-example, b4d5c50)
+- What works: examples/rust-guidance/ (cargo fetch/clippy/fmt/test/check, alle --locked fail-closed), gepinnte Rust-Toolchain (rustup minimal) im Dockerfile, CARGO_TARGET_DIR-Volume-Option, README-Verifikationssektion als Step-by-Step (Python + Rust) neu geschrieben. JSONs validiert; kein docker build / kein Live-Test gegen echtes Rust-Projekt.
+- What's left: Rebase auf develop ERFORDERLICH — Dockerfile enthält den (dort noch uncommitteten) trixie-slim Base-Switch des Parallel-Agenten dupliziert; nach dessen Commit Merge-Konflikt auflösen (Inhalte identisch gehalten). Danach: docker build + Live-Verifikation der Ops, Beispiel gegen echtes Rust-Workspace testen.
+- Current state: Commit auf feature/rust-guidance-example im Worktree Thinking-MCP-rust-guidance, Merge pending Nutzerentscheid.
