@@ -49,32 +49,8 @@ import {
   resolveTemplate,
 } from "../orchestration/template-resolver.js";
 
-const TRUST_LEVELS: readonly TrustLevel[] = [
-  "untrusted",
-  "restricted",
-  "trusted",
-  "privileged",
-];
-/** Warn-once-Gedächtnis: eine Fehlkonfiguration soll nicht pro Call warnen. */
-const trustLevelWarned = new Set<string>();
-/** Normalizes a configured trustLevel to the TrustLevel union; unknown values fall back to "trusted". */
-function toTrustLevel(
-  value: string | undefined,
-  serverId?: string,
-): TrustLevel {
-  if (value !== undefined && !TRUST_LEVELS.includes(value as TrustLevel)) {
-    const key = `${serverId ?? "?"}:${value}`;
-    if (!trustLevelWarned.has(key)) {
-      trustLevelWarned.add(key);
-      process.stderr.write(
-        `[guidance] warning: unknown trustLevel "${value}" for server ${serverId ?? "?"}; falling back to "trusted"\n`,
-      );
-    }
-  }
-  return TRUST_LEVELS.includes(value as TrustLevel)
-    ? (value as TrustLevel)
-    : "trusted";
-}
+/** Shared with the config validator (WC-1): one normalization semantics. */
+import { toTrustLevel } from "../trust-level.js";
 
 /** 2e (L264): Capability-Pins über Restarts retten — vorher in-memory, Drift
  *  nach einem Restart wurde stillschweigend akzeptiert (Re-Pin beim ersten
