@@ -83,6 +83,8 @@ const EXPECTED_ERROR_CODES = [
   "spec_kit_task_not_found",
   "spec_kit_task_not_ready",
   "spec_kit_task_not_released",
+  // specs/014: config truth & composition v2
+  "workspace_process_config_missing",
   "spec_kit_task_already_active",
   "spec_kit_task_dependency_unsatisfied",
   "spec_kit_task_review_required",

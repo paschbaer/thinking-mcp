@@ -1697,7 +1697,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
   });
 });
 
-describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
+describe("specs/014: wizard-driven registry-edit + repo-config separation", () => {
   function makeReferenceWithWorkspaces(dir: string): void {
     for (const f of [
       "guidance.json",
@@ -1735,7 +1735,7 @@ describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
     writeFileSync(join(dir, "schemas", "understand.schema.json"), "{}");
   }
 
-  it("adopt: workspace answers are applied; reference workspaces[] are NEVER copied", () => {
+  it("adopt + registry-edit: emits ONLY the registry from the answers; reference workspaces[] are NEVER copied", () => {
     const ref = mkdtempSync(join(tmpdir(), "adoptref-ws-"));
     try {
       makeReferenceWithWorkspaces(ref);
@@ -1744,10 +1744,13 @@ describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
         referencePath: ref,
         projectName: "target-repo",
         transport: "stdio",
+        target: "registry-edit",
         workspaceRoot: "/target-root",
         extraWorkspaces: "zed=/target-zed",
       });
       const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      // exactly one file — registry-edit never produces repo-level process config
+      expect(Object.keys(byPath)).toEqual(["guidance.json"]);
       const guidance = JSON.parse(byPath["guidance.json"]!) as {
         workspaces?: Array<{ name: string; root: string }>;
       };
@@ -1762,10 +1765,19 @@ describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
     }
   });
 
-  it("adopt: without workspace answers no block is emitted (reference is not copied either)", () => {
+  it("adopt + repo-config: workspace answers are rejected (AC-8) and no registry block is emitted", () => {
     const ref = mkdtempSync(join(tmpdir(), "adoptref-ws-"));
     try {
       makeReferenceWithWorkspaces(ref);
+      expect(() =>
+        generateFiles({
+          configSource: "adopt",
+          referencePath: ref,
+          projectName: "t",
+          transport: "stdio",
+          workspaceRoot: "/target-root",
+        }),
+      ).toThrowError(/only apply to target "registry-edit"/);
       const { files } = generateFiles({
         configSource: "adopt",
         referencePath: ref,
@@ -1782,7 +1794,7 @@ describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
     }
   });
 
-  it("workspace questions are answered in adopt mode too (not DERIVED_IN_ADOPT)", () => {
+  it("target question is asked in adopt mode too (not DERIVED_IN_ADOPT)", () => {
     const adopt = {
       configSource: "adopt",
       projectName: "t",
@@ -1790,6 +1802,7 @@ describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
     };
     const cat = catalogOverview(adopt as never);
     const ids = cat.questions.map((q) => q.id);
+    expect(ids).toContain("target");
     expect(ids).toContain("workspaceRoot");
     expect(ids).toContain("extraWorkspaces");
   });

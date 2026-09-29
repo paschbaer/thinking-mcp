@@ -458,6 +458,7 @@ All registered `ERROR_CODES` (exact-surface snapshot, spec 002 FR-028 / R-010):
 | `session_not_found` | Session Not Found |
 | `session_locked` | Session Locked |
 | `workspace_not_registered` | Workspace Not Registered |
+| `workspace_process_config_missing` | Workspace Process Config Missing (specs/014 — registered workspace without its own `.guidance/guidance.json`; the former silent copy was removed) |
 | `invalid_active_phase` | Invalid Active Phase |
 | `invalid_transition` | Invalid Transition |
 | `submission_invalid` | Submission Invalid |
@@ -1837,9 +1838,32 @@ npm run typecheck
 - Example configuration: [`examples/default-guidance/`](./examples/default-guidance/)
 
 
-## Multi-Workspace Operation (specs/008)
+## Multi-Workspace Operation (specs/008, composition v2 per specs/014)
 
 One guidance instance can serve multiple registered repositories.
+
+### Config truth (specs/014, normative)
+
+Two deployment modes; in both, the instance config and the repo configs own
+DIFFERENT concerns — they never compete:
+
+| | **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`) | **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`) |
+|---|---|---|
+| Instance `.guidance/` (under `GUIDANCE_WORKSPACE_ROOT`) | **Registry only** (`workspaces[]` in `guidance.json`) — nothing else | registry sits in the container; sessions are created per `init_session` |
+| Process config (workflow/operations/responses/schemas/policies) | **repo-level**, in each registered root's own `.guidance/` | uploaded per session |
+| Adding a scope | edit the registry file manually, or the config assistant (target `registry-edit` — the agent edits the file on your behalf) | `init_session` manually, or the assistant prompts the agent to call it |
+
+Normative truth statement: **process-config truth = the registered repo;
+registry truth = the serving instance; any other `.guidance/` copy is
+inert.** A registry-only instance config (no `workflow`/`operations`/...
+file references) loads with `registryOnly: true`; a full config at the
+instance root keeps working unchanged (legacy monolith) with a boot warning
+when additional workspaces are registered. Boot also warns about **dormant**
+`.guidance/` directories under the workspace root that are not registered.
+Sessions in a registered workspace are composed from that root's own
+config — the former silent copy-on-first-use was REMOVED: a workspace
+without `.guidance/guidance.json` fails with
+`workspace_process_config_missing` (run the config assistant in that repo).
 
 ### Configuration
 
@@ -1908,10 +1932,11 @@ Each non-default workspace gets its own lazy composition:
 - Spec-kit gates run with `cwd` = the session workspace root; the GitNexus
   index is expected at `<root>/.gitnexus`.
 
-A workspace without `.guidance/` is scaffolded on first use with a copy of
-the boot configuration (minus state). Likewise, the boot scaffold writes the
-default workspace entry into a fresh `guidance.json` (see Deployment mounts
-above). Spec-kit task chaining (FR-117 bridge)
+A workspace without `.guidance/guidance.json` **fails closed** with
+`workspace_process_config_missing` (specs/014 — run the config assistant in
+that repo; the former boot-config copy was removed). Likewise, the boot
+scaffold writes the default workspace entry into a fresh `guidance.json`
+(see Deployment mounts above). Spec-kit task chaining (FR-117 bridge)
 is currently parent-workspace only.
 
 ### Observability

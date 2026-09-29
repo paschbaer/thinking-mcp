@@ -107,6 +107,15 @@ const QUESTIONS: SetupQuestion[] = [
     default: "fresh",
   },
   {
+    id: "target",
+    question:
+      "What should be generated: this repo's process config or the instance workspace registry?",
+    help: "repo-config = the full .guidance file set for THIS repo (workflow/operations/responses/schemas — lives in the repo, specs/014 process truth). registry-edit = ONLY the workspaces[] registry (guidance.json) for the served instance root (GUIDANCE_WORKSPACE_ROOT) — the agent edits that file on your behalf. Remote mode: repo configs are registered via init_session instead.",
+    options: ["repo-config", "registry-edit"],
+    required: false,
+    default: "repo-config",
+  },
+  {
     id: "projectName",
     question:
       "What is the project name (used as project.name and in gate descriptions)?",
@@ -722,6 +731,57 @@ export function generateFiles(answers: SetupAnswers): {
   let gitnexus = answers.gitnexus === "yes" || answers.gitnexus === true;
   let gates = String(answers.gates ?? "standard");
 
+  // specs/014 FR-1104/FR-1105: mode-aware targets. registry-edit emits ONLY
+  // the instance registry (guidance.json with workspaces[]) — it never touches
+  // the reference config and never produces repo-level process files.
+  const target = String(answers.target ?? "repo-config");
+  if (target === "registry-edit") {
+    const regWorkspaceRoot = String(answers.workspaceRoot ?? "").trim();
+    const regExtras = parseExtraWorkspaces(
+      String(answers.extraWorkspaces ?? ""),
+    );
+    if (regWorkspaceRoot === "") {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "registry-edit requires workspaceRoot (the absolute container path of the served instance root, e.g. /workspaces)",
+        { recoverable: true },
+      );
+    }
+    const remote = process.env.GUIDANCE_REMOTE_MODE === "1";
+    const registry = {
+      version: 2,
+      project: { name },
+      workspaces: [
+        { name: "default", root: regWorkspaceRoot, projectName: name },
+        ...regExtras,
+      ],
+      state: { directory: "state", persistAfterEveryOperation: true },
+    };
+    const regNotes = [
+      "registry-edit (specs/014): write/merge this guidance.json at ${GUIDANCE_WORKSPACE_ROOT}/.guidance/guidance.json of the SERVED instance (the agent edits the file on the operator's behalf) — process configs live repo-level in each registered root.",
+      "Roots are existence-validated when the config is loaded (fail-closed), not here.",
+      remote
+        ? "Remote mode: alternatively register repo configs via init_session (key + Bearer; idempotent per config hash)."
+        : 'Workspace mode: start sessions via start_workflow { workspace: "<name>" }.',
+    ];
+    return {
+      files: [
+        {
+          path: "guidance.json",
+          content: JSON.stringify(registry, null, 2) + "\n",
+        },
+      ],
+      notes: regNotes,
+    };
+  }
+  if (answers.workspaceRoot || answers.extraWorkspaces) {
+    throw new GuidanceError(
+      "configuration_invalid",
+      'workspaceRoot/extraWorkspaces only apply to target "registry-edit" — the repo process config does not carry the workspaces registry (specs/014): process truth is the repo, registry truth is the instance',
+      { recoverable: true },
+    );
+  }
+
   const nonGenericOps: string[] = [];
   const adaptedOps: string[] = [];
   const divergentOps: string[] = [];
@@ -909,33 +969,16 @@ export function generateFiles(answers: SetupAnswers): {
     // coherence check below would reject (configuration_invalid).
     nonGenericRefOps = refOpsMap;
   }
-  // WA-1: specs/008 workspaces[] registry — emitted ONLY when the agent gave
-  // workspace roots (empty answers keep the implicit single-workspace default,
-  // preserving pre-wizard behavior). Applies in BOTH modes: adopt must never
-  // copy workspaces[] from the reference (Niyama incident class — repo-specific
-  // paths would leak into the target).
-  const workspaceRoot = String(answers.workspaceRoot ?? "").trim();
-  const extras = parseExtraWorkspaces(String(answers.extraWorkspaces ?? ""));
-  if (extras.length > 0 && workspaceRoot === "") {
-    throw new GuidanceError(
-      "configuration_invalid",
-      "extraWorkspaces requires workspaceRoot to be set (the block must carry an explicit default entry)",
-      { recoverable: true },
-    );
-  }
-  const workspaces: GeneratedWorkspace[] | undefined =
-    workspaceRoot === ""
-      ? undefined
-      : [
-          { name: "default", root: workspaceRoot, projectName: name },
-          ...extras,
-        ];
+  // specs/014: repo-config never carries the workspaces registry — that is
+  // the instance's concern (target registry-edit). The former WA-1 emission
+  // was superseded by the two-mode model.
   const notes: string[] = [];
-  if (workspaces) {
+  {
+    const remote = process.env.GUIDANCE_REMOTE_MODE === "1";
     notes.push(
-      "workspaces[] registry block emitted (specs/008): " +
-        workspaces.map((w) => w.name).join(", ") +
-        " — roots are existence-validated when the config is loaded (fail-closed), not here.",
+      remote
+        ? "Remote mode (specs/014): register this repo config via init_session (key + Bearer; idempotent per config hash) — do not rely on the instance registry for process config."
+        : "Workspace mode (specs/014): this process config lives in THIS repo's .guidance/ — the served instance root only carries the workspaces[] registry (config assistant, target registry-edit).",
     );
   }
   if (adopt && divergentOps.length > 0) {
@@ -978,7 +1021,6 @@ export function generateFiles(answers: SetupAnswers): {
       redactSensitiveOutput: true,
     },
     ...(adoptionBlock ? { adoption: adoptionBlock } : {}),
-    ...(workspaces ? { workspaces } : {}),
   };
   const files: GeneratedFile[] = [
     {

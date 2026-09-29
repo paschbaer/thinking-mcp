@@ -22,7 +22,7 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(overview.done).toBe(false);
     expect(overview.nextQuestion?.id).toBe("configSource");
     expect(overview.nextTool).toBe("setup_guidance_answer");
-    expect(overview.questions.length).toBe(11);
+    expect(overview.questions.length).toBe(12);
   });
 
   it("advances question by question and reports done when complete", () => {
@@ -38,7 +38,7 @@ describe("configuration assistant (stateless wizard)", () => {
     const final = catalogOverview(acc);
     expect(final.done).toBe(true);
     expect(final.nextTool).toBe("setup_guidance_generate");
-    expect(guard).toBeLessThanOrEqual(8);
+    expect(guard).toBeLessThanOrEqual(9);
   });
 
   it("nextQuestion skips optional questions (shell has a default)", () => {
@@ -133,7 +133,7 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(Object.keys(downstream.servers)).toEqual(["clearthought"]);
   });
 
-  it("WA-1: without workspace answers no workspaces[] block is emitted (status quo)", () => {
+  it("specs/014: repo-config without workspace answers emits no workspaces[] block (process truth = repo)", () => {
     const { files } = generateFiles(FULL_ANSWERS);
     const guidance = JSON.parse(
       Object.fromEntries(files.map((f) => [f.path, f.content]))[
@@ -143,54 +143,85 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(guidance.workspaces).toBeUndefined();
   });
 
-  it("WA-1: workspaceRoot emits a workspaces[] block with the default entry", () => {
-    const { files, notes } = generateFiles({
-      ...FULL_ANSWERS,
-      workspaceRoot: "/workspace",
-    });
-    const guidance = JSON.parse(
-      Object.fromEntries(files.map((f) => [f.path, f.content]))[
-        "guidance.json"
-      ]!,
-    );
-    expect(guidance.workspaces).toEqual([
-      { name: "default", root: "/workspace", projectName: "my-project" },
-    ]);
-    expect(notes.some((n) => n.includes("workspaces[] registry block"))).toBe(
-      true,
-    );
-  });
-
-  it("WA-1: extraWorkspaces are parsed and appended after the default entry", () => {
-    const { files } = generateFiles({
-      ...FULL_ANSWERS,
-      workspaceRoot: "/workspace",
-      extraWorkspaces: "zed=/workspace-zed; niyama=/workspace-niyama",
-    });
-    const guidance = JSON.parse(
-      Object.fromEntries(files.map((f) => [f.path, f.content]))[
-        "guidance.json"
-      ]!,
-    );
-    expect(guidance.workspaces).toEqual([
-      { name: "default", root: "/workspace", projectName: "my-project" },
-      { name: "zed", root: "/workspace-zed", projectName: "zed" },
-      { name: "niyama", root: "/workspace-niyama", projectName: "niyama" },
-    ]);
-  });
-
-  it("WA-1: extraWorkspaces without workspaceRoot is rejected", () => {
+  it("specs/014 AC-8: repo-config rejects workspaceRoot/extraWorkspaces (registry is the instance's concern)", () => {
+    expect(() =>
+      generateFiles({ ...FULL_ANSWERS, workspaceRoot: "/workspace" }),
+    ).toThrowError(/only apply to target "registry-edit"/);
     expect(() =>
       generateFiles({ ...FULL_ANSWERS, extraWorkspaces: "zed=/workspace-zed" }),
-    ).toThrowError(/extraWorkspaces requires workspaceRoot/);
+    ).toThrowError(/only apply to target "registry-edit"/);
   });
 
-  it("WA-1: invalid extraWorkspaces answers fail closed at generation time", () => {
-    const base = { ...FULL_ANSWERS, workspaceRoot: "/workspace" };
+  it("specs/014 AC-6: registry-edit emits ONLY a minimal registry guidance.json", () => {
+    const { files, notes } = generateFiles({
+      ...FULL_ANSWERS,
+      target: "registry-edit",
+      workspaceRoot: "/workspaces",
+    });
+    const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+    // exactly one file — no repo-level process config in registry-edit
+    expect(Object.keys(byPath)).toEqual(["guidance.json"]);
+    const guidance = JSON.parse(byPath["guidance.json"]!);
+    expect(guidance.workspaces).toEqual([
+      { name: "default", root: "/workspaces", projectName: "my-project" },
+    ]);
+    expect(guidance.workflow).toBeUndefined();
+    expect(guidance.operations).toBeUndefined();
+    expect(notes.some((n) => n.includes("registry-edit"))).toBe(true);
+    // workspace mode hint present (GUIDANCE_REMOTE_MODE unset)
+    expect(notes.some((n) => n.includes("Workspace mode"))).toBe(true);
+  });
+
+  it("specs/014 AC-6: registry-edit parses extraWorkspaces after the default entry", () => {
+    const { files } = generateFiles({
+      ...FULL_ANSWERS,
+      target: "registry-edit",
+      workspaceRoot: "/workspaces",
+      extraWorkspaces: "zed=/workspaces/zed; niyama=/workspaces/niyama",
+    });
+    const guidance = JSON.parse(
+      Object.fromEntries(files.map((f) => [f.path, f.content]))[
+        "guidance.json"
+      ]!,
+    );
+    expect(guidance.workspaces).toEqual([
+      { name: "default", root: "/workspaces", projectName: "my-project" },
+      { name: "zed", root: "/workspaces/zed", projectName: "zed" },
+      { name: "niyama", root: "/workspaces/niyama", projectName: "niyama" },
+    ]);
+  });
+
+  it("specs/014: registry-edit without workspaceRoot is rejected", () => {
+    expect(() =>
+      generateFiles({ ...FULL_ANSWERS, target: "registry-edit" }),
+    ).toThrowError(/registry-edit requires workspaceRoot/);
+  });
+
+  it("specs/014 AC-7: remote mode hint appears when GUIDANCE_REMOTE_MODE=1", () => {
+    process.env.GUIDANCE_REMOTE_MODE = "1";
+    try {
+      const { notes } = generateFiles({
+        ...FULL_ANSWERS,
+        target: "registry-edit",
+        workspaceRoot: "/workspaces",
+      });
+      expect(notes.some((n) => n.includes("Remote mode"))).toBe(true);
+      expect(notes.some((n) => n.includes("init_session"))).toBe(true);
+    } finally {
+      delete process.env.GUIDANCE_REMOTE_MODE;
+    }
+  });
+
+  it("specs/014: invalid extraWorkspaces answers fail closed at generation time (registry-edit)", () => {
+    const base = {
+      ...FULL_ANSWERS,
+      target: "registry-edit",
+      workspaceRoot: "/workspaces",
+    };
     const cases: Array<[string, RegExp]> = [
-      ["Zed=/workspace-zed", /invalid name/],
-      ["zed=workspace-zed", /must be an absolute path/],
-      ["default=/workspace-zed", /invalid name/],
+      ["Zed=/workspaces-zed", /invalid name/],
+      ["zed=workspaces-zed", /must be an absolute path/],
+      ["default=/workspaces-zed", /invalid name/],
       ["zed=/a;zed=/b", /duplicate name/],
       ["zed=/a;niyama=/a", /duplicate root/],
       ["zed", /invalid name/],
