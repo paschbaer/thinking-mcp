@@ -623,3 +623,10 @@ für den mode-aware Config-Assistant, Mode-Decision-Helper; docs-drift grün.
 **What's left:** Docker-Rebuild + /workspaces-Umschaltung (Praxis), zed-
 Onboarding, Push von develop (ahead ~10).
 **Current state:** Doku komplett für beide Modi.
+
+### 2026-09-29 — Assistant: registry-edit in Remote-Mode abgelehnt
+**What works:** Guard in ConfigAssistant.generateFiles: target=registry-edit
++ GUIDANCE_REMOTE_MODE=1 → configuration_invalid mit Umleitung auf
+repo-config + init_session; 2 neue/angepasste Tests; docs-drift grün.
+**What's left:** wie zuvor (Rebuild, /workspaces-Umschaltung, zed-Lauf, Push).
+**Current state:** Assistant führt in beiden Modi nur noch die richtigen Wege.
