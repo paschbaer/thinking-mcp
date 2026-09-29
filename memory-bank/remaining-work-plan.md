@@ -47,14 +47,16 @@
   in AGENTS.md); Lesson in lessonsLearned.md ergänzt. | action required
   (Verhaltensregel, kein Code-Fix).
 
-- [TMPL-1] LOW (Guidance-Session 2026-09-28, session-2c0c15fe, action required) |
+- [TMPL-1] LOW (Guidance-Session 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-29) |
   Prettier-Drift in 5 Dateien (src/config.ts, metrics/MetricsRepository.ts,
   remote/remote-session-manager.ts, state/SessionRepository.ts,
   workflow/WorkflowEngine.ts) — lint-Gate (required:false) failt seit
   Container-Lauf. Keine dieser Dateien ist Teil des Genericity-Diffs.
   | Trigger: nächster Touch einer der 5 Dateien ODER Aufräumdurchlauf —
-  gezielt `npx prettier --write` auf genau diese 5 Dateien (nie breiter,
-  siehe CHN-3-R2-Lektion). | action required.
+  gezielt `npx prettier --write` auf genau diese 5 Dateien — erledigt
+  (Commit auf feature/tmpl1-prettier-drift; check gruen gesamt src, tsc
+  clean, Suite 430/430). Wurzelursache (floating ^3.1.0) als
+  Pin-Follow-up-Kandidat notiert. | resolved
 - [TMPL-2] MEDIUM (Guidance-Session 2026-09-28, dieselbe Session, action
   required) | server-insight-Tests failen im Guidance-Container komplett
   (72 Failures): better-sqlite3 native Binding glibc-vs-musl —
