@@ -8,7 +8,7 @@
  * Option A).
  */
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GuidanceError } from "../types/errors.js";
 
@@ -27,6 +27,72 @@ export interface SetupQuestion {
 interface GeneratedFile {
   path: string;
   content: string;
+}
+
+/** specs/008 registry name rule (mirrors workspace-registry.ts). */
+const WORKSPACE_NAME_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
+
+export interface GeneratedWorkspace {
+  name: string;
+  root: string;
+  projectName: string;
+}
+
+/**
+ * Parse and validate the extraWorkspaces answer (WA-1): "name=path" pairs
+ * separated by ";". Fail-closed at generation time for everything the agent
+ * can fix immediately (name pattern, absolute roots, duplicates); root
+ * existence is deliberately NOT checked here — remote-session sentinel roots
+ * may not exist yet and loadConfig enforces existence fail-closed at load.
+ */
+export function parseExtraWorkspaces(value: string): GeneratedWorkspace[] {
+  const entries = value
+    .split(";")
+    .map((e) => e.trim())
+    .filter((e) => e !== "");
+  if (entries.length === 0) return [];
+  const seenNames = new Set<string>();
+  const seenRoots = new Map<string, string>();
+  const out: GeneratedWorkspace[] = [];
+  for (const entry of entries) {
+    const eq = entry.indexOf("=");
+    const name = eq === -1 ? "" : entry.slice(0, eq).trim();
+    const root = eq === -1 ? "" : entry.slice(eq + 1).trim();
+    if (!WORKSPACE_NAME_PATTERN.test(name) || name === "default") {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `extraWorkspaces: invalid name ${JSON.stringify(name)} (expected ^[a-z][a-z0-9-]{0,63}$, "default" is reserved)`,
+        { recoverable: true },
+      );
+    }
+    if (!isAbsolute(root)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `extraWorkspaces.${name}: root must be an absolute path: ${root}`,
+        { recoverable: true },
+      );
+    }
+    if (seenNames.has(name)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `extraWorkspaces: duplicate name ${name}`,
+        { recoverable: true },
+      );
+    }
+    const realKey = resolve(root);
+    const rootOwner = seenRoots.get(realKey);
+    if (rootOwner) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `extraWorkspaces: duplicate root (${name} and ${rootOwner} both resolve to ${realKey})`,
+        { recoverable: true },
+      );
+    }
+    seenNames.add(name);
+    seenRoots.set(realKey, name);
+    out.push({ name, root, projectName: name });
+  }
+  return out;
 }
 
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -74,6 +140,21 @@ const QUESTIONS: SetupQuestion[] = [
     question:
       "Terminal shell the agent should use (optional, agent-facing only)?",
     help: "Free text, e.g. 'wsl.exe -e bash'. Embedded as a setup sentence in the understand instruction. Leave empty for none. NOTE: FR-904 — the answer is placed in workflow.json instructions.global and injected into EVERY phase instruction.",
+    required: false,
+    default: "",
+  },
+  {
+    id: "workspaceRoot",
+    question:
+      "Absolute container path of this repo's workspace root (optional)?",
+    help: "e.g. /workspace. When set, a specs/008 workspaces[] registry block is emitted into guidance.json (default entry + any extraWorkspaces). Leave empty for the implicit single-workspace default (server launch directory).",
+    required: false,
+    default: "",
+  },
+  {
+    id: "extraWorkspaces",
+    question: "Additional workspaces to register (optional)?",
+    help: "Format: 'name=path' pairs separated by ';' — e.g. 'zed=/workspace-zed;niyama=/workspace-niyama'. Names must match ^[a-z][a-z0-9-]{0,63}$ ('default' is reserved), paths must be absolute. Requires workspaceRoot to be set. Roots are existence-validated when the config is loaded, not here.",
     required: false,
     default: "",
   },
@@ -828,7 +909,35 @@ export function generateFiles(answers: SetupAnswers): {
     // coherence check below would reject (configuration_invalid).
     nonGenericRefOps = refOpsMap;
   }
+  // WA-1: specs/008 workspaces[] registry — emitted ONLY when the agent gave
+  // workspace roots (empty answers keep the implicit single-workspace default,
+  // preserving pre-wizard behavior). Applies in BOTH modes: adopt must never
+  // copy workspaces[] from the reference (Niyama incident class — repo-specific
+  // paths would leak into the target).
+  const workspaceRoot = String(answers.workspaceRoot ?? "").trim();
+  const extras = parseExtraWorkspaces(String(answers.extraWorkspaces ?? ""));
+  if (extras.length > 0 && workspaceRoot === "") {
+    throw new GuidanceError(
+      "configuration_invalid",
+      "extraWorkspaces requires workspaceRoot to be set (the block must carry an explicit default entry)",
+      { recoverable: true },
+    );
+  }
+  const workspaces: GeneratedWorkspace[] | undefined =
+    workspaceRoot === ""
+      ? undefined
+      : [
+          { name: "default", root: workspaceRoot, projectName: name },
+          ...extras,
+        ];
   const notes: string[] = [];
+  if (workspaces) {
+    notes.push(
+      "workspaces[] registry block emitted (specs/008): " +
+        workspaces.map((w) => w.name).join(", ") +
+        " — roots are existence-validated when the config is loaded (fail-closed), not here.",
+    );
+  }
   if (adopt && divergentOps.length > 0) {
     notes.push(
       "adopt: preset operations with divergent reference invocation details were REGENERATED " +
@@ -869,6 +978,7 @@ export function generateFiles(answers: SetupAnswers): {
       redactSensitiveOutput: true,
     },
     ...(adoptionBlock ? { adoption: adoptionBlock } : {}),
+    ...(workspaces ? { workspaces } : {}),
   };
   const files: GeneratedFile[] = [
     {

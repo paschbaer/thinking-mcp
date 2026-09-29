@@ -808,3 +808,11 @@
 - Tests: +2 Contract-Tests (raw forwarded vollständig inkl. warnings; summary_and_errors stripped weiter, SC-004 erhalten), profile-config-Test auf objectContaining umgestellt. Contract-Suite 206/206 grün (2 Bestätigungsläufe), tsc --noEmit grün.
 - Live-Verifikation: Guidance-Container neu gebaut + deployed; run_operation reasoning-pass über :3003 liefert jetzt die vollständige sequential_thinking-Antwort (content mit Thought + sessionContext).
 - Hinweis: GitNexus impact()/sequential_thinking über die Editor-Route sind während der Session mit dem bekannten clientseitigen Timeout (GDS-Diagnose 2026-09-27) ausgestiegen — Aufrufer-Analyse manuell per grep, plan dokumentiert im Chat statt im Tool.
+
+### 2026-09-29 — WA-1 Config-Assistent Multi-Workspace (feature/wizard-workspaces)
+- Wizard-Fragen `workspaceRoot` + `extraWorkspaces` („name=path;…“) ergänzt;
+  `generateFiles` emittiert workspaces[]-Block (Default-Eintrag + Extras) nur
+  bei gesetzten Antworten; Generierungs-Validierung fail-closed (Name-Pattern,
+  absolute Roots, Dubletten; Root-Existenz bei loadConfig); Adopt-Modus
+  übernimmt NIE Referenz-Workspaces (Niyama-Klasse). Suite 440/440 grün
+  (sauberer Volllauf; Last-Flakiness-Lesson beachtet). README aktualisiert.

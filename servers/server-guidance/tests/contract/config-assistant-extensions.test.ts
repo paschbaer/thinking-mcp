@@ -1696,3 +1696,93 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
     }
   });
 });
+
+describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
+  function makeReferenceWithWorkspaces(dir: string): void {
+    for (const f of [
+      "guidance.json",
+      "workflow.json",
+      "responses.json",
+      "policies.json",
+      "operations.json",
+      "downstream-servers.json",
+    ]) {
+      writeFileSync(
+        join(dir, f),
+        JSON.stringify({
+          profile: "plain",
+          project: { name: "reference-project" },
+          operations: {
+            build: { type: "process" },
+          },
+          // repo-specific paths of the REFERENCE — must never leak into the target
+          workspaces: [
+            { name: "default", root: "/reference-root", projectName: "reference-project" },
+            { name: "legacy", root: "/reference-legacy", projectName: "legacy" },
+          ],
+        }),
+      );
+    }
+    mkdirSync(join(dir, "schemas"), { recursive: true });
+    writeFileSync(join(dir, "schemas", "understand.schema.json"), "{}");
+  }
+
+  it("adopt: workspace answers are applied; reference workspaces[] are NEVER copied", () => {
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-ws-"));
+    try {
+      makeReferenceWithWorkspaces(ref);
+      const { files } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "target-repo",
+        transport: "stdio",
+        workspaceRoot: "/target-root",
+        extraWorkspaces: "zed=/target-zed",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      const guidance = JSON.parse(byPath["guidance.json"]!) as {
+        workspaces?: Array<{ name: string; root: string }>;
+      };
+      expect(guidance.workspaces).toEqual([
+        { name: "default", root: "/target-root", projectName: "target-repo" },
+        { name: "zed", root: "/target-zed", projectName: "zed" },
+      ]);
+      expect(byPath["guidance.json"]).not.toContain("/reference-root");
+      expect(byPath["guidance.json"]).not.toContain("/reference-legacy");
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("adopt: without workspace answers no block is emitted (reference is not copied either)", () => {
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-ws-"));
+    try {
+      makeReferenceWithWorkspaces(ref);
+      const { files } = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
+      const guidance = JSON.parse(byPath["guidance.json"]!) as {
+        workspaces?: unknown;
+      };
+      expect(guidance.workspaces).toBeUndefined();
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("workspace questions are answered in adopt mode too (not DERIVED_IN_ADOPT)", () => {
+    const adopt = {
+      configSource: "adopt",
+      projectName: "t",
+      transport: "stdio",
+    };
+    const cat = catalogOverview(adopt as never);
+    const ids = cat.questions.map((q) => q.id);
+    expect(ids).toContain("workspaceRoot");
+    expect(ids).toContain("extraWorkspaces");
+  });
+});
