@@ -76,7 +76,12 @@ export class SpecKitStateStore {
     if (!existsSync(p)) {
       throw new GuidanceError(
         "spec_kit_artifact_missing",
-        "no imported spec-kit state for this session; call import_spec_kit_artifacts first",
+        "spec-kit profile active but no imported artifacts for this session — " +
+          "either call import_spec_kit_artifacts (if orchestrated task tracking " +
+          "is wanted) or skip the spec-kit task tools entirely and drive the " +
+          "workflow via plan-level submissions (submit_plan/" +
+          "submit_implementation/submit_verification), which need no spec-kit " +
+          "state",
         { recoverable: true },
       );
     }
