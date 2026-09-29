@@ -62,8 +62,9 @@ export class SessionRepository {
         `no session ${sessionId}` +
           " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
         {
-        recoverable: true,
-      });
+          recoverable: true,
+        },
+      );
     }
     return JSON.parse(readFileSync(path, "utf-8")) as WorkflowSession;
   }
