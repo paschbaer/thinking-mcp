@@ -6,6 +6,13 @@
 >
 > Entry format:
 > `[ID] severity | finding | trigger point | status (action required / accepted with rationale)`
+>
+> **Batch-Status 2026-09-29:** TMPL-1 ✅, TMPL-2 ✅ (glibc-Basis, commit
+> 8134a46), TMPL-3 ✅ (Divergenz-Fingerprint, 81faece+4da7f44), REV-2 ✅
+> (03952b3) — alle vier Scopes des abends 2026-09-29 abgeschlossen und auf
+> develop; offen: CHAIN-1 (Guidance-Server-Defekt), TMPL-4 (accepted),
+> REV-1-HISTORIE/REV-3 (Regel/Verhalten), CHN-/R-Serien (akzeptiert),
+> NIY-CFG-3/NIY-Seite (Niyama-Owner).
 
 ## Tracked Follow-ups
 
@@ -42,18 +49,19 @@
   GitNexus-MCP `impact` direkt auf grep/terminal-CLI statt report_blocker/
   Container-Route. Fundstelle siehe REV-1 (resolved). | — | resolved
   (subsumed)
-- [REV-2] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
-  required) | `get_next_task` auf einer Session ohne importierte Spec-Kit-
-  Artefakte wirft `spec_kit_artifact_missing` (reproduziert, auch nach
-  Phase completed) — Profil war spec-kit, aber Import wurde nie gemacht.
-  Korrekt gehandhabt (Orchestrator-Batch existierte nicht → 
-  submit_implementation-Pfad), aber der Fehlaufruf kostet einen Turn und
-  der Hinweis "import_spec_kit_artifacts first" führt in die Irre, wenn
-  bewusst KEIN Spec-Kit-Flow genutzt wird.
-  | Trigger: nächste Session mit spec-kit-Profil — vorab entscheiden:
-  import_spec_kit_artifacts (wenn Task-Tracking gewünscht) ODER Task-Tools
-  komplett meiden (wie hier); langfristig Guidance-Guidance-Text für
-  spec-kit-Profil ohne Import präzisieren. | action required.
+- [REV-2] LOW (Session-Review 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-29) |
+  `get_next_task` ohne importierte Spec-Kit-Artefakte wirft
+  `spec_kit_artifact_missing` mit irreführendem Import-Only-Hinweis —
+  GEFIXT (commit 03952b3): Message nennt jetzt beide Wege (import für
+  Task-Tracking ODER Task-Tools meiden → plan-level submissions);
+  Contract-Test (tests/speckit/state-store-message.test.ts) pinnt Code +
+  recoverable + beide Marker; README Spec-Kit-Bullet dokumentiert die
+  Zwei-Wege-Behavior. main.ts CHN-4 (silent auf diesem Code) unberührt.
+  | — | resolved
+- [REV-2-ALT] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
+  required) | Original-Beschreibung (Fehlaufruf-Kontext, reproduziert
+  auch post-completion) — siehe REV-2 (resolved). | — | resolved
+  (subsumed)
 - [REV-3] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
   required — Regelverstoß) | `git diff --stat` ohne `--no-pager` in WSL
   ließ das Terminal hängen (User musste abbrechen); Retry mit `--no-pager`
