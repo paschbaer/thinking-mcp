@@ -756,7 +756,10 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
       const downstream = JSON.parse(byPath["downstream-servers.json"]!) as {
         servers: Record<
           string,
-          { containerRoute?: { url?: string }; transport?: { http?: { url?: string } } }
+          {
+            containerRoute?: { url?: string };
+            transport?: { http?: { url?: string } };
+          }
         >;
       };
       const gitnexus = downstream.servers["gitnexus"]!;
@@ -964,7 +967,11 @@ describe("adopt genericity hardening (niyama incident class)", () => {
   function readAdoptionBlock(r: ReturnType<typeof generateFiles>) {
     const byPath = Object.fromEntries(r.files.map((f) => [f.path, f.content]));
     const guidance = JSON.parse(byPath["guidance.json"]!) as {
-      adoption?: { nonGenericOps?: string[]; adaptedOps?: string[] };
+      adoption?: {
+        nonGenericOps?: string[];
+        adaptedOps?: string[];
+        divergentOps?: string[];
+      };
     };
     const ops = JSON.parse(byPath["operations.json"]!) as {
       operations: Record<
@@ -1003,9 +1010,7 @@ describe("adopt genericity hardening (niyama incident class)", () => {
       expect(lint.description).not.toMatch(/\[adopted/);
       expect(lint.args).toEqual(["run", "lint"]);
       expect(
-        r.notes.some(
-          (n) => n.includes("REGENERATED") && n.includes("lint"),
-        ),
+        r.notes.some((n) => n.includes("REGENERATED") && n.includes("lint")),
       ).toBe(true);
     } finally {
       rmSync(ref, { recursive: true, force: true });
@@ -1062,6 +1067,54 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     // generation) would surface as a REGENERATED note — its absence proves
     // template and generator are in lockstep
     expect(r.notes.some((n) => n.includes("REGENERATED"))).toBe(false);
+  });
+
+  it("mcpTool op with divergent arguments is regenerated and surfaced in the adoption block", () => {
+    void ws;
+    // capture-session-lessons in the reference derives insight=true (mounted
+    // mode), so the fresh generator emits query-project-insights — whose
+    // `arguments` then differ from the reference's (TMPL-3 fingerprint).
+    const ref = makeGenericityRef({
+      "capture-session-lessons": {
+        type: "process",
+        executable: "node",
+        args: [".guidance/scripts/seed-lessons.mjs", "/tmp/x.json"],
+      },
+      "query-project-insights": {
+        type: "mcpTool",
+        server: "insight",
+        capability: "experience_search",
+        arguments: { query: "REF-SPECIFIC-QUERY", scope: "ref-repo" },
+      },
+    });
+    try {
+      const r = generateFiles({
+        configSource: "adopt",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+      });
+      const { adoption, ops } = readAdoptionBlock(r);
+      // preset ops are ALWAYS regenerated — divergent `arguments` never copied
+      expect(adoption.nonGenericOps ?? []).not.toContain(
+        "query-project-insights",
+      );
+      expect(adoption.adaptedOps).toContain("query-project-insights");
+      expect(adoption.divergentOps).toContain("query-project-insights");
+      const qpi = ops.operations["query-project-insights"] as unknown as {
+        arguments?: { value?: { query?: string } };
+      };
+      expect(JSON.stringify(qpi.arguments)).toContain("session.request");
+      expect(JSON.stringify(qpi.arguments)).not.toContain("REF-SPECIFIC-QUERY");
+      expect(
+        r.notes.some(
+          (n) =>
+            n.includes("REGENERATED") && n.includes("query-project-insights"),
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
   });
 
   it("preset op absent from fresh generation is non-generic by definition", () => {

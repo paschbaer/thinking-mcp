@@ -714,11 +714,24 @@ export function generateFiles(answers: SetupAnswers): {
         continue;
       }
       adaptedOps.push(opId);
-      if (
-        JSON.stringify((op as { args?: unknown }).args ?? null) !==
-        JSON.stringify((freshOp as { args?: unknown }).args ?? null)
-      )
-        divergentOps.push(opId);
+      // TMPL-3: divergence fingerprint covers process args, mcpTool arguments
+      // and composite steps, plus the op's targeting fields (type/server/
+      // capability) — the previous args-only comparison under-reported
+      // divergence for non-process ops (advisory only; preset ops are
+      // regenerated regardless). Order-sensitive by design; null-normalized
+      // for absent fields.
+      const fingerprint = (o: Record<string, unknown>) =>
+        // template placeholders render to the target's values at generation
+        // time — normalize them so the builtin template can stay in sync
+        JSON.stringify({
+          type: o.type ?? null,
+          server: o.server ?? null,
+          capability: o.capability ?? null,
+          args: o.args ?? null,
+          arguments: o.arguments ?? null,
+          steps: o.steps ?? null,
+        }).replaceAll("${project.name}", name);
+      if (fingerprint(op) !== fingerprint(freshOp)) divergentOps.push(opId);
     }
     let wfText = readFileSync(join(resolvedReference, "workflow.json"), "utf8");
     if (shell) {
@@ -803,6 +816,10 @@ export function generateFiles(answers: SetupAnswers): {
       date: new Date().toISOString(),
       nonGenericOps,
       adaptedOps,
+      // TMPL-3: machine-readable divergence list (mirrors the REGENERATED
+      // note) — preset ops whose reference args differed from fresh
+      // generation; they were regenerated regardless.
+      divergentOps,
       shellSource: "answer",
     };
     // AD-1 (specs/009 follow-up): non-generic reference ops are COPIED into the
