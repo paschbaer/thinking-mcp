@@ -9,6 +9,23 @@
 
 ## Tracked Follow-ups
 
+- [CHAIN-1] MEDIUM (Guidance-Server-Defekt 2026-09-29, entdeckt in
+  session-a0fbcd9e/59659d57, action required) | Chain-Cursor- replay:
+  start_workflow MIT chain (source spec_kit_tasks, explicit steps) UND
+  zugleich einem top-level `request` führt dazu, dass der erste Session-
+  Lauf unter dem top-level Request läuft, die Successor-Session aber
+  WIEDER steps[0] bekommt (chainIndex=1 im State, request aber steps[0]-
+  Text) — Step-0 wird doppelt ausgeführt bzw. die Verkettung ist um eins
+  verschoben. Repro: 4-Step-Chain (TMPL-1/2/3 + REV-2); nach Complete von
+  session-a0fbcd9e war successor 59659d57 = TMPL-1-Text (schon erledigt);
+  gecancelt, Rest-Kette (TMPL-2/3, REV-2) als neue 3-Step-Chain
+  session-5cc970dd gestartet.
+  | Trigger: nächster Kontakt mit WorkflowEngine chain-Composition
+  (resolveChainStep/completeWorkflowLocked Form A) — Step-Cursor bei
+  top-level-request-Chains korrigieren ODER top-level request + chain
+  als Konfigurationsfehler fail-closed ablehnen; Regressionstest.
+  | action required.
+
 - [REV-1] LOW (Session-Review 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-28) |
   FR-035-Timeout-Fallback für GitNexus: gitnexus hatte keine Container-Route
   → GEFIXT: `containerRoute` für gitnexus definiert (live
