@@ -1,7 +1,8 @@
 FROM node:22-alpine
 
-# Install curl for health check (must happen before USER node)
-RUN apk add --no-cache curl
+# curl: health check · git, bash: workspace verification ops spawn them
+# (git init in tests, `spawn bash` in process gates) — must happen before USER node
+RUN apk add --no-cache curl git bash
 
 # Python toolchain bootstrap (spec 003 FR-105): interpreter + pinned uv binary.
 # Project dependencies are NOT baked into the image — they are installed
@@ -18,6 +19,13 @@ COPY package*.json ./
 # Install deterministically from the server-local committed lockfile.
 # (ignore-scripts: native/postinstall steps are handled explicitly below.)
 RUN npm ci --no-audit --no-fund --ignore-scripts
+
+# corepack-pnpm shim: workspace repos pin their own packageManager (e.g. Niyama
+# pnpm@12.4.2) — invoking `pnpm` inside a mounted workspace then resolves that
+# pinned version automatically; no pnpm version is baked into the image.
+# Shim must exist before USER node; the corepack cache under the node user's
+# home is populated lazily on first use inside a workspace.
+RUN corepack enable pnpm
 
 # Copy source files
 COPY . .
