@@ -831,7 +831,7 @@ export function generateFiles(answers: SetupAnswers): {
   const notes: string[] = [];
   if (adopt && divergentOps.length > 0) {
     notes.push(
-      "adopt: preset operations with divergent reference args were REGENERATED " +
+      "adopt: preset operations with divergent reference invocation details were REGENERATED " +
         "from the target-fresh template (reference args discarded): " +
         divergentOps.join(", ") +
         ". Review if the reference args were intentional.",
