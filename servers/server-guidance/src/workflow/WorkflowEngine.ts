@@ -256,26 +256,39 @@ export class WorkflowEngine {
       this.pinnedHashes.set(key, hash);
     }
     this.operationEngine = deps.operationEngine ?? new OperationEngine();
-    const file = this.config.workflow as unknown as {
-      version: number;
-      workflow: {
-        id: string;
-        profile?: string;
-        initialPhase: string;
-        terminalStates?: string[];
+    if (this.config.registryOnly) {
+      // specs/014 FR-1101: registry-only instance config — no process engine.
+      // Sessions MUST be started against a registered workspace whose root
+      // carries its own full process config (<root>/.guidance).
+      this.definition = {
+        workflowId: "registry-only",
+        profile: this.config.profile,
+        initialPhase: "understand",
+        terminalStates: ["completed", "cancelled"],
+        phases: {},
       };
-      phases: WorkflowDefinition["phases"];
-    };
-    this.definition = {
-      workflowId: file.workflow.id,
-      profile: this.config.profile,
-      initialPhase: file.workflow.initialPhase,
-      terminalStates: file.workflow.terminalStates ?? [
-        "completed",
-        "cancelled",
-      ],
-      phases: file.phases,
-    };
+    } else {
+      const file = this.config.workflow as unknown as {
+        version: number;
+        workflow: {
+          id: string;
+          profile?: string;
+          initialPhase: string;
+          terminalStates?: string[];
+        };
+        phases: WorkflowDefinition["phases"];
+      };
+      this.definition = {
+        workflowId: file.workflow.id,
+        profile: this.config.profile,
+        initialPhase: file.workflow.initialPhase,
+        terminalStates: file.workflow.terminalStates ?? [
+          "completed",
+          "cancelled",
+        ],
+        phases: file.phases,
+      };
+    }
     const responses =
       (this.config.responses as unknown as ResponsesFile | undefined)
         ?.responses ?? {};
@@ -535,18 +548,29 @@ export class WorkflowEngine {
    * limitation — chaining across non-default workspaces is out of scope).
    */
   private engineForWorkspace(root: string): WorkflowEngine {
-    if (this.isChild || root === this.defaultRoot) return this;
-    // Scaffold-on-first-use (mirrors boot Option D): a registered workspace
-    // without .guidance receives a copy of the boot configuration (minus
-    // state), so name-based starts work immediately (specs/008 T8).
+    if (this.isChild || root === this.defaultRoot) {
+      // specs/014 FR-1101/FR-1102: a registry-only instance has no process
+      // config at the boot root — sessions must target a registered workspace
+      // whose root carries its own full process config.
+      if (this.config.registryOnly && root === this.defaultRoot) {
+        throw new GuidanceError(
+          "workspace_process_config_missing",
+          'registry-only instance: the default workspace (pool root) has no process config — start a registered workspace by name (e.g. workspace: "zed"). Run the config assistant in that repo (setup_guidance_start) to create its .guidance/, and target "registry-edit" to manage this instance\'s workspaces[] registry',
+          { recoverable: false },
+        );
+      }
+      return this;
+    }
+    // specs/014 FR-1102 (no-copy): a registered workspace MUST carry its own
+    // process config — the former silent cpSync of the boot config manufactured
+    // divergent copies (audit F2/MC-2).
     const cfgDir = join(root, ".guidance");
     if (!existsSync(join(cfgDir, "guidance.json"))) {
-      mkdirSync(cfgDir, { recursive: true });
-      cpSync(this.config.configDir, cfgDir, {
-        recursive: true,
-        filter: (src: string) =>
-          !src.includes(join(cfgDir, "")) && !/[\/]state([\/]|$)/.test(src),
-      });
+      throw new GuidanceError(
+        "workspace_process_config_missing",
+        `workspace ${root} has no process config (.guidance/guidance.json) — run the config assistant in that repo (setup_guidance_start/answer/generate) or create the config manually`,
+        { recoverable: false },
+      );
     }
     let eng = this.childEngines.get(root);
     if (!eng) {

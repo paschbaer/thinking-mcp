@@ -838,3 +838,13 @@
   übernimmt NIE Referenz-Workspaces (Niyama-Klasse). Suite 440/440 grün
   (sauberer Volllauf; Last-Flakiness-Lesson beachtet). README aktualisiert.
  - Final Review (unabhängig, session-756c112d): APPROVED, 0 HIGH/CRITICAL offen. Neue getrackte LOW-Follow-ups WW-2 (workspaceRoot ohne isAbsolute-Fail-fast bei Generierung) + WW-3 (ungetestete Boundary-Cases: '=' im Pfad, whitespace-only-Antworten) in remaining-work-plan.md. Verifikation: Suite-Lauf 2× — Lauf 1: 2 Load-Flakes (Timeout-Fehler, 310 s Dauer), Lauf 2: 440/440 sauber (0 failed, JSON-Report verifiziert).
+
+### 2026-09-29 — specs/014 Config Truth & Composition v2 (feature/config-truth-v2)
+- Zwei-Modi-Modell umgesetzt (Nutzerentscheid): Workspace-Mode-Instanz-
+  .guidance = Registry only (registryOnly-Flag in loadConfig, FR-1101);
+  cpSync-Bootstrap entfernt → fehlende Repo-Process-Config fail-closed
+  workspace_process_config_missing (FR-1102); Legacy-Monolith + Dormanz-
+  Boot-Warnungen (src/config-truth.ts, FR-1103/1106); Wizard mode-aware
+  mit target-Frage repo-config|registry-edit (FR-1104/1105, WA-1-Emission
+  ersetzt). Suite 468/468 grün (sauberer Volllauf). Neuer Error-Code
+  workspace_process_config_missing (docs-drift-konform).

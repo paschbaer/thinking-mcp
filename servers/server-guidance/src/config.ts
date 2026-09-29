@@ -129,6 +129,11 @@ export interface LoadedConfig {
   configVersion: string;
   main: GuidanceMainConfig;
   chain: ChainConfig;
+  /** specs/014: true when guidance.json carries no process file-refs
+   *  (workflow/responses/operations/policies/downstreamServers) — a
+   *  registry-only instance config. Process engines are composed
+   *  per-workspace from <root>/.guidance in this mode. */
+  registryOnly: boolean;
   workflow?: Record<string, unknown>;
   responses?: Record<string, unknown>;
   operations?: Record<string, unknown>;
@@ -1119,6 +1124,18 @@ export function loadConfig(
   if (explicitWorkspaces.length > 0)
     hashable.push(canonical(explicitWorkspaces));
   const configVersion = `sha256:${hash.copy().update(hashable.join("\n")).digest("hex")}`;
+  // specs/014 FR-1101: a guidance.json without ANY process file-ref is a
+  // registry-only instance config — the referenced-file validation above is
+  // a no-op in that case, and process engines are composed per-workspace.
+  const registryOnly = [
+    "workflow",
+    "responses",
+    "operations",
+    "downstreamServers",
+    "policies",
+  ].every(
+    (k) => !(cfg as unknown as Record<string, { file?: string }>)[k]?.file,
+  );
   // Resolution happens AFTER the hash: secrets stay out of configVersion.
   applyHttpTransports(loaded);
   return {
@@ -1128,6 +1145,7 @@ export function loadConfig(
     configVersion,
     main: cfg,
     chain,
+    registryOnly,
     workflow: loaded["workflow"],
     responses: loaded["responses"],
     operations: loaded["operations"],
