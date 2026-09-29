@@ -259,7 +259,7 @@ call. Flow (which tool when) — the full configuration reference follows in
 
 | Step | Tool | Purpose |
 |---|---|---|
-| 1 | `setup_guidance_start` | Returns the question catalog (9 questions) and the first question with help text and options |
+| 1 | `setup_guidance_start` | Returns the question catalog (11 questions) and the first question with help text and options |
 | 2 | `setup_guidance_answer` `{answers}` | Takes the accumulated answers, validates them, and returns the next open question |
 | 3 | … repeat `setup_guidance_answer` | Until `done: true` — then `nextTool` points to `setup_guidance_generate` |
 | 4 | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload |
@@ -273,13 +273,29 @@ Question catalog v2: `configSource` (**fresh / adopt** — see below),
 to the reference `.guidance/` directory), `profile`
 (plain / spec-kit — locked to the reference when adopting), `shell`
 (optional, agent-facing — placed in `workflow.json` `instructions.global`
-and injected into EVERY phase instruction), `insight` and `gitnexus`
-(on/off — control the downstream entries and their gates) and the `gates` preset
-(`standard`: lint opt + test opt + build REQ · `minimal`: build REQ
-only). Generation returns all six config files plus the seven submission
-schemas (from `examples/default-guidance/schemas`; if the directory is
-missing from the installation, the agent receives a copy hint instead of an
-error).
+and injected into EVERY phase instruction), `workspaceRoot` and
+`extraWorkspaces` (optional multi-workspace registry — see below),
+`insight` and `gitnexus` (on/off — control the downstream entries and their
+gates) and the `gates` preset (`standard`: lint opt + test opt + build REQ ·
+`minimal`: build REQ only). Generation returns all six config files plus the
+seven submission schemas (from `examples/default-guidance/schemas`; if the
+directory is missing from the installation, the agent receives a copy hint
+instead of an error).
+
+**Multi-workspace registration (WA-1, specs/008):** the two optional answers
+`workspaceRoot` (absolute container path of the primary repo root, e.g.
+`/workspace`) and `extraWorkspaces` (`name=path` pairs separated by `;`, e.g.
+`zed=/workspace-zed;niyama=/workspace-niyama`) emit a `workspaces[]` registry
+block into the generated `guidance.json` — the specs/008 registry that makes
+additional repositories startable by name. Names must match
+`^[a-z][a-z0-9-]{0,63}$` (`default` is reserved); paths must be absolute;
+duplicate names/roots are rejected at generation time. Root **existence** is
+validated fail-closed when the configuration is loaded (not at generation),
+so remote-session sentinel roots are fine. Leaving both answers empty keeps
+the implicit single-workspace default (server launch directory). In adopt
+mode the workspace answers are still asked and applied — reference
+`workspaces[]` blocks are never inherited (repo-specific paths would leak
+into the target).
 
 **Adopt mode (`configSource: "adopt"`):** instead of building everything
 from answers, the proven reference configuration is used as the base —

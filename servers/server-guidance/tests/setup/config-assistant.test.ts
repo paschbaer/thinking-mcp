@@ -18,7 +18,7 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(overview.done).toBe(false);
     expect(overview.nextQuestion?.id).toBe("configSource");
     expect(overview.nextTool).toBe("setup_guidance_answer");
-    expect(overview.questions.length).toBe(9);
+    expect(overview.questions.length).toBe(11);
   });
 
   it("advances question by question and reports done when complete", () => {
@@ -101,5 +101,63 @@ describe("configuration assistant (stateless wizard)", () => {
     // clearthought is part of the default profile (specs/011 follow-up):
     // always predefined, independent of insight/gitnexus answers.
     expect(Object.keys(downstream.servers)).toEqual(["clearthought"]);
+  });
+
+  it("WA-1: without workspace answers no workspaces[] block is emitted (status quo)", () => {
+    const { files } = generateFiles(FULL_ANSWERS);
+    const guidance = JSON.parse(
+      (Object.fromEntries(files.map((f) => [f.path, f.content])))["guidance.json"]!,
+    );
+    expect(guidance.workspaces).toBeUndefined();
+  });
+
+  it("WA-1: workspaceRoot emits a workspaces[] block with the default entry", () => {
+    const { files, notes } = generateFiles({ ...FULL_ANSWERS, workspaceRoot: "/workspace" });
+    const guidance = JSON.parse(
+      (Object.fromEntries(files.map((f) => [f.path, f.content])))["guidance.json"]!,
+    );
+    expect(guidance.workspaces).toEqual([
+      { name: "default", root: "/workspace", projectName: "my-project" },
+    ]);
+    expect(notes.some((n) => n.includes("workspaces[] registry block"))).toBe(true);
+  });
+
+  it("WA-1: extraWorkspaces are parsed and appended after the default entry", () => {
+    const { files } = generateFiles({
+      ...FULL_ANSWERS,
+      workspaceRoot: "/workspace",
+      extraWorkspaces: "zed=/workspace-zed; niyama=/workspace-niyama",
+    });
+    const guidance = JSON.parse(
+      (Object.fromEntries(files.map((f) => [f.path, f.content])))["guidance.json"]!,
+    );
+    expect(guidance.workspaces).toEqual([
+      { name: "default", root: "/workspace", projectName: "my-project" },
+      { name: "zed", root: "/workspace-zed", projectName: "zed" },
+      { name: "niyama", root: "/workspace-niyama", projectName: "niyama" },
+    ]);
+  });
+
+  it("WA-1: extraWorkspaces without workspaceRoot is rejected", () => {
+    expect(() =>
+      generateFiles({ ...FULL_ANSWERS, extraWorkspaces: "zed=/workspace-zed" }),
+    ).toThrowError(/extraWorkspaces requires workspaceRoot/);
+  });
+
+  it("WA-1: invalid extraWorkspaces answers fail closed at generation time", () => {
+    const base = { ...FULL_ANSWERS, workspaceRoot: "/workspace" };
+    const cases: Array<[string, RegExp]> = [
+      ["Zed=/workspace-zed", /invalid name/],
+      ["zed=workspace-zed", /must be an absolute path/],
+      ["default=/workspace-zed", /invalid name/],
+      ["zed=/a;zed=/b", /duplicate name/],
+      ["zed=/a;niyama=/a", /duplicate root/],
+      ["zed", /invalid name/],
+    ];
+    for (const [value, pattern] of cases) {
+      expect(() => generateFiles({ ...base, extraWorkspaces: value }), `case: ${value}`).toThrowError(
+        pattern,
+      );
+    }
   });
 });
