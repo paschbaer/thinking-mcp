@@ -34,7 +34,7 @@
       },
       "capabilities": {
         "allow": {
-          "tools": ["store_insight", "query_insights"],
+          "tools": ["experience_search", "experience_record_observation"],
           "resources": ["insight://project/*"],
           "prompts": []
         }
