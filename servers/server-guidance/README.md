@@ -295,9 +295,13 @@ template — never copied from the reference. This is safe in both directions:
 repo-specific args under a generic name (e.g. a `lint` op hard-coding
 `servers/*/src/**/*.{ts,tsx}`) cannot leak into a generated workspace config,
 and target-derived args (scopes, URLs) cannot be replaced by the reference's
-deployment values. When the reference args differ from the fresh ones, the
-result notes the divergence loudly (`REGENERATED ... reference args
-discarded`) for review. All other (non-preset) reference operations are
+deployment values. When the reference invocation differs from the fresh one
+(divergence fingerprint over process `args`, mcpTool `arguments` and composite
+`steps`, with `${project.name}` placeholders normalized), the result notes the
+divergence loudly (`REGENERATED ... reference args
+discarded`) for review; the divergent op ids are also exposed in the
+`adoption.divergentOps` field of `guidance.json`. All other (non-preset)
+reference operations are
 copied with an `[adopted from reference — review args/paths]` marker.
 Fresh generation itself is target-agnostic: the lint gate delegates to the
 project (`npm run lint`, non-blocking) and all process ops assume the

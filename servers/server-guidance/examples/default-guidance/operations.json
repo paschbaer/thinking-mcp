@@ -9,7 +9,10 @@
       "required": true,
       "timeoutSeconds": 300,
       "riskClass": "read_only",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "test": {
@@ -20,7 +23,10 @@
       "required": true,
       "timeoutSeconds": 900,
       "riskClass": "read_only",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "build": {
@@ -31,7 +37,10 @@
       "required": true,
       "timeoutSeconds": 600,
       "riskClass": "workspace_write",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "final-review-gate": {
@@ -42,7 +51,10 @@
       "required": true,
       "timeoutSeconds": 60,
       "riskClass": "read_only",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "docs-drift": {
@@ -53,7 +65,10 @@
       "required": true,
       "timeoutSeconds": 60,
       "riskClass": "read_only",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "repository-analysis": {
@@ -67,8 +82,11 @@
         {
           "type": "mcpTool",
           "server": "gitnexus",
-          "capability": "analyze",
-          "arguments": { "mode": "fixed", "value": { "noStats": true } }
+          "capability": "check",
+          "arguments": {
+            "mode": "fixed",
+            "value": { "repo": "${project.name}" }
+          }
         },
         {
           "type": "process",
@@ -82,21 +100,31 @@
         "requiredContent": true
       },
       "output": { "returnToAgent": "normalized", "retainRawResult": true },
-      "failure": { "remainInPhase": true, "allowManualRetry": true, "reportToAgent": true }
+      "failure": {
+        "remainInPhase": true,
+        "allowManualRetry": true,
+        "reportToAgent": true
+      }
     },
     "query-project-insights": {
       "description": "Retrieve existing development insights.",
       "type": "mcpTool",
       "server": "insight",
-      "capability": "query_insights",
+      "capability": "experience_search",
       "required": false,
       "timeoutSeconds": 60,
       "riskClass": "read_only",
       "arguments": {
         "mode": "template",
-        "value": { "query": "${session.request}", "scope": "${project.name}" }
+        "value": {
+          "query": "${session.request}",
+          "scope_id": "${project.name}"
+        }
       },
-      "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "toolResultMustNotBeError": true
+      },
       "output": { "retainRawResult": false }
     },
     "store-completion-insight": {
@@ -111,7 +139,10 @@
         "mode": "template",
         "value": { "summary": "${phase.completionReport.summary}" }
       },
-      "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "toolResultMustNotBeError": true
+      },
       "output": { "returnToAgent": "status_only", "retainRawResult": false }
     }
   }
