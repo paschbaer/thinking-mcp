@@ -1210,3 +1210,4 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 ## Getrackte Follow-ups (2026-09-29, specs/014 Review — session-1b537de7)
 
 - [CT-1] LOW | Pre-existing: Schema-valid guidance.json mit operations.file aber OHNE workflow.file → registryOnly=false → WorkflowEngine-Konstruktor wirft nackten TypeError statt configuration_invalid (WorkflowEngine.ts ~L285). Durch FR-1101 (fehlende Refs legitim) wahrscheinlicher. | Trigger: nächste config-schema-/Constructor-Änderung. | Action required: Constructor-Guard fail-closed mit configuration_invalid.
+- [CT-2] LOW | Test-Gap: Legacy-Monolith-E2E (Voll-Config am Instanz-Root + registrierter Extra-Workspace MIT eigener .guidance, dann startWorkflow child-composition) nicht explizit in registry-composition.test.ts — Verhalten per Code-Read korrekt. | Trigger: nächste Berührung registry-composition.test.ts / composition v2. | Action required: einen E2E-Test ergänzen.
