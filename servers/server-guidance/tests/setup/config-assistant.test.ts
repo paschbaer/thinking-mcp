@@ -197,16 +197,29 @@ describe("configuration assistant (stateless wizard)", () => {
     ).toThrowError(/registry-edit requires workspaceRoot/);
   });
 
-  it("specs/014 AC-7: remote mode hint appears when GUIDANCE_REMOTE_MODE=1", () => {
+  it("specs/014 AC-7: remote mode hint appears when GUIDANCE_REMOTE_MODE=1 (repo-config → init_session)", () => {
     process.env.GUIDANCE_REMOTE_MODE = "1";
     try {
       const { notes } = generateFiles({
         ...FULL_ANSWERS,
-        target: "registry-edit",
-        workspaceRoot: "/workspaces",
       });
       expect(notes.some((n) => n.includes("Remote mode"))).toBe(true);
       expect(notes.some((n) => n.includes("init_session"))).toBe(true);
+    } finally {
+      delete process.env.GUIDANCE_REMOTE_MODE;
+    }
+  });
+
+  it("specs/014: registry-edit is rejected in remote mode (registry lives per session)", () => {
+    process.env.GUIDANCE_REMOTE_MODE = "1";
+    try {
+      expect(() =>
+        generateFiles({
+          ...FULL_ANSWERS,
+          target: "registry-edit",
+          workspaceRoot: "/workspaces",
+        }),
+      ).toThrowError(/not applicable in remote mode.*init_session/s);
     } finally {
       delete process.env.GUIDANCE_REMOTE_MODE;
     }

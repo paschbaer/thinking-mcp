@@ -736,6 +736,16 @@ export function generateFiles(answers: SetupAnswers): {
   // the reference config and never produces repo-level process files.
   const target = String(answers.target ?? "repo-config");
   if (target === "registry-edit") {
+    if (process.env.GUIDANCE_REMOTE_MODE === "1") {
+      // specs/014 review follow-up: in remote mode the registry lives per
+      // session in the container — a path-based instance registry is a
+      // workspace-mode concept. Steer the agent to the correct flow.
+      throw new GuidanceError(
+        "configuration_invalid",
+        'target "registry-edit" is not applicable in remote mode — the registry lives per session in the container: generate the repo config (target "repo-config") and register it via init_session',
+        { recoverable: true },
+      );
+    }
     const regWorkspaceRoot = String(answers.workspaceRoot ?? "").trim();
     const regExtras = parseExtraWorkspaces(
       String(answers.extraWorkspaces ?? ""),
