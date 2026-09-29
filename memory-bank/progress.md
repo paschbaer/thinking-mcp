@@ -604,3 +604,13 @@ Sessions completed (alle Gates grün).
 **What works:** tests/contract/shipped-configs.test.ts lädt alle 5 ausgelieferten Config-Sets (Repo .guidance + 4 Example-Adopt-Templates) direkt gegen loadConfig; einzige Substitution ist der workspaces[]-Key (Container-Roots host-seitig nicht existent, Default-Fallback toleriert das by Design). Egress-Konsistenz (transport.http/containerRoute ⊆ Allowlist, inkl. disabled Server) + Negative-Control. 7/7 Tests, Suite 458/458 grün (erstes Auftreten: documented Load-Flake, sauberer Volllauf exit 0).
 **What's left:** WC-1-B, WW-1/2/3; Merge dieses Branch nach develop ausständig.
 **Current state:** WC-4 gelöst; Validator×Daten-Konsistenz regressionsgesichert.
+
+### 2026-09-29 — Merge: specs/014 Config Truth v2 nach develop
+**What works:** feature/config-truth-v2 per Fast-Forward nach develop
+gemerged (7ef1fbf) und Branch gelöscht. Post-Merge-Suite 470/470 grün.
+develop ahead 8 of origin (Push wartet auf Nutzerentscheid).
+**What's left:** Docker-Image-Rebuild + GUIDANCE_WORKSPACE_ROOT=/workspaces-
+Umschaltung für den Pool-Betrieb; zed-Praxislauf (registry-edit + repo-config
+mit Cargo-Gates); getrackte LOWs CT-1/CT-2/R-3/WW-* /WC-*.
+**Current state:** Konzept specs/014 implementiert, gemerged; alle
+Guidance-Sessions completed.
