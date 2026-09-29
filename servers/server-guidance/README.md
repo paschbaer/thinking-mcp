@@ -1027,48 +1027,129 @@ amendment.
 
 ## Verification in other languages (toolchain bootstrap)
 
-The image ships bootstrap tooling — `node`/`npm` plus `python3` and a pinned
-`uv` binary (see `ARG UV_VERSION` in the Dockerfile; upgrade deliberately).
-Project toolchains are **not** baked into the image: they are installed
-lazily, server-side, from the workspace lockfile. See
-`examples/python-guidance/` for a full profile.
+The image ships bootstrap tooling — `node`/`npm`, `python3` plus a pinned
+`uv` binary (`ARG UV_VERSION` in the Dockerfile), and a pinned Rust toolchain
+via rustup (`ARG RUST_VERSION`, minimal profile — see the Rust section).
+Project **dependencies** are not baked into the image: they are installed
+lazily, server-side, from the workspace lockfile.
 
-Pattern for any language:
+Two ready-made profiles exist under `examples/`:
 
-1. **Bootstrap op** (e.g. `toolchain-sync`): a `process` operation that
-   installs the pinned environment — for Python: `uv sync --locked`.
-   `--locked` is fail-closed: a missing **or stale** lockfile fails the
-   operation instead of installing anything (verified: `--frozen` would
-   install a stale lock silently).
-2. **Verification ops** (e.g. `lint`/`test`/`check`): `process` operations
-   via `uv run --locked ...` — they never mutate the lockfile. Caveat: on a
-   missing/empty venv they still install from the lockfile; run the
-   bootstrap op first.
+| Profile | Language | Lockfile | Bootstrap op | Verification ops |
+|---|---|---|---|---|
+| `examples/python-guidance/` | Python | `uv.lock` | `uv sync --locked` | ruff · pytest · mypy |
+| `examples/rust-guidance/` | Rust | `Cargo.lock` | `cargo fetch --locked` | clippy · fmt · test · check |
+
+Shared rules for **any** language:
+
+1. **Bootstrap op** (`toolchain-sync`): a `process` operation that installs
+   the pinned environment from the lockfile. Both `uv sync --locked` and
+   `cargo fetch --locked` are fail-closed: a missing **or stale** lockfile
+   fails the operation instead of installing anything (verified: `uv
+   --frozen` would install a stale lock silently).
+2. **Verification ops** (`lint`/`test`/`check`, …): `process` operations
+   that never mutate the lockfile (`uv run --locked …`, `cargo … --locked`).
+   Caveat (Python only): on a missing/empty venv `uv run` still installs
+   from the lockfile — run the bootstrap op first.
 3. **On-demand execution**: mark operations with `"invocableByAgent": true`
    to make them callable via the `run_operation` tool. Unmarked operations
    are rejected with `agent_invocation_denied` (fail-closed). On-demand
    results are advisory — the authoritative verdict remains the lifecycle
    execution in the `verify` phase.
 
-Concurrency: one operation per session at a time (FR-107); venv-mutating
-operations serialize across sessions **per workspace** via hash-suffixed
-workspace lock files (FR-309/FR-502 — different workspaces run in
-parallel); cancellation (and operation timeout) **hard-kills** the child —
-SIGTERM, escalating to SIGKILL after a 5 s grace — and releases the lock
-(FR-202, superseding the earlier cooperative limitation; requires the async
-process executor of feature 004). A cancelled run discards its result and
-is audited as cancelled.
+### Step by step: Python (`examples/python-guidance/`)
 
-**venv caveat:** the venv lives in the workspace (`/workspace/.venv`) and
-contains Linux binaries — do not use it from a Windows host bind mount.
-`uv` rebuilds a broken/mismatched venv on the next run. To relocate it
-entirely (TRACK-Venv-C), set `UV_PROJECT_ENVIRONMENT=/venvs/myproject` in
-the container environment and mount a named volume at `/venvs` — see the
-commented block in `docker-compose.yml`. `toolchain-sync` accesses the
-network (PyPI); it is classified `workspace_write` — network egress is
-governed at the deployment level (container network policy), not by the
-operation approval gate, which only covers `destructive`/
-`credential_sensitive` risk classes.
+**Prerequisite:** a Python project with `pyproject.toml` and a committed
+`uv.lock` in the workspace root.
+
+1. **Copy the profile** into your project's `.guidance/` directory
+   (`guidance.json`, `workflow.json`, `responses.json`, `operations.json`,
+   `policies.json`, `schemas/`).
+2. **Bootstrap op** — `operations.json` defines `toolchain-sync`:
+   `uv sync --locked` installs the pinned environment into
+   `/workspace/.venv`. It is wired into `workflow.json` as `afterEnter` of
+   the `understand` phase, so it runs once per session. It is marked
+   `required: false` — a failure does not block planning; verification
+   catches a broken environment later.
+3. **Verification ops** — three required operations, all non-mutating:
+
+   | Op | Command |
+   |---|---|
+   | `lint` | `uv run --locked ruff check .` |
+   | `test` | `uv run --locked pytest -q` |
+   | `check` | `uv run --locked mypy .` |
+
+4. **Gating** — `workflow.json` lists `lint`, `test`, `check` as
+   `beforeExit` of the `verify` phase and transitions to `complete` only on
+   `required_operations_succeeded`. A failing op bounces the session back
+   to `review_and_fix_implementation` (`verification_failed`). All ops
+   carry `invocableByAgent: true` so the agent can also run them ad hoc via
+   `run_operation`.
+5. **Concurrency & cancellation** — one operation per session at a time
+   (FR-107); venv-mutating operations serialize across sessions **per
+   workspace** via hash-suffixed lock files (FR-309/FR-502 — different
+   workspaces run in parallel); cancellation (and operation timeout)
+   hard-kills the child — SIGTERM, escalating to SIGKILL after a 5 s grace
+   (FR-202) — and releases the lock. A cancelled run discards its result
+   and is audited as cancelled.
+6. **venv caveat** — the venv lives in the workspace (`/workspace/.venv`)
+   and contains Linux binaries: do not use it from a Windows host bind
+   mount. `uv` rebuilds a broken/mismatched venv on the next run. To
+   relocate it entirely (TRACK-Venv-C), set
+   `UV_PROJECT_ENVIRONMENT=/venvs/myproject` in the container environment
+   and mount a named volume at `/venvs` — see the commented block in
+   `docker-compose.yml`.
+7. **Network** — `toolchain-sync` accesses PyPI; it is classified
+   `workspace_write`. Network egress is governed at the deployment level
+   (container network policy), not by the operation approval gate, which
+   only covers `destructive`/`credential_sensitive` risk classes.
+
+### Step by step: Rust (`examples/rust-guidance/`)
+
+**Prerequisite:** a Rust project with a committed `Cargo.lock` in the
+workspace root. Unlike Python, the Rust **toolchain itself ships with the
+image** (rustup + pinned stable toolchain, minimal profile — `ARG
+RUST_VERSION` in the Dockerfile; `gcc`/`libc6-dev` cover crates with C
+dependencies under the Debian/glibc base), so nothing has to be installed
+per-workspace. Crate **dependencies** are still installed lazily from the
+lockfile. A workspace can pin its own compiler version via
+`rust-toolchain.toml`; rustup resolves it automatically on the first cargo
+invocation.
+
+1. **Copy the profile** into your project's `.guidance/` directory (same
+   file set as the Python profile; `schemas/` and `policies.json` are
+   language-agnostic and can be reused as-is).
+2. **Bootstrap op** — `toolchain-sync`: `cargo fetch --locked` downloads
+   all crates pinned by `Cargo.lock` into the cargo registry cache
+   (`CARGO_HOME`). Fail-closed on a missing or stale lockfile. Wired as
+   `afterEnter` of `understand`, `required: false` (same policy as
+   Python). Classified `workspace_write` because it accesses crates.io.
+3. **Verification ops** — four required operations, all non-mutating
+   (`--locked` everywhere so a stale lockfile fails instead of being
+   silently updated):
+
+   | Op | Command |
+   |---|---|
+   | `lint` | `cargo clippy --locked -- -D warnings` |
+   | `fmt-check` | `cargo fmt --check` |
+   | `test` | `cargo test --locked` |
+   | `check` | `cargo check --locked` |
+
+4. **Gating** — identical to Python: `lint`, `fmt-check`, `test`, `check`
+   are `beforeExit` of the `verify` phase; failure bounces to
+   `review_and_fix_implementation`. All ops `invocableByAgent: true`.
+5. **Build-artifact caveat** — by default cargo writes `target/` into the
+   workspace bind mount: slow on Windows/WSL mounts and full of Linux
+   binaries. Set `CARGO_TARGET_DIR=/targets/myproject` in the container
+   environment and mount a named volume at `/targets` (see the commented
+   block in `docker-compose.yml`) — the direct analogue of
+   `UV_PROJECT_ENVIRONMENT` for Python.
+6. **Timeouts** — the first `clippy`/`test` run compiles the whole
+   dependency graph and can take several minutes; the example ops
+   therefore use 600–900 s timeouts (vs. 300 s for Python).
+7. **Concurrency** — cargo locks `target/` internally; combined with the
+   per-workspace operation lock (FR-107/FR-309) two sessions on the same
+   workspace queue instead of corrupting each other's build directory.
 
 ### `policies.json` — security (excerpt)
 
