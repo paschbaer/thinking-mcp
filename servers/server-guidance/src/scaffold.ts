@@ -154,7 +154,25 @@ export function scaffoldIfMissing(
         operations: { file: "operations.json" },
         downstreamServers: { file: "downstream-servers.json" },
         policies: { file: "policies.json" },
-        state: { directory: "state", persistAfterEveryOperation: true },
+        state: {
+          directory: "state",
+          persistAfterEveryOperation: true,
+          retainRawMcpResponses: true,
+        },
+        // Explizite Defaults statt stiller Loader-Fallbacks (Load-Defaults:
+        // chain disabled, maxChainDepth 8) — so ist die Chain-Konfiguration
+        // im Scaffold sichtbar und editierbar. maxChainDepth 16 statt 8.
+        chain: {
+          enabled: false,
+          maxChainDepth: 16,
+          maxStepsPerManifest: 16,
+        },
+        orchestration: {
+          defaultTimeoutSeconds: 120,
+          defaultRetryCount: 0,
+          maximumConcurrentOperations: 4,
+          failClosedForRequiredOperations: true,
+        },
         security: {
           allowAgentDefinedServers: false,
           allowAgentDefinedOperations: false,
