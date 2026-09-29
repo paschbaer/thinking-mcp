@@ -474,3 +474,17 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
   unlasteten Lauf reproduzieren (Baseline-aware, konsequent auf Vollläufe
   ausgeweitet). Vollläufe möglichst mit geminderter Parallelität oder auf
   ext4-Worktree ausführen.
+
+### RID-Reuse-Stall bei Phasen-Submissions (bestätigt 2026-09-29, WC-1-Session)
+- **Issue:** `submit_verification` lief in einen Context-Server-Timeout; der
+  Retry mit GLEICHER requestId hätte den bekannten requestId-Reuse-Stall
+  (Lesson 2026-09-28, session-46a43aeb) ausgelöst.
+- **Why it failed:** Phasen-Submissions sind requestId-keyed — gleiche ID nach
+  Timeout wirkt wie Duplikat/Replay; unterschiedliche Payloads ⇒ payloadMismatch.
+- **Preventive measure:** Nach Timeout einer Phasen-Submission IMMER mit neuem
+  requestId retryen (Submissions sind pro Phase mit frischer ID idempotent);
+  bei `invalid_active_phase: expected X, got Y` ist die erste Submission
+  trotzdem angekommen — Status prüfen statt erneut submitieren.
+- **Beobachtet:** Genau dieses Muster trat auf (Retry fresh-ID →
+  `invalid_active_phase: expected complete, got verify`) — erste Submission
+  hatte die Phase bereits gewechselt. Kein Datenverlust.

@@ -12,6 +12,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import type { RawWorkspaceEntry } from "./workspace-registry.js";
 import { WorkspaceRegistry } from "./workspace-registry.js";
+import { toTrustLevel } from "./trust-level.js";
 
 export type ProfileId = "plain" | "spec-kit";
 
@@ -474,6 +475,17 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
         );
       }
     }
+    // Review F1 (WC-1): a non-string trustLevel must not silently coerce to
+    // "trusted" via the coupling check — fail closed on obvious type errors.
+    if (
+      raw["trustLevel"] !== undefined &&
+      typeof raw["trustLevel"] !== "string"
+    ) {
+      throw new ConfigurationError(
+        "configuration_invalid",
+        `downstreamServers.${id}: trustLevel must be a string when present`,
+      );
+    }
     const reconnect = connection?.reconnect;
     if (reconnect !== undefined) {
       if (typeof reconnect !== "object" || Array.isArray(reconnect)) {
@@ -540,6 +552,26 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
           "configuration_invalid",
           `downstreamServers.${id}: capabilities.allow.tools wildcard "*" must be the only entry`,
         );
+      }
+      // WC-1 fail-closed coupling: a wildcard allowlist admits EVERY tool of
+      // the server, including tools without an operations.json entry — for
+      // those, opForEgress is undefined and the FR-053 approval gate
+      // (destructive/credential_sensitive) can never fire. Only fully
+      // trusted servers may carry "*". Normalization shares the runtime
+      // semantics (unknown/absent trustLevel → "trusted").
+      if (allowTools.includes("*")) {
+        const effective = toTrustLevel(
+          typeof raw["trustLevel"] === "string"
+            ? (raw["trustLevel"] as string)
+            : undefined,
+          id,
+        );
+        if (effective !== "trusted") {
+          throw new ConfigurationError(
+            "configuration_invalid",
+            `downstreamServers.${id}: wildcard "*" in capabilities.allow.tools requires trustLevel "trusted" (effective: "${effective}") — tools without an operation entry cannot trigger the approval gate`,
+          );
+        }
       }
     }
     // FR-035 amendment: optional containerRoute — the tool's HTTP endpoint

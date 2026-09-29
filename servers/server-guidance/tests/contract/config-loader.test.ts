@@ -334,3 +334,78 @@ describe("downstream http transports (fail-closed egress + secret resolution)", 
     expect(() => loadConfig(dir)).toThrowError(/enabled must be a boolean/);
   });
 });
+
+describe("WC-1: wildcard allowlist coupled to trustLevel (fail-closed)", () => {
+  function writeDs(trustLevel?: string): void {
+    write("downstream-servers.json", {
+      version: 2,
+      servers: {
+        wc1: {
+          enabled: true,
+          required: false,
+          ...(trustLevel !== undefined ? { trustLevel } : {}),
+          transport: {
+            type: "stdio",
+            command: { executable: "noop", args: [] },
+          },
+          capabilities: { allow: { tools: ["*"] } },
+        },
+      },
+    });
+    write("guidance.json", {
+      ...minimalGuidance,
+      downstreamServers: { file: "downstream-servers.json" },
+    });
+  }
+
+  it("rejects wildcard with trustLevel restricted (server id in message)", () => {
+    writeDs("restricted");
+    expect(() => loadConfig(dir)).toThrowError(/configuration_invalid/);
+    expect(() => loadConfig(dir)).toThrowError(/downstreamServers\.wc1/);
+  });
+
+  it("rejects wildcard with trustLevel untrusted", () => {
+    writeDs("untrusted");
+    expect(() => loadConfig(dir)).toThrowError(
+      /wildcard .* requires trustLevel .trusted./,
+    );
+  });
+
+  it("accepts wildcard with trustLevel trusted", () => {
+    writeDs("trusted");
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+
+  it("accepts wildcard with absent trustLevel (runtime default: trusted)", () => {
+    writeDs(undefined);
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+
+  it("accepts wildcard with unknown string trustLevel (warn-and-fallback semantics pinned)", () => {
+    writeDs("Trustd");
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+
+  it("rejects non-string trustLevel (fail closed, review F1)", () => {
+    write("downstream-servers.json", {
+      version: 2,
+      servers: {
+        wc1: {
+          enabled: true,
+          required: false,
+          trustLevel: 123,
+          transport: {
+            type: "stdio",
+            command: { executable: "noop", args: [] },
+          },
+          capabilities: { allow: { tools: ["*"] } },
+        },
+      },
+    });
+    write("guidance.json", {
+      ...minimalGuidance,
+      downstreamServers: { file: "downstream-servers.json" },
+    });
+    expect(() => loadConfig(dir)).toThrowError(/trustLevel must be a string/);
+  });
+});

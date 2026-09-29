@@ -594,3 +594,8 @@ zweites Repo (z.B. zed → /workspace-zed) + Wizard-Lauf, um workspaces[] zu
 nutzen; getrackte LOW-Follow-ups WC-1/WC-4/WW-1/WW-2/WW-3.
 **Current state:** Beide Guidance-Ketten-Schritte implementiert, gemerged,
 Sessions completed (alle Gates grün).
+
+## 2026-09-29: WC-1 Wildcard↔TrustLevel-Coupling (feature/wc1-wildcard-trustlevel-coupling, Guidance-Session session-22e9b598)
+**What works:** `validateDownstreamServers` lehnt Wildcard `["*"]` für Server mit effektiver trustLevel != "trusted" fail-closed ab (configuration_invalid, Server-ID in Meldung); `toTrustLevel`/`TRUST_LEVELS` nach `src/trust-level.ts` extrahiert (Validator+Runtime eine Semantik); Review-F1 gefixt (nicht-string trustLevel → configuration_invalid). 6 neue Tests; Suite 451/451 grün. Unabhängiger Review APPROVED 0 HIGH/CRIT. README + remaining-work-plan aktualisiert; Restlücke als WC-1-B getrackt. GitNexus-Index vor Completion aktualisiert (5632 nodes).
+**What's left:** WC-1-B (Runtime-Hardening trusted Wildcard-Server), WC-4, WW-1/2/3; Merge des Feature-Branch nach develop + Docker-Rebuild ausständig.
+**Current state:** WC-1 gelöst auf Config-Ebene; Guidance-Session in Phase complete.
