@@ -105,6 +105,19 @@
   false-positives, by design) + F-4 (description ausserhalb Fingerprint)
   accepted. Semantik unveraendert (Preset-Ops regenerieren immer).
   | — | resolved
+- [TMPL-5] LOW ( TMPL-3-Follow-up 2026-09-29, action required → teils erledigt) |
+  Tote Insight-Tool-Namen im Builtin-Template: `store-completion-insight`
+  rief `store_insight` auf (Tool existiert nicht mehr — Insight-Server
+  exposeed nur experience_*/lesson_*/workflow_*/validation_*), downstream-
+  Allowlist + Fixtures trugen `store_insight`/`query_insights`.
+  GEFIXT: Op + beforeExit-Referenz aus Template entfernt (Capture-Session-
+  Lessons ist der moderne Ersatz, kommt via buildOperations), downstream
+  → [experience_search, experience_record_observation], Fixtures aligniert;
+  Independent Review 6cab6fbe: 0 HIGH/CRIT, 55/55 gezielt, 432/432 settled.
+  REST (LOW, accepted mit Trigger): SDD-/specs-002-Baseline-Dokumente
+  nennen store-completion-insight/store_insight noch (historische Records —
+  Update wenn 002-Doku nächstes Mal in Scope); stale Testkommentar behoben.
+  | Trigger: 002-Doku-Auffrischung. | teils resolved, Rest accepted.
 - [TMPL-4] LOW (Round-1/2-Reviews, accepted with rationale) | catch→
   freshOpsMap={}-Fallback und empty-refOpsMap-Adopt ungetestet (by-inspection
   korrekt + konservativ); capture-session-lessons-Divergenz und
