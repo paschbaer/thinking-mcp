@@ -10,7 +10,6 @@ import {
   writeFileSync,
   readFileSync,
   renameSync,
-  cpSync,
 } from "node:fs";
 import { resolve, join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
@@ -1173,6 +1172,16 @@ export class WorkflowEngine {
       )
         throw err;
       targetRoot = resolve(candidate);
+    }
+    // specs/014 review F-1: a registry-only boot engine must never accept a
+    // session itself — including the unregistered-candidate fallback above,
+    // which bypasses engineForWorkspace's default-root guard.
+    if (target === this && this.config.registryOnly && !this.isChild) {
+      throw new GuidanceError(
+        "workspace_process_config_missing",
+        'registry-only instance: sessions must target a registered workspace whose root carries its own process config (e.g. workspace: "zed") — run the config assistant in that repo (setup_guidance_start)',
+        { recoverable: false },
+      );
     }
     if (target !== this) {
       const child = await target.startWorkflow({

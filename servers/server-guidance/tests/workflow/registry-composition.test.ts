@@ -16,6 +16,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
+import { generateFiles } from "../../src/setup/ConfigAssistant.js";
 import {
   warnDormantGuidanceConfigs,
   warnLegacyMonolith,
@@ -117,6 +118,25 @@ describe("specs/014: registry-only composition (FR-1101/FR-1102)", () => {
     ]);
   });
 
+  it("specs/014 review F-1: registry-only boot rejects an UNREGISTERED candidate (no hollow session)", async () => {
+    const zed = join(pool, "zed");
+    mkdirSync(zed, { recursive: true });
+    scaffoldFullConfig(zed);
+    writeRegistry(pool, [
+      { name: "default", root: pool, projectName: "pool" },
+      { name: "zed", root: zed, projectName: "zed" },
+    ]);
+    const app = compose();
+    await expect(
+      app.engine.startWorkflow({
+        workspaceRoot: join(pool, "unknown-repo"),
+        request: "r",
+      }),
+    ).rejects.toThrowError(
+      /workspace_process_config_missing|registry-only instance/,
+    );
+  });
+
   it("AC-1: session in a registered workspace composes from <root>/.guidance without copying", async () => {
     const zed = join(pool, "zed");
     mkdirSync(zed, { recursive: true });
@@ -183,6 +203,32 @@ describe("specs/014: registry-only composition (FR-1101/FR-1102)", () => {
 });
 
 describe("specs/014: legacy monolith + dormancy boot diagnostics", () => {
+  it("FR-1105/F-5: the registry-edit payload round-trips through loadConfig as a registry-only instance", () => {
+    const zed = join(pool, "zed");
+    mkdirSync(zed, { recursive: true });
+    scaffoldFullConfig(zed);
+    const { files } = generateFiles({
+      configSource: "fresh",
+      projectName: "pool",
+      transport: "stdio",
+      profile: "plain",
+      insight: "no",
+      gitnexus: "no",
+      gates: "minimal",
+      target: "registry-edit",
+      workspaceRoot: pool,
+      extraWorkspaces: `zed=${zed}`,
+    });
+    mkdirSync(join(pool, ".guidance"), { recursive: true });
+    writeFileSync(join(pool, ".guidance", "guidance.json"), files[0]!.content);
+    const cfg = loadConfig(join(pool, ".guidance"), { workspaceRoot: pool });
+    expect(cfg.registryOnly).toBe(true);
+    expect(cfg.workspaces.list().map((w) => w.name)).toEqual([
+      "default",
+      "zed",
+    ]);
+  });
+
   it("FR-1103/AC-4: legacy monolith (full config + extra workspaces) warns", () => {
     const zed = join(pool, "zed");
     mkdirSync(zed, { recursive: true });
@@ -194,8 +240,11 @@ describe("specs/014: legacy monolith + dormancy boot diagnostics", () => {
     expect(cfg.registryOnly).toBe(false);
     const out: string[] = [];
     warnLegacyMonolith(cfg, (m) => out.push(m));
-    expect(out.join("\n")).toMatch(/legacy monolith config detected/);
-    expect(out.join("\n")).toMatch(/specs\/014-config-truth-composition/);
+    const joined = out.join("\n");
+    expect(joined).toMatch(/legacy monolith config detected/);
+    expect(joined).toMatch(/specs\/014-config-truth-composition/);
+    // AC-5: the warning names the detected process files
+    expect(joined).toMatch(/workflow\.json.*operations\.json/s);
   });
 
   it("FR-1103: plain single-repo full config does NOT warn", () => {
