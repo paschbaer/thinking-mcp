@@ -1759,6 +1759,168 @@ and walks understand → … → complete; the `lint/test/build` gates (before
 `verify`) and `repository-analysis` (before `complete`) run server-side
 automatically.
 
+## Repo setup — step by step (specs/014, two modes × two setup paths)
+
+There are exactly two deployment modes and two setup styles — pick the cell
+you need:
+
+| | **Manual** (you edit files) | **Assistant** (agent drives the wizard) |
+|---|---|---|
+| **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`) | Path 1 | Path 2 |
+| **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`) | Path 3 | Path 4 |
+
+Config truth in both modes: **process config (workflow/operations/responses/
+schemas/policies) belongs to the repo** (`.guidance/` inside the repo);
+the **workspaces registry belongs to the instance**
+(`GUIDANCE_WORKSPACE_ROOT/.guidance/guidance.json`). Any other `.guidance/`
+copy is inert.
+
+---
+
+### Path 1 — Workspace-Mode, manual
+
+Goal: onboarding repo `zed` (already mounted at `/workspaces/zed`) onto an
+instance rooted at `/workspaces`.
+
+**Step 1 — instance registry (the ONLY thing at the instance root).**
+Edit `${GUIDANCE_WORKSPACE_ROOT}/.guidance/guidance.json` (on the host:
+`D:\repos\.guidance\guidance.json`):
+
+```json
+{
+  "version": 2,
+  "project": { "name": "repos-pool" },
+  "workspaces": [
+    { "name": "default", "root": "/workspaces", "projectName": "repos-pool" },
+    { "name": "zed", "root": "/workspaces/zed", "projectName": "zed" }
+  ],
+  "state": { "directory": "state", "persistAfterEveryOperation": true }
+}
+```
+
+That is the WHOLE file — no `workflow`/`operations`/... references. Rules:
+names `^[a-z][a-z0-9-]{0,63}$` (`default` reserved), roots absolute and
+existing, no duplicate names/roots.
+
+**Step 2 — repo process config.** The repo needs its own full `.guidance/`.
+Scaffold the generic baseline inside the container (idempotent — never
+overwrites):
+
+```sh
+docker compose exec guidance node dist/init.js /workspaces/zed/.guidance
+```
+
+Then adapt `zed/.guidance/operations.json` to the repo's toolchain (a Rust
+repo wants `cargo build`/`cargo test`/`cargo clippy` gates instead of the
+npm presets). Add `.guidance/state/` to the repo's `.gitignore`.
+
+**Step 3 — activate.** The registry is read at boot: restart the container
+(`docker compose up -d --force-recreate guidance`) or use the assistant
+(Path 2), which edits the file for you.
+
+**Step 4 — start working:**
+
+```
+start_workflow { "workspace": "zed", "request": "..." }
+```
+
+---
+
+### Path 2 — Workspace-Mode, assistant
+
+The config assistant is mode-aware and splits the work into two wizard runs
+(new `target` question, specs/014). Give your agent ONE prompt — it runs the
+wizard twice and edits the registry on your behalf:
+
+```
+This repo pool should be served by our Guidance instance in Workspace-Mode.
+Run setup_guidance_start TWICE:
+1) target=registry-edit: projectName "repos-pool", workspaceRoot
+   "/workspaces", extraWorkspaces "zed=/workspaces/zed" — take the generated
+   guidance.json and merge it into /workspaces/.guidance/guidance.json
+   (create the file if missing).
+2) target=repo-config inside /workspaces/zed: projectName "zed", transport
+   http-docker, standard gates — write the generated file set to
+   /workspaces/zed/.guidance/ (the repo's own config; it must NOT contain a
+   workspaces block).
+Then add /workspaces/zed/.guidance/state/ to zed's .gitignore and tell me to
+restart the guidance container.
+```
+
+The generated `registry-edit` payload looks exactly like the Path 1 sample;
+the `repo-config` run is the classic wizard (question catalog minus any
+registry emission).
+
+---
+
+### Path 3 — Remote-Mode, manual
+
+Goal: register `zed` against a central container running with
+`GUIDANCE_REMOTE_MODE=1` (and, when configured, a matching `key`/Bearer
+pair). Nothing exists on the host except the repo.
+
+**Step 1 — repo config.** Same as Path 1 Step 2 (scaffold + adapt gates),
+but the config stays wherever the repo is — there is no instance registry.
+
+**Step 2 — register (idempotent, keyed by config hash):**
+
+```sh
+curl -X POST http://localhost:3003/mcp \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+    "params": { "name": "init_session", "arguments": {
+      "key": "zed-team",
+      "configFiles": {
+        "guidance.json": "{ ... }",
+        "workflow.json": "{ ... }",
+        "operations.json": "{ ... }",
+        "policies.json": "{ ... }",
+        "downstream-servers.json": "{ ... }"
+      }
+    } }
+  }'
+```
+
+The response contains the `sessionId`; keep it — subsequent workflow tools
+run with `Authorization: Bearer <session bearer>` and that session id.
+Re-calling `init_session` with the same config returns the same session
+(30-day inactivity TTL; 20 registrations/min/IP).
+
+---
+
+### Path 4 — Remote-Mode, assistant
+
+Same as Path 3, but the agent drives both steps:
+
+```
+Our Guidance container runs in Remote-Mode at http://localhost:3003/mcp
+(Bearer token in $GUIDANCE_TOKEN, key "zed-team"). Set up this repo:
+1) Run setup_guidance_start with target=repo-config (projectName "zed",
+   transport http-docker, standard gates) and write the generated file set
+   to this repo's .guidance/.
+2) Call init_session on the central container with exactly those generated
+   files as configFiles (key "zed-team"), store the returned sessionId in
+   .guidance/state/remote-session.json, and start a workflow for:
+   "<your request>".
+```
+
+The assistant is mode-aware: with `GUIDANCE_REMOTE_MODE=1` visible to the
+serving instance, its generated notes already point at `init_session`
+instead of the instance registry (specs/014 AC-7).
+
+---
+
+### Mode decision helper
+
+- One operator, a pool of repos on one machine, config should persist and be
+  centrally editable → **Workspace-Mode** (Paths 1/2).
+- Many repos/teams registering themselves against a central container, no
+  shared writable config → **Remote-Mode** (Paths 3/4).
+- Legacy monolith (full config at the instance root): keeps working with a
+  boot warning — migrate to registry-only + repo-level configs (specs/014).
+
 ## Tool reference
 
 Common conventions: every tool returns a JSON text payload. `sessionId` refers
