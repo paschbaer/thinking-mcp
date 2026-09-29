@@ -24,11 +24,17 @@ services:
       # Workspace-Mounts persistieren (Named Volume + Env unten) — vermeidet
       # Linux-Binaries auf Windows-Host-Mounts:
       # - guidance-venvs:/venvs
+      # Optional (Rust): Cargo-Build-Artefakte außerhalb des Workspace-Mounts
+      # persistieren — deutlich schnellere Builds und keine Linux-Binaries im
+      # Host-Mount:
+      # - guidance-targets:/targets
     # Optional dazu:
     # environment:
     #   - UV_PROJECT_ENVIRONMENT=/venvs/myproject
+    #   - CARGO_TARGET_DIR=/targets/myproject
 # volumes:
 #   guidance-venvs:
+#   guidance-targets:
     healthcheck:
       # healthy erst wenn konfiguriert (/health liefert "configured": true)
       test: ["CMD-SHELL", "curl -f http://localhost:3003/health | grep -q '\"configured\":true'"]

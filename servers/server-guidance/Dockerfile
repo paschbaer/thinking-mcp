@@ -20,6 +20,42 @@ RUN apt-get update \
 ARG UV_VERSION=0.12.19
 RUN pip install --break-system-packages --no-cache-dir "uv==${UV_VERSION}"
 
+# --- Optional toolchains: Rust + C# ------------------------------------------------
+# Neither toolchain is installed by default (image size). Opt in per build:
+#   docker build --build-arg INSTALL_RUST=true --build-arg INSTALL_CSHARP=true .
+# If an operation references cargo/dotnet without the toolchain installed,
+# the process gate fails closed (executable not found).
+ARG INSTALL_RUST=false
+ARG INSTALL_CSHARP=false
+
+# Rust toolchain bootstrap (analogous to uv): pinned rustup-init + minimal
+# stable toolchain. Project dependencies are NOT baked in — they are fetched
+# lazily, server-side, from the workspace Cargo.lock (cargo fetch --locked).
+# Workspace repos should pin their own toolchain via rust-toolchain.toml
+# (rustup resolves it automatically). Update RUST_VERSION deliberately.
+ARG RUST_VERSION=1.90.0
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:${PATH}
+RUN if [ "$INSTALL_RUST" = "true" ]; then \
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --profile minimal --default-toolchain "${RUST_VERSION}" --no-modify-path; \
+    else echo "INSTALL_RUST=false — skipping Rust toolchain"; fi
+
+# C# toolchain bootstrap (analogous to uv/rustup): pinned .NET SDK channel.
+# Project dependencies are NOT baked in — they are restored lazily,
+# server-side, from the workspace packages.lock.json (dotnet restore
+# --locked-mode). Update DOTNET_VERSION deliberately.
+ARG DOTNET_VERSION=10.0
+ENV DOTNET_ROOT=/usr/share/dotnet \
+    PATH=/usr/share/dotnet:${PATH} \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1
+RUN if [ "$INSTALL_CSHARP" = "true" ]; then \
+      curl -sSL https://dot.net/v1/dotnet-install.sh \
+        | bash -s -- --channel "${DOTNET_VERSION}" --install-dir /usr/share/dotnet; \
+    else echo "INSTALL_CSHARP=false — skipping .NET SDK"; fi
+
 # Copy package files first for better layer caching
 COPY package*.json ./
 
