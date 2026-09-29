@@ -89,7 +89,11 @@ review-checked — Guidance can only gate deterministic, observable checks.
 - **Spec-Kit profile** (optional): discover/import Spec-Kit artifacts
   (spec.md, plan.md, tasks.md), dependency-aware task batches, evidence-gated
   task completion (checkboxes are hints, never proof), plan-change
-  classification, traceability report, completion invariants.
+  classification, traceability report, completion invariants. Sessions on
+  this profile work without imported artifacts too: the spec-kit task tools
+  require `import_spec_kit_artifacts` first, but the workflow can equally be
+  driven via plan-level submissions (`submit_plan`/`submit_implementation`/
+  `submit_verification`), which need no spec-kit state (REV-2).
 
 ## Installation
 
