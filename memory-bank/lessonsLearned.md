@@ -463,3 +463,14 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 ## 2026-09-28: Git-Worktrees + Windows/WSL-Split
 - **Issue:** In einem Windows-gecheckten Worktree (.git = Datei mit 'gitdir: D:/...') scheitern WSL-git und Gate-Scripts: WSL-git kann den Windows-Pfad nicht folgen; check-final-review/check-index-freshness resolvieren den Pointer falsch; Tests, die .git/HEAD direkt lesen, brechen mit ENOTDIR. **Fix (GDS-5):** Pointer-Resolution mit Kandidatenliste (POSIX-relativ, /mnt/<drive>, /workspace/<rest>, /workspaces/<name>), commondir für packed-refs UND loose refs prüfen; im Test-Helper dieselbe Logik. **Preventive:** Neuer Code darf nie .git/HEAD direkt lesen — immer über die Pointer-Auflösung; Worktree-Regel ist jetzt instructions.global.
 - **Issue:** npm-Install im Guidance-Container (NODE_ENV=production) überspringt devDependencies → Build-Gate exit 127 (tsc not found). **Preventive:** container-seitig `npm install --include=dev`; Worktree-Workflows müssen die Dep-Installation als ersten Schritt einplanen.
+
+## 2026-09-29 — Guidance-Testsuite: Last-Flakiness (WSL /mnt/d)
+- **Issue:** server-guidance-Vollläufe zeigten unter Last 2-4 Fehler (teils mit
+  variierender Datei-/Testanzahl), saubere Wiederholungsläufe 437/437 grün.
+- **Root cause:** IO/CPU-Last auf /mnt/d (9p) verlängert collect-Phasen drastisch
+  (66-167s) und kippt timing-sensible Tests — nicht inhaltsbezogen.
+- **Preventive measure:** Bei Suite-Fehlern immer einen sauberen Volllauf als
+  Zweitlese vor der Fehleranalyse fahren; Fehler nur werten, wenn sie in einem
+  unlasteten Lauf reproduzieren (Baseline-aware, konsequent auf Vollläufe
+  ausgeweitet). Vollläufe möglichst mit geminderter Parallelität oder auf
+  ext4-Worktree ausführen.

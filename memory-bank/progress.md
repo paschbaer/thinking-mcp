@@ -560,6 +560,21 @@ automatisierter Test); Backoff exponentiell/Jitter bewusst offen.
 - 2026-09-29 (rebase + smoke): feature/rust-guidance-example auf develop (18c1098, node:24-trixie-slim) gerebased; Dockerfile-Konflikt so aufgelöst, dass develop-Basis + Opt-in-Guards (INSTALL_RUST/INSTALL_CSHARP) kombiniert sind. Smoke-Verifikation: Default-Image baut, cargo/dotnet ABSENT; Voll-Image (--build-arg beide true) baut mit cargo 1.90.0 + dotnet 10.0.401. Fixes dabei: gcc/libc6-dev (cc-Linker) und libicu76 (.NET-ICU) in apt-Zeile. Offen: Live-Test der Ops gegen echte Rust-/C#-Workspaces; Merge-Entscheid beim Nutzer.
 - 2026-09-29 (merge): feature/rust-guidance-example per Fast-Forward nach develop gemerged (fa00a1d, 6 Commits: Rust-/C#-Profile, Opt-in-Toolchains, README-Step-by-Steps, gcc/libc6-dev+libicu76-Fixes). Worktree Thinking-MCP-rust-guidance entfernt, Branch gelöscht, Smoke-Images (guidance-smoke-default/full) entfernt. develop ahead 7 of origin — Push wartet auf Nutzerentscheid. Offen: Live-Test der Ops gegen echte Rust-/C#-Workspaces; Container-Rebuild mit den neuen ARGs bei Bedarf.
 
+### 2026-09-29 — Wildcard Container-Route (feature/wildcard-container-route, c72d5c8)
+**What works:** Wildcard `["*"]` in capabilities.allow.tools (fail-closed-Validierung,
+nur alleinig) macht die Container-Route für ALLE Tools von clearthought/insight/
+gitnexus nutzbar; insight erstmals mit containerRoute; Auto-Fallback bleibt
+read_only-beschränkt; Examples inkl. Egress-Allowlist konsistent; README-Doku;
+437/437 Tests grün; unabhängiger Review APPROVED 0 HIGH/CRIT.
+**What's left:** Guidance-Session session-45abc996 in 'blocked' (submit_verification
+2× Context-server-timeout — Infrastruktur, Entscheidung via resume_workflow offen);
+Chain-Schritt 2 (WA-1 Config-Assistent Multi-Workspace) noch nicht gestartet;
+Docker-Image-Rebuild nötig, damit der laufende Container "*" akzeptiert;
+MEDIUM WC-1 getrackt (remaining-work-plan.md).
+**Current state:** Schritt 1 der Kette implementiert + committed auf
+feature/wildcard-container-route (nicht gemerged); GitNexus-Index frisch
+(5618 nodes / 12359 edges).
+
 ### 2026-09-29 — WA-1 Wizard Multi-Workspace (feature/wizard-workspaces)
 **What works:** assistent-getriebene workspaces[]-Emission (specs/008) — zwei
 neue optionale Fragen, fail-closed Parse-Validierung, Adopt-Modus respektiert
