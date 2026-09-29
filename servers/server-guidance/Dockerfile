@@ -1,8 +1,16 @@
-FROM node:22-alpine
+FROM node:24-trixie-slim
 
+# node 24 on purpose: the WSL host (nvm) runs node 24 and builds the shared
+# /workspace native modules with NODE_MODULE_VERSION 137 — a node 22 container
+# (ABI 127) cannot load them (ERR_DLOPEN_FAILED ABI mismatch, TMPL-2).
+# glibc base (Debian 13 trixie, glibc 2.41 — matches the WSL host that builds
+# the shared /workspace node_modules): musl (alpine) cannot dlopen host-built
+# native bindings (better-sqlite3 fcntl64, TMPL-2).
 # curl: health check · git, bash: workspace verification ops spawn them
 # (git init in tests, `spawn bash` in process gates) — must happen before USER node
-RUN apk add --no-cache curl git bash
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y curl git bash ca-certificates python3 python3-pip procps \
+  && rm -rf /var/lib/apt/lists/*
 
 # Python toolchain bootstrap (spec 003 FR-105): interpreter + pinned uv binary.
 # Project dependencies are NOT baked into the image — they are installed
@@ -10,8 +18,7 @@ RUN apk add --no-cache curl git bash
 # Update UV_VERSION deliberately (manual upgrade procedure, keep in sync
 # with the README note).
 ARG UV_VERSION=0.12.19
-RUN apk add --no-cache python3 py3-pip \
-  && pip install --break-system-packages --no-cache-dir "uv==${UV_VERSION}"
+RUN pip install --break-system-packages --no-cache-dir "uv==${UV_VERSION}"
 
 # Copy package files first for better layer caching
 COPY package*.json ./
