@@ -564,6 +564,41 @@ always: **start → read guidance → do the work → submit → repeat**.
    the user decides.
 5. **`complete_workflow`** — final report; required completion gates run.
 
+### Error recovery & session continuation
+
+Errors fall into four distinct cases — each with a different correct next
+move. The common rule first: **a client-side timeout does not mean the
+operation did not run.** The orchestrator executes operations server-side and
+persists session state after every mutation; when a call times out or the
+connection drops, check the actual state before acting:
+
+```json
+get_workflow_state { "sessionId": "…" }
+```
+
+returns the current phase, the recorded submissions and the last operation
+outcomes — then pick the matching case:
+
+| Symptom | What actually happened | Correct next step |
+|---|---|---|
+| Phase gate operation failed (exit ≠ 0) | Session **stayed in the phase**; failed required operations are recorded | Fix the cause, then `retry_operation { "sessionId": "…" }` re-runs the failed required operations; the gate re-evaluates |
+| Session status `blocked` (via `report_blocker`, or a required `beforeEnter` failure at session/successor start) | Session is paused on the system state `blocked`; the previous phase is preserved | Get the user decision, then `resume_workflow { "sessionId": "…", "decision": "…" }` returns to the previous phase |
+| Client timeout on a submission or on `retry_operation`/`complete_workflow` | The orchestrator may **have executed** the operation anyway (state is persisted per mutation) | Do **not** blindly resubmit: check `get_workflow_state` first. Re-submitting the same phase payload is safe (requestId replay returns the recorded result instead of double-executing), but a changed payload may be rejected by the reuse policy |
+| Server or container restarted mid-session | Sessions persist in the workspace bind mount (`.guidance/state/`); `configurationVersion` is image-independent | Continue by `sessionId`: `get_workflow_state` / `get_current_guidance` return the exact position. A `.guidance/` config change, however, invalidates persisted sessions (fail-closed, specs/008 AC-5) |
+
+Re-submission semantics (requestId ledger): every phase submission carries a
+`requestId`. Replaying the **same** payload with the **same** `requestId`
+returns the recorded result marked `replayed` — it never re-executes work. A
+**changed** payload under the same `requestId` is governed by
+`policies.submission.requestIdReuse` (`warn` default, `reject-mismatch` for
+fail-closed setups; amendment 006). When in doubt after an unclear failure:
+new `requestId`, state first via `get_workflow_state`.
+
+Operations can tune their failure behavior in `operations.json` via the
+`failure` block (`remainInPhase`, `allowManualRetry`, `reportToAgent`) — this
+is how non-blocking gates (`required: false`) report failures without keeping
+the session in the phase.
+
 ### Example: one full pass (plain profile)
 
 **Agent:** `start_workflow { "workspaceRoot": "/repo", "request": "Add rate limiting to the API" }`
