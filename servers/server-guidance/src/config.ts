@@ -520,8 +520,7 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
     // the wildcard "*" is only valid as the SOLE entry — mixed lists are
     // rejected because their intent is ambiguous (allow-all vs. enumeration).
     const capabilities = raw["capabilities"] as
-      | { allow?: { tools?: unknown } }
-      | undefined;
+      { allow?: { tools?: unknown } } | undefined;
     const allowTools = capabilities?.allow?.tools;
     if (allowTools !== undefined) {
       if (!Array.isArray(allowTools)) {
