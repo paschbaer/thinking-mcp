@@ -1063,10 +1063,11 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     expect(adoption.nonGenericOps).toEqual(
       expect.arrayContaining(["final-review-gate"]),
     );
-    // true sync pin: a drifted builtin template (args differing from fresh
-    // generation) would surface as a REGENERATED note — its absence proves
-    // template and generator are in lockstep
+    // true sync pin: a drifted builtin template (invocation details differing
+    // from fresh generation) would surface as a REGENERATED note — its absence
+    // proves template and generator are in lockstep
     expect(r.notes.some((n) => n.includes("REGENERATED"))).toBe(false);
+    expect(adoption.divergentOps).toEqual([]);
   });
 
   it("mcpTool op with divergent arguments is regenerated and surfaced in the adoption block", () => {
