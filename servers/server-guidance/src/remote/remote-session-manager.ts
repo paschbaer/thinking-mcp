@@ -523,7 +523,8 @@ export class RemoteSessionManager {
     // H1-Fix: Idle-Alter aus dem VOR-touch lastAccessAt berechnen.
     const idleDays =
       (Date.now() - new Date(meta.lastAccessAt).getTime()) / 86_400_000;
-    if (idleDays > TTL_DAYS) throw new Error(
+    if (idleDays > TTL_DAYS)
+      throw new Error(
         "session_not_found" +
           " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
       );

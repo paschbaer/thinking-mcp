@@ -75,8 +75,10 @@ export class MetricsRepository {
   private readonly operations: Record<string, OperationMetrics> = {};
   private readonly connections: Record<string, ConnectionSnapshot> = {};
   /** FR-035 amendment: containerRoute fallback counters per server. */
-  private readonly containerRouteFallbacks: Record<string, ContainerRouteBucket> =
-    {};
+  private readonly containerRouteFallbacks: Record<
+    string,
+    ContainerRouteBucket
+  > = {};
   /** RID-1: requestId replay counters (in-memory, not persisted). */
   private readonly requestIdReplays = { total: 0, payloadMismatches: 0 };
   private replaying = false;

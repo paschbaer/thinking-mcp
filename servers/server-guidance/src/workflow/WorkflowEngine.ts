@@ -712,20 +712,24 @@ export class WorkflowEngine {
         | undefined;
       if (transport?.type === "http") {
         const conn = cfg?.connection as
-          | { startupTimeoutSeconds?: number }
-          | undefined;
+          { startupTimeoutSeconds?: number } | undefined;
         try {
           // GDS-1: ensureReady expects the flattened transport config
           // (same mapping as the invoker closure).
           const probeCfg =
             transport.type === "http" && transport.http
-              ? { type: "http", url: transport.http.url, headers: transport.http.headers }
+              ? {
+                  type: "http",
+                  url: transport.http.url,
+                  headers: transport.http.headers,
+                }
               : undefined;
-          await this.clientManager.ensureReady(
-            id,
-            probeCfg as never,
-            { handshakeTimeoutSeconds: Math.min(5, conn?.startupTimeoutSeconds ?? 5) },
-          );
+          await this.clientManager.ensureReady(id, probeCfg as never, {
+            handshakeTimeoutSeconds: Math.min(
+              5,
+              conn?.startupTimeoutSeconds ?? 5,
+            ),
+          });
         } catch {
           /* ensureReady records failed status itself */
         }

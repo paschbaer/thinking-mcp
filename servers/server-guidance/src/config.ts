@@ -704,8 +704,7 @@ function applyHttpTransports(
     // EVERY enabled server BEFORE the transport-type-specific block, so a
     // stdio server's containerRoute cannot bypass egress policy.
     const crEarly = raw["containerRoute"] as
-      | { url?: string; headers?: Record<string, string> }
-      | undefined;
+      { url?: string; headers?: Record<string, string> } | undefined;
     if (crEarly?.url) {
       let crParsed: URL;
       try {
@@ -799,11 +798,7 @@ function validatePolicies(policiesFile: Record<string, unknown>): void {
     );
   }
   const mode = (submission as { requestIdReuse?: unknown }).requestIdReuse;
-  if (
-    mode !== undefined &&
-    mode !== "warn" &&
-    mode !== "reject-mismatch"
-  ) {
+  if (mode !== undefined && mode !== "warn" && mode !== "reject-mismatch") {
     throw new ConfigurationError(
       "configuration_invalid",
       'policies.submission.requestIdReuse must be "warn" or "reject-mismatch"',
