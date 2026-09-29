@@ -582,3 +582,15 @@ Antworten ohne Referenz-Leak; 440/440 Tests grün; README-Doku.
 **What's left:** Merge beider Feature-Branches nach develop (Nutzerentscheid);
  Guidance-Session-Phasen (review/verify/complete) noch offen.
 **Current state:** Beide Ketten-Schritte implementiert; Branches offen.
+
+### 2026-09-29 — Merge: Wildcard Container-Route + WA-1 Wizard-Workspaces nach develop
+**What works:** Beide Feature-Branches per Rebase nach develop gemerged
+(develop 474c2bc, ahead 9 of origin; Konflikte nur in memory-bank-Dokumenten,
+beide Sektionen erhalten). Post-Merge-Suite 445/445 grün. Feature-Branches
+gelöscht (Branch-Cleanup per Regel).
+**What's left:** Push von develop (9 Commits) wartet auf Nutzerentscheid;
+Docker-Image-Rebuild (Wildcard-Config akzeptieren); Container-Mount für
+zweites Repo (z.B. zed → /workspace-zed) + Wizard-Lauf, um workspaces[] zu
+nutzen; getrackte LOW-Follow-ups WC-1/WC-4/WW-1/WW-2/WW-3.
+**Current state:** Beide Guidance-Ketten-Schritte implementiert, gemerged,
+Sessions completed (alle Gates grün).
