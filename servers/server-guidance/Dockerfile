@@ -9,7 +9,7 @@ FROM node:24-trixie-slim
 # curl: health check · git, bash: workspace verification ops spawn them
 # (git init in tests, `spawn bash` in process gates) — must happen before USER node
 RUN apt-get update \
-  && apt-get install --no-install-recommends -y curl git bash ca-certificates python3 python3-pip procps \
+  && apt-get install --no-install-recommends -y curl git bash ca-certificates python3 python3-pip procps gcc libc6-dev libicu76 \
   && rm -rf /var/lib/apt/lists/*
 
 # Python toolchain bootstrap (spec 003 FR-105): interpreter + pinned uv binary.
