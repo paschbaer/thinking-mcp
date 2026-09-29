@@ -74,25 +74,29 @@
   (Commit auf feature/tmpl1-prettier-drift; check gruen gesamt src, tsc
   clean, Suite 430/430). Wurzelursache (floating ^3.1.0) als
   Pin-Follow-up-Kandidat notiert. | resolved
-- [TMPL-2] MEDIUM (Guidance-Session 2026-09-28, dieselbe Session, action
-  required) | server-insight-Tests failen im Guidance-Container komplett
-  (72 Failures): better-sqlite3 native Binding glibc-vs-musl —
-  `fcntl64: symbol not found` beim dlopen. Test-Gate (required:false)
-  failt daher im Container grundsätzlich; auf dem Host grün.
-  | Trigger: zusammen mit NIY-CFG-2 — Container-Image auf Alpine fixen
-  (better-sqlite3 für musl rebuilden ODER glibc-basiertes Image) VOR dem
-  nächsten Batch, sonst ist das Container-Test-Gate dauerhaft unbrauchbar.
-  | action required.
-- [TMPL-3] LOW (Round-2-Review 2026-09-28, session-2c0c15fe, action required) |
-  Divergenz-Erkennung vergleicht nur Top-Level `args` — mcpTool/composite
-  Preset-Ops (`repository-analysis`, `query-project-insights`) tragen
-  `arguments`/`steps`-nested args, ihre Divergenz wird nicht als Note
-  gemeldet. Folge benign (Preset-Ops werden ohnehin regeneriert — nur
-  beratende Note fehlt evtl.); README-Satz leicht übertribut.
-  | Trigger: nächster Touch von ConfigAssistant generateFiles — Divergenz-
-  vergleich auf `arguments`/steps ausweiten ODER README-Satz präzisieren;
-  `divergentOps` zusätzlich im machine-readable adoption-Block führen
-  (aktuell nur notes[]). | action required.
+- [TMPL-2] MEDIUM (Guidance-Session 2026-09-28, dieselbe Session,
+  RESOLVED 2026-09-29) | server-insight-Tests failen im Guidance-Container
+  komplett (72 Failures): better-sqlite3 glibc/musl dlopen — GEFIXT
+  (commit 8134a46, TMPL-2-Session 5cc970dd): Image auf node:24-trixie-slim
+  (glibc 2.41 = Host, node 24 = ABI 137 = Host-Toolchain); in-container
+  insight 118/118 (vorher 72), guidance 430/430, clear-thought 166/166,
+  stochastic 43/43; procps ergänzt (FR-202 ps ax). Ermittlung empirisch
+  zweistufig: musl → ABI-Mismatch → procps. Dauerhaft im Image gebacken.
+  | — | resolved
+- [TMPL-3] LOW (Round-2-Review 2026-09-28, session-2c0c15fe,
+  RESOLVED 2026-09-29) |
+  Divergenz-Erkennung auf Top-Level-args beschraenkt — GEFIXT (commit
+  81faece + 4da7f44): Fingerprint ueber {type, server, capability, args,
+  arguments, steps} mit ${project.name}-Normalisierung; divergentOps im
+  adoption-Block (guidance.json) maschinenlesbar; Note-Text generalisiert
+  ('reference invocation details'). Fingerprint fing sofort 3 echte
+  Builtin-Template-Drifts (repository-analysis analyze→check +
+  noStats→repo, query-project-insights query_insights→experience_search +
+  scope→scope_id) — Template aligned, Builtin-Sync-Pin assertet
+  divergentOps [] (Review-F-1). F-3 (nested key-order advisory
+  false-positives, by design) + F-4 (description ausserhalb Fingerprint)
+  accepted. Semantik unveraendert (Preset-Ops regenerieren immer).
+  | — | resolved
 - [TMPL-4] LOW (Round-1/2-Reviews, accepted with rationale) | catch→
   freshOpsMap={}-Fallback und empty-refOpsMap-Adopt ungetestet (by-inspection
   korrekt + konservativ); capture-session-lessons-Divergenz und
@@ -123,8 +127,8 @@
   bake workspace toolchain into the image`); Shim löst je Workspace deren
   packageManager-Pin auf (Niyama 12.4.2 verifiziert über echten Mount).
   node_modules je Workspace bleiben Workspace-State (pnpm install nach
-  Rebuild/Erstmount — frozen-lockfile). Siehe TMPL-2
-  (better-sqlite3/musl, gilt weiterhin). | resolved (mit
+  Rebuild/Erstmount — frozen-lockfile). TMPL-2 (better-sqlite3) seit
+  2026-09-29 durch die glibc-Basis selbst gelöst. | resolved (mit
   Dockerfile-Follow-up)
 - [NIY-CFG-3] INFO (gleicher Ursachenkomplex, accepted with rationale) |
   Verbleibende C0-Tasks (Task 1 war abgeschlossen) laufen in einer FRISCHEN
