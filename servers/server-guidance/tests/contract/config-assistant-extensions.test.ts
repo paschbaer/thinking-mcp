@@ -1543,7 +1543,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
     } finally {
       rmSync(refOff, { recursive: true, force: true });
     }
-    // insight=true (store-completion-insight op) → block rendered with URL
+    // insight=true (query-project-insights op) → block rendered with URL
     const refOn = makeWisdomRef(wisdom, { insight: true });
     try {
       const on = generateFiles({

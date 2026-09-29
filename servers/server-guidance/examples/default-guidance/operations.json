@@ -126,24 +126,6 @@
         "toolResultMustNotBeError": true
       },
       "output": { "retainRawResult": false }
-    },
-    "store-completion-insight": {
-      "description": "Store a completion insight for the finished feature.",
-      "type": "mcpTool",
-      "server": "insight",
-      "capability": "store_insight",
-      "required": false,
-      "timeoutSeconds": 60,
-      "riskClass": "external_write",
-      "arguments": {
-        "mode": "template",
-        "value": { "summary": "${phase.completionReport.summary}" }
-      },
-      "validation": {
-        "protocolRequestMustSucceed": true,
-        "toolResultMustNotBeError": true
-      },
-      "output": { "returnToAgent": "status_only", "retainRawResult": false }
     }
   }
 }

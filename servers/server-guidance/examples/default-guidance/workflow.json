@@ -108,8 +108,7 @@
         "beforeExit": [
           "docs-drift",
           "final-review-gate",
-          "repository-analysis",
-          "store-completion-insight"
+          "repository-analysis"
         ]
       },
       "transitions": [
