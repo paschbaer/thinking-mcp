@@ -81,21 +81,28 @@
   | Trigger: nächster Test-Ausbau an config-assistant-extensions.test.ts.
   | accepted with rationale.
 
-- [NIY-CFG-1] MEDIUM (Infrastruktur-Blocker 2026-09-28, session-46a43aeb-6a87-4730-ac64-c73e613ae8d9, action required) |
-  Lint-Op im Guidance-Container schlägt grundsätzlich fehl: Pattern
-  `servers/*/src/**/*.{ts,tsx}` existiert im Niyama-Repo nicht (Config aus
-  fremdem Repo-Layout, vermutlich Thinking-MCP `servers/`-Monorepo).
-  | Trigger: VOR der nächsten Niyama-Batch-Session — Lint-Glob in der
-  Verification-Config des Containers korrigieren; dabei die GESAMTE Config
-  auf weitere fremde Pfade/Mounts auditieren (gleiche Ursache könnte
-  build/test-Tasks betreffen). | action required.
+- [NIY-CFG-1] MEDIUM (Infrastruktur-Blocker 2026-09-28, session-46a43aeb-6a87-4730-ac64-c73e613ae8d9,
+  RESOLVED 2026-09-29) |
+  Lint-Glob im Niyama-.guidance/operations.json
+  (`servers/*/src/**/*.{ts,tsx}`) → ersetzt durch `npm run lint` (Niyama
+  hat echtes lint-Script `eslint .`). Restliche Config geprüft: build/test/
+  repository-analysis generisch korrekt. Ursachenklasse generell behoben
+  durch Config-Assistant-Fix 709ed15 (Thinking-MCP develop). Niyama-Repo
+  hat uncommittete Änderungen (Task-1-Scope + dieser Fix) — Commit
+  obliegt dem Niyama-Owner. | — | resolved
 - [NIY-CFG-2] MEDIUM (Infrastruktur-Blocker 2026-09-28, dieselbe Session,
-  action required) | Test-Op schlägt grundsätzlich fehl: `Cannot find
-  module @rollup/rollup-linux-x64-musl` — pnpm-Store im Container
-  (`/workspaces/Niyama`) unvollständig/musl-inkompatibel.
-  | Trigger: zusammen mit NIY-CFG-1 vor der nächsten Batch-Session —
-  Store/Mount reparieren (vollständiger `pnpm install` im Container mit
-  korrekter Plattform-Zielarchitektur). | action required.
+  RESOLVED 2026-09-29 mit Dauerhaftigkeits-Vorbehalt) |
+  Test-Runtime im Guidance-Container (`server-guidance-guidance-1`,
+  Niyama unter /workspaces/Niyama) repariert: corepack-pnpm 12.4.2
+  aktiviert + `pnpm install --frozen-lockfile` (36.7s); danach noch
+  `apk add git bash` nötig (Niyama-Tests spawnen git init / bash —
+  Alpine-Image hatte beides nicht; 10 → 0 Failures). Baseline im
+  Container: build ✅, lint ✅ (0 errors), test 440/440 ✅.
+  | Restrisiko/Trigger: apk/corepack/node_modules sind Container-RUNTIME-
+  State — bei Image-Rebuild erneut nötig → dauerhaft in den Guidance-
+  Dockerfile aufnehmen (git, bash, corepack-pnpm), siehe TMPL-2
+  (better-sqlite3/musl, gilt weiterhin). | resolved (mit
+  Dockerfile-Follow-up)
 - [NIY-CFG-3] INFO (gleicher Ursachenkomplex, accepted with rationale) |
   Verbleibende C0-Tasks (Task 1 war abgeschlossen) laufen in einer FRISCHEN
   Guidance-Session pro Batch, nicht in der abgebrochenen — Session war
