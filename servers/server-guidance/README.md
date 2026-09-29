@@ -1058,6 +1058,24 @@ Shared rules for **any** language:
    results are advisory — the authoritative verdict remains the lifecycle
    execution in the `verify` phase.
 
+**Toolchain availability in the image (opt-in):** `node`/`npm` and the
+Python toolchain (`python3` + pinned `uv`) are always installed. The Rust
+and C# toolchains are **not** installed by default (image size) — opt in
+at build time:
+
+```sh
+docker build --build-arg INSTALL_RUST=true --build-arg INSTALL_CSHARP=true .
+```
+
+| Build ARG | Default | Installs (pinned via) |
+|---|---|---|
+| `INSTALL_RUST` | `false` | rustup + minimal stable toolchain (`RUST_VERSION`, default `1.90.0`) |
+| `INSTALL_CSHARP` | `false` | .NET SDK (`DOTNET_VERSION`, default `10.0`) |
+
+If a verification op references `cargo`/`dotnet` in an image built
+without the corresponding toolchain, the process gate fails closed
+(executable not found) — the operation errors, it does not silently skip.
+
 ### Step by step: Python (`examples/python-guidance/`)
 
 **Prerequisite:** a Python project with `pyproject.toml` and a committed
@@ -1107,7 +1125,8 @@ Shared rules for **any** language:
 
 ### Step by step: Rust (`examples/rust-guidance/`)
 
-**Prerequisite:** a Rust project with a committed `Cargo.lock` in the
+**Prerequisite:** an image built with `--build-arg INSTALL_RUST=true`
+(see above) and a Rust project with a committed `Cargo.lock` in the
 workspace root. Unlike Python, the Rust **toolchain itself ships with the
 image** (rustup + pinned stable toolchain, minimal profile — `ARG
 RUST_VERSION` in the Dockerfile; `gcc`/`libc6-dev` cover crates with C
@@ -1154,7 +1173,8 @@ invocation.
 
 ### Step by step: C# (`examples/csharp-guidance/`)
 
-**Prerequisite:** a .NET solution with a committed `packages.lock.json`
+**Prerequisite:** an image built with `--build-arg INSTALL_CSHARP=true`
+(see above) and a .NET solution with a committed `packages.lock.json`
 per project. Enable lockfile generation with
 `<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>` in each
 `.csproj` (or once, solution-wide, via `Directory.Build.props`), run
