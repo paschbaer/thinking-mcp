@@ -99,8 +99,12 @@
   Alpine-Image hatte beides nicht; 10 → 0 Failures). Baseline im
   Container: build ✅, lint ✅ (0 errors), test 440/440 ✅.
   | Restrisiko/Trigger: apk/corepack/node_modules sind Container-RUNTIME-
-  State — bei Image-Rebuild erneut nötig → dauerhaft in den Guidance-
-  Dockerfile aufnehmen (git, bash, corepack-pnpm), siehe TMPL-2
+  State — DAUERHAFT GEFIXT 2026-09-29: Guidance-Dockerfile backt nun
+  git + bash + corepack-pnpm-Shim ein (commit cecc9da, `build(guidance):
+  bake workspace toolchain into the image`); Shim löst je Workspace deren
+  packageManager-Pin auf (Niyama 12.4.2 verifiziert über echten Mount).
+  node_modules je Workspace bleiben Workspace-State (pnpm install nach
+  Rebuild/Erstmount — frozen-lockfile). Siehe TMPL-2
   (better-sqlite3/musl, gilt weiterhin). | resolved (mit
   Dockerfile-Follow-up)
 - [NIY-CFG-3] INFO (gleicher Ursachenkomplex, accepted with rationale) |
