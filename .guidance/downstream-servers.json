@@ -11,7 +11,7 @@
         "http": { "url": "http://host.docker.internal:4747/api/mcp" }
       },
       "capabilities": {
-        "allow": { "tools": ["check", "query", "detect_changes", "list_repos"], "resources": [], "prompts": [] }
+        "allow": { "tools": ["*"], "resources": [], "prompts": [] }
       },
       "connection": {
         "startupTimeoutSeconds": 30,
@@ -33,12 +33,7 @@
       },
       "capabilities": {
         "allow": {
-          "tools": [
-            "sequential_thinking",
-            "decision_framework",
-            "metacognitive_monitoring",
-            "debugging_approach"
-          ],
+          "tools": ["*"],
           "resources": [],
           "prompts": []
         }
@@ -62,16 +57,15 @@
         "http": { "url": "http://host.docker.internal:3002/mcp" }
       },
       "capabilities": {
-        "allow": {
-          "tools": ["experience_search", "experience_record_observation"],
-          "resources": ["insight://project/*"],
-          "prompts": []
-        }
+        "allow": { "tools": ["*"], "resources": ["insight://project/*"], "prompts": [] }
       },
       "connection": {
         "startupTimeoutSeconds": 30,
         "requestTimeoutSeconds": 120,
         "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+      },
+      "containerRoute": {
+        "url": "http://host.docker.internal:3002/mcp"
       }
     },
     "memory": {

@@ -214,9 +214,11 @@ export class ClientManager {
     return tool;
   }
 
-  /** Allowlist check: discovery does not imply permission (FR-048). */
+  /** Allowlist check: discovery does not imply permission (FR-048).
+   *  A wildcard ["*"] allowlist (validated fail-closed in config.ts) permits
+   *  every tool name of the server — routing stays tool-name-agnostic. */
   assertAllowed(serverId: string, toolName: string, allowlist: string[]): void {
-    if (!allowlist.includes(toolName)) {
+    if (!allowlist.includes(toolName) && !allowlist.includes("*")) {
       throw new GuidanceError(
         "downstream_capability_not_allowed",
         `tool ${toolName} is not allowlisted for ${serverId}`,

@@ -233,6 +233,63 @@ describe("containerRoute config validation (FR-035 amendment, fail-closed)", () 
   });
 });
 
+describe("wildcard capability allowlist (tool-name-agnostic container route)", () => {
+  it("accepts a sole wildcard [\"*\"] allowlist", () => {
+    writeScenario({
+      insight: {
+        enabled: true,
+        trustLevel: "trusted",
+        transport: { type: "http", http: { url: "http://localhost:3002/mcp" } },
+        capabilities: { allow: { tools: ["*"] } },
+      },
+    }, ["localhost:3002"]);
+    expect(() => loadConfig(dir)).not.toThrow();
+  });
+
+  it("rejects a mixed wildcard list (ambiguous intent)", () => {
+    writeScenario({
+      insight: {
+        enabled: true,
+        trustLevel: "trusted",
+        transport: { type: "http", http: { url: "http://localhost:3002/mcp" } },
+        capabilities: { allow: { tools: ["*", "experience_search"] } },
+      },
+    }, ["localhost:3002"]);
+    expect(() => loadConfig(dir)).toThrowError(/wildcard "\*" must be the only entry/);
+  });
+
+  it("rejects non-string and empty allow.tools entries", () => {
+    for (const tools of [[42], [""], ["a", null]]) {
+      writeScenario(
+        {
+          insight: {
+            enabled: true,
+            trustLevel: "trusted",
+            transport: { type: "http", http: { url: "http://localhost:3002/mcp" } },
+            capabilities: { allow: { tools } },
+          },
+        },
+        ["localhost:3002"],
+      );
+      expect(() => loadConfig(dir), `case: ${JSON.stringify(tools)}`).toThrowError(
+        /capabilities\.allow\.tools/,
+      );
+    }
+  });
+
+  it("rejects a non-array allow.tools", () => {
+    writeScenario({
+      insight: {
+        enabled: true,
+        trustLevel: "trusted",
+        transport: { type: "http", http: { url: "http://localhost:3002/mcp" } },
+        capabilities: { allow: { tools: "*" } },
+      },
+    }, ["localhost:3002"]);
+    expect(() => loadConfig(dir)).toThrowError(/must be an array/);
+  });
+});
+
 describe("ClientManager.invokeOnTransientHttpRoute (FR-035 amendment)", () => {
   it("invokes a tool over the transient route (success)", async () => {
     const stub = createStubServer("success" as StubMode);
