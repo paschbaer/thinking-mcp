@@ -1039,6 +1039,7 @@ Two ready-made profiles exist under `examples/`:
 |---|---|---|---|---|
 | `examples/python-guidance/` | Python | `uv.lock` | `uv sync --locked` | ruff · pytest · mypy |
 | `examples/rust-guidance/` | Rust | `Cargo.lock` | `cargo fetch --locked` | clippy · fmt · test · check |
+| `examples/csharp-guidance/` | C# | `packages.lock.json` | `dotnet restore --locked-mode` | format · build · test |
 
 Shared rules for **any** language:
 
@@ -1150,6 +1151,57 @@ invocation.
 7. **Concurrency** — cargo locks `target/` internally; combined with the
    per-workspace operation lock (FR-107/FR-309) two sessions on the same
    workspace queue instead of corrupting each other's build directory.
+
+### Step by step: C# (`examples/csharp-guidance/`)
+
+**Prerequisite:** a .NET solution with a committed `packages.lock.json`
+per project. Enable lockfile generation with
+`<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>` in each
+`.csproj` (or once, solution-wide, via `Directory.Build.props`), run
+`dotnet restore` locally once, and commit the generated lock files.
+Unlike Python, the .NET **SDK ships with the image** (installed via
+`dot.net/v1/dotnet-install.sh`, pinned channel — `ARG DOTNET_VERSION` in
+the Dockerfile), so nothing has to be installed per-workspace. NuGet
+**packages** are still restored lazily from the lock files.
+
+1. **Copy the profile** into your project's `.guidance/` directory (same
+   file set as the other profiles; `schemas/` and `policies.json` are
+   language-agnostic and can be reused as-is).
+2. **Bootstrap op** — `toolchain-sync`: `dotnet restore --locked-mode`
+   restores all packages pinned by `packages.lock.json` into the NuGet
+   cache (`NUGET_PACKAGES`). Fail-closed: a missing **or stale** lock file
+   fails the operation instead of silently resolving newer versions.
+   Wired as `afterEnter` of `understand`, `required: false` (same policy
+   as the other profiles). Classified `workspace_write` because it
+   accesses nuget.org.
+3. **Verification ops** — three required operations, all non-mutating
+   (`--no-restore` so nothing is pulled outside the bootstrap op;
+   `--verify-no-changes` so formatting is checked, not rewritten):
+
+   | Op | Command |
+   |---|---|
+   | `lint` | `dotnet format --verify-no-changes` |
+   | `check` | `dotnet build --no-restore` |
+   | `test` | `dotnet test --no-restore` |
+
+4. **Gating** — identical to Python/Rust: `lint`, `check`, `test` are
+   `beforeExit` of the `verify` phase; failure bounces to
+   `review_and_fix_implementation`. All ops `invocableByAgent: true`.
+5. **Cache caveat** — the NuGet cache defaults to `~/.nuget/packages`
+   inside the container and is lost on re-deploy. Set
+   `NUGET_PACKAGES=/nugets/myproject` in the container environment and
+   mount a named volume at `/nugets` (see the commented block in
+   `docker-compose.yml`) — the direct analogue of
+   `UV_PROJECT_ENVIRONMENT`/`CARGO_TARGET_DIR` for the other profiles.
+6. **Timeouts** — the first `build`/`test` run restores nothing but
+   compiles the full dependency graph and can take several minutes; the
+   example ops therefore use 600–900 s timeouts (vs. 300 s for Python).
+   Update a stale lock file deliberately: run `dotnet restore` locally
+   and commit the changed `packages.lock.json`.
+7. **Concurrency** — MSBuild locks `obj/`/`bin/` internally; combined
+   with the per-workspace operation lock (FR-107/FR-309) two sessions on
+   the same workspace queue instead of corrupting each other's build
+   outputs.
 
 ### `policies.json` — security (excerpt)
 

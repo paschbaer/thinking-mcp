@@ -56,6 +56,18 @@ RUN if [ "$INSTALL_CSHARP" = "true" ]; then \
         | bash -s -- --channel "${DOTNET_VERSION}" --install-dir /usr/share/dotnet; \
     else echo "INSTALL_CSHARP=false — skipping .NET SDK"; fi
 
+# C# toolchain bootstrap (analogous to uv/rustup): pinned .NET SDK channel.
+# Project dependencies are NOT baked in — they are restored lazily,
+# server-side, from the workspace packages.lock.json (dotnet restore
+# --locked-mode). Update DOTNET_VERSION deliberately.
+ARG DOTNET_VERSION=10.0
+ENV DOTNET_ROOT=/usr/share/dotnet \
+    PATH=/usr/share/dotnet:${PATH} \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh \
+  | bash -s -- --channel "${DOTNET_VERSION}" --install-dir /usr/share/dotnet
+
 # Copy package files first for better layer caching
 COPY package*.json ./
 
