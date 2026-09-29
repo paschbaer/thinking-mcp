@@ -599,3 +599,8 @@ Sessions completed (alle Gates grün).
 **What works:** `validateDownstreamServers` lehnt Wildcard `["*"]` für Server mit effektiver trustLevel != "trusted" fail-closed ab (configuration_invalid, Server-ID in Meldung); `toTrustLevel`/`TRUST_LEVELS` nach `src/trust-level.ts` extrahiert (Validator+Runtime eine Semantik); Review-F1 gefixt (nicht-string trustLevel → configuration_invalid). 6 neue Tests; Suite 451/451 grün. Unabhängiger Review APPROVED 0 HIGH/CRIT. README + remaining-work-plan aktualisiert; Restlücke als WC-1-B getrackt. GitNexus-Index vor Completion aktualisiert (5632 nodes).
 **What's left:** WC-1-B (Runtime-Hardening trusted Wildcard-Server), WC-4, WW-1/2/3; Merge des Feature-Branch nach develop + Docker-Rebuild ausständig.
 **Current state:** WC-1 gelöst auf Config-Ebene; Guidance-Session in Phase complete.
+
+## 2026-09-29: WC-4 Shipped-Config-Contract (feature/wc4-shipped-config-contract, Guidance-Session session-e782866b)
+**What works:** tests/contract/shipped-configs.test.ts lädt alle 5 ausgelieferten Config-Sets (Repo .guidance + 4 Example-Adopt-Templates) direkt gegen loadConfig; einzige Substitution ist der workspaces[]-Key (Container-Roots host-seitig nicht existent, Default-Fallback toleriert das by Design). Egress-Konsistenz (transport.http/containerRoute ⊆ Allowlist, inkl. disabled Server) + Negative-Control. 7/7 Tests, Suite 458/458 grün (erstes Auftreten: documented Load-Flake, sauberer Volllauf exit 0).
+**What's left:** WC-1-B, WW-1/2/3; Merge dieses Branch nach develop ausständig.
+**Current state:** WC-4 gelöst; Validator×Daten-Konsistenz regressionsgesichert.
