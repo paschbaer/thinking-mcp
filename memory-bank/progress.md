@@ -614,3 +614,12 @@ Umschaltung für den Pool-Betrieb; zed-Praxislauf (registry-edit + repo-config
 mit Cargo-Gates); getrackte LOWs CT-1/CT-2/R-3/WW-* /WC-*.
 **Current state:** Konzept specs/014 implementiert, gemerged; alle
 Guidance-Sessions completed.
+
+### 2026-09-29 — README: Step-by-step Repo-Setup-Guide (specs/014)
+**What works:** Neue README-Sektion „Repo setup — step by step“ (servers/
+server-guidance/README.md): 4 Pfade (Workspace/Remote × manual/assistant)
+mit Sample-Dateiinhalten (Registry-only guidance.json), Sample-Prompts
+für den mode-aware Config-Assistant, Mode-Decision-Helper; docs-drift grün.
+**What's left:** Docker-Rebuild + /workspaces-Umschaltung (Praxis), zed-
+Onboarding, Push von develop (ahead ~10).
+**Current state:** Doku komplett für beide Modi.
