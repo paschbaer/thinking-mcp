@@ -1717,8 +1717,16 @@ describe("WA-1: wizard-driven workspaces[] emission (multi-workspace)", () => {
           },
           // repo-specific paths of the REFERENCE — must never leak into the target
           workspaces: [
-            { name: "default", root: "/reference-root", projectName: "reference-project" },
-            { name: "legacy", root: "/reference-legacy", projectName: "legacy" },
+            {
+              name: "default",
+              root: "/reference-root",
+              projectName: "reference-project",
+            },
+            {
+              name: "legacy",
+              root: "/reference-legacy",
+              projectName: "legacy",
+            },
           ],
         }),
       );
