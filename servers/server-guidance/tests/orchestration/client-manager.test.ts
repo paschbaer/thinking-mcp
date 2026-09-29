@@ -81,6 +81,15 @@ describe("ClientManager (FR-031/033/034/042, SC-008)", () => {
     const mgr = new ClientManager();
     expect(() => mgr.assertAllowed("g", "hiddenTool", ["analyze"])).toThrowError(/not allowlisted/);
   });
+
+  it("wildcard [\"*\"] allowlist permits any tool name (tool-name-agnostic routing)", () => {
+    const mgr = new ClientManager();
+    expect(() => mgr.assertAllowed("g", "anyToolAtAll", ["*"])).not.toThrow();
+    // Without the wildcard, unknown names stay rejected (fail-closed default).
+    expect(() => mgr.assertAllowed("g", "anyToolAtAll", ["analyze"])).toThrowError(
+      /not allowlisted/,
+    );
+  });
 });
 
 describe("ClientManager http transport (FR-031 HTTP extension)", () => {

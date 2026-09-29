@@ -1,5 +1,12 @@
 {
   "version": 2,
+  "egress": {
+    "httpHostAllowlist": [
+      "localhost:3000",
+      "localhost:3002",
+      "localhost:4747"
+    ]
+  },
   "trustLevels": {
     "untrusted": {
       "dataEgress": "none"

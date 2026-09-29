@@ -516,6 +516,33 @@ function validateDownstreamServers(data: Record<string, unknown>): void {
         );
       }
     }
+    // Wildcard-capable tool allowlist (fail-closed): entries must be strings;
+    // the wildcard "*" is only valid as the SOLE entry — mixed lists are
+    // rejected because their intent is ambiguous (allow-all vs. enumeration).
+    const capabilities = raw["capabilities"] as
+      | { allow?: { tools?: unknown } }
+      | undefined;
+    const allowTools = capabilities?.allow?.tools;
+    if (allowTools !== undefined) {
+      if (!Array.isArray(allowTools)) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: capabilities.allow.tools must be an array`,
+        );
+      }
+      if (allowTools.some((t) => typeof t !== "string" || t.length === 0)) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: capabilities.allow.tools must be an array of non-empty strings`,
+        );
+      }
+      if (allowTools.includes("*") && allowTools.length > 1) {
+        throw new ConfigurationError(
+          "configuration_invalid",
+          `downstreamServers.${id}: capabilities.allow.tools wildcard "*" must be the only entry`,
+        );
+      }
+    }
     // FR-035 amendment: optional containerRoute — the tool's HTTP endpoint
     // reachable from the guidance container, used as ONE automatic fallback
     // attempt on read-only/idempotent call timeouts (fail-closed validation:

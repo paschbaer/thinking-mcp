@@ -339,6 +339,18 @@
 
 ## Recent Changes
 
+### 2026-09-29 — Wildcard Container-Route (feature/wildcard-container-route, Guidance-Session session-45abc996)
+- Container-Route jetzt tool-name-agnostik-öffentlich: `capabilities.allow.tools:
+  ["*"]` (Wildcard, nur alleinig — gemischte Listen → configuration_invalid)
+  für gitnexus/clearthought/insight in `.guidance/` UND
+  `examples/default-guidance/`; insight erstmals mit `containerRoute`
+  (`host.docker.internal:3002/mcp` bzw. `localhost:3002/mcp` in examples).
+  Enforcement: `ClientManager.assertAllowed` respektiert "*"; Auto-Fallback
+  bleibt read_only-beschränkt (unverändert). Egress-Allowlist in examples-
+  policies.json ergänzt (localhost:3000/3002/4747). Tests: Wildcard-Validierung
+  + Enforcement + Full-Suite 437/437 grün. Hinweis: laufender Docker-Container
+  braucht Image-Rebuild, um "*" zu akzeptieren.
+
 ### 2026-09-25 — Guidance HTTP-Downstream-Transport (feature/guidance-http-downstream)
 - Plan reviewt (Clear-Thought-Server down ⇒ dokumentierter manueller Fallback
   mit Findings-Tabelle), Plan v2 um Egress-Host-Allowlist + Load-Time-Secret-
