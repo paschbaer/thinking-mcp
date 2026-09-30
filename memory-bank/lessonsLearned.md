@@ -6,6 +6,9 @@
 
 ## Avoid These Mistakes
 
+- **Undocumented language conventions (2026-09-30):** user preferences like output
+  language must be persisted in `AGENTS.md` immediately when stated, otherwise they
+  are lost across sessions. Convention here: chat in German, all artifacts in English.
 - **`git diff`/`git log` ohne `--no-pager` im Agent-Terminal hängt (2026-09-28, rezidiv):** im
   non-interaktiven pty startet der Pager und blockiert den Call endlos (User-Abbruch nötig).
   AGENTS.md fordert `--no-pager` für JEADEN read-only-git-Befehl — der Verstoß passierte genau bei

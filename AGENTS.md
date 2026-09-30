@@ -72,6 +72,9 @@ When investigating and fixing bugs, your reasoning steps MUST include:
 ## User Preferences & Persistent Memory
 - **Communication:**
 	- Keep explanations concise
+- **Language Convention:**
+	- All communication with the user is in German.
+	- All generated artifacts (code, comments, documentation, commit messages, memory-bank entries) are written in English.
 
 ## Lessons Learned (Self-Evolving)
 - When we resolve a recurring bug or make a strategic architectural decision, update `memory-bank/lessonsLearned.md`.
