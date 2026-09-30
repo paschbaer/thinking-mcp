@@ -156,7 +156,7 @@ const QUESTIONS: SetupQuestion[] = [
     id: "workspaceRoot",
     question:
       "Absolute container path of this repo's workspace root (optional)?",
-    help: "e.g. /workspace. When set, a specs/008 workspaces[] registry block is emitted into guidance.json (default entry + any extraWorkspaces). Leave empty for the implicit single-workspace default (server launch directory).",
+    help: "Applies to target=registry-edit only (specs/014): absolute container path of the served instance root, e.g. /workspaces. Required there; the generated guidance.json carries the workspaces[] registry (default entry + any extraWorkspaces). Leave empty for repo-config (the repo process config never carries a registry).",
     required: false,
     default: "",
   },

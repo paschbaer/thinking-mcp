@@ -116,12 +116,18 @@ The workspace is `process.cwd()`; configuration is read from `./.guidance/`.
 
 ### Run: HTTP (Docker)
 
+Single-repo (mount your workspace, classic deployment):
+
 ```bash
 mkdir -p workspace/.guidance && sudo chown 1000:1000 workspace
 # put your .guidance/ files into workspace/.guidance/
-docker compose up -d
+docker compose -f docker-compose.yml -f your-override.yml up -d
 # MCP endpoint: http://localhost:3003/mcp  ·  Health: http://localhost:3003/health
 ```
+
+The base compose file mounts nothing and sets no workspace root — provide
+both via your override (specs/014). For the multi-repo pool deployment use
+the shipped override as-is:
 
 Environment variables (HTTP):
 
@@ -265,7 +271,7 @@ call. Flow (which tool when) — the full configuration reference follows in
 
 | Step | Tool | Purpose |
 |---|---|---|
-| 1 | `setup_guidance_start` | Returns the question catalog (11 questions) and the first question with help text and options |
+| 1 | `setup_guidance_start` | Returns the question catalog (12 questions) and the first question with help text and options |
 | 2 | `setup_guidance_answer` `{answers}` | Takes the accumulated answers, validates them, and returns the next open question |
 | 3 | … repeat `setup_guidance_answer` | Until `done: true` — then `nextTool` points to `setup_guidance_generate` |
 | 4 | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload |
@@ -293,18 +299,27 @@ seven submission schemas (from `examples/default-guidance/schemas`; if the
 directory is missing from the installation, the agent receives a copy hint
 instead of an error).
 
-**Multi-workspace registration (WA-1, specs/008):** the two optional answers
-`workspaceRoot` (absolute container path of the primary repo root, e.g.
-`/workspace`) and `extraWorkspaces` (`name=path` pairs separated by `;`, e.g.
-`zed=/workspace-zed;niyama=/workspace-niyama`) emit a `workspaces[]` registry
-block into the generated `guidance.json` — the specs/008 registry that makes
-additional repositories startable by name. Names must match
-`^[a-z][a-z0-9-]{0,63}$` (`default` is reserved); paths must be absolute;
-duplicate names/roots are rejected at generation time. Root **existence** is
-validated fail-closed when the configuration is loaded (not at generation),
-so remote-session sentinel roots are fine. Leaving both answers empty keeps
-the implicit single-workspace default (server launch directory). In adopt
-mode the workspace answers are still asked and applied — reference
+**Multi-workspace registration (specs/014):** which answers apply depends on
+the `target` question:
+
+- **`target: registry-edit`** — generates ONLY the instance registry
+  (`guidance.json` with `version`/`project`/`workspaces[]`/`state`).
+  Requires `workspaceRoot` (absolute container path of the served instance
+  root, e.g. `/workspaces`); `extraWorkspaces` takes additional repos as
+  `name=path` pairs separated by `;` (e.g.
+  `zed=/workspaces/zed;niyama=/workspaces/niyama`). Names must match
+  `^[a-z][a-z0-9-]{0,63}$` (`default` is reserved); paths must be absolute;
+  duplicate names/roots are rejected at generation time. Root **existence**
+  is validated fail-closed when the configuration is loaded (not at
+  generation), so remote-session sentinel roots are fine. The agent merges
+  the payload into `${GUIDANCE_WORKSPACE_ROOT}/.guidance/guidance.json` on
+  the operator's behalf.
+- **`target: repo-config`** (default) — the repo's process config; it NEVER
+  carries a `workspaces[]` block. `workspaceRoot`/`extraWorkspaces` answers
+  are rejected in this mode (specs/014: process truth is the repo, registry
+  truth is the instance).
+
+In adopt mode the target question is asked in both modes; reference
 `workspaces[]` blocks are never inherited (repo-specific paths would leak
 into the target).
 
@@ -436,15 +451,16 @@ the guidance server so the target repo picks up the new wizard behavior):
 > point at guidance-package paths produces a loud warning note — rewrite or
 > drop such ops.
 >
-> **Deployment note:** `/workspace/.guidance/` only exists in the
-> self-hosting deployment (repo root mounted as `/workspace`). In a
-> container-only deployment (`docker compose up` from the package,
-> `/workspace` = scaffolded volume) there is no proven reference — use the
-> **builtin template** instead (see below): answer `referencePath` with
-> `builtin` or leave it empty. An explicitly mounted reference directory
-> also still works. `validateAdoptReference` fails closed with
-> `adopt source: missing/unreadable file guidance.json` if the chosen
-> reference (mounted or builtin) is incomplete.
+> **Deployment note:** a mounted reference path only works when that path
+> is actually served by the deployment. In the specs/014 pool deployment
+> the served root is `/workspaces` — a reference in a pool repo would be
+> `/workspaces/Thinking-MCP/.guidance/` (this repo). In a container-only
+> deployment (`docker compose up` from the package) there is no proven
+> reference — use the **builtin template** instead (see below): answer
+> `referencePath` with `builtin` or leave it empty. An explicitly mounted
+> reference directory also still works. `validateAdoptReference` fails
+> closed with `adopt source: missing/unreadable file guidance.json` if the
+> chosen reference (mounted or builtin) is incomplete.
 >
 > **Builtin template (specs/011):** `referencePath: "builtin"` (or an
 > omitted `referencePath` in adopt mode) resolves to the generic baseline
@@ -1113,11 +1129,11 @@ without the corresponding toolchain, the process gate fails closed
    (`guidance.json`, `workflow.json`, `responses.json`, `operations.json`,
    `policies.json`, `schemas/`).
 2. **Bootstrap op** — `operations.json` defines `toolchain-sync`:
-   `uv sync --locked` installs the pinned environment into
-   `/workspace/.venv`. It is wired into `workflow.json` as `afterEnter` of
-   the `understand` phase, so it runs once per session. It is marked
-   `required: false` — a failure does not block planning; verification
-   catches a broken environment later.
+   `uv sync --locked` installs the pinned environment into the workspace's
+   `.venv` (cwd-relative to the project root). It is wired into
+   `workflow.json` as `afterEnter` of the `understand` phase, so it runs
+   once per session. It is marked `required: false` — a failure does not
+   block planning; verification catches a broken environment later.
 3. **Verification ops** — three required operations, all non-mutating:
 
    | Op | Command |
@@ -1139,7 +1155,8 @@ without the corresponding toolchain, the process gate fails closed
    hard-kills the child — SIGTERM, escalating to SIGKILL after a 5 s grace
    (FR-202) — and releases the lock. A cancelled run discards its result
    and is audited as cancelled.
-6. **venv caveat** — the venv lives in the workspace (`/workspace/.venv`)
+6. **venv caveat** — the venv lives in the workspace (`.venv`, cwd-relative
+   to the project root)
    and contains Linux binaries: do not use it from a Windows host bind
    mount. `uv` rebuilds a broken/mismatched venv on the next run. To
    relocate it entirely (TRACK-Venv-C), set
@@ -1323,7 +1340,8 @@ Roles at a glance:
 > orchestrates — *not* inside the server source directory
 > (`servers/server-guidance/`). That directory is server code only; its
 > `.guidance/` (if present, e.g. from a test run with cwd=server dir) is
-> git-ignored. For Docker use the mounted `workspace/` volume instead.
+> git-ignored. In Docker, place it inside the served workspace root (see
+> `docker-compose.override.yml`, specs/014).
 
 ### `guidance.json` — attribute reference
 
@@ -1408,7 +1426,7 @@ Phase keys must match the phase names in `workflow.json`.
 | `servers.<id>.connection.startupTimeoutSeconds` | number | Handshake timeout (positive finite; overrides the 10 s default per server) |
 | `servers.<id>.connection.requestTimeoutSeconds` | number | Per-request timeout (positive finite; enforced as transport failure) |
 | `servers.<id>.connection.reconnect` | object | `enabled`, `maximumAttempts` (positive integer, required for effect), `delayMilliseconds` (non-negative integer). On a transport failure guidance drops the dead client and re-runs the handshake up to `maximumAttempts` times (delay between attempts), retrying the call after each successful reconnect. Never retried: config errors (invalid timeouts) and request-timeout failures — a timed-out call already ran downstream and is not automatically replayed (retry semantics stay upstream, FR-035) |
-| `servers.<id>.containerRoute` | object | **FR-035 amendment (2026-09-28):** optional HTTP endpoint reachable from the guidance container (`url` + optional `headers`, same `${ENV_VAR}` resolution and egress-allowlist rules as `transport.http`). When a **read-only** operation call times out on the primary transport, guidance makes exactly **one** automatic attempt over this route before surfacing the failure (`workspace_write`/`external_write` calls are never auto-retried). Outcomes are counted per server in `get_metrics` → `containerRouteFallbacks` (in-memory counters; they reset on restart — operations/connections metrics replay from `metrics.jsonl`, fallback attempts intentionally do not). Generated configs predefine the route for `clearthought` **and** `gitnexus` (`:4747/api/mcp`); the fallback applies to the MCP tool calls the engine makes against that server (REV-1, 2026-09-28) |
+| `servers.<id>.containerRoute` | object | **FR-035 amendment (2026-09-28):** optional HTTP endpoint reachable from the guidance container (`url` + optional `headers`, same `${ENV_VAR}` resolution and egress-allowlist rules as `transport.http`). When a **read-only** operation call times out on the primary transport, guidance makes exactly **one** automatic attempt over this route before surfacing the failure (`workspace_write`/`external_write` calls are never auto-retried). Outcomes are counted per server in `get_metrics` → `containerRouteFallbacks` (in-memory counters; they reset on restart — operations/connections metrics replay from `metrics.jsonl`, fallback attempts intentionally do not). Generated configs predefine the route for `gitnexus` (`:4747/api/mcp`); the shipped Thinking-MCP sample additionally defines routes for `clearthought` and `insight`; the fallback applies to the MCP tool calls the engine makes against that server (REV-1, 2026-09-28) |
 | `servers.<id>.capabilities.allow.tools` | string[] | **Allowlist**: only these tools may be invoked on this server. The sole entry `"*"` is a **wildcard**: every tool of the server is invocable, regardless of name — newly added downstream tools are covered without a config change (routing itself is tool-name-agnostic; the automatic `containerRoute` timeout-fallback stays restricted to configured `read_only` operations). The wildcard applies to the **primary transport** as well as the fallback, and it applies only to the tool-name check: egress, dataEgress and approval gating stay per-call. Note: mixed lists like `["*", "tool"]` are rejected at config load (`configuration_invalid`) because their intent is ambiguous. **Fail-closed coupling (WC-1, 2026-09-29):** the wildcard is only accepted on servers whose **effective `trustLevel` is `trusted`** (an absent or unknown `trustLevel` defaults to `trusted`, same semantics as the runtime). A wildcard on a `restricted`/`untrusted` server is rejected at config load because tools without an `operations.json` entry run under `riskClass: undefined`, so the FR-053 approval gate could never fire for them |
 | `servers.<id>.capabilities.allow.resources` / `.prompts` | string[] | Same for resources/prompts |
 | `servers.<id>.environment` | object | Env for the child process (`inherit`, `variables.<NAME>.fromHost`) |
@@ -1480,8 +1498,9 @@ flowchart LR
   without this". Optional gates (`required: false`) are signals, not fences.
 - Treat `operations.<id>.output.returnToAgent: "raw"` as an exception with
   review — `summary_and_errors` + redaction is the safe default.
-- In Docker: put `.guidance/` into the mounted `workspace/` volume; scaffold
-  creates a default there automatically on first start.
+- In Docker: put `.guidance/` into the served workspace root
+  (`GUIDANCE_WORKSPACE_ROOT`, e.g. `/workspaces` — see the override);
+  scaffold creates a default there automatically on first start.
 
 ## Working sample: this repository's own `.guidance/`
 
@@ -1494,11 +1513,11 @@ as a blueprint: copy it to your project root and adapt the operations.
 
 | File | Purpose (key settings in this sample) |
 |---|---|
-| `guidance.json` | Entry point: `project.name: "thinking-mcp"`, profile `plain`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`) |
+| `guidance.json` | Entry point: `project.name: "thinking-mcp"`, profile `spec-kit`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`) |
 | `workflow.json` | The state machine — see the phase walkthrough below |
 | `responses.json` | Per-phase agent instruction: title, instruction, `requiredActions` |
 | `operations.json` | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
-| `downstream-servers.json` | GitNexus (blocking, `http://host.docker.internal:4747/api/mcp`) and Insight (`http://host.docker.internal:3002/mcp`) as **HTTP downstreams** with per-server capability allowlists |
+| `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`, specs/014) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight |
 | `policies.json` | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3002`, `host.docker.internal:4747`), redaction patterns, review-blocking severities `high\|critical` |
 | `schemas/*.schema.json` | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission |
 
@@ -1554,7 +1573,7 @@ flowchart TD
     P5 -->|"implementation_changes_required"| P4
     P5 -->|"submission_valid (high/critical findings block)"| P6["6 verify — gates: lint opt · test opt · build REQ"]
     P6 -->|"verification_failed"| P5
-    P6 -->|"required_operations_succeeded"| P7["7 complete — gates: repository-analysis REQ · capture-session-lessons REQ"]
+    P6 -->|"required_operations_succeeded"| P7["7 complete — gates: repository-analysis REQ · index-freshness REQ · capture-session-lessons opt"]
     P7 -->|"required_operations_succeeded"| DONE(["completed — terminal"])
 ```
 
@@ -1638,9 +1657,9 @@ experience-memory server (`EMMS_HTTP_URL=http://host.docker.internal:3002/mcp`,
 scope `thinking-mcp-lessons`); seeding is idempotent per slug (`duplicate`
 instead of a second episode). The script talks to Insight directly and
 bypasses Guidance pattern redaction — the agent MUST redact secrets before
-writing the file. Secrets/env are set inline via `sh -c` because process
-operations inherit the container environment (no per-operation env support
-yet).
+writing the file. The sample passes secrets via the operation's `env` block
+(per-operation environment); the GENERATED ops still set them inline via
+`sh -c` because process operations inherit the container environment.
 
 **Escape hatch at any point:** `report_blocker` moves the session to the
 system state `blocked`; the user decides via `resume_workflow` (decision is
@@ -1945,7 +1964,7 @@ details.
 
 | Tool | Parameters | Purpose |
 |---|---|---|
-| `start_workflow` | `workspaceRoot`, `request`, `workflowId?`, `metadata?` | Starts a session, runs initial-phase `beforeEnter` operations (a required failure starts the session `blocked`) and returns the initial phase instruction. `workspaceRoot` must be inside the server-configured workspace |
+| `start_workflow` | `workspace` (registered name, preferred), `workspaceRoot` (deprecated: realpath-must-match a registered root), `request`, `workflowId?`, `metadata?` | Starts a session, runs initial-phase `beforeEnter` operations (a required failure starts the session `blocked`) and returns the initial phase instruction. `workspace`/`workspaceRoot` must resolve to a registered workspace (`workspace_not_registered` otherwise; specs/014 composition v2) |
 | `get_current_guidance` | `sessionId` | Read-only: title, instruction and required actions of the current phase (from `responses.json`). Call after every transition |
 | `submit_understanding` | `sessionId`, `requestId?`, `summary`, `assumptions?`, `acceptanceCriteria?` | Submits the *understand* phase: request analysis, assumptions, measurable acceptance criteria. **RID-1:** replaying an already-registered `requestId` returns the cached result annotated with `replayed: true` + `duplicateOf` + `warning` (no phase advance); a replay with a different payload is flagged `payloadMismatch: true` (policy `submission.requestIdReuse: "warn"`, default) or rejected with `requestId_reuse_payload_mismatch` (`"reject-mismatch"`) |
 | `submit_plan` | `sessionId`, `requestId?`, `tasks` | Submits the implementation plan: stable task IDs, dependencies, affected files, planned tests |
@@ -1976,7 +1995,7 @@ Stateless wizard for designing a `.guidance/` configuration — see
 | `setup_guidance_answer` | `answers` | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate` |
 | `setup_guidance_generate` | `answers` | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
-### Spec-Kit tools (14, profile `spec-kit` only)
+### Spec-Kit tools (16, profile `spec-kit` only)
 
 All tools operate on the Spec-Kit state of the session (created by
 `import_spec_kit_artifacts` and persisted per session).
@@ -2005,7 +2024,7 @@ All tools operate on the Spec-Kit state of the session (created by
 ```bash
 npm install
 npm run build
-npm test        # 142 tests
+npm test        # runs the suites of all workspaces
 npm run typecheck
 ```
 
