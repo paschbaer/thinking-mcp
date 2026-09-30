@@ -641,3 +641,14 @@ wieder gecancelt). zed-Operations auf Cargo umgestellt (build/lint/test).
 Volume); Push develop;zed-.gitignore prüfen (.guidance/state).
 **Current state:** Zwei-Modi-Betrieb live: Registry-only Pool-Instanz serving
 zed + thinking-mcp.
+
+### 2026-09-30 — DB-1 slim: Node-Deps-Boot-Warnungen
+**What works:** warnNodeDeps (config-truth.ts, in composeApplication
+verdrahtet): je registriertem Node-Workspace Warnung bei fehlendem
+node_modules bzw. nativ-inkompatiblen Addons (.node-Probe per Child-Node);
+Rust-Repos unberührt. 4 neue Tests; Suite 475/475 grün (sauberer Volllauf);
+README-Hinweis ergänzt. Generische deps-install/deps-reinstall-Operation
+bleibt getrackt (DB-1 Rest, specs/015-Kandidat mit HR-1).
+**What's left:** wie zuvor (Push, zed-Erstlauf, Rebuild-Regel bei
+Dependency-Updates im Repo).
+**Current state:** Slim-Variante live auf develop.
