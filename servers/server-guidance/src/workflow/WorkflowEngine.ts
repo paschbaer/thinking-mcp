@@ -896,6 +896,15 @@ export class WorkflowEngine {
       const opForEgress = Object.values(this.operations).find(
         (o) => o.server === serverId && o.capability === toolName,
       );
+      // WC-1-B: an unconfigured tool on a wildcard server has no risk class,
+      // so the FR-053 gate below could never fire — require explicit
+      // approval instead of letting it run unexamined.
+      this.policyEngine.assertUnconfiguredWildcard(
+        serverId,
+        toolName,
+        allow,
+        opForEgress !== undefined,
+      );
       this.policyEngine.evaluateEgress({
         serverId,
         // Unrecognized configured values fall back to "trusted" (documented
