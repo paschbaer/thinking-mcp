@@ -711,11 +711,13 @@ läuft (Completion-Artefakte folgen).
   Blocking-Open-Points).
 Jeder Schritt: unabhängiger Review APPROVED 0 HIGH/CRIT, Vollauf
 480→483→482 grün, prettier grün, alle Completion-Gates durch.
-**What's left:** Push/Merge der 6 Feature-Branches nach develop
-(Nutzerentscheid); getrackt: TYPE-1 (TS2532 pre-existing), GATE-1
-(Container-Gates umweltbedingt), CHAIN-1 (Auto-Folgesession AC-5-Drift —
-frische Ketten als Workaround), WC1B-F3 (Closure-Integrationstest);
-specs/015-Umsetzung (R1/R2-Entscheidungen mit Nutzer).
-**Current state:** Alle 8 getrackten Follow-ups der Chain abgearbeitet;
-Feature-Branches warten auf Merge/Push; specs/015 bereit für
-Umsetzungs-Planning.
+**What's left:** specs/015-Umsetzung (R1/R2-Entscheidungen mit Nutzer);
+Push von develop (16 Commits, Nutzerentscheid); getrackt: TYPE-1 (TS2532
+pre-existing), GATE-1 (Container-Gates umweltbedingt), CHAIN-1
+(Auto-Folgesession AC-5-Drift — frische Ketten als Workaround), WC1B-F3
+(Closure-Integrationstest).
+**Current state:** Alle 8 Follow-ups GEMERGT: Kette per Fast-Forward nach
+develop (ea582f8 → 507d2eb, 16 Commits), 7 Feature-Branches gelöscht,
+post-merge-Suite 483/483 grün, Knowledge-Graph aktualisiert; develop
+ahead 16 of origin (Push wartet auf Nutzerentscheid); specs/015 bereit
+für Umsetzungs-Planning.
