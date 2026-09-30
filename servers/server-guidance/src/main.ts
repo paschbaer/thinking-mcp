@@ -8,6 +8,7 @@ import { loadConfig, type LoadedConfig } from "./config.js";
 import {
   warnDormantGuidanceConfigs,
   warnLegacyMonolith,
+  warnNodeDeps,
 } from "./config-truth.js";
 import {
   WorkflowEngine,
@@ -83,6 +84,7 @@ export function composeApplication(
   // specs/014 FR-1103/FR-1106: config-truth boot diagnostics (stderr warns).
   warnLegacyMonolith(config);
   warnDormantGuidanceConfigs(config, workspaceRoot);
+  warnNodeDeps(config, workspaceRoot);
   // Amendment 002 (FR-117 State-Brücke): pending spec-kit tasks in tasks.md
   // order — inserted here so WorkflowEngine stays free of spec-kit imports.
   // Missing state file (head never imported artifacts) ⇒ [] ⇒ silent chain end.
