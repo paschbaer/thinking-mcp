@@ -899,6 +899,16 @@
   E2E-Assertions über generiertes guidance.json; kein Produktionscode
   nötig. Suite 482/482 grün, prettier grün.
 
+### 2026-09-30 — specs/015 SDD: Registry-Hot-Reload + Dependency-Bootstrap (feature/015-sdd-registry-hot-reload-deps, Guidance-Session session-7980b278)
+- SDD-Artefakte im Draft-Status (KEINE Implementierung, gemäß Regel):
+  spec.md (US1 HR-1 mit offener Design-Entscheidung Watch-vs-Register +
+  AC-1…AC-6, US2 DB-1-Rest deps-install/deps-reinstall mit AC-7…AC-12,
+  FR-1201+-Namespace), plan.md (R1/R2-Open-Points, Technical Approach,
+  Test-Strategie), tasks.md (4 Phasen, T001…T014). specs/008-Spannung
+  als Verwerfungs-Kriterium verankert; Konfig-Flag „Default aus" als
+  sicherer Modus. Memory-bank: HR-1/DB-1 auf SDD-abgeschlossen gesetzt,
+  Umsetzung ausstehend.
+
 ### 2026-09-30 — WC-1-B Wildcard-Approval-Hardening (feature/wc1b-wildcard-unconfigured-approval, e5408c1, Guidance-Session session-b470f696)
 - Option B (Nutzerentscheid im Chat, Alternativen A/C abgewogen):
   PolicyEngine.assertUnconfiguredWildcard — unkonfiguriertes Tool auf

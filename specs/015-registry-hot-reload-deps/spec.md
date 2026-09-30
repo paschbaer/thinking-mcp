@@ -1,0 +1,126 @@
+# Specification: Registry Hot-Reload & Dependency Bootstrap (specs/015)
+
+**Feature ID:** `015-registry-hot-reload-deps`
+**Closes tracks:** HR-1 (LOW, Registry-Hot-Reload-Konzept) · DB-1-Rest (MEDIUM, generische `deps-install`/`deps-reinstall`-Operation)
+**Namespace:** neue FRs ab FR-1201 (keine Kollision mit FR-1101… aus specs/014, FR-001…995 davor)
+**Status:** Draft (SDD 2026-09-30 — Umsetzung ausstehend)
+**Date:** 2026-09-30
+
+## Overview
+
+Zwei unabhängige Betriebslücken aus dem Pool-Betrieb (specs/014):
+
+1. **Registry-Starrheit (HR-1):** Die `workspaces[]`-Registry wird nur beim
+   Boot geladen (`loadConfig`/`composeApplication`). Ein neu onboardetes Repo
+   erfordert einen Container-Restart (billig — bind mount, kein Rebuild —
+   aber ein Stopp). Dabei invalidiert der neue `configurationVersion`-Hash
+   (specs/008 AC-5) **alle** bestehenden Sessions. specs/008 hat
+   Laufzeit-Registry-Tools bewusst abgelehnt (statisch, fail-closed) — diese
+   Spec muss die Spannung auflösen, nicht umgehen.
+
+2. **Dependency-Bootstrap (DB-1-Rest):** Node-Workspaces im Pool brauchen
+   lauffähige Gates. Fehlender oder plattform-falsch installierter
+   `node_modules` lässt sie mit `Cannot find module` / `ERR_DLOPEN_FAILED`
+   failen. Die Slim-Variante (`warnNodeDeps`, Boot-Warnungen für beide
+   Fälle) ist live; die **Heilung** — generische `deps-install`/
+   `deps-reinstall`-Operationen — fehlt noch.
+
+**Nicht-Ziele:** Kein Auto-Install bei Boot (Boot bleibt rein diagnostisch:
+warnNodeDeps); keine Registry-Änderung über Middleware/Proxy-Layer; keine
+per-Workspace-Abweichungen vom Fail-closed-Validierungsstandard.
+
+## User Stories
+
+### US1: Registry-Hot-Reload ohne Ad-hoc-Umgehung (P1)
+
+**As an** operator, **I want** eine neu registrierte Workspace-Root ohne
+Container-Restart nutzen zu können — **entweder** über einen überwachten,
+atomaren Registry-Swap mit definierter Session-Semantik, **oder** über ein
+`registry-register`-Tool mit exakt denselben Fail-closed-Regeln wie
+`WorkspaceRegistry.build` — **so that** Onboarding ohne Total-Invalidierung
+möglich wird, ohne die specs/008-Garantien (statische Registry, fail-closed,
+auditiert) aufzuweichen.
+
+**Offene Design-Entscheidung (in der plan-Phase der Umsetzung zu treffen,
+beide Alternativen sind SDD-konform):**
+
+|                    | **A: config-watch + atomarer Swap**                                                                                                              | **B: `registry-register`-Tool**                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Mechanismus        | FS-Watcher (oder mtime-Poll) auf `guidance.json`; bei Änderung: `WorkspaceRegistry.build` über die neue Datei, atomarer Registry-Swap            | MCP-Tool registriert EINE Root zur Laufzeit über denselben `WorkspaceRegistry.build`-Pfad       |
+| Session-Semantik   | zu definieren: Weiterführung (Sessions an alte Hash gebunden → definiertes Rebind oder geordnete Invalidierung) vs. AC-5-Invalidierung wie heute | unverändert: neue `configurationVersion` → AC-5 greift wie bei jedem Config-Wechsel             |
+| specs/008-Spannung | muss widerlegen: Watcher ist kein „Laufzeit-Registry-Tool", sondern deterministische Neubewertung derselben statischen Quelle                    | respektiert specs/008 teilweise: ein enges, fail-closed-Tool statt beliebiger Laufzeit-Mutation |
+| Risiken            | Watcher-Flakiness, Partial-Read, Restart-Rennen                                                                                                  | Angriffsfläche des Tools (riskClass `workspace_write` + Approval-Pflicht)                       |
+
+**Acceptance Criteria (gültig für beide Alternativen):**
+
+- AC-1: Jede zur Laufzeit übernommene Registry durchläuft **dieselbe**
+  Fail-closed-Validierung wie beim Boot (`WorkspaceRegistry.build`:
+  Absoluteität, Existenz, Dedupe, Namensschema) — keine Teil-Übernahme,
+  keine Toleranzen, die der Boot-Pfad nicht hätte.
+- AC-2: Ein invalider Registry-Edit ändert den laufenden Zustand **nicht**
+  (alter Registry-Stand bleibt aktiv); der Fehler wird geloggt/auditiert.
+- AC-3: Die `configurationVersion`-Semantik ist spezifiziert und getestet:
+  nach einer Hot-Reload-Änderung gilt für bestehende Sessions definiertes
+  Verhalten (dokumentierte Weiterführungsregeln ODER geordnete
+  Invalidierung mit AC-5-Meldung) — kein undefinierter Mischzustand.
+- AC-4: Jede Übernahme erzeugt ein Audit-Event (alte → neue Registry,
+  inklusive Konfigurations-Hash).
+- AC-5: Egress-, Wildcard- und Approval-Kopplungen (WC-1, WC-1-B, FR-053)
+  werden pro Aufruf neu ausgewertet — eine Registry-Änderung kann keine
+  bestehende Gate-Entscheidung „retroaktiv" legitimieren.
+- AC-6: Der Mechanismus ist per Konfiguration deaktivierbar
+  (`registry.hotReload: false` als Default-Kandidat — Finalentscheidung in
+  der Umsetzungsplanung), damit statisch-fail-closed der sichere Modus
+  bleibt.
+
+### US2: Dependency-Bootstrap-Operationen (P1)
+
+**As an** agent, **I want** generische `deps-install`/`deps-reinstall`-Operationen
+für Node-Workspaces, **so that** ein Gate-Versagen wegen fehlendem oder
+ABI-inkompatiblem `node_modules` in der Session heilbar ist, ohne manuelle
+Container-Kommandos.
+
+**Acceptance Criteria:**
+
+- AC-7: `deps-install` führt `npm ci` mit Clean-Semantik im **registrierten
+  Root** aus; fehlt das Lockfile → Fallback `npm install` (dokumentiert und
+  im Audit vermerkt).
+- AC-8: `deps-reinstall` entfernt `node_modules` vor der Installation
+  (`rm -rf node_modules` scoped auf den Workspace-Root — kein Path-Traversal,
+  keine Ausführung außerhalb registrierter Roots).
+- AC-9: Reaktive Erkennung: ein Gate-Fehler mit `Cannot find module` oder
+  `ERR_DLOPEN_FAILED` liefert in der Fehlerführung einen Verweis auf die
+  deps-Operationen (Anschluss an `warnNodeDeps`, das dieselben zwei Fälle
+  proaktiv meldet).
+- AC-10: Optionale proaktive Sonde (Konfig-Flag, Default aus): gleiche
+  `.node`-Probe wie `warnNodeDeps`, auslösend `deps-install`-Hinweis bevor
+  Gates laufen.
+- AC-11: Beide Operationen tragen `riskClass: workspace_write` und
+  unterliegen der FR-053-Approval-Pflicht; Ausgaben sind exposure-gefiltert
+  (npm-Output kann Registry-URLs mit Tokens enthalten).
+- AC-12: Funktionieren im Container (Linux-native Installation — löst
+  GATE-1/DB-1-Kontext: Gates im Container werden nach diesem Feature zu
+  verlässlichen Signalen).
+
+## Dependencies / Risiken
+
+- **specs/008-Spannung (US1):** Die Ablehnung „Laufzeit-Registry-Tools"
+  (statisch, fail-closed) ist normativer Kontext. Alternative A muss die
+  Garantie äquivalent rekonstruieren (deterministische Neubewertung derselben
+  Quelle, atomarer Swap, Audit), sonst ist der Kandidat zu verwerfen.
+- **AC-5-Interaktion (US1):** Jede Registry-Änderung ändert
+  `configurationVersion` → bestehende Sessions. Die Session-Semantik
+  (Weiterführung vs. Invalidierung) ist der heikelste Punkt und muss vor
+  Implementierung final entschieden werden.
+- **Plattform-Fallstricke (US2):** Native Addons müssen im Container
+  gebaut werden (Linux-ABI); Windows-Host-`node_modules` sind unbrauchbar —
+  genau deshalb installieren die Operationen **im Container**.
+- **Sicherheitsrisiko (US2):** `npm install`-Fallback umgeht Lockfile-Pinning
+  → nur als dokumentierter Fallback mit Audit-Vermerks; `deps-reinstall`
+  löscht `node_modules` (workspace-scoped,Approval-Pflicht).
+
+## Follow-up-Verweise
+
+- HR-1: `memory-bank/remaining-work-plan.md` (2026-09-30, Registry-Hot-Reload)
+- DB-1-Rest: `memory-bank/remaining-work-plan.md` (2026-09-30, Dependency-Bootstrap)
+- Kontext: GATE-1-Observation (Container-Gates umweltbedingt, required:false)
