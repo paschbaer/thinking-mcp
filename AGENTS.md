@@ -474,11 +474,18 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
 ## Guidance MCP Server (Docker-Deployment)
 
 - Guidance läuft als HTTP-Server in Docker: `http://localhost:3003/mcp`
-  (kein Bearer-Token, loopback). Das Repo `D:\repos\Thinking-MCP` ist als
-  `/workspace` in den Container gemountet.
-- **`start_workflow` zwingend mit `workspaceRoot: "/workspace"` aufrufen**
-  (Container-Pfad!). Host-Pfade wie `D:\repos\Thinking-MCP` oder WSL-Notation
-  werden mit „escapes the configured workspace" abgelehnt.
+  (kein Bearer-Token, loopback). specs/014 Pool-Betrieb: der Container
+  serviert den Repo-Pool unter `GUIDANCE_WORKSPACE_ROOT=/workspaces`
+  (Mount `D:\repos` → `/workspaces`); die Instanz-`.guidance` ist
+  registry-only. Dieses Repo ist als Workspace **`thinking-mcp`**
+  registriert (`/workspaces/Thinking-MCP`), zed als **`zed`**.
+- **`start_workflow` zwingend mit `workspace: "thinking-mcp"` bzw.
+  `workspace: "zed"` aufrufen** (registrierter NAME). Ein `workspaceRoot`
+  muss exakt einem registrierten Root entsprechen
+  (`/workspaces/Thinking-MCP`). Host-Pfade wie `D:\repos\Thinking-MCP`,
+  WSL-Notation `/mnt/d/…` und der frühere Root `/workspace` werden mit
+  „workspace_not_registered“ bzw. „escapes the configured workspace“
+  abgelehnt.
 - Downstream-Server (gitnexus :4747, insight :3002) verbinden **lazy**:
   `get_downstream_status` zeigt `disconnected`, bis eine Operation sie das
   erste Mal nutzt — das ist normal und kein Fehler.

@@ -143,18 +143,22 @@ From a bare machine to a running multi-workspace instance:
    experience-memory + clear-thought downstream services if you use them.
 2. **Clone & build** (see above) — then start HTTP via
    `docker compose -f docker-compose.yml -f docker-compose.override.yml up -d`.
-   The override mounts the checkout via **relative paths** (`../../`,
-   `../../../` repo pool) and the `guidance_node_modules` volume — no
-   absolute host paths to adapt when the checkout moves.
-3. **First boot**: `.guidance/` is scaffolded automatically (disable with
-   `GUIDANCE_SCAFFOLD=off`); the scaffold writes the default workspace
-   entry into `guidance.json`. Verify: `curl localhost:3003/health` →
-   `"configured": true` plus the workspace list.
-4. **Register additional repos**: add entries to `.guidance/guidance.json`
-   → `workspaces[]` (container path `/workspaces/<Repo>`, see
-   [Multi-Workspace Operation](#multi-workspace-operation-specs008)).
-   No compose edit, no restart. **Add `.guidance/state/` to each repo's
-   `.gitignore`.**
+   The override mounts the **repos pool** via a relative path (`../../../` →
+   `/workspaces`, specs/014: the only volume mount) and sets
+   `GUIDANCE_WORKSPACE_ROOT=/workspaces` — no absolute host paths to adapt
+   when the checkout moves.
+3. **First boot**: the instance `.guidance/` at the served root is expected
+   to be **registry-only** (specs/014 — `workspaces[]` + project/state; the
+   generic scaffold creates a legacy full config, which is served with a
+   boot warning). Verify: `curl localhost:3003/health` → `"configured": true`
+   plus the workspace list.
+4. **Register additional repos**: add entries to the instance
+   `.guidance/guidance.json` → `workspaces[]` (container path
+   `/workspaces/<Repo>`, see
+   [Multi-Workspace Operation](#multi-workspace-operation-specs008)) and
+   create each repo's own `.guidance/` (config assistant, target
+   `repo-config`). **Restart the container afterwards** — the registry is
+   read at boot. **Add `.guidance/state/` to each repo's `.gitignore`.**
 5. **Per-repo analysis index**: run `gitnexus analyze --no-stats` inside
    each registered repo (host-side pre-complete step; the freshness gate
    checks `<root>/.gitnexus/meta.json` against git HEAD).
@@ -163,8 +167,10 @@ From a bare machine to a running multi-workspace instance:
    be reachable from other hosts.
 
 Known environment caveats: Linux containers on Windows/Docker Desktop need
-the drive enabled for file sharing; host-installed `node_modules` (Windows
-binaries) are shadowed by the `guidance_node_modules` volume; a git
+the drive enabled for file sharing; **host-installed `node_modules` must be
+Linux/ABI-compatible with the container** — install repo dependencies under
+WSL (Node 24 matches the image; Windows-native installs fail the boot
+node-deps warning and the gates). A git
 **worktree** checkout has a `.git` *file* instead of a directory, which
 breaks git-reading gates run from inside that worktree.
 
@@ -189,7 +195,7 @@ openssl rand -hex 32
     environment:
       - PORT=3003
       - GUIDANCE_BIND_HOST=0.0.0.0
-      - GUIDANCE_WORKSPACE_ROOT=/workspace
+      - GUIDANCE_WORKSPACE_ROOT=/workspaces
       - GUIDANCE_AUTH_TOKEN=9f1c3b7e4a2d…   # ← your generated value
 ```
 
@@ -1496,16 +1502,19 @@ as a blueprint: copy it to your project root and adapt the operations.
 | `policies.json` | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3002`, `host.docker.internal:4747`), redaction patterns, review-blocking severities `high\|critical` |
 | `schemas/*.schema.json` | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission |
 
-### ⚠️ Important: workspace path under HTTP/Docker
+### ⚠️ Important: workspace binding under HTTP/Docker
 
-When Guidance runs as a Docker HTTP server, the workspace is the
-**container path** (`GUIDANCE_WORKSPACE_ROOT`, here `/workspace` — the repo
-is bind-mounted). **`start_workflow` MUST be called with
-`workspaceRoot: "/workspace"`.** Host paths (`D:\repos\…`, `D:/repos/…`),
-relative paths (`.`) and WSL notation (`/mnt/d/…`) are rejected with
-`escapes the configured workspace`. This rule is recorded in the repo's
-`AGENTS.md` (section "Guidance MCP Server (Docker-Deployment)") so agents
-that load it pass the correct path automatically.
+When Guidance runs as a Docker HTTP server (specs/014 pool deployment), the
+instance serves the pool at `GUIDANCE_WORKSPACE_ROOT` (`/workspaces`) and
+carries only the `workspaces[]` registry. **`start_workflow` MUST be called
+with a registered workspace NAME (`workspace: "thinking-mcp"` /
+`workspace: "zed"`)** — or a `workspaceRoot` that realpath-matches a
+registered root exactly (`/workspaces/Thinking-MCP`). Host paths
+(`D:\repos\…`, `D:/repos/…`), relative paths (`.`), WSL notation
+(`/mnt/d/…`) and the former `/workspace` root are rejected with
+`workspace_not_registered` or `escapes the configured workspace`. The
+operating rules live in the repo's `AGENTS.md` (section "Guidance MCP
+Server (Docker-Deployment)") so agents that load it bind correctly.
 
 Two more operating caveats learned in production:
 
@@ -1639,13 +1648,12 @@ recorded) or ends the run via `cancel_workflow`.
 
 ### Operating notes for this sample
 
-- **Docker deployment:** `docker-compose.override.yml` mounts this repo as
-  `/workspace` and shadows `node_modules` with an isolated named volume
-  (container deps installed via
-  `npm install --include=dev --ignore-scripts --script-shell=/bin/true` —
-  corepack-yarn crashes on alpine, `NODE_ENV=production` skips dev
-  dependencies, and workspace `prepare` scripts run despite
-  `--ignore-scripts`).
+- **Docker deployment (specs/014 pool mode):** the override mounts ONLY the
+  repos pool at `/workspaces` — this checkout is served as registered
+  workspace `thinking-mcp` (`/workspaces/Thinking-MCP`), and its gates use
+  the repo's own `node_modules` (install dependencies under WSL, Node 24 —
+  they must be Linux/ABI-compatible with the container; the boot node-deps
+  warning flags mismatches).
 - **GitNexus index:** the HTTP server (:4747) exposes no `analyze` tool —
   the index refresh is the **agent's responsibility before calling
   `complete_workflow`**: run `gitnexus analyze --no-stats` host-side (WSL
@@ -1673,13 +1681,15 @@ recorded) or ends the run via `cancel_workflow`.
 - **Branch workflow + worktree support:** every implementation starts with
   a branch check and a feature branch (`feature/<meaningful-name>`). Two
   variants:
-  - **Main checkout** (default): plain feature branch on the checkout mounted
-    at `/workspace` — gates verify exactly what you edit.
-  - **Worktree** (for parallel work): create the worktree under
-    `D:/repos/Thinking-MCP-worktrees` (mounted at `/workspace/worktrees` via
-    `docker-compose.override.yml`) and start the session with
-    `workspaceRoot: /workspace/worktrees/<name>` — gates then run inside the
-    worktree. Run `npm install` once inside the worktree (its `node_modules`
+  - **Main checkout** (default): registered as workspace `thinking-mcp` —
+    start sessions with `workspace: "thinking-mcp"`; gates verify exactly
+    what you edit.
+  - **Worktree** (for parallel work): create the worktree under the pool
+    (e.g. `D:/repos/Thinking-MCP-worktrees/<name>` →
+    `/workspaces/Thinking-MCP-worktrees/<name>`), register it in the
+    instance registry (config assistant, target `registry-edit`) and
+    restart the container — then start sessions with that workspace name.
+    Run `npm install` once inside the worktree (its `node_modules`
     is separate from the main checkout) or the build/test gates fail.
   Commit policy for both: one commit per completed task on the feature
   branch; after verification and review merge into `develop` (fast-forward,
@@ -1754,10 +1764,11 @@ Real first production run (docs-only change):
 > Start a Guidance workflow for: Improve the README quick-start section.
 > Add a verification hint and make the Docker sentence precise.
 
-The agent then calls `start_workflow` with `workspaceRoot: "/workspace"`
-and walks understand → … → complete; the `lint/test/build` gates (before
-`verify`) and `repository-analysis` (before `complete`) run server-side
-automatically.
+The agent then calls `start_workflow` with `workspace: "thinking-mcp"`
+(specs/014: registered workspace name; `workspaceRoot` must realpath-match
+a registered root exactly) and walks understand → … → complete; the
+`lint/test/build` gates (before `verify`) and `repository-analysis` (before
+`complete`) run server-side automatically.
 
 ## Repo setup — step by step (specs/014, two modes × two setup paths)
 
