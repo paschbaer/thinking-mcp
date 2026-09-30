@@ -864,3 +864,12 @@
   akzeptiert, Gates gingen serverseitig) — State prüfen statt retryen;
   Container-Gate-Fails (lint/test) sind umweltbedingt (keine nativen
   node_modules im Container, required:false) — TYPE-1/GATE-1 getrackt.
+
+### 2026-09-30 — CT-2 Legacy-Monolith-E2E (feature/ct2-legacy-monolith-e2e, 96b0a67, Guidance-Session session-9e23340f)
+- Test-Gap geschlossen: registry-composition.test.ts um E2E-Test ergänzt —
+  Legacy-Monolith (Voll-Config am Pool-Root + workspaces[]-Registry) und
+  registrierter Extra-Workspace mit eigener voller .guidance: Session wird
+  aus dem Workspace-Root komponiert (Persisted-Session-configurationVersion
+  === Workspace-Config-Hash, ≠ Pool-Hash; keine Config-Copies). Suite
+  480/480 grün. Kein Produktionscode nötig. Kettenfortsetzung als frische
+  Kette (session-9e23340f) wegen CHAIN-1 (AC-5-Drift der Auto-Folgesession).
