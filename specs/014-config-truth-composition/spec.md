@@ -3,7 +3,7 @@
 **Feature ID:** `014-config-truth-composition`
 **Closes tracks:** MC-1 (HIGH, Truth-Dokumentation) · MC-2 (HIGH, Dormancy/cpSync) · MC-3 (MEDIUM, Wizard deployment-aware) · MC-4 (HIGH, Pfad-Domain, Teil 1: Registry-Pfade) · Folge aus Audit session f955a76e (2026-09-29)
 **Namespace:** neue FRs ab FR-1101 (keine Kollision mit FR-001…995)
-**Status:** Draft (2026-09-29)
+**Status:** Implemented (2026-09-30, feature/config-truth-v2 gemerged nach develop 7ef1fbf)
 **Date:** 2026-09-29
 
 ## Overview
