@@ -20,6 +20,7 @@ import { generateFiles } from "../../src/setup/ConfigAssistant.js";
 import {
   warnDormantGuidanceConfigs,
   warnLegacyMonolith,
+  warnNodeDeps,
 } from "../../src/config-truth.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
 
@@ -276,5 +277,65 @@ describe("specs/014: legacy monolith + dormancy boot diagnostics", () => {
     expect(joined).toMatch(/dormant .guidance/);
     expect(joined).toMatch(/other/);
     expect(joined).not.toMatch(/dormant .guidance at .*zed/); // registered → no warning
+  });
+});
+
+describe("specs/014 DB-1 (slim): node deps boot warnings", () => {
+  function nodeRepo(dir: string): void {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({ name: "x", version: "1.0.0" }),
+    );
+  }
+
+  it("warns when a Node workspace has a package.json but no node_modules", () => {
+    const zed = join(pool, "zed");
+    nodeRepo(zed);
+    writeRegistry(pool, [{ name: "zed", root: zed, projectName: "zed" }]);
+    const cfg = loadConfig(join(pool, ".guidance"), { workspaceRoot: pool });
+    const out: string[] = [];
+    warnNodeDeps(cfg, pool, (m) => out.push(m));
+    expect(out.join("\n")).toMatch(/no node_modules/);
+    expect(out.join("\n")).toMatch(/npm install/);
+  });
+
+  it("warns when node_modules contains an UNLOADABLE native addon (platform/ABI mismatch)", () => {
+    const zed = join(pool, "zed");
+    nodeRepo(zed);
+    const nm = join(zed, "node_modules", "native-pkg", "build", "Release");
+    mkdirSync(nm, { recursive: true });
+    // garbage .node file — require() on it fails => incompatible
+    writeFileSync(join(nm, "addon.node"), "not a real addon");
+    writeRegistry(pool, [{ name: "zed", root: zed, projectName: "zed" }]);
+    const cfg = loadConfig(join(pool, ".guidance"), { workspaceRoot: pool });
+    const out: string[] = [];
+    warnNodeDeps(cfg, pool, (m) => out.push(m));
+    expect(out.join("\n")).toMatch(/native addon that does NOT load.*npm ci/s);
+  });
+
+  it("stays silent when node_modules has no native addons (pure-JS tree)", () => {
+    const zed = join(pool, "zed");
+    nodeRepo(zed);
+    mkdirSync(join(zed, "node_modules", "some-pkg"), { recursive: true });
+    writeFileSync(
+      join(zed, "node_modules", "some-pkg", "index.js"),
+      "module.exports = 1;",
+    );
+    writeRegistry(pool, [{ name: "zed", root: zed, projectName: "zed" }]);
+    const cfg = loadConfig(join(pool, ".guidance"), { workspaceRoot: pool });
+    const out: string[] = [];
+    warnNodeDeps(cfg, pool, (m) => out.push(m));
+    expect(out).toEqual([]);
+  });
+
+  it("stays silent for workspaces without package.json (e.g. Rust)", () => {
+    const zed = join(pool, "zed");
+    mkdirSync(zed, { recursive: true });
+    writeRegistry(pool, [{ name: "zed", root: zed, projectName: "zed" }]);
+    const cfg = loadConfig(join(pool, ".guidance"), { workspaceRoot: pool });
+    const out: string[] = [];
+    warnNodeDeps(cfg, pool, (m) => out.push(m));
+    expect(out).toEqual([]);
   });
 });

@@ -2031,6 +2031,11 @@ Sessions in a registered workspace are composed from that root's own
 config — the former silent copy-on-first-use was REMOVED: a workspace
 without `.guidance/guidance.json` fails with
 `workspace_process_config_missing` (run the config assistant in that repo).
+Node workspaces additionally get a boot warning when their dependencies are
+missing (`package.json` without `node_modules` → run `npm install` in the
+repo, ideally inside the container so native binaries match this image) or
+when `node_modules` holds a native addon that does not load here (platform/
+ABI mismatch → delete `node_modules` and run `npm ci` inside the container).
 
 ### Configuration
 

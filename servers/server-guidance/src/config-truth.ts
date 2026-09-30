@@ -6,6 +6,7 @@
  */
 import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import type { LoadedConfig } from "./config.js";
 
 const PROCESS_FILES = [
@@ -38,6 +39,59 @@ export function warnLegacyMonolith(
   out(
     `[guidance] warning: legacy monolith config detected — process files at the instance config dir (${config.configDir}: ${files.join(", ")}) serve the default workspace while ${extra.length} additional workspace(s) are registered (${extra.map((w) => w.name).join(", ")}). Migrate to a registry-only instance config + repo-level configs, see specs/014-config-truth-composition.`,
   );
+}
+
+/**
+ * specs/014 follow-up DB-1 (slim variant): per registered workspace with a
+ * package.json, warn when dependencies are missing (no node_modules) or
+ * INCOMPATIBLE (native addon present but unloadable — Windows/ABI install).
+ * Pure detection; the fix (npm ci in the repo) is the operator's/agent's call.
+ */
+export function warnNodeDeps(
+  config: LoadedConfig,
+  workspaceRoot: string,
+  out: (msg: string) => void = (m) => process.stderr.write(m + "\n"),
+  probe?: (addonPath: string) => boolean,
+): void {
+  const loadable =
+    probe ??
+    ((addon: string) => {
+      const res = spawnSync(
+        process.execPath,
+        ["-e", `require(${JSON.stringify(addon)})`],
+        { timeout: 10_000 },
+      );
+      return res.status === 0;
+    });
+  for (const w of config.workspaces.list()) {
+    const pkg = join(w.root, "package.json");
+    if (!existsSync(pkg)) continue; // not a Node repo (e.g. Rust)
+    const nm = join(w.root, "node_modules");
+    if (!existsSync(nm)) {
+      out(
+        `[guidance] warning: workspace "${w.name}" (${w.root}) has a package.json but no node_modules — run "npm install" in the repo (or ask the agent), otherwise build/test gates will fail.`,
+      );
+      continue;
+    }
+    // Native-compatibility probe: load ONE bundled .node addon. Unloadable
+    // (Windows/other-ABI install) means the container cannot run this tree.
+    let addon: string | undefined;
+    try {
+      const res = spawnSync(
+        "find",
+        [nm, "-name", "*.node", "-type", "f", "-print", "-quit"],
+        { timeout: 30_000 },
+      );
+      addon = res.stdout?.toString().split("\n")[0]?.trim() || undefined;
+    } catch {
+      addon = undefined;
+    }
+    if (addon && !loadable(addon)) {
+      out(
+        `[guidance] warning: workspace "${w.name}" (${w.root}) has a node_modules with a native addon that does NOT load in this container (platform/ABI mismatch — likely installed on a different OS). Fix: delete node_modules and run "npm ci" INSIDE the container (or ask the agent), otherwise build/test gates will fail.`,
+      );
+    }
+  }
 }
 
 /**
