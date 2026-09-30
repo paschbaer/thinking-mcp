@@ -488,3 +488,21 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Beobachtet:** Genau dieses Muster trat auf (Retry fresh-ID →
   `invalid_active_phase: expected complete, got verify`) — erste Submission
   hatte die Phase bereits gewechselt. Kein Datenverlust.
+
+### Verify-Gate-Fails im Container sind umweltbedingt — State prüfen statt retryen (bestätigt 2026-09-30, CT-1-Session)
+- **Issue:** submit_verification lief 2× in Client-Timeouts; danach zeigte der
+  State: Submission AKZEPTIERT, Phase advanced — aber Gates lint/test
+  serverseitig failed (exit 1). Beinahe Fehlinterpretation als Diff-Regression.
+- **Why it failed:** (a) Der Guidance-Container führt die Gates am Repo-Root
+  ohne Linux-native node_modules aus → prettier/root-workspaces-Tests failen
+  umweltbedingt (beide required:false, Phase advanced trotzdem); (b) die
+  Gate-Ausführung (Vollauf-Suite, ~80 s+) sprengt das Client-MCP-Timeout —
+  der Client timeoutet, der Server arbeitet weiter.
+- **Preventive measure:** Vor submit_verification: prettier --check auf
+  servers/*/src lokal (WSL) ausführen — der Gate prüft genau das. Nach
+  Client-Timeout: get_workflow_state prüfen (nie blind retryen, RID-Lesson).
+  Gate-Fails gegen den lokalen WSL-Referenzlauf abgleichen: lokaler Lauf
+  grün + Container-Fail ⇒ umweltbedingt (GATE-1/DB-1-Kontext), nicht
+  Diff-Regression. Authoritative Testroute bleibt WSL
+  (npm test in servers/server-guidance), Container-Gates erst nach
+  deps-install (DB-1-Rest) als verbindlich behandeln.

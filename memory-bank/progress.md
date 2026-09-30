@@ -664,3 +664,19 @@ gefixt/getrackt; specs/014 auf Implemented gesetzt.
 **What's left:** Push develop; getrackte LOW-Follow-ups (CT-1/2, R-3, N-4,
 WW-*, WC-*, HR-1, DB-1-Rest).
 **Current state:** README vollständig am Implementierungsstand.
+
+## 2026-09-30: CT-1 Constructor-Guard (feature/ct1-constructor-guard, 8f588c6, Guidance-Session session-1070c546, Kettenschritt 1/8)
+**What works:** WorkflowEngine-Konstruktor lehnt schema-valide guidance.json
+mit operations.file aber ohne/unvollständiger workflow.file bei
+registryOnly=false fail-closed mit configuration_invalid ab (Strukturcheck
+workflow.id/initialPhase statt nur Falsiness — truthy-leeres Objekt
+abgedeckt). 4 Regressionstests; Suite 479/479 grün; prettier grün;
+unabhängiger Review APPROVED 0 HIGH/CRIT; README-Hinweis ergänzt.
+GitNexus-Index per CLI aktualisiert (5.698 nodes).
+**What's left:** CT-2, WW-1/2/3, WC-1-B (Implementierung) + HR-1-SDD,
+DB-1-Rest-SDD — Folge-Schritte derselben Guidance-Kette; Push develop;
+getrackt neu: TYPE-1 (pre-existing TS2532 shipped-configs.test.ts),
+GATE-1 (Container-Gates umweltbedingt rot, required:false — DB-1-Kontext).
+**Current state:** Kettenschritt 1 (CT-1) implementiert, committed,
+verifiziert; Session in Phase complete (Completion folgt nach
+Memory-Bank-Update + Reindex).
