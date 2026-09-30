@@ -1,7 +1,8 @@
-# Root-level orchestration: runs both MCP servers as Docker containers.
+# Root-level orchestration: runs all three MCP servers as Docker containers.
 # The VS Code MCP config (User mcp.json) points at
 #   - http://localhost:3000/mcp  (clear-thought)
 #   - http://localhost:3002/mcp  (insight)
+#   - http://localhost:3003/mcp  (guidance)
 # Start everything with:  docker compose up -d --build
 #
 # Per-server composes live in servers/server-*/docker-compose.yml.
@@ -45,6 +46,37 @@ services:
       - ./servers/server-insight/emms-data:/usr/src/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  guidance:
+    build: ./servers/server-guidance
+    ports:
+      - "127.0.0.1:3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      # Container port-mapping requires 0.0.0.0 inside the container
+      # (explicit operator opt-in; local runs default to loopback, FR-027).
+      - GUIDANCE_BIND_HOST=0.0.0.0
+      # Pool mode (specs/014): the instance .guidance at the workspace root
+      # is REGISTRY-ONLY (workspaces[]); each repo carries its own process
+      # config in <root>/.guidance. Additional workspaces are registered in
+      # /workspaces/.guidance/guidance.json with paths /workspaces/<Repo>.
+      - GUIDANCE_WORKSPACE_ROOT=/workspaces
+    extra_hosts:
+      # resolves host.docker.internal on Linux hosts too (Docker Desktop has it built in)
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Repos pool: relative to THIS file → D:/repos, which includes the
+      # Thinking-MCP checkout itself (/workspaces/Thinking-MCP).
+      - ../../../:/workspaces
+    healthcheck:
+      # healthy erst wenn konfiguriert (/health liefert "configured": true)
+      test: ["CMD-SHELL", 'curl -f http://localhost:3003/health | grep -q "\"configured\":true"']
       interval: 30s
       timeout: 10s
       retries: 3
