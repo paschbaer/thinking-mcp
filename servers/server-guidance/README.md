@@ -2063,20 +2063,24 @@ Rules (fail-closed):
 
 ### Deployment mounts (relative, no absolute host paths)
 
-The compose override mounts the repo pool once instead of one mount per repo
-(paths resolved relative to the compose file in `servers/server-guidance/`):
+specs/014: exactly ONE volume mount — the repos pool (paths resolved relative
+to the compose file in `servers/server-guidance/`):
 
 ```yaml
 volumes:
-  - ../../:/workspace        # repo root = default workspace
-  - ../../../:/workspaces    # repos pool (parent of the checkout)
-  - guidance_node_modules:/workspace/node_modules
+  - ../../../:/workspaces    # repos pool = served workspace root
 ```
 
+The pool contains every served repo, including this checkout itself
+(`/workspaces/Thinking-MCP`). No `/workspace` mount, no node_modules shadow
+volume: Node repos bring their own `node_modules` (installed Linux/ABI-
+compatible — see the boot warnings above).
+
 Onboarding a new repository: clone it into the pool directory, add the
-`workspaces[]` entry (container path `/workspaces/<Repo>`), run
+`workspaces[]` entry (container path `/workspaces/<Repo>`), create its
+`.guidance/` (config assistant, target `repo-config`), run
 `gitnexus analyze --no-stats` in it, add `.guidance/state/` to its
-`.gitignore` — no compose edit, no container restart.
+`.gitignore`, then restart the container (registry is read at boot).
 
 Note: the pool mount exposes everything under the pool directory to the
 container at the filesystem level; the tool layer only accepts registered
