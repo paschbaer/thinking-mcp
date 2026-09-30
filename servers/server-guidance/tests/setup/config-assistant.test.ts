@@ -197,6 +197,17 @@ describe("configuration assistant (stateless wizard)", () => {
     ).toThrowError(/registry-edit requires workspaceRoot/);
   });
 
+  it("WW-2: registry-edit rejects a RELATIVE workspaceRoot at generation time", () => {
+    expect(() =>
+      generateFiles({
+        ...FULL_ANSWERS,
+        target: "registry-edit",
+        workspaceRoot: "workspaces",
+        extraWorkspaces: "",
+      }),
+    ).toThrowError(/must be an absolute path: workspaces/);
+  });
+
   it("specs/014 AC-7: remote mode hint appears when GUIDANCE_REMOTE_MODE=1 (repo-config → init_session)", () => {
     process.env.GUIDANCE_REMOTE_MODE = "1";
     try {

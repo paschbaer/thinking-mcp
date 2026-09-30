@@ -768,6 +768,15 @@ export function generateFiles(answers: SetupAnswers): {
         { recoverable: true },
       );
     }
+    // WW-2: fail fast on a relative workspaceRoot — same criterion as the
+    // extras in parseExtraWorkspaces, instead of first at container load.
+    if (!isAbsolute(regWorkspaceRoot)) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `registry-edit workspaceRoot must be an absolute path: ${regWorkspaceRoot}`,
+        { recoverable: true },
+      );
+    }
     const remote = process.env.GUIDANCE_REMOTE_MODE === "1";
     const registry = {
       version: 2,
