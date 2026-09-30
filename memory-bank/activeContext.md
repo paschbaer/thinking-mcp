@@ -873,3 +873,14 @@
   === Workspace-Config-Hash, ≠ Pool-Hash; keine Config-Copies). Suite
   480/480 grün. Kein Produktionscode nötig. Kettenfortsetzung als frische
   Kette (session-9e23340f) wegen CHAIN-1 (AC-5-Drift der Auto-Folgesession).
+
+### 2026-09-30 — WW-1 Extra-Root-Default-Dedupe (feature/ww1-extraroot-default-dedupe, 6029007, Guidance-Session session-58b4d57f)
+- parseExtraWorkspaces(value, defaultRoot?): seenRoots-Seed mit
+  resolve(defaultRoot) — Extra-Root, der zum Default-workspaceRoot
+  kollidiert, failt bei Generation-Zeit (configuration_invalid) statt
+  erst beim Container-Load; generateFiles übergibt getrimmten Root.
+  2 Regressionstests (inkl. resolve-normalisierter Kollision);
+  70/70 Config-Assistent + 480/480 Suite grün; prettier grün.
+  Realpath-/Case-Kollaps bleibt load-time (Scope-Grenze dokumentiert).
+  Ansatzwechsel nach abgebrochenem Massen-Lese-Versuch: gezielte Edits
+  aus bereits bekannten Code-Stellen statt Voll-Datei-Reads.
