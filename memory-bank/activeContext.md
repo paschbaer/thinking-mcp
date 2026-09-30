@@ -920,3 +920,11 @@
   PolicyEngine-Tests; Suite 483/483 grün; README-Wildcard-Abschnitt
   ergänzt. YAGNI-Notiz: Config-Knopf (Option C) später ohne Breaking
   Change ausbaubar.
+
+## 2026-09-30: Language Convention (communication German / artifacts English)
+- User established a persistent language convention: chat communication in
+  German, all generated artifacts (code, comments, documentation, commit
+  messages, memory-bank entries) in English.
+- Rule added to `AGENTS.md` under "User Preferences & Persistent Memory";
+  backup created as `AGENTS.md.bak` beforehand per Rule Update & Backup
+  Protocol. Convention also noted in `memory-bank/lessonsLearned.md`.
