@@ -404,12 +404,13 @@ container-only deployments without any mounted reference):
 > remind me to run `gitnexus analyze --no-stats` here.
 
 Example prompt (adopt the proven reference configuration — self-hosting
-deployment where `/workspace/.guidance/` IS the reference):
+pool deployment where `/workspaces/Thinking-MCP/.guidance/` is the
+reference):
 
 > This repo should work with Guidance using the proven reference
 > configuration instead of a fresh one. Run `setup_guidance_start`, answer
-> `configSource` with `adopt`, use `/workspace/.guidance/` as the
-> reference path. Then ask me the remaining questions one at a time and WAIT
+> `configSource` with `adopt`, use `/workspaces/Thinking-MCP/.guidance/` as
+> the reference path. Then ask me the remaining questions one at a time and WAIT
 > for my answer before continuing — do not answer on my behalf and do not
 > assume defaults (profile/insight/gitnexus/gates are derived from the
 > reference and will not be asked). Once complete, generate the files and
@@ -1518,7 +1519,7 @@ as a blueprint: copy it to your project root and adapt the operations.
 | `responses.json` | Per-phase agent instruction: title, instruction, `requiredActions` |
 | `operations.json` | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
 | `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`, specs/014) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight |
-| `policies.json` | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3002`, `host.docker.internal:4747`), redaction patterns, review-blocking severities `high\|critical` |
+| `policies.json` | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3000`, `:3002`, `:4747`), redaction patterns, review-blocking severities `high\|critical` |
 | `schemas/*.schema.json` | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission |
 
 ### ⚠️ Important: workspace binding under HTTP/Docker
@@ -1573,7 +1574,7 @@ flowchart TD
     P5 -->|"implementation_changes_required"| P4
     P5 -->|"submission_valid (high/critical findings block)"| P6["6 verify — gates: lint opt · test opt · build REQ"]
     P6 -->|"verification_failed"| P5
-    P6 -->|"required_operations_succeeded"| P7["7 complete — gates: repository-analysis REQ · index-freshness REQ · capture-session-lessons opt"]
+    P6 -->|"required_operations_succeeded"| P7["7 complete — gates: repository-analysis REQ · index-freshness REQ · capture-session-lessons REQ"]
     P7 -->|"required_operations_succeeded"| DONE(["completed — terminal"])
 ```
 
