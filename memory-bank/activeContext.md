@@ -848,3 +848,19 @@
   mit target-Frage repo-config|registry-edit (FR-1104/1105, WA-1-Emission
   ersetzt). Suite 468/468 grün (sauberer Volllauf). Neuer Error-Code
   workspace_process_config_missing (docs-drift-konform).
+
+### 2026-09-30 — CT-1 Constructor-Guard (feature/ct1-constructor-guard, 8f588c6, Guidance-Session session-1070c546)
+- Fix: WorkflowEngine-Konstruktor wirft bei registryOnly=false und fehlender/
+  unvollständiger workflow.file jetzt configuration_invalid (recoverable:false)
+  statt nacktem TypeError — Strukturcheck über workflow.id/initialPhase,
+  weil ein truthy-leeres workflow-Objekt den reinen Falsiness-Check
+  umgangen hätte (von Review-Finding #2 aufgedeckt, Test workflow={}).
+  4 Regressionstests; Suite 479/479 grün; unabhängiger Review APPROVED
+  0 HIGH/CRIT; README-Hinweis ergänzt. Kettenlauf: Schritte CT-2, WW-1..3,
+  WC-1-B, HR-1-SDD, DB-1-Rest-SDD folgen in derselben Session.
+- Infrastruktur-Muster: Clear-Thought/GitNexus-MCP 2× Timeout → Container-
+  Route (run_operation reasoning-pass) bzw. Terminal-CLI (gitnexus analyze);
+  submit_verification Client-Timeout ≠ Server-Fail (Submission war
+  akzeptiert, Gates gingen serverseitig) — State prüfen statt retryen;
+  Container-Gate-Fails (lint/test) sind umweltbedingt (keine nativen
+  node_modules im Container, required:false) — TYPE-1/GATE-1 getrackt.
