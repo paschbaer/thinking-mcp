@@ -41,11 +41,16 @@ export interface GeneratedWorkspace {
 /**
  * Parse and validate the extraWorkspaces answer (WA-1): "name=path" pairs
  * separated by ";". Fail-closed at generation time for everything the agent
- * can fix immediately (name pattern, absolute roots, duplicates); root
- * existence is deliberately NOT checked here — remote-session sentinel roots
- * may not exist yet and loadConfig enforces existence fail-closed at load.
+ * can fix immediately (name pattern, absolute roots, duplicates, duplicates
+ * of the default workspaceRoot); root existence is deliberately NOT checked
+ * here — remote-session sentinel roots may not exist yet and loadConfig
+ * enforces existence fail-closed at load. Realpath/case collapses stay at
+ * load time (WorkspaceRegistry.build).
  */
-export function parseExtraWorkspaces(value: string): GeneratedWorkspace[] {
+export function parseExtraWorkspaces(
+  value: string,
+  defaultRoot?: string,
+): GeneratedWorkspace[] {
   const entries = value
     .split(";")
     .map((e) => e.trim())
@@ -53,6 +58,11 @@ export function parseExtraWorkspaces(value: string): GeneratedWorkspace[] {
   if (entries.length === 0) return [];
   const seenNames = new Set<string>();
   const seenRoots = new Map<string, string>();
+  // WW-1: seed the root map with the default workspaceRoot so an extra entry
+  // duplicating it fails at generation time instead of at container load.
+  if (defaultRoot && defaultRoot.trim() !== "") {
+    seenRoots.set(resolve(defaultRoot.trim()), "default (workspaceRoot)");
+  }
   const out: GeneratedWorkspace[] = [];
   for (const entry of entries) {
     const eq = entry.indexOf("=");
@@ -749,6 +759,7 @@ export function generateFiles(answers: SetupAnswers): {
     const regWorkspaceRoot = String(answers.workspaceRoot ?? "").trim();
     const regExtras = parseExtraWorkspaces(
       String(answers.extraWorkspaces ?? ""),
+      regWorkspaceRoot,
     );
     if (regWorkspaceRoot === "") {
       throw new GuidanceError(
