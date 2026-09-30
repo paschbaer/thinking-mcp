@@ -882,5 +882,13 @@
   2 Regressionstests (inkl. resolve-normalisierter Kollision);
   70/70 Config-Assistent + 480/480 Suite grün; prettier grün.
   Realpath-/Case-Kollaps bleibt load-time (Scope-Grenze dokumentiert).
-  Ansatzwechsel nach abgebrochenem Massen-Lese-Versuch: gezielte Edits
   aus bereits bekannten Code-Stellen statt Voll-Datei-Reads.
+
+### 2026-09-30 — WW-2 workspaceRoot-isAbsolute (feature/ww2-workspaceroot-isabsolute, 5c06639, Guidance-Session session-c4d8dba2)
+- generateFiles (registry-edit): isAbsolute-Fail-fast für den Default-
+  workspaceRoot nach dem Empty-Check — konsistente Semantik mit den
+  Extras (parseExtraWorkspaces); relativer Pfad failt jetzt bei
+  Generierung statt erst beim Container-Load. 1 Regressionstest;
+  fokussiert 71/71; Vollauf effektiv 481/481 (2 bekannte Timeout-Flakes
+  auf Re-Run grün); prettier grün. Kettenfortsetzung als frische Kette
+  (CHAIN-1-Workaround).
