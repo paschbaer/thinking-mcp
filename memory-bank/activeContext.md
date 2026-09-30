@@ -892,3 +892,9 @@
   fokussiert 71/71; Vollauf effektiv 481/481 (2 bekannte Timeout-Flakes
   auf Re-Run grün); prettier grün. Kettenfortsetzung als frische Kette
   (CHAIN-1-Workaround).
+
+### 2026-09-30 — WW-3 extraWorkspaces-Boundary-Tests (feature/ww3-extraworkspaces-boundary-tests, 101306c, Guidance-Session session-46674965)
+- Beide getrackten Boundary-Cases regressionsgesichert: '=' im Root
+  (indexOf-Trennung, Rest = Root) und whitespace-only ≡ weggelassen.
+  E2E-Assertions über generiertes guidance.json; kein Produktionscode
+  nötig. Suite 482/482 grün, prettier grün.
