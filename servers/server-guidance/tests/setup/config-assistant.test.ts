@@ -237,6 +237,11 @@ describe("configuration assistant (stateless wizard)", () => {
       ["default=/workspaces-zed", /invalid name/],
       ["zed=/a;zed=/b", /duplicate name/],
       ["zed=/a;niyama=/a", /duplicate root/],
+      // WW-1: an extra root duplicating the default workspaceRoot fails at
+      // generation time (not first at container load), also when only
+      // resolve-normalization (trailing separator) makes them equal.
+      ["zed=/workspaces", /duplicate root/],
+      ["zed=/workspaces/", /duplicate root/],
       ["zed", /invalid name/],
     ];
     for (const [value, pattern] of cases) {
