@@ -898,3 +898,15 @@
   (indexOf-Trennung, Rest = Root) und whitespace-only ≡ weggelassen.
   E2E-Assertions über generiertes guidance.json; kein Produktionscode
   nötig. Suite 482/482 grün, prettier grün.
+
+### 2026-09-30 — WC-1-B Wildcard-Approval-Hardening (feature/wc1b-wildcard-unconfigured-approval, e5408c1, Guidance-Session session-b470f696)
+- Option B (Nutzerentscheid im Chat, Alternativen A/C abgewogen):
+  PolicyEngine.assertUnconfiguredWildcard — unkonfiguriertes Tool auf
+  Wildcard-Server → recoverable authorization_required (statt lautlos
+  ohne riskClass durchzulaufen); verdrahtet in buildInvokerClosure nach
+  assertAllowed/opForEgress, vor evaluateEgress. Realer Geltungsbereich
+  v. a. Child-/Downstream-Engine-Verdrahtung (Eltern-Closure + fremder
+  Operations-Bestand). Konfigurierte Tools byte-identisch. 4 neue
+  PolicyEngine-Tests; Suite 483/483 grün; README-Wildcard-Abschnitt
+  ergänzt. YAGNI-Notiz: Config-Knopf (Option C) später ohne Breaking
+  Change ausbaubar.
