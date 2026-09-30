@@ -1,14 +1,14 @@
-# Local override: use the Thinking-MCP repository itself as Guidance default
-# workspace so lifecycle gates (lint/test/build) run against the real project.
-# Host node_modules stays untouched: the named volume shadows /workspace/node_modules
-# with a container-internal install (needed only if you want in-container tests).
+# Local override: serve the repos pool. specs/014: the instance .guidance at
+# the workspace root is REGISTRY-ONLY (workspaces[]); each repo carries its
+# own process config in <root>/.guidance.
 #
-# specs/008 multi-workspace: all mounts use RELATIVE paths (resolved against
-# this compose file's directory, servers/server-guidance/):
-#   ../../    → the Thinking-MCP repository (default workspace)
-#   ../../../ → the repos pool (D:/repos on this machine) — additional
-#               workspaces are registered in .guidance/guidance.json
-#               workspaces[] with container paths like /workspaces/<Repo>.
+# All mounts use RELATIVE paths (resolved against this compose file's
+# directory, servers/server-guidance/):
+#   ../../    → the Thinking-MCP repository (mounted at /workspace, reachable
+#               via the workspaces[] entry "thinking-mcp")
+#   ../../../ → the repos pool (D:/repos on this machine) = the served
+#               workspace root; additional workspaces are registered in
+#               /workspaces/.guidance/guidance.json with paths /workspaces/<Repo>.
 # No absolute host paths in this file — relocate the checkout and only these
 # two relative mounts need to keep working.
 services:
@@ -21,7 +21,7 @@ services:
       - ../../../:/workspaces
       - guidance_node_modules:/workspace/node_modules
     environment:
-      - GUIDANCE_WORKSPACE_ROOT=/workspace
+      - GUIDANCE_WORKSPACE_ROOT=/workspaces
 
 volumes:
   guidance_node_modules:

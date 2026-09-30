@@ -630,3 +630,14 @@ Onboarding, Push von develop (ahead ~10).
 repo-config + init_session; 2 neue/angepasste Tests; docs-drift grün.
 **What's left:** wie zuvor (Rebuild, /workspaces-Umschaltung, zed-Lauf, Push).
 **Current state:** Assistant führt in beiden Modi nur noch die richtigen Wege.
+
+### 2026-09-30 — Guidance-Instanz auf Pool-Betrieb umgestellt (specs/014 aktiv)
+**What works:** Image mit INSTALL_RUST=true gebaut (cargo 1.90.0 im Container);
+override auf GUIDANCE_WORKSPACE_ROOT=/workspaces umgestellt + recreate;
+/health: default(/workspaces), thinking-mcp(/workspace), zed(/workspaces/zed)
+alle reachable; Smoke-Start workspace zed erfolgreich (Session erstellt und
+wieder gecancelt). zed-Operations auf Cargo umgestellt (build/lint/test).
+**What's left:** zed-Erstlauf (cargo build kalt = lange; ggf. CARGO_TARGET_DIR-
+Volume); Push develop;zed-.gitignore prüfen (.guidance/state).
+**Current state:** Zwei-Modi-Betrieb live: Registry-only Pool-Instanz serving
+zed + thinking-mcp.
