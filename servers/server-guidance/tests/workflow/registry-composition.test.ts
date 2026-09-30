@@ -203,6 +203,48 @@ describe("specs/014: registry-only composition (FR-1101/FR-1102)", () => {
   });
 });
 
+describe("specs/014: legacy monolith child composition (CT-2)", () => {
+  it("E2E: full config at the instance root + registered extra workspace with its own .guidance composes the session from the workspace root", async () => {
+    const zed = join(pool, "zed");
+    mkdirSync(zed, { recursive: true });
+    // Legacy monolith: FULL process config at the pool root carrying a
+    // workspaces[] registry (FR-1103 boot warning path) ...
+    scaffoldFullConfig(pool, [
+      { name: "default", root: pool, projectName: "pool" },
+      { name: "zed", root: zed, projectName: "zed" },
+    ]);
+    // ... plus the registered extra workspace carrying ITS OWN full config.
+    scaffoldFullConfig(zed);
+    const guidanceBefore = readdirSync(join(zed, ".guidance")).sort();
+
+    const app = compose();
+    const res = await app.engine.startWorkflow({
+      workspace: "zed",
+      request: "r",
+    });
+    expect(res.sessionId).toBeTruthy();
+
+    // The session is composed from the WORKSPACE config, not the pool config:
+    // its persisted configurationVersion equals the zed root's config hash and
+    // differs from the pool (legacy monolith) instance hash.
+    const zedConfig = loadConfig(join(zed, ".guidance"), {
+      workspaceRoot: zed,
+    });
+    const sessionJson = JSON.parse(
+      readFileSync(
+        join(zed, ".guidance", "state", "sessions", `${res.sessionId}.json`),
+        "utf-8",
+      ),
+    ) as { configurationVersion: string };
+    expect(sessionJson.configurationVersion).toBe(zedConfig.configVersion);
+    expect(zedConfig.configVersion).not.toBe(app.config.configVersion);
+
+    // No config files copied into the workspace (state dir may appear).
+    const guidanceAfter = readdirSync(join(zed, ".guidance")).sort();
+    expect(guidanceAfter.filter((f) => f !== "state")).toEqual(guidanceBefore);
+  });
+});
+
 describe("specs/014: legacy monolith + dormancy boot diagnostics", () => {
   it("FR-1105/F-5: the registry-edit payload round-trips through loadConfig as a registry-only instance", () => {
     const zed = join(pool, "zed");
