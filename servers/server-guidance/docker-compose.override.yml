@@ -1,27 +1,23 @@
 # Local override: serve the repos pool. specs/014: the instance .guidance at
 # the workspace root is REGISTRY-ONLY (workspaces[]); each repo carries its
-# own process config in <root>/.guidance.
+# own process config in <root>/.guidance. Node repos bring their own
+# node_modules (installed in the repo — Linux/ABI-compatible, see README);
+# the former /workspace mount + node_modules shadow volume are gone.
 #
-# All mounts use RELATIVE paths (resolved against this compose file's
-# directory, servers/server-guidance/):
-#   ../../    → the Thinking-MCP repository (mounted at /workspace, reachable
-#               via the workspaces[] entry "thinking-mcp")
-#   ../../../ → the repos pool (D:/repos on this machine) = the served
-#               workspace root; additional workspaces are registered in
+# The ONLY volume mount is the repos pool (relative path, resolved against
+# this compose file's directory, servers/server-guidance/):
+#   ../../../ → the repos pool (D:/repos on this machine), which includes
+#               the Thinking-MCP checkout itself (/workspaces/Thinking-MCP).
+#               Additional workspaces are registered in
 #               /workspaces/.guidance/guidance.json with paths /workspaces/<Repo>.
-# No absolute host paths in this file — relocate the checkout and only these
-# two relative mounts need to keep working.
+# No absolute host paths in this file — relocate the checkout and only this
+# one relative mount needs to keep working.
 services:
   guidance:
     extra_hosts:
       # resolves host.docker.internal on Linux hosts too (Docker Desktop has it built in)
       - "host.docker.internal:host-gateway"
     volumes:
-      - ../../:/workspace
       - ../../../:/workspaces
-      - guidance_node_modules:/workspace/node_modules
     environment:
       - GUIDANCE_WORKSPACE_ROOT=/workspaces
-
-volumes:
-  guidance_node_modules:
