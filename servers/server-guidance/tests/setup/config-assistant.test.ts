@@ -191,6 +191,47 @@ describe("configuration assistant (stateless wizard)", () => {
     ]);
   });
 
+  it("WW-3: extraWorkspaces boundary cases — '=' inside the root and whitespace-only answers", () => {
+    // (a) indexOf splitting: everything after the FIRST '=' is the root, so
+    // roots containing '=' characters survive intact.
+    const withEq = generateFiles({
+      ...FULL_ANSWERS,
+      target: "registry-edit",
+      workspaceRoot: "/workspaces",
+      extraWorkspaces: "zed=/w/zed=path=mit=gleichheitszeichen",
+    });
+    const guidanceEq = JSON.parse(
+      Object.fromEntries(withEq.files.map((f) => [f.path, f.content]))[
+        "guidance.json"
+      ]!,
+    );
+    expect(guidanceEq.workspaces).toEqual([
+      { name: "default", root: "/workspaces", projectName: "my-project" },
+      {
+        name: "zed",
+        root: "/w/zed=path=mit=gleichheitszeichen",
+        projectName: "zed",
+      },
+    ]);
+
+    // (b) whitespace-only answers are equivalent to omitted: only the
+    // default entry lands in the registry.
+    const whitespaceOnly = generateFiles({
+      ...FULL_ANSWERS,
+      target: "registry-edit",
+      workspaceRoot: "/workspaces",
+      extraWorkspaces: " ; ",
+    });
+    const guidanceWs = JSON.parse(
+      Object.fromEntries(whitespaceOnly.files.map((f) => [f.path, f.content]))[
+        "guidance.json"
+      ]!,
+    );
+    expect(guidanceWs.workspaces).toEqual([
+      { name: "default", root: "/workspaces", projectName: "my-project" },
+    ]);
+  });
+
   it("specs/014: registry-edit without workspaceRoot is rejected", () => {
     expect(() =>
       generateFiles({ ...FULL_ANSWERS, target: "registry-edit" }),
