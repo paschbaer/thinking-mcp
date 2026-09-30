@@ -124,4 +124,29 @@ export class PolicyEngine {
       config.riskClass === "credential_sensitive"
     );
   }
+
+  /**
+   * WC-1-B: a wildcard ["*"] allowlist admits EVERY tool of the server,
+   * including tools without an operations.json entry — for those the
+   * FR-053 approval gate can never fire (no risk class). Instead of letting
+   * them run unexamined, an unconfigured wildcard tool always requires
+   * explicit approval: it fails with a recoverable authorization_required
+   * until an operation entry assigns it a risk class. Configured tools are
+   * unaffected (byte-identical behavior); non-wildcard servers are handled
+   * by the allowlist (assertAllowed) and must not reach this check.
+   */
+  assertUnconfiguredWildcard(
+    serverId: string,
+    toolName: string,
+    allowlist: string[],
+    hasOperationEntry: boolean,
+  ): void {
+    if (!hasOperationEntry && allowlist.includes("*")) {
+      throw new GuidanceError(
+        "authorization_required",
+        `tool ${toolName} on wildcard server ${serverId} has no operations.json entry — unconfigured wildcard tools always require explicit approval; add an operation entry to assign it a risk class`,
+        { recoverable: true },
+      );
+    }
+  }
 }
