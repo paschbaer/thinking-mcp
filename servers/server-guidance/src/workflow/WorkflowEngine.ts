@@ -267,6 +267,23 @@ export class WorkflowEngine {
         phases: {},
       };
     } else {
+      // CT-1: a config referencing operations but missing (or incompletely
+      // loading) workflow.file is a valid schema document but unusable as a
+      // process config — fail closed with a classified error instead of an
+      // unguarded dereference (an empty workflow object is truthy, so a
+      // falsiness check alone would not be sufficient).
+      const wfFile = this.config.workflow as
+        { workflow?: { id?: string; initialPhase?: string } } | undefined;
+      if (
+        !wfFile?.workflow?.id ||
+        typeof wfFile.workflow.initialPhase !== "string"
+      ) {
+        throw new GuidanceError(
+          "configuration_invalid",
+          "guidance.json is missing workflow.file (or its workflow.id/initialPhase) — required when registryOnly=false",
+          { recoverable: false },
+        );
+      }
       const file = this.config.workflow as unknown as {
         version: number;
         workflow: {
