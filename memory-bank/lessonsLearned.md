@@ -506,3 +506,20 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
   Diff-Regression. Authoritative Testroute bleibt WSL
   (npm test in servers/server-guidance), Container-Gates erst nach
   deps-install (DB-1-Rest) als verbindlich behandeln.
+
+### 2026-09-30 — Falsy-Checks genügen nicht bei Config-Objekten; Gate-Fails im Container sind umweltbedingt (Chain-Läufe CT/WW/WC)
+- **Issue 1:** Der erste WC-1-CT-1-Guard prüfte nur Falsiness von
+  `config.workflow` — ein truthy-leeres Objekt (workflow: {} ohne file)
+  wäre durchgerutscht und hätte den TypeError-Crash behalten.
+  **Preventive:** Bei Config-Objekten auf die benötigte STRUKTUR prüfen
+  (z. B. workflow.id/initialPhase), nicht auf Falsiness; Present-but-empty
+  immer als Testfall aufnehmen.
+- **Issue 2:** Vollauf-Suite failte 2× mit Timeout-Flakes (metrics/engine,
+  30-s-Limit) obwohl der Diff unrelated war.
+  **Preventive:** Fokussierte Re-Runs der betroffenen Dateien vor jeder
+  Regressionseinschätzung (Baseline-aware, AGENTS.md); Flakes als
+  umweltbedingt labeln, nicht fixen.
+- **Issue 3 (Prozess):** Massen-Parallel-Reads einer großen Datei führen zu
+  Abbrüchen und Token-Verschwendung. **Preventive:** Gezielte Edits aus
+  bereits bekannten Code-Stellen; ein gelesener Ausschnitt reicht — nicht
+  dieselbe Datei in Dutzenden Window-Reads erneut anfassen.

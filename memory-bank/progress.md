@@ -693,3 +693,29 @@ DB-1-Rest-SDD (Folge-Kettenschritte); Push develop; CHAIN-1 getrackt
 TYPE-1/GATE-1 unverändert getrackt.
 **Current state:** Kettenschritt CT-2 implementiert, committed; Verifikation
 läuft (Completion-Artefakte folgen).
+
+## 2026-09-30: Chain-Abschluss WW-1/WW-2/WW-3/WC-1-B + specs/015 SDD (6 Guidance-Sessions, 8/8 Follow-ups)
+**What works:**
+- WW-1 (6029007): parseExtraWorkspaces(value, defaultRoot?) — Extra-Root-/
+  Default-Root-Kollision failt bei Generierung statt erst beim Container-Load.
+- WW-2 (5c06639): isAbsolute-Fail-fast für den Default-workspaceRoot in
+  generateFiles — konsistente Semantik mit den Extras.
+- WW-3 (101306c): Boundary-Tests extraWorkspaces ('=' im Root,
+  whitespace-only ≡ weggelassen) — kein Produktionscode nötig.
+- WC-1-B (e5408c1): PolicyEngine.assertUnconfiguredWildcard — unkonfiguriertes
+  Tool auf Wildcard-Server → recoverable authorization_required (Option B,
+  Nutzerentscheid); Single-Choke-Point buildInvokerClosure deckt Child-/
+  Downstream-Verdrahtung ab; 1 LOW getrackt (WC1B-F3 Integrationstest).
+- specs/015 SDD (1a34a35): Registry-Hot-Reload + deps-install/reinstall
+  vollständig spezifiziert (Draft; Design-Entscheidung US1 offen, R1/R2
+  Blocking-Open-Points).
+Jeder Schritt: unabhängiger Review APPROVED 0 HIGH/CRIT, Vollauf
+480→483→482 grün, prettier grün, alle Completion-Gates durch.
+**What's left:** Push/Merge der 6 Feature-Branches nach develop
+(Nutzerentscheid); getrackt: TYPE-1 (TS2532 pre-existing), GATE-1
+(Container-Gates umweltbedingt), CHAIN-1 (Auto-Folgesession AC-5-Drift —
+frische Ketten als Workaround), WC1B-F3 (Closure-Integrationstest);
+specs/015-Umsetzung (R1/R2-Entscheidungen mit Nutzer).
+**Current state:** Alle 8 getrackten Follow-ups der Chain abgearbeitet;
+Feature-Branches warten auf Merge/Push; specs/015 bereit für
+Umsetzungs-Planning.
