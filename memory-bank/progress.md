@@ -680,3 +680,16 @@ GATE-1 (Container-Gates umweltbedingt rot, required:false — DB-1-Kontext).
 **Current state:** Kettenschritt 1 (CT-1) implementiert, committed,
 verifiziert; Session in Phase complete (Completion folgt nach
 Memory-Bank-Update + Reindex).
+
+## 2026-09-30: CT-2 Legacy-Monolith-E2E (feature/ct2-legacy-monolith-e2e, 96b0a67, Guidance-Session session-9e23340f, Kettenschritt 1/7)
+**What works:** E2E-Test in registry-composition.test.ts: Legacy-Monolith
+(Voll-Config am Pool-Root + Registry) + Extra-Workspace mit eigener
+.guidance → Session aus dem Workspace-Root komponiert (configurationVersion
+aus zed/.guidance/state/sessions/<id>.json === Workspace-Hash, ≠ Pool-Hash;
+kein Copy). Suite 480/480 grün, prettier grün. Kein Produktionscode nötig.
+**What's left:** WW-1/2/3, WC-1-B (Implementierung) + HR-1-SDD,
+DB-1-Rest-SDD (Folge-Kettenschritte); Push develop; CHAIN-1 getrackt
+(Auto-Folgesession scheitert an AC-5-Drift — frische Ketten als Workaround);
+TYPE-1/GATE-1 unverändert getrackt.
+**Current state:** Kettenschritt CT-2 implementiert, committed; Verifikation
+läuft (Completion-Artefakte folgen).
