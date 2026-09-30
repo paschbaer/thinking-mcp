@@ -757,8 +757,8 @@ reports `chain: [{ "status": "failed", "error": "chain_template_unresolved: …"
 ```jsonc
 // start_workflow — plain profile: fix-then-review pattern
 {
-  "workspaceRoot": "/workspace",
-  "request": "Add rate limiting to the API gateway",
+  "workspace": "thinking-mcp",
+    "request": "Add rate limiting to the API gateway",
   "chain": {
     "steps": [
       { "request": "Fix the failing tests reported by the verification run for: ${chain.parentRequest}. Completion summary: ${chain.completionSummary}" },
@@ -785,8 +785,8 @@ own verification pass.
 ```jsonc
 // start_workflow — spec-kit profile, one workflow per task
 {
-  "workspaceRoot": "/workspace",
-  "request": "Execute the rate-limiting feature task by task",
+  "workspace": "thinking-mcp",
+    "request": "Execute the rate-limiting feature task by task",
   "chain": {
     "source": "spec_kit_tasks",
     "requestTemplate": "Execute task ${chain.taskId} (${chain.taskTitle}) of feature ${chain.featureId} exactly as specified in the imported artifacts",
@@ -1595,7 +1595,7 @@ ends the run in the `cancelled` terminal state.
 
 | Aspect | Detail | Config |
 |---|---|---|
-| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — as a plain branch in the main checkout, or as a worktree under `/workspace/worktrees/<name>` for parallel work (see **Branch workflow + worktree support** below). **Last step:** update `README.md` (always in English) and the memory-bank files | `responses.json` → `implement` |
+| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — as a plain branch in the main checkout, or as a worktree under the pool (see **Branch workflow + worktree support** below) — registered via the instance registry. **Last step:** update `README.md` (always in English) and the memory-bank files | `responses.json` → `implement` |
 | Submission | `submit_implementation` — required: `implementedTasks`; optional: `changedFiles`, `createdFiles`, `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`, `unresolvedIssues` | `schemas/implement.schema.json` |
 | Transitions | `submission_valid` → `review_and_fix_implementation`; `significant_plan_deviation` → back to `plan` (deviations must be planned, not silently absorbed) | `workflow.json` → `phases.implement.transitions` |
 
@@ -2057,7 +2057,7 @@ Register workspaces in `guidance.json`:
   "version": 2,
   "project": { "name": "guidance" },
   "workspaces": [
-    { "name": "thinking-mcp", "root": "/workspace", "projectName": "Thinking-MCP" },
+    { "name": "thinking-mcp", "root": "/workspaces/Thinking-MCP", "projectName": "Thinking-MCP" },
     { "name": "niyama", "root": "/workspaces/Niyama", "projectName": "Niyama" }
   ]
 }
