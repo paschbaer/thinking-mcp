@@ -652,3 +652,15 @@ bleibt getrackt (DB-1 Rest, specs/015-Kandidat mit HR-1).
 **What's left:** wie zuvor (Push, zed-Erstlauf, Rebuild-Regel bei
 Dependency-Updates im Repo).
 **Current state:** Slim-Variante live auf develop.
+
+### 2026-09-30 — README-Abgleich gegen Implementierung (Review session 385ae1ae + Re-Reviews)
+**What works:** Vollständiger Abgleich README ↔ Quelle durch unabhängigen
+Reviewer (16 Findings: 2 HIGH, 8 MEDIUM, Rest LOW/INFO). Alle HIGH/MEDIUM
+gefixt (Multi-Workspace-Paragraf auf registry-edit-Semantik, Quickstart mit
+Override-Pflicht, Katalogzähler 12, profile spec-kit, downstream/wildcard/
+containerRoute-Claims, start_workflow-Zeile, env-Block-Unterscheidung,
+/workspace-Framings); Re-Reviews bestätigen. Residuen N-1..N-3 + R-1..R-5
+gefixt/getrackt; specs/014 auf Implemented gesetzt.
+**What's left:** Push develop; getrackte LOW-Follow-ups (CT-1/2, R-3, N-4,
+WW-*, WC-*, HR-1, DB-1-Rest).
+**Current state:** README vollständig am Implementierungsstand.
