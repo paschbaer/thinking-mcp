@@ -10,20 +10,20 @@ services:
       # Container port-mapping requires 0.0.0.0 inside the container
       # (explicit operator opt-in; local runs default to loopback, FR-027).
       - GUIDANCE_BIND_HOST=0.0.0.0
-      # Workspace: .guidance/ (config + state) lives OUTSIDE the container
-      # (host bind mount) so sessions, snapshots and audit survive re-deploys
-      # and are directly backupable from ./workspace on the host.
-      - GUIDANCE_WORKSPACE_ROOT=/workspace
+      # Workspace root: set by your deployment override (specs/014 — e.g.
+      # the repos pool at /workspaces; see docker-compose.override.yml).
+      # No default workspace mount here: specs/014 instances are
+      # registry-only and compose per-workspace configs from <root>/.guidance.
       # Optional: set to require `Authorization: Bearer <token>` on /mcp.
       # - GUIDANCE_AUTH_TOKEN=change-me
-    volumes:
-      # Host-Verzeichnis muss für UID 1000 (node) beschreibbar sein:
-      #   mkdir -p ./workspace && sudo chown 1000:1000 ./workspace
-      - ./workspace:/workspace
-      # Optional (spec 005 FR-405 / TRACK-Venv-C): Python-venv außerhalb des
-      # Workspace-Mounts persistieren (Named Volume + Env unten) — vermeidet
-      # Linux-Binaries auf Windows-Host-Mounts:
-      # - guidance-venvs:/venvs
+    # Volumes are provided by your deployment override (specs/014 — e.g. the
+    # repos pool at /workspaces; see docker-compose.override.yml). Nothing is
+    # mounted by the base file. Optional additions (single-repo deployments):
+    # Optional (spec 005 FR-405 / TRACK-Venv-C): Python-venv außerhalb des
+    # Workspace-Mounts persistieren (Named Volume + Env unten) — vermeidet
+    # Linux-Binaries auf Windows-Host-Mounts:
+    # volumes:
+    #   - guidance-venvs:/venvs
       # Optional (Rust): Cargo-Build-Artefakte außerhalb des Workspace-Mounts
       # persistieren — deutlich schnellere Builds und keine Linux-Binaries im
       # Host-Mount:
