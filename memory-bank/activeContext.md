@@ -1064,3 +1064,10 @@
 - CHAIN-Replay gefixt: start_workflow lehnt top-level request == steps[0].request (getrimmt) fail-closed mit configuration_invalid ab (Step-0-Doppelau sofuehrung); generische Kontext-Ketten bleiben valide.
 - Tests: tests/workflow/retry-finalize.test.ts (4 Tests; deterministisches Hook-Fail ueber ws-lokales .guidance mit Composite aus zwei analyze-mcpTool-Steps + faehigkeitsabhaengigem Invoker — Vorbild-Fallback-Prozess wuerde in WSL durchinstalliertes gitnexus gruen machen). Fokussiert 35/35 (inkl. chain.test.ts + registry-rebind), Vollauf 502 passed / 9 skipped, tsc/prettier gruen.
 - README: Chain-Semantik ergaenzt (Duplicate-Step-0-Regel, Retry-Finalisierung).
+
+## 2026-10-01 — Independent Review eedb7bb (feature/gds6-chain-replay-hardening): APPROVED, 0 HIGH/CRITICAL
+- Basis: HEAD eedb7bb == review commit, working tree clean; diff vs develop 9b07627 gelesen; WorkflowEngine.ts-Touchpoints + Typen im Current Source verifiziert.
+- Refactor-Aequivalenz bestaetigt: sessionId→session.sessionId / result.sessionId sind wertidentisch; Audit-Events (chain_end/chain_failed/chain_successor_created/session_started), requestIds-Caching und chainUpNext-Advancement unverändert.
+- State-Machine: Lock-Discipline korrekt (Successor-Creation im Predecessor-Lock, Activation im Successor-Lock mit Re-Check); 'complete'-Phase hat Success-Transition → retry-finalize feuert; requestId-Replay liefert Final-Result; complete_workflow danach → workflow_already_completed; 'activating'-Recovery-Pfad unberuehrt.
+- Defect-Pinning hart belegt: Testdatei auf Pre-Fix-src (9b07627) laufen gelassen → 3/4 Tests failen (beide GDS-6-Tests + Duplicate-Rejection), Negative-Control bleibt gruen. Post-Fix: retry-finalize 4/4 + chain.test.ts 19/19 gruen. Temporaerer Worktree/Checkout-Swap vollstaendig zurueckgerollt (Baum wieder sauber auf eedb7bb).
+- Findings: 0 HIGH/CRITICAL; 1 LOW Code (requestId-Cache im Retry-Finalize nicht post-activation refreshed), 1 LOW Test-Hygiene (orphan comment), Rest Info — alle als REV-eedb7bb-* in remaining-work-plan.md getrackt.

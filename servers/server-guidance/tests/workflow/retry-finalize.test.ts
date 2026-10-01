@@ -30,8 +30,6 @@ let engine: WorkflowEngine;
 let config: LoadedConfig;
 let setAnalyzeFail: (fail: boolean) => void;
 
-/** Invoker that fails the FIRST downstream call (transport), then succeeds —
- *  deterministic hook-fail → fix → retry-success cycle. */
 /** Workspace-local process config: repository-analysis as a composite of
  *  TWO mcpTool steps (both driven by the counting invoker) so the first
  *  completion attempt deterministically fails even though the gitnexus CLI
