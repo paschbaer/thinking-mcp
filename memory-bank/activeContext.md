@@ -1071,3 +1071,10 @@
 - State-Machine: Lock-Discipline korrekt (Successor-Creation im Predecessor-Lock, Activation im Successor-Lock mit Re-Check); 'complete'-Phase hat Success-Transition → retry-finalize feuert; requestId-Replay liefert Final-Result; complete_workflow danach → workflow_already_completed; 'activating'-Recovery-Pfad unberuehrt.
 - Defect-Pinning hart belegt: Testdatei auf Pre-Fix-src (9b07627) laufen gelassen → 3/4 Tests failen (beide GDS-6-Tests + Duplicate-Rejection), Negative-Control bleibt gruen. Post-Fix: retry-finalize 4/4 + chain.test.ts 19/19 gruen. Temporaerer Worktree/Checkout-Swap vollstaendig zurueckgerollt (Baum wieder sauber auf eedb7bb).
 - Findings: 0 HIGH/CRITICAL; 1 LOW Code (requestId-Cache im Retry-Finalize nicht post-activation refreshed), 1 LOW Test-Hygiene (orphan comment), Rest Info — alle als REV-eedb7bb-* in remaining-work-plan.md getrackt.
+
+## 2026-10-01 — REV-US2-F2/F3/F4 geschlossen (Guidance-Session session-12d087d8)
+- F2: deps-install-Beschreibung in allen drei Katalogen (scaffold.ts, ConfigAssistant.ts, examples/default-guidance/operations.json) + README auf echte firstAvailable-Semantik umgestellt (Fallback bei JEDEM npm-ci-Fehler, node_modules-Lösch-Caveat). Entscheidung: Doku-Alignment statt condition-Feld.
+- F3: OperationEngine-Composite-Failure-Merge führt Step-Warnings mit (node_deps_hint überlebt); neuer Test pinnt das.
+- F4: Drei Kataloge field-identisch (canonical: protocolRequestMustSucceed + summary_and_errors + 'Runs in the workspace root'-Phrase); Drift-Guard-Test vergleicht scaffold-Generierung vs. ConfigAssistant-generateFiles vs. shipped example über 10 Felder.
+- Unabhängiger Review (036a6d4d): APPROVED, 0 HIGH/CRIT; Follow-ups REV-F2F3F4-1/-2 accepted+tracked (Exposure-Filtering: merged warnings unter summary_and_errors agent-invisible), -3 (Join-Separator) gefixt in 3ed06b9.
+- Vollauf 504 passed / 9 skipped; tsc/prettier grün. Commits 7edef62 + 3ed06b9 auf feature/rev-us2-f2f3f4; Merge nach develop nach Completion.
