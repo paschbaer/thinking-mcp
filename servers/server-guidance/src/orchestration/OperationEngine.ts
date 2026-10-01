@@ -201,7 +201,7 @@ export class OperationEngine {
         ...base,
         errors: errors.map((message) => ({ message })),
         warnings,
-        summary: `all alternatives failed: ${errors.join(";")}`,
+        summary: `all alternatives failed: ${errors.join("; ")}`,
       };
     }
 
