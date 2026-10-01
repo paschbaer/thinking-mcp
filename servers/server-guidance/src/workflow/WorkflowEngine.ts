@@ -2724,6 +2724,7 @@ export class WorkflowEngine {
     const routed = this.routedFor(sessionId);
     if (routed) return routed.retryOperations(sessionId);
 
+    let finalizeRequestId: string | undefined;
     const result = await this.sessions.withLock(sessionId, async () => {
       // CHN-1: a crash-orphaned 'activating' chain successor fails getSession
       // (chain_activation_incomplete) — this is the documented recovery path.
@@ -2863,6 +2864,7 @@ export class WorkflowEngine {
             delete s.pendingCompletion;
           });
           if (pending) {
+            finalizeRequestId = pending.requestId;
             return this.createChainSuccessorLocked(
               session,
               pending.report,
@@ -2889,7 +2891,9 @@ export class WorkflowEngine {
         operations: opResults,
       };
     });
-    return await this.activateSuccessor(result);
+    // REV-eedb7bb-1: refresh the requestId cache post-activation (mirror the
+    // completeWorkflow path) so replays see the final chain status.
+    return await this.activateSuccessor(result, finalizeRequestId);
   }
 
   reportBlocker(
