@@ -5,7 +5,11 @@
 
 ## Research / Open Points (vor Implementierung zu entscheiden)
 
-### R1 — US1-Design-Entscheidung: Watch vs. Register-Tool (blockiert US1)
+### R1 — US1-Design-Entscheidung: Watch vs. Register-Tool — ENTSCHIEDEN (2026-09-30, Nutzer)
+
+**Entscheidung: Alternative B (`registry-register`-Tool).** Alternative A
+(config-watch + atomarer Swap) ist als Follow-up im remaining-work-plan
+getrackt und wird umgesetzt, falls Datei-Edit-Workflows dominieren.
 
 Kriterien (aus spec.md AC-1…AC-6 abgeleitet):
 
@@ -20,11 +24,15 @@ Kriterien (aus spec.md AC-1…AC-6 abgeleitet):
 **Empfehlung des SDD (nicht bindend):** B zuerst (kleiner, specs/008-näher),
 A als Follow-up, falls Datei-Edit-Workflows dominieren.
 
-### R2 — Session-Semantik bei Registry-Wechsel
+### R2 — Session-Semantik bei Registry-Wechsel — ENTSCHIEDEN (2026-09-30, Nutzer)
 
-Entscheidungsmatrix zu erstellen: welche Session-Zustände dürfen eine
-Registry-Änderung überleben (active/blocked/completed) und was bedeutet
-AC-5 in jedem Fall. Blocking: ohne diese Matrix keine US1-Implementierung.
+**Entscheidung: Weiterführung mit Re-Validierung.** `completed`-Sessions
+überleben einen Registry-Wechsel; `active`- und `blocked`-Sessions werden
+genau dann weitergeführt, wenn sie gegen die neue Registry re-validieren
+(AC-5-Hash-Vergleich mit Rebind + Re-Validierung), andernfalls fail-closed
+(`configuration_invalid`). Die verbindliche Fallmatrix (welche Felder der
+Session in die Re-Validierung eingehen) wird in Phase 1 (T001/T002)
+konkretisiert und in spec.md AC-1…AC-6 verankert.
 
 ### R3 — Watcher-Technologie (nur bei Alternative A)
 
