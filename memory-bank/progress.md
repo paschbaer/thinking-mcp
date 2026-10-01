@@ -3,9 +3,17 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-30
 
 ## What Works
+
+- **Guidance-Container-Deployment (2026-09-30)**: Start-Crash (EACCES
+  mkdir '/workspaces/.guidance') behoben — veralteter Container mit falschem
+  Mount (`/mnt` statt `D:\repos`) wurde per `docker compose up -d
+  --force-recreate` aus `servers/server-guidance` ersetzt; `/health` grün
+  (`configured:true, reachable:true`), Alt-Container + Relikt-Volume via
+  `docker rm -v` entfernt. Start-Discipline-Regel in AGENTS.md
+  (Guidance-Sektion) dokumentiert, Lesson in lessonsLearned.md (2026-09-30).
 
 - **Config-Assistant generische Patterns (2026-09-28, Guidance-Session
   session-2c0c15fe, Branch feature/config-assistant-generic-patterns,

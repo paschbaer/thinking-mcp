@@ -501,6 +501,20 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd
   /mnt/d/repos/Thinking-MCP && gitnexus analyze --no-stats'` — und das
   Ergebnis im Abschlussbericht nennen.
+- **Container-Start via `docker compose up -d`** — entweder aus
+  `servers/server-guidance` oder aus der Repo-Wurzel (Root-`docker-compose.yml`
+  orchestriert alle drei Server). Beide Files müssen den Mount
+  `D:\repos` → `/workspaces` korrekt auflösen (Root-File: `- ../:/workspaces`,
+  Server-File: `- ../../../:/workspaces`) — bei Pfad-Änderungen gegenseitig
+  im Sync halten. Einen Container, der aus einem anderen Kontext/WSL-Pfad
+  erzeugt wurde, NIEMALS weiterverwenden: ein falscher `/workspaces`-Mount
+  (z. B. `bind /mnt -> /workspaces` oder `D:\\`, root-owned, für `USER node`
+  nicht schreibbar bzw. zu weit gefasst) crashet beim Start mit
+  `EACCES ... mkdir '/workspaces/.guidance'` oder bricht registrierte
+  Workspace-Pfade. Diagnose: `docker inspect <name> --format
+  "{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}"` und
+  Gegencheck mit `docker compose config`; Fix: `docker compose up -d
+  --force-recreate`, danach Alt-Container (`docker rm -v`) entfernen.
 - **Completion-Gate vs. Parallel-Work (Lesson 2026-09-26, session-3b7f96a5):**
   Läuft ein anderer Agent/Prozess auf demselben Checkout, verliert der
   `index-freshness`-Completion-Hook systematisch das Rennen (jede Quell-Datei

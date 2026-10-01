@@ -71,9 +71,13 @@ services:
       # resolves host.docker.internal on Linux hosts too (Docker Desktop has it built in)
       - "host.docker.internal:host-gateway"
     volumes:
-      # Repos pool: relative to THIS file → D:/repos, which includes the
-      # Thinking-MCP checkout itself (/workspaces/Thinking-MCP).
-      - ../../../:/workspaces
+      # Repos pool: relative to THIS file (repo root) → ../ = D:/repos,
+      # which includes the Thinking-MCP checkout itself
+      # (/workspaces/Thinking-MCP). Keep in sync with
+      # servers/server-guidance/docker-compose.override.yml — a wrong
+      # resolution here (e.g. beyond the drive root) breaks the registered
+      # workspace paths and/or the scaffold (EACCES).
+      - ../:/workspaces
     healthcheck:
       # healthy erst wenn konfiguriert (/health liefert "configured": true)
       test: ["CMD-SHELL", 'curl -f http://localhost:3003/health | grep -q "\"configured\":true"']

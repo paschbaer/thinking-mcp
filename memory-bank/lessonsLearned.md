@@ -510,6 +510,32 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
   (npm test in servers/server-guidance), Container-Gates erst nach
   deps-install (DB-1-Rest) als verbindlich behandeln.
 
+### 2026-09-30 — Guidance-Container-Start-Crash: falscher /workspaces-Mount an einem veralteten Container (EACCES)
+- **Issue:** Der Guidance-Container crashete beim Start mit `Error: EACCES:
+  permission denied, mkdir '/workspaces/.guidance'` (scaffold.js →
+  ensureConfiguration). `D:\repos\.guidance` existierte auf dem Host nicht;
+  ein Isoliertest mit dem korrekten Mount (`docker run --user node -v
+  D:/repos:/workspaces ...`) zeigte: Mount ist `drwxrwxrwx`, mkdir als `node`
+  funktioniert.
+- **Root cause:** Der laufende Container war NICHT aus den aktuellen
+  Compose-Dateien erzeugt: `docker inspect` zeigte `bind /mnt ->
+  /workspaces` (das root-gehörige `/mnt` der Docker-VM, `drwxr-xr-x`) plus
+  ein Relikt-Volume `/workspace` — vermutlich aus einer früheren/WSL-seitigen
+  Erzeugung mit falsch aufgelöstem Pfad. `USER node` darf dort nicht
+  anlegen → EACCES. `docker compose config` im Compose-Verzeichnis löste
+  korrekt auf (`D:\repos -> /workspaces`).
+- **Fix:** `docker compose up -d --force-recreate` aus
+  `servers/server-guidance` → Scaffold legt `D:\repos\.guidance` sauber an,
+  `/health` liefert `configured:true, reachable:true`. Alt-Container mit
+  `docker rm -v` entfernt.
+- **Preventive measure:** Container-Start via `docker compose up -d` aus
+  `servers/server-guidance` ODER aus der Repo-Wurzel (Root-Compose startet
+  alle drei Server) — Mount-Auflösung beider Files im Sync halten
+  (Root: `../`, Server: `../../../`); bei Startup-EACCES zuerst `docker inspect
+  <name>` (Mounts/User) gegen `docker compose config` abgleichen, bevor
+  Permission-/Code-Ursachen verfolgt werden. Regel in AGENTS.md
+  (Guidance-Sektion) dokumentiert.
+
 ### 2026-09-30 — Falsy-Checks genügen nicht bei Config-Objekten; Gate-Fails im Container sind umweltbedingt (Chain-Läufe CT/WW/WC)
 - **Issue 1:** Der erste WC-1-CT-1-Guard prüfte nur Falsiness von
   `config.workflow` — ein truthy-leeres Objekt (workflow: {} ohne file)
