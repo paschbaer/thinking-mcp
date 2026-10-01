@@ -739,3 +739,8 @@ für Umsetzungs-Planning.
 **What works:** Integrationstest für WC-1-B-Closure-Wiring (Wildcard + unkonfiguriertes Tool → authorization_required, kein Downstream-Contact). Fokussiert 20/20, Vollauf 475 passed / 9 skipped (63 Files), prettier grün.
 **What's left:** Kettenschritte 2/3 (GATE-1-Evidenz), 3/3 (CHAIN-1-Evidence/ACs); specs/015-US1-Umsetzung (schließt CHAIN-1); Push develop.
 **Current state:** Step 1 implementiert; Review/Verification/Completion offen.
+
+## 2026-10-01: Chain-Abschluss WC1B-F3/GATE-1/CHAIN-1 (3 Guidance-Sessions, 2x Live-CHAIN-1-Repro)
+**What works:** WC1B-F3 Integrationstest (Wildcard + unkonfiguriertes Tool → authorization_required, 5f124f1); GATE-1 Evidenznotiz (41ebec8: nur skriptbasierte Completion-Hooks laufen im Container, lint/test bleiben umweltbedingt bis DB-1); CHAIN-1 Root-Cause source-verifiziert (WorkflowEngine.ts:641-648) + R2-ACs als AC-13…17 in specs/015-Addendum (a4cd178). Vollauf 475 passed / 9 skipped (63 Files). Alle Branches nach develop ff-gemerged, cleanup erledigt. Neu getrackt: GDS-6 (retry-finalization: complete_workflow nach Hook-Fail + retry_operation erfriert in active/completed — keine Finalisierung/Successor), GDS-7 (Dual-GITNEXUS_HOME: Container-Index via GITNEXUS_STORAGE_PATH entkoppelt).
+**What's left:** Push develop (ahead 6); specs/015-US1-Umsetzung (R1=B, schließt CHAIN-1 via AC-16-Regressionstest; R2=Rebind mit Re-Validierung); GDS-6-Fix (gleicher WorkflowEngine-Bereich); DB-1-Rest (US2) löst GATE-1; niyama Re-Registrierung nach Klon.
+**Current state:** Cleanup-Chain vollständig abgearbeitet; CHAIN-1 zweifach live reproduziert (Mid-Session-Config-Change UND Successor-Erbe-Hash) — Mechanismus vollständig erklärt und spezifiziert.
