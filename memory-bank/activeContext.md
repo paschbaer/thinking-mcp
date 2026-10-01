@@ -1034,3 +1034,9 @@
 - Tests: registry-rebind.test.ts 8 (AC-13/14/15/16/17, Flag, Persistenz,
   Remove, FR-1208-Onboarding), Vollauf 483 passed / 9 skipped (64 Files),
   typecheck + prettier grün.
+
+## 2026-10-01 — Re-Review Fix-Commit 04a2b4c (F1-F5) — CHANGES REQUESTED (1 HIGH neu)
+- F1-F5-Fixes im Source verifiziert (sessionRoutes-Purge, fingerprintConfigDir-Drift-Probe vor AC-5-Guard, registryWriteLock-Serialisierung, configuration_invalid-Wrapper + tmp-Cleanup, Engine-Level-Profile-Gate).
+- [REV-04a2b4c-1] HIGH (neu, durch den Fix-Commit eingeführt): register-tools.ts L320-328 — registry_register-Handler reicht das jetzt async registerWorkspace()-Promise UN-awaited an toJson() durch; JSON.stringify(Promise) → "{}". Tool-Antwort verliert configurationVersion/registry; bei Rejection (z.B. Flag off, invalid root) floated das Promise als unhandled rejection statt MCP-Tool-Error. Fix: `await tools.registerWorkspace(...)` im Handler (Muster existiert: getDownstreamStatus L301). Repro: registry_register-Toolaufruf → response content "{}".
+- [REV-04a2b4c-2] MEDIUM (Coverage): Kein Test übt den Fingerprint-Drift-Probe auf einer LIVE-Engine aus — AC-13/14/15 nutzen jeweils frische engine2 nach touchConfig(); Claim "existing AC-14 test now exercises a live-engine path" trifft nicht zu. Fehlt: touchConfig() → engine1.getWorkflowState() → Rebind.
+- [REV-04a2b4c-3] MEDIUM (Coverage): F1-Purge-Loop (sessionRoutes beim childEngines-Invalidieren) hat keinen Regressionstest (FR-1208 testet register→serve, nicht remove→stale-route-purge).

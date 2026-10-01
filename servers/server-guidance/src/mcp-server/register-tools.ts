@@ -319,7 +319,7 @@ export function registerWorkflowTools(
       },
       async ({ name, root, projectName, remove }) =>
         toJson(
-          tools.registerWorkspace({
+          await tools.registerWorkspace({
             name,
             root,
             ...(projectName ? { projectName } : {}),

@@ -263,6 +263,41 @@ describe("AC-16: workspace sessions survive access through a fresh parent engine
     ).toBe(true);
   });
 
+  it("review F1: removing a workspace purges stale session routes — the removed workspace's sessions are no longer served", async () => {
+    writePoolConfig({ registerWs: true, flag: true });
+    const parent = poolEngine();
+    const start = await parent.startWorkflow({ workspace: "ws", request: "r" });
+    expect((await parent.getWorkflowState(start.sessionId)).sessionId).toBe(
+      start.sessionId,
+    );
+    await parent.registerWorkspace({ name: "ws", root: ws, remove: true });
+    // Stale-route regression: pre-fix, the cached child engine kept serving
+    // the removed workspace's session; now the purge forces a fail-closed
+    // re-probe (the workspace is no longer registered).
+    await expect(
+      parent.getWorkflowState(start.sessionId),
+    ).rejects.toThrowError();
+  });
+
+  it("review F2: a live long-lived engine recomposes on config drift and rebinds (no silent stale pass)", async () => {
+    writePoolConfig({ registerWs: false });
+    const engine1 = wsEngine();
+    const start = await engine1.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+    });
+    touchConfig(); // config drift on disk, SAME engine instance
+    const state = await engine1.getWorkflowState(start.sessionId);
+    expect(state.configurationVersion).toBe(
+      loadConfig(configDir, { workspaceRoot: ws }).configVersion,
+    );
+    const history = readFileSync(
+      join(stateDir, "history", `${start.sessionId}.jsonl`),
+      "utf8",
+    );
+    expect(history).toContain("session_rebound");
+  });
+
   it("FR-1208: onboarding without restart — registerWorkspace then startWorkflow in the new workspace", async () => {
     writePoolConfig({ registerWs: false, flag: true });
     const parent = poolEngine();
