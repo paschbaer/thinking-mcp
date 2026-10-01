@@ -10,6 +10,8 @@ import {
   writeFileSync,
   readFileSync,
   renameSync,
+  rmSync,
+  statSync,
 } from "node:fs";
 import { resolve, join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
@@ -196,6 +198,11 @@ export class WorkflowEngine {
   config: LoadedConfig;
   /** specs/008 T8/T9: per-workspace child engines + session routing. */
   private readonly childEngines = new Map<string, WorkflowEngine>();
+  /** Fingerprint of the config files at composition time (specs/015 AC-14:
+   *  live engines must notice on-disk config changes, not only restarts). */
+  private configFingerprint: string;
+  /** Serializes registry read-modify-write cycles (specs/015 review F3). */
+  private static registryWriteLock: Promise<unknown> = Promise.resolve();
   private readonly sessionRoutes = new Map<string, WorkflowEngine>();
   private readonly isChild: boolean;
   private readonly defaultRoot: string;
@@ -206,6 +213,9 @@ export class WorkflowEngine {
 
   constructor(deps: EngineDeps) {
     this.config = deps.config;
+    this.configFingerprint = WorkflowEngine.fingerprintConfigDir(
+      deps.config.configDir,
+    );
     this.isChild = deps.isChild ?? false;
     this.deps = deps;
     this.defaultRoot = deps.config.workspaces.default.root;
@@ -557,6 +567,27 @@ export class WorkflowEngine {
     });
   }
 
+  /** specs/015 AC-14 helper: mtime/size fingerprint over the process config
+   *  files (cheap drift probe; the authoritative validation is loadConfig). */
+  private static fingerprintConfigDir(dir: string): string {
+    let out = "";
+    for (const f of [
+      "guidance.json",
+      "workflow.json",
+      "responses.json",
+      "operations.json",
+      "downstream-servers.json",
+      "policies.json",
+    ]) {
+      const p = join(dir, f);
+      if (existsSync(p)) {
+        const st = statSync(p);
+        out += `${f}:${st.size}:${st.mtimeMs};`;
+      }
+    }
+    return out;
+  }
+
   /**
    * specs/015 US1 (FR-1201..1210, Alternative B): register/remove ONE root at
    * runtime via the same WorkspaceRegistry.build validation path — fail-closed
@@ -565,20 +596,28 @@ export class WorkflowEngine {
    * gated by config (FR-1207, registryRegister.enabled, default OFF). Only the
    * instance/pool engine may mutate the registry (not child engines).
    */
-  registerWorkspace(input: {
+  async registerWorkspace(input: {
     name: string;
     root: string;
     projectName?: string;
     remove?: boolean;
-  }): {
+  }): Promise<{
     configurationVersion: string;
     registry: { name: string; root: string; projectName?: string }[];
-  } {
+  }> {
     if (this.isChild) {
       throw new GuidanceError(
         "configuration_invalid",
         "registry-register is only available on the instance engine",
         { recoverable: false },
+      );
+    }
+    // FR-1201: profile-gated (defense in depth with the tool-list gate).
+    if (this.config.profile !== "spec-kit") {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "registry-register requires the spec-kit profile (FR-1201)",
+        { recoverable: true },
       );
     }
     if (!this.config.registryRegister.enabled) {
@@ -588,11 +627,40 @@ export class WorkflowEngine {
         { recoverable: true },
       );
     }
+    // Review F3: serialize the read-modify-write cycle — concurrent calls
+    // must not lose entries (last-write-wins on the shared guidance.json).
+    const run = (): {
+      configurationVersion: string;
+      registry: { name: string; root: string; projectName?: string }[];
+    } => this.registerWorkspaceLocked(input);
+    const next = WorkflowEngine.registryWriteLock.then(run, run);
+    WorkflowEngine.registryWriteLock = next.catch(() => undefined);
+    return next;
+  }
+
+  private registerWorkspaceLocked(input: {
+    name: string;
+    root: string;
+    projectName?: string;
+    remove?: boolean;
+  }): {
+    configurationVersion: string;
+    registry: { name: string; root: string; projectName?: string }[];
+  } {
     const registryPath = join(this.config.configDir, "guidance.json");
-    const raw = JSON.parse(readFileSync(registryPath, "utf8")) as {
+    let raw: {
       workspaces?: { name: string; root: string; projectName?: string }[];
       [k: string]: unknown;
     };
+    try {
+      raw = JSON.parse(readFileSync(registryPath, "utf8"));
+    } catch (err) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `registry-register: unreadable registry file (${err instanceof Error ? err.message : String(err)})`,
+        { recoverable: false },
+      );
+    }
     const entries = [...(raw.workspaces ?? [])];
     const existingIdx = entries.findIndex((e) => e.name === input.name);
     if (input.remove) {
@@ -619,21 +687,37 @@ export class WorkflowEngine {
     WorkspaceRegistry.build(entries, this.defaultRoot);
     // FR-1204: atomic write (tmp file + rename in the same directory).
     const tmpPath = `${registryPath}.tmp-${process.pid}-${Date.now()}`;
-    writeFileSync(
-      tmpPath,
-      JSON.stringify({ ...raw, workspaces: entries }, null, 2),
-    );
-    renameSync(tmpPath, registryPath);
+    try {
+      writeFileSync(
+        tmpPath,
+        JSON.stringify({ ...raw, workspaces: entries }, null, 2),
+      );
+      renameSync(tmpPath, registryPath);
+    } catch (err) {
+      if (existsSync(tmpPath)) rmSync(tmpPath, { force: true });
+      throw new GuidanceError(
+        "configuration_invalid",
+        `registry-register: persist failed (${err instanceof Error ? err.message : String(err)})`,
+        { recoverable: true },
+      );
+    }
     // FR-1206: recompose; runtime engines are invalidated so the next access
     // composes from the new registry (pool composition feeds the hash —
-    // specs/008 FR-801). Cross-engine invalidation: the successor/rebind
-    // paths (AC-14/AC-16) re-compose lazily.
+    // specs/008 FR-801). Review F1: removed/changed roots must ALSO purge
+    // sessionRoutes entries pointing at stale child engines — otherwise
+    // already-routed sessions silently keep the old composition.
     this.config = loadConfig(this.config.configDir, {
       workspaceRoot: this.defaultRoot,
     });
+    this.configFingerprint = WorkflowEngine.fingerprintConfigDir(
+      this.config.configDir,
+    );
     for (const [root, eng] of this.childEngines) {
       if (entries.some((e) => resolve(e.root) === resolve(root))) continue;
       this.childEngines.delete(root);
+      for (const [sid, route] of this.sessionRoutes) {
+        if (route === eng) this.sessionRoutes.delete(sid);
+      }
       void eng;
     }
     this.audit.append({
@@ -740,6 +824,17 @@ export class WorkflowEngine {
       const route = this.sessionRoutes.get(sessionId);
       if (probeRouted && route && route !== this) {
         return route.getWorkflowState(sessionId);
+      }
+      // specs/015 AC-14 (live-engine path): if the config files changed on
+      // disk since this engine composed, recompose FIRST — otherwise a
+      // long-lived engine would silently serve stale config and the guard
+      // below would pass on an outdated hash (review F2).
+      const fp = WorkflowEngine.fingerprintConfigDir(this.config.configDir);
+      if (fp !== this.configFingerprint) {
+        this.config = loadConfig(this.config.configDir, {
+          workspaceRoot: session.workspaceRoot,
+        });
+        this.configFingerprint = fp;
       }
       // specs/008 AC-5 (FR-019 enforcement, agent-facing path) with the R2
       // rebind semantics (specs/015 addendum AC-13..17):

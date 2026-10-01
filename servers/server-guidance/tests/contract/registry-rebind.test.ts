@@ -57,7 +57,7 @@ function writePoolConfig(opts: { registerWs: boolean; flag?: boolean }): void {
     join(poolDir, "guidance.json"),
     JSON.stringify({
       version: 2,
-      profile: "plain",
+      profile: "spec-kit",
       project: { name: "pool" },
       ...(workspaces.length > 0 ? { workspaces } : {}),
       ...(opts.flag !== undefined
@@ -173,26 +173,26 @@ describe("AC-5 rebind semantics (specs/015 addendum AC-13..17)", () => {
 });
 
 describe("registry_register (specs/015 US1, FR-1201..1210)", () => {
-  it("is fail-closed when the flag is off (FR-1207 default)", () => {
+  it("is fail-closed when the flag is off (FR-1207 default)", async () => {
     writePoolConfig({ registerWs: false });
     const engine = poolEngine();
-    expect(() =>
+    await expect(
       engine.registerWorkspace({ name: "ws", root: ws }),
-    ).toThrowError(/disabled/);
+    ).rejects.toThrowError(/disabled/);
   });
 
-  it("registers a root fail-closed: valid input persists + audits, invalid input leaves the registry untouched", () => {
+  it("registers a root fail-closed: valid input persists + audits, invalid input leaves the registry untouched", async () => {
     writePoolConfig({ registerWs: false, flag: true });
     const engine = poolEngine();
     const before = readFileSync(join(poolDir, "guidance.json"), "utf8");
-    expect(() =>
+    await expect(
       engine.registerWorkspace({
         name: "bad",
         root: join(root, "does-not-exist"),
       }),
-    ).toThrowError(/root does not exist/);
+    ).rejects.toThrowError(/root does not exist/);
     expect(readFileSync(join(poolDir, "guidance.json"), "utf8")).toBe(before);
-    const res = engine.registerWorkspace({
+    const res = await engine.registerWorkspace({
       name: "ws",
       root: ws,
       projectName: "WS",
@@ -220,13 +220,13 @@ describe("registry_register (specs/015 US1, FR-1201..1210)", () => {
     expect(history).toContain("registry_changed");
   });
 
-  it("remove: drops an unknown workspace with a recoverable error, a known one from the registry", () => {
+  it("remove: drops an unknown workspace with a recoverable error, a known one from the registry", async () => {
     writePoolConfig({ registerWs: true, flag: true });
     const engine = poolEngine();
-    expect(() =>
+    await expect(
       engine.registerWorkspace({ name: "nope", root: ws, remove: true }),
-    ).toThrowError(/unknown workspace/);
-    const res = engine.registerWorkspace({
+    ).rejects.toThrowError(/unknown workspace/);
+    const res = await engine.registerWorkspace({
       name: "ws",
       root: ws,
       remove: true,
@@ -266,7 +266,7 @@ describe("AC-16: workspace sessions survive access through a fresh parent engine
   it("FR-1208: onboarding without restart — registerWorkspace then startWorkflow in the new workspace", async () => {
     writePoolConfig({ registerWs: false, flag: true });
     const parent = poolEngine();
-    const res = parent.registerWorkspace({ name: "ws", root: ws });
+    const res = await parent.registerWorkspace({ name: "ws", root: ws });
     expect(res.registry).toContainEqual({ name: "ws", root: ws });
     const start = await parent.startWorkflow({ workspace: "ws", request: "r" });
     const state = await parent.getWorkflowState(start.sessionId);
