@@ -996,3 +996,22 @@
   specs/014-Registry; GDS-6 als verwandter WorkflowEngine-Defekt referenziert).
 - T002 erledigt: FR-1201…1210 (US1, Alternative B) und FR-1211…1216 (US2)
   im spec.md verankert; R1/R2-Entscheidungen als entschieden eingetragen.
+
+### 2026-10-01 — specs/015 Kette: Schritt 1 complete, US1-Session in plan-Phase (HANDOVER)
+- Kette session-7e69dcdd: Schritt 1/4 (Phase 1, T001/T002) COMPLETED (9dcca90,
+  FR-1201..1216 verankert, Review APPROVED). Successor born-invalid (AC-5) →
+  getrackt + cancelled; Rest-Kette als FRESH chain gestartet:
+  **session-b045ff14-273c-4c66-a85e-1a588de02d64** (US1, T003..T006) —
+  Status: phase=plan (understanding submittet), Branch feature/015-us1-registry-register.
+- **US1 Root-Cause-Refinement (source-verifiziert):** Dual-Engine-Hashes —
+  Boot-Parent = POOL-Config-Hash (8cf5be36), lazy Child = REPO-Config-Hash
+  (cacb2274) (engineForWorkspace, WorkflowEngine.ts:593-606). Successor erbt
+  Session-Hash (~L2384) und wird je nach Route an der FALSCHEN Instanz auf
+  AC-5 geprüft (L641-648) → born-invalid. Fix-Scope AC-16: Successor an
+  eigenen Workspace-Root-Hash binden + Routing konsistent; danach Rebind-
+  Semantik AC-13..17 auf demselben Guard; registry-register-Tool (FR-1201..10,
+  Flag default OFF).
+- Nächste Schritte (Fortsetzung): T003 failing regression test FIRST
+  (Successor-Komposition/-Routing), dann Fix, registry-register, T005/T006.
+  Completion-Protocol: analyze --no-stats --force LAST, pre-check gates,
+  first-try complete (GDS-6!).
