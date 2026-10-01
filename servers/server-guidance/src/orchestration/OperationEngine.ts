@@ -403,6 +403,9 @@ export class OperationEngine {
     const redactor = createRedactor(ctx.redactionPatterns);
     const exitCode = run.status ?? -1;
     const ok = exitCode === 0;
+    const stderrText = redactor
+      .redact((run.stderr ?? "") || `exit code ${exitCode}`)
+      .slice(0, maxBuffer);
     return {
       ...base,
       status: ok ? "succeeded" : "failed",
@@ -420,17 +423,40 @@ export class OperationEngine {
       summary: ok
         ? `${config.operationId} succeeded`
         : `${config.operationId} failed with exit code ${exitCode}`,
-      errors: ok
+      errors: ok ? [] : [{ message: stderrText }],
+      warnings: ok
         ? []
-        : [
-            {
-              message: redactor
-                .redact((run.stderr ?? "") || `exit code ${exitCode}`)
-                .slice(0, maxBuffer),
-            },
-          ],
+        : // specs/015 US2 reactive detection (AC-9, FR-1213): gate failures
+          // matching the warnNodeDeps error patterns point at the healing
+          // operations instead of leaving the agent to guess the remedy.
+          OperationEngine.nodeDepsHints(stderrText),
       data: { exitCode },
     };
+  }
+
+  /**
+   * specs/015 US2 (FR-1213): map node-deps failure patterns to the
+   * dependency-bootstrap operations. 'Cannot find module' => dependencies
+   * missing => deps-install; ERR_DLOPEN_FAILED => native addon ABI mismatch
+   * => deps-reinstall (clean + in-container reinstall).
+   */
+  private static nodeDepsHints(stderr: string): NormalizedResult["warnings"] {
+    const hints: NormalizedResult["warnings"] = [];
+    if (/Cannot find module/.test(stderr)) {
+      hints.push({
+        code: "node_deps_hint",
+        message:
+          'failure matches "Cannot find module" — dependencies are likely missing or incompatible: run the guidance operation deps-install (npm ci; falls back to npm install without a lockfile) in this workspace, then re-run the gate',
+      });
+    }
+    if (/ERR_DLOPEN_FAILED/.test(stderr)) {
+      hints.push({
+        code: "node_deps_hint",
+        message:
+          'failure matches "ERR_DLOPEN_FAILED" — a native addon does not load in this environment (platform/ABI mismatch): run the guidance operation deps-reinstall (deletes node_modules, reinstalls — inside the container for a Linux-native tree), then re-run the gate',
+      });
+    }
+    return hints;
   }
 
   /** spec 004 FR-201: async child-process execution (replaces spawnSync —

@@ -1059,6 +1059,26 @@ The scaffold detects the workspace language: a `pyproject.toml` in the
 workspace root generates the uv-based Python op set (`toolchain-sync`,
 `lint`, `test`, `check`) instead of the npm set.
 
+### Dependency-bootstrap operations (specs/015 US2, FR-1211..1216)
+
+Node workspaces get two healing operations in the shipped catalogs
+(scaffold template, config-assistant, `examples/default-guidance`):
+
+| Operation | Semantics |
+|---|---|
+| `deps-install` | composite `firstAvailable`: `npm ci` (clean semantics, lockfile required) with fallback to `npm install` when no lockfile exists — the result's `data.via` label (`npm-ci-lockfile` / `npm-install-fallback`) records which strategy ran (audit note) |
+| `deps-reinstall` | deletes `node_modules` (lockfile preserved) and reinstalls in one step — workspace-scoped (runs in the workspace root, no path traversal); the remedy for `ERR_DLOPEN_FAILED` native-addon ABI mismatches (reinstall INSIDE the container for a Linux-native tree) |
+
+Both are `riskClass: workspace_write`, `required: false`,
+`invocableByAgent: true` (FR-053 approval semantics per the policy engine),
+with exposure-filtered output (npm output can carry registry URLs with
+tokens). Reactive detection: a gate failure matching `Cannot find module`
+or `ERR_DLOPEN_FAILED` carries a `node_deps_hint` warning pointing at the
+matching operation. The optional proactive probe
+(`nodeDeps.proactiveProbe` in `guidance.json`, **default OFF**) makes the
+boot diagnostics reference the deps operations so the agent can heal
+before gates run.
+
 ## Completion final-review gate (amendment 003)
 
 The `complete` phase enforces the mandatory independent final review as a

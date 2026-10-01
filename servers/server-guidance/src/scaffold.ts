@@ -366,6 +366,54 @@ export function scaffoldIfMissing(
                 validation: { exitCodeMustBeZero: true },
                 output: { returnToAgent: "summary_and_errors" },
               },
+              "deps-install": {
+                description:
+                  "Install Node dependencies: npm ci clean semantics with fallback to npm install when no lockfile exists (the result's via label records which strategy ran — audit note). Runs in the workspace root; riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
+                type: "composite",
+                strategy: "firstAvailable",
+                required: false,
+                invocableByAgent: true,
+                timeoutSeconds: 900,
+                riskClass: "workspace_write",
+                steps: [
+                  {
+                    type: "process",
+                    capability: "npm-ci-lockfile",
+                    executable: "npm",
+                    args: ["ci"],
+                  },
+                  {
+                    type: "process",
+                    capability: "npm-install-fallback",
+                    executable: "npm",
+                    args: ["install"],
+                  },
+                ],
+                validation: { exitCodeMustBeZero: true },
+                output: {
+                  returnToAgent: "summary_and_errors",
+                  retainRawResult: true,
+                },
+              },
+              "deps-reinstall": {
+                description:
+                  "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1212).",
+                type: "process",
+                executable: "node",
+                args: [
+                  "-e",
+                  "const cp=require('node:child_process'),fs=require('node:fs');fs.rmSync('node_modules',{recursive:true,force:true});const r=cp.spawnSync('npm',['install'],{stdio:'inherit'});process.exit(r.status??1)",
+                ],
+                required: false,
+                invocableByAgent: true,
+                timeoutSeconds: 900,
+                riskClass: "workspace_write",
+                validation: { exitCodeMustBeZero: true },
+                output: {
+                  returnToAgent: "summary_and_errors",
+                  retainRawResult: true,
+                },
+              },
               finalReviewGate: {
                 description:
                   "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates it), no open HIGH/CRITICAL findings.",
