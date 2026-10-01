@@ -577,3 +577,13 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** Contract-Tests für deps-Ops mit dep-freiem package.json: npm install/ci succeedet, aber existsSync(node_modules)=false — Assertion "Tree installiert" schlägt trotz Success zu.
 - **Fix:** Lokale file:-Dependency (deps/tiny) in das Fixture — npm materialisiert dann node_modules/tiny; Lockfile für den npm-ci-Test per echtem npm install generieren (handgeschriebene Lockfiles sind fragil).
 - **Preventive measure:** npm-behavior-Tests immer mit mindestens einer (lokalen) Dependency fahren; Lockfiles generieren, nicht tippen.
+
+## 2026-10-01 — gitnexus -32001 "Session not found": ClientManager re-initialisiert nicht, guidance-Sessions sind workflow-run-scoped
+- **Issue:** repository-analysis-Gate failte mit "Session not found. Re-initialize." (-32001) auf jedem Versuch: der guidance ClientManager hält die MCP-Session-ID zum gitnexus-Server (:4747) prozessintern und re-initialisiert bei -32001 NICHT (reconnect greift nur auf Transportebene). Restart des gitnexus-Servers allein hilft nicht (die ID bleibt invalide). Ein guidance-Container-Restart (gleiches Image) löst es — killt ABER alle laufenden Sessions: "sessions are workflow-run-scoped and do not survive a server restart" (der Disk-State unter .guidance/state/sessions wird beim Boot NICHT als laufende Session wiederhergestellt).
+- **Fix (arbeitshaft):** gitnexus-Server + guidance-Container neu starten (gleiches Image, kein Deploy), dann frische Session mit Replay aller Submissions.
+- **Preventive measure:** Bei -32001 auf einem Downstream-MCP: NICHT retryen (wickelt sich nicht), sondern guidance-Container neu starten und frische Session starten — Submissions vorher als Replay-Script konservieren. Guidance-Phasen-Submissions sind Text — Replay ist billig, wenn Payloads als Builder-Script vorliegen.
+
+## 2026-10-01 — index-freshness-Gate: Scratch-Dateien im Repo zählen als Quellen
+- **Issue:** Der index-freshness-Gate vergleicht mtimes ALLER Dateien (auch ungetrackte) gegen den gitnexus-Index. Diagnose-/Payload-Dateien im Repo (tmp/, .us2-*.txt) machten den Index bei JEDEM complete/retry-Versuch erneut stale — Schleife aus analyze → neuer Scratch → stale.
+- **Fix:** Sämtliche Session-Artefakte (Replay-Scripts, Diagnose-Outputs) ausschließlich unter /tmp (außerhalb des Repos) halten; Repo vor complete auf sauberen Tree prüfen; analyze --no-stats --force als LETZTER Schritt vor complete (plain analyze short-circuitet ohne mtime-Refresh).
+- **Preventive measure:** Wie GDS-6-Lesson, erweitert um: NIE Dateien im Repo anfassen, während eine Session in complete ist — auch keine Log-/Statusausgaben dorthin schreiben.
