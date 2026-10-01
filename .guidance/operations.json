@@ -67,6 +67,18 @@
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
+    "gitnexus-check": {
+      "description": "Risk-class assignment for the gitnexus `check` tool (WC-1-B): wildcard server + no operations entry would fail authorization_required; this read-only entry assigns the risk class so composite gates (repository-analysis) and run_operation can invoke it.",
+      "type": "mcpTool",
+      "server": "gitnexus",
+      "capability": "check",
+      "arguments": { "mode": "template", "value": { "repo": "thinking-mcp" } },
+      "required": false,
+      "timeoutSeconds": 60,
+      "riskClass": "read_only",
+      "invocableByAgent": true,
+      "output": { "returnToAgent": "normalized", "retainRawResult": false }
+    },
     "repository-analysis": {
       "description": "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh via analyze --no-stats). The index REFRESH itself stays a host-side pre-complete step (AGENTS.md): the HTTP server exposes no analyze tool.",
       "type": "composite",
