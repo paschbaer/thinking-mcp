@@ -854,6 +854,14 @@ In the `plain` profile a manifest containing `source` is rejected entirely
 | Mixed manifest in plain profile | rejected entirely (`spec-kit` required for the `source` part — no silent degradation) |
 | Unresolved template variable | no successor created; predecessor stays `completed` |
 | Successor gate failure (FR-040) | successor starts `blocked`; predecessor stays `completed`; chain halts |
+
+### Runtime registry registration (specs/015 US1)
+
+| Rule | Behavior |
+|---|---|
+| `registryRegister.enabled: false` (default) | `registry_register` tool not exposed; engine calls fail closed with `configuration_invalid` (FR-1207) |
+| Enabled (profile `spec-kit`) | register/remove one root at runtime; full `WorkspaceRegistry.build` validation, atomic `guidance.json` write, `registry_changed` audit, new `configurationVersion` (FR-1201..1210) |
+| Session semantics on any config change | specs/015 addendum AC-13..17: `completed` survives; `active`/`blocked` rebind after successful re-validation (`session_rebound` audit); failed re-validation stays fail-closed |
 | User decision required | chain halts — chaining never bypasses `report_blocker` |
 
 Chained sessions are fully audited: `chain_successor_created`,
@@ -1961,7 +1969,7 @@ apply the change twice (request ledger). Submissions are validated against the
 phase's JSON-Schema; validation failures return `submission_invalid` with
 details.
 
-### Workflow tools (19)
+### Workflow tools (19 + `registry_register`, specs/015)
 
 | Tool | Parameters | Purpose |
 |---|---|---|
@@ -1984,6 +1992,7 @@ details.
 | `get_downstream_status` | — | Read-only: connection health of all configured downstream servers |
 | `run_operation` | `sessionId`, `operationId` | Runs a configured operation on demand (only operations with `invocableByAgent: true`) |
 | `get_metrics` | — | Read-only: aggregated metrics (operation counters, runtimes, connection health) |
+| `registry_register` | `name`, `root`, `projectName?`, `remove?` | **specs/015 US1 (FR-1201..1210), only when profile is `spec-kit` AND `registryRegister.enabled: true` (default OFF).** Registers/removes one workspace root at runtime through the same fail-closed `WorkspaceRegistry.build` validation (invalid input → no change), persists `workspaces[]` atomically in `guidance.json`, appends a `registry_changed` audit event and produces a new `configurationVersion` (existing sessions follow the AC-5 rebind semantics — see the specs/015 addendum AC-13..17) |
 
 ### Configuration assistant tools (3)
 

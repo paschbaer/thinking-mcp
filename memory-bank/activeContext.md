@@ -1015,3 +1015,22 @@
   (Successor-Komposition/-Routing), dann Fix, registry-register, T005/T006.
   Completion-Protocol: analyze --no-stats --force LAST, pre-check gates,
   first-try complete (GDS-6!).
+
+### 2026-10-01 — specs/015 US1 implementiert (T003..T006, Guidance-Session session-b045ff14)
+- **AC-16-Fix (CHAIN-1):** getWorkflowState delegiert nach Probe-Routing den
+  GESAMTEN AC-5-Guard an die Routing-Engine (WorkflowEngine.ts) — Workspace-
+  Sessions werden nicht mehr am Pool-Hash gemessen. Successor born-invalid
+  damit behoben (Regressionstest: fresh-parent access).
+- **Rebind-Semantik AC-13..17:** completed überlebt; active/blocked rebinden
+  nach erfolgreicher Fresh-Compositon-Re-Validierung (session_rebound-Audit);
+  Invalid-Config bleibt fail-closed. specs/008-multi-workspace-Test auf neue
+  Semantik aktualisiert (ALTER fail-closed Fall → AC-15-Test in
+  registry-rebind.test.ts).
+- **registry_register (FR-1201..1210):** profile+flag-gated (spec-kit +
+  registryRegister.enabled, default OFF), WorkspaceRegistry.build-exclusive,
+  atomarer guidance.json-Write, registry_changed-Audit, neue
+  configurationVersion, childEngines-Invalidierung. README Tool-Referenz +
+  Runtime-Registration-Regeln ergänzt.
+- Tests: registry-rebind.test.ts 8 (AC-13/14/15/16/17, Flag, Persistenz,
+  Remove, FR-1208-Onboarding), Vollauf 483 passed / 9 skipped (64 Files),
+  typecheck + prettier grün.

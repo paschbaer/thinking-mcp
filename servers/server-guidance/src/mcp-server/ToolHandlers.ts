@@ -158,4 +158,20 @@ export class WorkflowTools {
   async getMetrics(): Promise<ReturnType<WorkflowEngine["getMetrics"]>> {
     return this.engine.getMetrics();
   }
+
+  registerWorkspace(
+    input: Parameters<WorkflowEngine["registerWorkspace"]>[0],
+  ): ReturnType<WorkflowEngine["registerWorkspace"]> {
+    return this.engine.registerWorkspace(input);
+  }
+
+  /** FR-1207 + FR-1201: tool-list gate — registry_register is profile-gated
+   *  (spec-kit only) and flag-gated (default OFF); keeps the tool off the
+   *  tool list entirely when gated (defense in depth with the engine check). */
+  isRegistryRegisterEnabled(): boolean {
+    return (
+      this.engine.config.profile === "spec-kit" &&
+      this.engine.config.registryRegister.enabled
+    );
+  }
 }
