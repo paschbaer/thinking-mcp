@@ -281,6 +281,38 @@ describe("specs/015 US2 reactive detection (AC-9, FR-1213)", () => {
       result.warnings.find((w) => w.code === "node_deps_hint"),
     ).toBeUndefined();
   });
+
+  it("REV-US2-F3: a failing composite gate keeps its step warnings (node_deps_hint survives the failure merge)", async () => {
+    const result = await makeOpEngine().execute(
+      {
+        operationId: "gate",
+        description: "d",
+        type: "composite",
+        strategy: "firstAvailable",
+        required: true,
+        steps: [
+          {
+            type: "process",
+            capability: "step-a",
+            executable: "node",
+            args: [
+              "-e",
+              "console.error(\"Cannot find module 'x'\"); process.exit(1)",
+            ],
+          },
+        ],
+        timeoutSeconds: 30,
+        validation: { exitCodeMustBeZero: true },
+        output: { returnToAgent: "summary_and_errors" },
+      } as unknown as OperationConfig,
+      { workspaceRoot: ws },
+      1,
+    );
+    expect(result.status).toBe("failed");
+    const hint = result.warnings.find((w) => w.code === "node_deps_hint");
+    expect(hint).toBeDefined();
+    expect(hint?.message).toMatch(/deps-install/);
+  });
 });
 
 describe("specs/015 US2 root scoping (AC-8 negative)", () => {
@@ -381,6 +413,78 @@ describe("specs/015 US2 catalog shapes (FR-1215)", () => {
       expect(op, `example catalog misses ${id}`).toBeDefined();
       expect(op?.riskClass).toBe("workspace_write");
       expect(op?.invocableByAgent).toBe(true);
+    }
+  });
+
+  it("REV-US2-F4: the three deps-op catalogs are field-identical (no template drift)", async () => {
+    // scaffold catalog
+    const { scaffoldIfMissing } = await import("../../src/scaffold.js");
+    const scaffoldDir = join(ws, "scaffold-.guidance");
+    mkdirSync(scaffoldDir, { recursive: true });
+    scaffoldIfMissing(scaffoldDir, ws);
+    const scaffoldOps = JSON.parse(
+      readFileSync(join(scaffoldDir, "operations.json"), "utf8"),
+    ) as { operations: Record<string, Record<string, unknown>> };
+    // ConfigAssistant catalog (fresh generation)
+    const { generateFiles } =
+      await import("../../src/setup/ConfigAssistant.js");
+    const { files } = generateFiles({
+      configSource: "fresh",
+      projectName: "drift-guard",
+      transport: "stdio",
+      shell: "sh",
+      profile: "plain",
+      insight: false,
+      gitnexus: false,
+      gates: "minimal",
+    });
+    const caOps = JSON.parse(
+      files.find((f) => f.path === "operations.json")!.content,
+    ) as { operations: Record<string, Record<string, unknown>> };
+    // shipped example catalog
+    const exampleOps = JSON.parse(
+      readFileSync(
+        join(
+          import.meta.dirname,
+          "../../examples/default-guidance/operations.json",
+        ),
+        "utf8",
+      ),
+    ) as { operations: Record<string, Record<string, unknown>> };
+
+    const FIELDS = [
+      "description",
+      "type",
+      "strategy",
+      "steps",
+      "validation",
+      "output",
+      "riskClass",
+      "invocableByAgent",
+      "timeoutSeconds",
+      "required",
+    ] as const;
+    for (const id of ["deps-install", "deps-reinstall"]) {
+      const s = scaffoldOps.operations[id];
+      const c = caOps.operations[id];
+      const e = exampleOps.operations[id];
+      expect(s, `scaffold misses ${id}`).toBeDefined();
+      expect(c, `ConfigAssistant misses ${id}`).toBeDefined();
+      expect(e, `example catalog misses ${id}`).toBeDefined();
+      for (const field of FIELDS) {
+        expect(
+          c![field],
+          `ConfigAssistant vs scaffold drift on ${id}.${field}`,
+        ).toEqual(s![field]);
+        expect(
+          e![field],
+          `example vs scaffold drift on ${id}.${field}`,
+        ).toEqual(s![field]);
+      }
+      // F2: the deps-install description must state the REAL fallback semantics.
+      if (id === "deps-install") {
+        expect(String(s!["description"])).toContain("fails for ANY reason");
+      }
     }
   });
 });

@@ -167,6 +167,7 @@ export class OperationEngine {
       const composite = config as CompositeConfig;
       const strategy = composite.strategy ?? "sequential";
       const errors: string[] = [];
+      const warnings: NormalizedResult["warnings"] = [];
       for (const step of composite.steps ?? []) {
         const stepResult = await this.executeSync(
           {
@@ -189,13 +190,18 @@ export class OperationEngine {
           };
         }
         errors.push(...stepResult.errors.map((e) => e.message));
+        // REV-US2-F3: a failing composite gate must keep its steps' warnings
+        // (e.g. node_deps_hint from a 'Cannot find module' stderr) — the
+        // previous failure merge discarded them and left the agent guessing.
+        warnings.push(...stepResult.warnings);
         if (strategy !== "firstAvailable" && strategy !== "firstSuccessful")
           break;
       }
       return {
         ...base,
         errors: errors.map((message) => ({ message })),
-        summary: `all alternatives failed: ${errors.join("; ")}`,
+        warnings,
+        summary: `all alternatives failed: ${errors.join(";")}`,
       };
     }
 

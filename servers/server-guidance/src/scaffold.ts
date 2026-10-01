@@ -368,7 +368,7 @@ export function scaffoldIfMissing(
               },
               "deps-install": {
                 description:
-                  "Install Node dependencies: npm ci clean semantics with fallback to npm install when no lockfile exists (the result's via label records which strategy ran — audit note). Runs in the workspace root; riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
+                  "Install Node dependencies: npm ci (clean semantics), with npm install as the firstAvailable fallback — the fallback runs whenever npm ci fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); npm ci removes node_modules before failing, so a masked failure leaves node_modules deleted. Runs in the workspace root; the result's via label records which strategy ran (audit note). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
                 type: "composite",
                 strategy: "firstAvailable",
                 required: false,
@@ -389,7 +389,10 @@ export function scaffoldIfMissing(
                     args: ["install"],
                   },
                 ],
-                validation: { exitCodeMustBeZero: true },
+                validation: {
+                  protocolRequestMustSucceed: true,
+                  exitCodeMustBeZero: true,
+                },
                 output: {
                   returnToAgent: "summary_and_errors",
                   retainRawResult: true,
@@ -408,7 +411,10 @@ export function scaffoldIfMissing(
                 invocableByAgent: true,
                 timeoutSeconds: 900,
                 riskClass: "workspace_write",
-                validation: { exitCodeMustBeZero: true },
+                validation: {
+                  protocolRequestMustSucceed: true,
+                  exitCodeMustBeZero: true,
+                },
                 output: {
                   returnToAgent: "summary_and_errors",
                   retainRawResult: true,

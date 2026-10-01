@@ -44,7 +44,7 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "deps-install": {
-      "description": "Install Node dependencies: npm ci clean semantics with fallback to npm install when no lockfile exists (the result's via label records which strategy ran — audit note). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
+      "description": "Install Node dependencies: npm ci (clean semantics), with npm install as the firstAvailable fallback — the fallback runs whenever npm ci fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); npm ci removes node_modules before failing, so a masked failure leaves node_modules deleted. Runs in the workspace root; the result's via label records which strategy ran (audit note). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
       "type": "composite",
       "strategy": "firstAvailable",
       "required": false,
@@ -69,7 +69,10 @@
         "protocolRequestMustSucceed": true,
         "exitCodeMustBeZero": true
       },
-      "output": { "returnToAgent": "normalized", "retainRawResult": true }
+      "output": {
+        "returnToAgent": "summary_and_errors",
+        "retainRawResult": true
+      }
     },
     "deps-reinstall": {
       "description": "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1212).",
@@ -87,7 +90,10 @@
         "protocolRequestMustSucceed": true,
         "exitCodeMustBeZero": true
       },
-      "output": { "returnToAgent": "normalized", "retainRawResult": true }
+      "output": {
+        "returnToAgent": "summary_and_errors",
+        "retainRawResult": true
+      }
     },
     "final-review-gate": {
       "description": "Final-Review Evidence Gate (amendment 003, FR-120/121): validates .guidance/state/final-review.json — strict schema, headCommit == HEAD (any commit after the review invalidates the gate), no open HIGH/CRITICAL findings.",
