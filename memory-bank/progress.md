@@ -729,3 +729,8 @@ develop (ea582f8 → 507d2eb, 16 Commits), 7 Feature-Branches gelöscht,
 post-merge-Suite 483/483 grün, Knowledge-Graph aktualisiert; develop
 ahead 16 of origin (Push wartet auf Nutzerentscheid); specs/015 bereit
 für Umsetzungs-Planning.
+
+## 2026-09-30: TYPE-1 (feature/type1-ts2532, 58faa7e, Guidance-Session session-77a51a32, Kettenschritt 1/4)
+**What works:** TS2532 in shipped-configs.test.ts(125) gefixt (`CONFIG_SETS[1]!.dir`), File auf LF normalisiert (CRLF-Root-Cause: WC-4-Commit 235e9e6). typecheck/prettier grün, fokussiert 7/7, Vollauf 474 passed / 9 skipped (63 Files). Neue Maschine: Node v24.21.0 via nvm in WSL installiert, Guidance-Pool-Registry um thinking-mcp ergänzt (Commits 7428bd1, bd5edd3 auf develop).
+**What's left:** Kettenschritte 2/4 WC1B-F3, 3/4 GATE-1, 4/4 CHAIN-1; danach specs/015-Umsetzungs-Chain (R1=B entschieden, R2=Weiterführung mit Re-Validierung; Variante A getrackt als SPEC015-A). Merge von feature/type1-ts2532 nach develop + Rebase-Regel beachten.
+**Current state:** TYPE-1 implementiert und committed; Guidance-Phasen implement/review/verification offen.
