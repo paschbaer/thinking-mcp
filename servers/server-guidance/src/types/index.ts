@@ -165,6 +165,11 @@ export interface WorkflowSession {
   chainUpNext?: number;
   /** Form B successor scope (FR-118): this workflow executes exactly this spec-kit task. */
   chainTaskScope?: { taskId: string; featureId: string };
+  /** GDS-6: completion report retained when the required completion hooks
+   *  failed — retry_operation finalizes from it (terminal transition,
+   *  workflow_completed audit, chain successor) instead of wedging the
+   *  session in status=active/phase=completed. */
+  pendingCompletion?: { report: Record<string, unknown>; requestId?: string };
   downstream: {
     servers: Record<
       string,

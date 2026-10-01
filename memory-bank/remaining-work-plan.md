@@ -16,22 +16,7 @@
 
 ## Tracked Follow-ups
 
-- [CHAIN-1] MEDIUM (Guidance-Server-Defekt 2026-09-29, entdeckt in
-  session-a0fbcd9e/59659d57, action required) | Chain-Cursor- replay:
-  start_workflow MIT chain (source spec_kit_tasks, explicit steps) UND
-  zugleich einem top-level `request` führt dazu, dass der erste Session-
-  Lauf unter dem top-level Request läuft, die Successor-Session aber
-  WIEDER steps[0] bekommt (chainIndex=1 im State, request aber steps[0]-
-  Text) — Step-0 wird doppelt ausgeführt bzw. die Verkettung ist um eins
-  verschoben. Repro: 4-Step-Chain (TMPL-1/2/3 + REV-2); nach Complete von
-  session-a0fbcd9e war successor 59659d57 = TMPL-1-Text (schon erledigt);
-  gecancelt, Rest-Kette (TMPL-2/3, REV-2) als neue 3-Step-Chain
-  session-5cc970dd gestartet.
-  | Trigger: nächster Kontakt mit WorkflowEngine chain-Composition
-  (resolveChainStep/completeWorkflowLocked Form A) — Step-Cursor bei
-  top-level-request-Chains korrigieren ODER top-level request + chain
-  als Konfigurationsfehler fail-closed ablehnen; Regressionstest.
-  | action required.
+- [CHAIN-1] MEDIUM — **GELÖST (US1 implementiert a40f485/04a2b4c/b09f74b auf develop; Rest-Scopes GDS-6 + CHAIN-Replay durch feature/gds6-chain-replay-hardening)** | Rebind-Semantik AC-13..17 in getWorkflowState (R2: completed überlebt, active/blocked Rebind + Re-Validierung, session_rebound-Audit, AC-15 fail-closed), registry_register (R1=B), Successor-born-invalid via Probe-Routing-Delegation (AC-16) — Regressionsschutz registry-rebind.test.ts (12 Tests). Mid-Session-Config-Änderungen invalidieren Sessions nicht mehr (Rebind); Chained Workflows wieder voll nutzbar.
 
 - [REV-1] LOW (Session-Review 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-28) |
   FR-035-Timeout-Fallback für GitNexus: gitnexus hatte keine Container-Route
@@ -1264,7 +1249,7 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 - MEDIUM "Commit-Scope + AGENTS.md.bak im Repo": behoben — Branch lokal rewritet; Scope-Commit 5f124f1 (Test + memory-bank) getrennt von 2ee..b2ee2db (Skill-Docs/Meta-Blöcke); AGENTS.md.bak gelöscht (Backup-Inhalt via git-historie reproduzierbar). Reviewer-Verdict vorher CHANGES REQUESTED (0 HIGH/CRIT, 1 MEDIUM) → nach Fix APPROVED-fähig; Fix im selben Scope, Test unverändert (5f124f1 = 588eef7-Inhalt, bereinigt).
 
 ## Getrackte Follow-ups (2026-10-01, Guidance Finalisierung nach Retry — session-293a251f)
-- [GDS-6] MEDIUM (neu, action required) | Nach Hook-Fehlschlag bei complete_workflow und erfolgreichem retry_operation finalisiert der Server NICHT: kein Terminal-Übergang (Session hängt in status=active, phase=completed), kein workflow_completed-Audit, KEINE Chain-Successor-Erzeugung; erneuter complete_workflow-Aufruf fails invalid_active_phase (erwartet phase 'complete'). Repro: session-293a251f (WC1B-F3): erste completion fiel an index-freshness/capture-session-lessons, nach Fixes grün via retry_operation → eingesperrt. Workaround: frische start_workflow-Session pro Rest-Schritt. | Trigger: nächste Berührung von WorkflowEngine completion/finalize-Path (complete_workflow/retry_operation) ODER nächste Chain, die auf Hooks mit Retry trifft. | Action required: Finalisierung nach Retry-Success nachziehen (Terminal-Transition + Audit + Successor-Erzeugung) + Regressionstest (Hook-Fail → Retry-Success → status completed + nextSessionId).
+- [GDS-6] MEDIUM — **GELÖST (feature/gds6-chain-replay-hardening)** | retryOperations finalisiert nach Hook-Fail → Retry-Success jetzt vollständig: pendingCompletion {report, requestId} wird beim Hook-Fail an der Session persistiert; Retry-Success in Phase complete setzt status=completed + completedAt, auditiert workflow_completed (finalizedBy=retry_operation), erzeugt den Chain-Successor aus dem Retained-Report (extrahierte createChainSuccessorLocked/activateSuccessor-Helper, von completeWorkflow geteilt) und cached das Ergebnis unter requestIds. Defensiver Pfad ohne pendingCompletion finalisiert ohne Successor (Audit sichtbar). Regressionstests tests/workflow/retry-finalize.test.ts (4 Tests: plain finalize + Replay, chained finalize + requestId-Replay).
 - [GDS-7] LOW | GITNEXUS_HOME-Split: WSL-Index (repo-lokal .gitnexus, repoPath /mnt/d/...) vs. gitnexus-server-Container (:4747, GITNEXUS_HOME Volume, repoPath /workspace) — geteiltes .gitnexus im Repo führt zu 'foreign'-State je Registrierungsseite. Behoben durch GITNEXUS_STORAGE_PATH=/data/gitnexus/index-thinking-mcp im Container (eigenes Duplikat-Index) + git safe.directory; unstable Langfrist-Lösung (Index-Drift zwischen WSL- und Container-Index). | Trigger: specs/015-Umsetzung (US2 deps-install/Container-Operationen) oder nächster gitnexus-server-Container-Rebuild. | Action required: dokumentiertes Dual-Index-Prozedere wählen (Container-eigener Storage via env im compose-File verankern — ACHTUNG: compose-Änderung = Config-Change nur außerhalb von Guidance-Sessions).
 
 ## 2026-10-01: CHAIN-1 — Source-Verifikation + R2-ACs verankert (feature/chain1-ac5-evidence)

@@ -762,6 +762,18 @@ when `maxChainDepth` is reached, or when a successor cannot be created. A
 successor that fails a mandatory `beforeEnter` gate starts `blocked` — the
 predecessor **stays `completed`** (no rollback), and the chain halts there.
 
+The head session's top-level `request` runs the head itself; steps are
+consumed by the successors. A top-level `request` that duplicates the first
+step's text is therefore rejected fail-closed at `start_workflow`
+(`configuration_invalid`) — step 0 would otherwise run twice. Give the head
+request its own scope or drop the duplicated step.
+
+If a required completion hook fails, the session keeps the completion report;
+a later successful `retry_operation` **finalizes the workflow** (terminal
+phase, `workflow_completed` audit, `completedAt`) and still creates/activates
+the chain successor from the retained report — the session no longer wedges
+in `active`/`completed`.
+
 ### Form A — explicit steps (plain and spec-kit profiles)
 
 Each step declares its own request text. Templates pull context from the
