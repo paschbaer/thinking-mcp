@@ -1259,3 +1259,6 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 ## Getrackte Follow-ups (2026-10-01, WC1B-F3-Auflösung — session-293a251f)
 - [WC1B-F3] LOW — **GELÖST 2026-10-01 (feature/wc1b-f3-integration-test)** | Integrationstest "WC-1-B (WC1B-F3)" in tools-run-operation.test.ts: Wildcard-Server + unkonfiguriertes Tool über Composite-mcpTool-Step → Closure liefert recoverable authorization_required ohne Downstream-Contact. Regressionsschutz gegen Verdrahtungs-Drift in buildInvokerClosure. Fokussiert 20/20, Vollauf 475+9skip grün.
+
+## Review-Quality (2026-10-01, WC1B-F3-Review c31e517c)
+- MEDIUM "Commit-Scope + AGENTS.md.bak im Repo": behoben — Branch lokal rewritet; Scope-Commit 5f124f1 (Test + memory-bank) getrennt von 2ee..b2ee2db (Skill-Docs/Meta-Blöcke); AGENTS.md.bak gelöscht (Backup-Inhalt via git-historie reproduzierbar). Reviewer-Verdict vorher CHANGES REQUESTED (0 HIGH/CRIT, 1 MEDIUM) → nach Fix APPROVED-fähig; Fix im selben Scope, Test unverändert (5f124f1 = 588eef7-Inhalt, bereinigt).
