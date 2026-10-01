@@ -2,7 +2,7 @@
   "version": 2,
   "operations": {
     "lint": {
-      "description": "Check formatting with Prettier. Non-blocking: CRLF checkouts on Windows can fail this in the Linux container until normalized (npm run format). Convergence path: run `npx prettier --write 'servers/*/src/**/*.{ts,tsx}'` from the workspace root (2026-09-27 done for all servers) and keep it green; tighten to required:true once stable.",
+      "description": "Check formatting with Prettier. Non-blocking: CRLF checkouts on Windows can still fail this in the Linux container (run `npm run format` from the workspace root when it does).",
       "type": "process",
       "executable": "npx",
       "args": ["prettier", "--check", "servers/*/src/**/*.{ts,tsx}"],
@@ -13,14 +13,60 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "test": {
-      "description": "Run the automated test suite. Non-blocking while the Docker workspace has no Linux-native node_modules (esbuild/vitest and better-sqlite3 are installed for Windows on the host). Preferred execution shell is WSL (node v24 via nvm): `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/Thinking-MCP/servers/server-guidance && npx vitest run'` — do NOT use the Windows shell (no node there); container fallback: `docker exec server-guidance-guidance-1 sh -c 'cd /workspace/servers/server-guidance && npx vitest run'`. Convergence path: one-time npm install (Linux-native node_modules) then tighten to required:true.",
+      "description": "Run the automated test suite (npm workspaces). Runs on the Linux-native node_modules installed via deps-install/deps-reinstall inside the container (specs/015 US2) — required since 2026-10-01.",
       "type": "process",
       "executable": "npm",
       "args": ["test"],
-      "required": false,
+      "required": true,
       "timeoutSeconds": 900,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
+    },
+    "deps-install": {
+      "description": "Install Node dependencies: npm ci clean semantics with fallback to npm install when no lockfile exists (the result's via label records which strategy ran — audit note). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
+      "type": "composite",
+      "strategy": "firstAvailable",
+      "required": false,
+      "invocableByAgent": true,
+      "timeoutSeconds": 900,
+      "riskClass": "workspace_write",
+      "steps": [
+        {
+          "type": "process",
+          "capability": "npm-ci-lockfile",
+          "executable": "npm",
+          "args": ["ci"]
+        },
+        {
+          "type": "process",
+          "capability": "npm-install-fallback",
+          "executable": "npm",
+          "args": ["install"]
+        }
+      ],
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
+      "output": { "returnToAgent": "normalized", "retainRawResult": true }
+    },
+    "deps-reinstall": {
+      "description": "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1212).",
+      "type": "process",
+      "executable": "node",
+      "args": [
+        "-e",
+        "const cp=require('node:child_process'),fs=require('node:fs');fs.rmSync('node_modules',{recursive:true,force:true});const r=cp.spawnSync('npm',['install'],{stdio:'inherit'});process.exit(r.status??1)"
+      ],
+      "required": false,
+      "invocableByAgent": true,
+      "timeoutSeconds": 900,
+      "riskClass": "workspace_write",
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "build": {
