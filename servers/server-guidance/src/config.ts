@@ -26,6 +26,8 @@ export interface GuidanceMainConfig {
   operations?: { file: string };
   downstreamServers?: { file: string };
   policies?: { file: string };
+  /** FR-1207: gates the registry_register MCP tool (default OFF, fail-closed). */
+  registryRegister?: { enabled?: boolean };
   state?: {
     directory: string;
     persistAfterEveryOperation?: boolean;
@@ -128,6 +130,8 @@ export interface LoadedConfig {
   profile: ProfileId;
   configVersion: string;
   main: GuidanceMainConfig;
+  /** FR-1207: registry_register tool gate (default OFF). */
+  registryRegister: { enabled: boolean };
   chain: ChainConfig;
   /** specs/014: true when guidance.json carries no process file-refs
    *  (workflow/responses/operations/policies/downstreamServers) — a
@@ -171,6 +175,13 @@ Object.assign(mainConfigSchema, {
           root: { type: "string" },
           projectName: { type: "string" },
         },
+      },
+    },
+    registryRegister: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        enabled: { type: "boolean" },
       },
     },
     workflow: { $ref: "#/$defs/fileRef" },
@@ -1145,6 +1156,7 @@ export function loadConfig(
     configVersion,
     main: cfg,
     chain,
+    registryRegister: { enabled: cfg.registryRegister?.enabled === true },
     registryOnly,
     workflow: loaded["workflow"],
     responses: loaded["responses"],

@@ -14,6 +14,7 @@ import {
 import { resolve, join } from "node:path";
 import { GuidanceError } from "../types/errors.js";
 import { loadConfig, type ChainConfig, type LoadedConfig } from "../config.js";
+import { WorkspaceRegistry } from "../workspace-registry.js";
 import type {
   OperationConfig,
   OperationStatus,
@@ -192,7 +193,7 @@ export class WorkflowEngine {
   private readonly definition: WorkflowDefinition;
   private readonly instructions: Record<string, PhaseInstruction>;
   private readonly operations: Record<string, OperationConfig>;
-  private readonly config: LoadedConfig;
+  config: LoadedConfig;
   /** specs/008 T8/T9: per-workspace child engines + session routing. */
   private readonly childEngines = new Map<string, WorkflowEngine>();
   private readonly sessionRoutes = new Map<string, WorkflowEngine>();
@@ -557,6 +558,101 @@ export class WorkflowEngine {
   }
 
   /**
+   * specs/015 US1 (FR-1201..1210, Alternative B): register/remove ONE root at
+   * runtime via the same WorkspaceRegistry.build validation path — fail-closed
+   * on any invalid input (FR-1203), atomic persistent write (FR-1204), audit
+   * event (FR-1205), new configurationVersion (FR-1206). Tool availability is
+   * gated by config (FR-1207, registryRegister.enabled, default OFF). Only the
+   * instance/pool engine may mutate the registry (not child engines).
+   */
+  registerWorkspace(input: {
+    name: string;
+    root: string;
+    projectName?: string;
+    remove?: boolean;
+  }): {
+    configurationVersion: string;
+    registry: { name: string; root: string; projectName?: string }[];
+  } {
+    if (this.isChild) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "registry-register is only available on the instance engine",
+        { recoverable: false },
+      );
+    }
+    if (!this.config.registryRegister.enabled) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "registry-register is disabled (registryRegister.enabled: false; FR-1207)",
+        { recoverable: true },
+      );
+    }
+    const registryPath = join(this.config.configDir, "guidance.json");
+    const raw = JSON.parse(readFileSync(registryPath, "utf8")) as {
+      workspaces?: { name: string; root: string; projectName?: string }[];
+      [k: string]: unknown;
+    };
+    const entries = [...(raw.workspaces ?? [])];
+    const existingIdx = entries.findIndex((e) => e.name === input.name);
+    if (input.remove) {
+      if (existingIdx < 0) {
+        throw new GuidanceError(
+          "configuration_invalid",
+          `registry-register: unknown workspace ${input.name}`,
+          { recoverable: true },
+        );
+      }
+      entries.splice(existingIdx, 1);
+    } else {
+      const entry: { name: string; root: string; projectName?: string } = {
+        name: input.name,
+        root: input.root,
+        ...(input.projectName ? { projectName: input.projectName } : {}),
+      };
+      if (existingIdx >= 0) entries[existingIdx] = entry;
+      else entries.push(entry);
+    }
+    // FR-1202/FR-1203: validate the COMPLETE new registry via the same build
+    // path (existsSync, name pattern, duplicate roots) — any invalid input
+    // fails closed BEFORE the file is touched.
+    WorkspaceRegistry.build(entries, this.defaultRoot);
+    // FR-1204: atomic write (tmp file + rename in the same directory).
+    const tmpPath = `${registryPath}.tmp-${process.pid}-${Date.now()}`;
+    writeFileSync(
+      tmpPath,
+      JSON.stringify({ ...raw, workspaces: entries }, null, 2),
+    );
+    renameSync(tmpPath, registryPath);
+    // FR-1206: recompose; runtime engines are invalidated so the next access
+    // composes from the new registry (pool composition feeds the hash —
+    // specs/008 FR-801). Cross-engine invalidation: the successor/rebind
+    // paths (AC-14/AC-16) re-compose lazily.
+    this.config = loadConfig(this.config.configDir, {
+      workspaceRoot: this.defaultRoot,
+    });
+    for (const [root, eng] of this.childEngines) {
+      if (entries.some((e) => resolve(e.root) === resolve(root))) continue;
+      this.childEngines.delete(root);
+      void eng;
+    }
+    this.audit.append({
+      sessionId: "instance",
+      eventType: "registry_changed",
+      data: {
+        name: input.name,
+        root: input.root,
+        removed: input.remove === true,
+        configurationVersion: this.config.configVersion,
+      },
+    });
+    return {
+      configurationVersion: this.config.configVersion,
+      registry: entries,
+    };
+  }
+
+  /**
    * specs/008 T8: lazily load and cache the composition of a non-default
    * workspace (config from <root>/.guidance, state at <root>/.guidance/state,
    * own configurationVersion). The default workspace keeps the boot
@@ -632,18 +728,66 @@ export class WorkflowEngine {
     if (routed) return routed.getWorkflowState(sessionId);
     return await this.sessions.withLock(sessionId, () => {
       // Amendment 002: getSession includes the fail-closed 'activating' check.
+      // getSession may PROBE-and-route a workspace session (specs/008 T8) —
+      // in that case the ENTIRE guard runs on the routing target: this
+      // engine's configurationVersion is the boot/pool composition and must
+      // never be applied to a repo-workspace session (AC-16 fix — a probe-
+      // routed chain successor was born-invalid otherwise).
+      const probeRouted = !this.isChild && !this.sessionRoutes.has(sessionId);
       const session = this.reconcileRunningOperations(
         this.getSession(sessionId),
       );
-      // specs/008 AC-5 (FR-019 enforcement, agent-facing path): a session
-      // bound to an older configurationVersion fails closed on the next
-      // operation instead of silently continuing on stale config.
+      const route = this.sessionRoutes.get(sessionId);
+      if (probeRouted && route && route !== this) {
+        return route.getWorkflowState(sessionId);
+      }
+      // specs/008 AC-5 (FR-019 enforcement, agent-facing path) with the R2
+      // rebind semantics (specs/015 addendum AC-13..17):
+      //   completed sessions survive a config change (AC-13);
+      //   active/blocked sessions re-validate against the CURRENT config of
+      //   their own workspace and rebind on success (AC-14), audited
+      //   (AC-17); failed re-validation stays fail-closed (AC-15).
       if (session.configurationVersion !== this.config.configVersion) {
-        throw new GuidanceError(
-          "configuration_invalid",
-          `session ${sessionId} is bound to ${session.configurationVersion}, current configuration is ${this.config.configVersion} (registry/config changed; specs/008 AC-5)`,
-          { recoverable: false },
-        );
+        if (session.status === "completed") return session; // AC-13
+        try {
+          // AC-14 re-validation: full fresh composition of the session's own
+          // workspace config (throws configuration_invalid on any invalid
+          // registry/config input — that throw IS the AC-15 fail-closed path).
+          const fresh = loadConfig(session.configDir, {
+            workspaceRoot: session.workspaceRoot,
+          });
+          if (fresh.configVersion !== this.config.configVersion) {
+            throw new GuidanceError(
+              "configuration_invalid",
+              `re-validation raced for session ${sessionId}: fresh ${fresh.configVersion} != engine ${this.config.configVersion}`,
+              { recoverable: false },
+            );
+          }
+          this.audit.append({
+            sessionId,
+            eventType: "session_rebound",
+            data: {
+              from: session.configurationVersion,
+              to: this.config.configVersion,
+            },
+          });
+          this.sessions.update(sessionId, (s) => {
+            s.configurationVersion = this.config.configVersion;
+          });
+          session.configurationVersion = this.config.configVersion;
+        } catch (err) {
+          if (
+            err instanceof GuidanceError &&
+            err.code === "configuration_invalid"
+          ) {
+            throw err; // AC-15 fail-closed
+          }
+          throw new GuidanceError(
+            "configuration_invalid",
+            `session ${sessionId} failed re-validation against current configuration (specs/015 AC-15): ${err instanceof Error ? err.message : String(err)}`,
+            { recoverable: false },
+          );
+        }
       }
       return session;
     });

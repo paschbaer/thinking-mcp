@@ -303,6 +303,31 @@ export function registerWorkflowTools(
       ],
     }),
   );
+  // specs/015 US1 (FR-1201..1210): profile-gated runtime registration.
+  // FR-1207: only exposed when registryRegister.enabled is true (fail-closed
+  // otherwise — the engine re-checks, this gate keeps the attack surface off
+  // the tool list entirely).
+  if (tools.isRegistryRegisterEnabled()) {
+    server.tool(
+      "registry_register",
+      "Registriert/entfernt eine Workspace-Root zur Laufzeit (specs/015 US1; fail-closed Validierung über WorkspaceRegistry.build)",
+      {
+        name: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/),
+        root: z.string().min(1),
+        projectName: z.string().min(1).optional(),
+        remove: z.boolean().optional(),
+      },
+      async ({ name, root, projectName, remove }) =>
+        toJson(
+          tools.registerWorkspace({
+            name,
+            root,
+            ...(projectName ? { projectName } : {}),
+            ...(remove !== undefined ? { remove } : {}),
+          }),
+        ),
+    );
+  }
 }
 
 function toJson(result: unknown) {
