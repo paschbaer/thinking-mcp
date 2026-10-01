@@ -1276,3 +1276,6 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 - CHAIN-1 bleibt getrackt bis US1-Implementierung (AC-16-Regressionstest
   ist das Abschluss-Kriterium); Symptom-Mechanismus ist damit vollständig
   erklärt und spezifiziert.
+
+## 2026-10-01: CHAIN-1-Verfeinerung — Successor born-invalid (Defekt-Hypothese präzisiert)
+- [CHAIN-1] Ergänzung: Per start_workflow erzeugte Sessions binden korrekt (drei Sessions liefen komplett durch: 293a251f, a0577447, 7e69dcdd — configurationVersion cacb2274 konistent). Serverseitig ERZEUGTE Chain-Successors binden denselben cacb2274-Hash, aber get_workflow_state vergleicht gegen 8cf5be36 → Successor born-invalid (betroffen: 78cad869, b0ae5c2a; cancelled). | Hypothese: Successor-Erzeugung komponiert die Config über den DEFAULT-Workspace-Root (/workspaces) statt über den Repo-Root (/workspaces/Thinking-MCP) → andere Registry-/Hash-Inputs als der Start-Pfad. | Trigger: specs/015-US1-Implementierung (AC-16-Rebind + Successor-Binding) — Regressionstest muss beide Pfade (start vs. successor) mit identischem Hash abdecken. | Bis dahin: pro Schritt frische start_workflow-Session (bewährtes Muster), Successor canceln.
