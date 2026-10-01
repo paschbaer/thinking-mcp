@@ -1266,3 +1266,13 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 ## Getrackte Follow-ups (2026-10-01, Guidance Finalisierung nach Retry — session-293a251f)
 - [GDS-6] MEDIUM (neu, action required) | Nach Hook-Fehlschlag bei complete_workflow und erfolgreichem retry_operation finalisiert der Server NICHT: kein Terminal-Übergang (Session hängt in status=active, phase=completed), kein workflow_completed-Audit, KEINE Chain-Successor-Erzeugung; erneuter complete_workflow-Aufruf fails invalid_active_phase (erwartet phase 'complete'). Repro: session-293a251f (WC1B-F3): erste completion fiel an index-freshness/capture-session-lessons, nach Fixes grün via retry_operation → eingesperrt. Workaround: frische start_workflow-Session pro Rest-Schritt. | Trigger: nächste Berührung von WorkflowEngine completion/finalize-Path (complete_workflow/retry_operation) ODER nächste Chain, die auf Hooks mit Retry trifft. | Action required: Finalisierung nach Retry-Success nachziehen (Terminal-Transition + Audit + Successor-Erzeugung) + Regressionstest (Hook-Fail → Retry-Success → status completed + nextSessionId).
 - [GDS-7] LOW | GITNEXUS_HOME-Split: WSL-Index (repo-lokal .gitnexus, repoPath /mnt/d/...) vs. gitnexus-server-Container (:4747, GITNEXUS_HOME Volume, repoPath /workspace) — geteiltes .gitnexus im Repo führt zu 'foreign'-State je Registrierungsseite. Behoben durch GITNEXUS_STORAGE_PATH=/data/gitnexus/index-thinking-mcp im Container (eigenes Duplikat-Index) + git safe.directory; unstable Langfrist-Lösung (Index-Drift zwischen WSL- und Container-Index). | Trigger: specs/015-Umsetzung (US2 deps-install/Container-Operationen) oder nächster gitnexus-server-Container-Rebuild. | Action required: dokumentiertes Dual-Index-Prozedere wählen (Container-eigener Storage via env im compose-File verankern — ACHTUNG: compose-Änderung = Config-Change nur außerhalb von Guidance-Sessions).
+
+## 2026-10-01: CHAIN-1 — Source-Verifikation + R2-ACs verankert (feature/chain1-ac5-evidence)
+- Root-Cause gegen Source verifiziert: WorkflowEngine.ts:639-648 (fail-closed,
+  recoverable:false, bei JEDEM Session-Zugriff mit Hash-Divergenz).
+- R2-Entscheidung als AC-13…AC-17 (Rebind mit Re-Validierung; completed
+  überlebt; Chain-Successor-Rebind; Audit-Event session_rebound) in
+  specs/015 spec.md Addendum verankert. Umsetzung = US1 (R1=B).
+- CHAIN-1 bleibt getrackt bis US1-Implementierung (AC-16-Regressionstest
+  ist das Abschluss-Kriterium); Symptom-Mechanismus ist damit vollständig
+  erklärt und spezifiziert.
