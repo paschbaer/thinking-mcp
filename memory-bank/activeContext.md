@@ -967,3 +967,13 @@
 - Neue Chain session-293a251f-77ef-4ea1-a20d-f7587b926663 gestartet:
   3 Steps (WC1B-F3 → GATE-1 → CHAIN-1-Evidence). CONSTRAINT je Step: keine
   .guidance-Config-Änderungen mid-session (CHAIN-1-Workaround).
+
+### 2026-10-01 — WC1B-F3 gelöst (feature/wc1b-f3-integration-test, Guidance-Session session-293a251f, Kettenschritt 1/3)
+- Integrationstest in tests/contract/tools-run-operation.test.ts: Wildcard-Server
+  (stdio, nie gespawnt — Policy wirft vor ensureReady) + Composite-Operation mit
+  mcpTool-Step (server=wildcard, capability=unlisted-tool) → run_operation liefert
+  status "failed" mit recoverable authorization_required (Server-/Tool-Benennung),
+  kein Downstream-Contact. Semantik gelernt: firstAvailable-Komposite reportieren
+  Step-Failures als Result (status failed + errors), sie werfen nicht — exakt das
+  Live-Bild des repository-analysis-Gates (CHAIN-1-Kontext).
+- Fokussiert 20/20, Vollauf 475 passed / 9 skipped (63 Files), prettier grün.
