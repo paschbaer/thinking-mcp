@@ -14,7 +14,13 @@
  * unmodified through the full loadConfig pipeline.
  */
 import { describe, expect, it } from "vitest";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { loadConfig } from "../../src/config.js";
@@ -93,11 +99,9 @@ describe("WC-4: shipped config files load against the validator", () => {
     for (const set of CONFIG_SETS) {
       const cfg = loadShipped(set.dir);
       const downstream = cfg.downstreamServers as
-        | { servers: Record<string, ServerEntry> }
-        | undefined;
+        { servers: Record<string, ServerEntry> } | undefined;
       const policies = cfg.policies as
-        | { egress?: { httpHostAllowlist?: string[] } }
-        | undefined;
+        { egress?: { httpHostAllowlist?: string[] } } | undefined;
       if (!downstream || !policies) continue; // set without downstream egress
       const allowlist = policies.egress?.httpHostAllowlist ?? [];
       const allowlisted = (url: string): boolean =>
@@ -122,7 +126,7 @@ describe("WC-4: shipped config files load against the validator", () => {
   });
 
   it("negative control: an unallowlisted containerRoute host fails the load (drift detection works)", () => {
-    const tmp = makeTmpCopy(CONFIG_SETS[1].dir); // examples/default-guidance
+    const tmp = makeTmpCopy(CONFIG_SETS[1]!.dir); // examples/default-guidance
     try {
       const dsPath = join(tmp, "downstream-servers.json");
       const ds = JSON.parse(readFileSync(dsPath, "utf8")) as {

@@ -948,3 +948,15 @@
 - Chained Workflow gestartet: session-77a51a32-ac77-413e-9339-e37fec32700f,
   4 Steps (TYPE-1 → WC1B-F3 → GATE-1 → CHAIN-1). specs/015-Umsetzung als
   separate Chain nach R1/R2-Nutzerentscheid.
+
+### 2026-09-30 — TYPE-1 gelöst (feature/type1-ts2532, Guidance-Session session-77a51a32, Kettenschritt 1/4)
+- TS2532 in tests/contract/shipped-configs.test.ts(125) gefixt: `CONFIG_SETS[1]!.dir`
+  (Konsistent mit `[0]!`-Idiom im selben File). Zusätzlich File auf LF normalisiert —
+  Root-Cause-Befund: Datei kam in WC-4 (235e9e6) mit CRLF-Zeilenenden UND dem
+  unchecked Index-Zugriff ins Repo; jeder tsc-Lauf mit tests/ seit 235e9e6 musste
+  den Fehler melden („früher grün" = Lauf vor 235e9e6 oder ohne typecheck über tests).
+  CRLF führte zusätzlich zu prettier --check-Fail (endOfLine lf) — GATE-lint-Kontext.
+- Verifikation (WSL, Node v24.21.0, tsc 5.9.3): typecheck grün, prettier grün,
+  fokussiert 7/7, Vollauf 474 passed / 9 skipped (63 Files).
+- Observation: ~10 weitere Testdateien enthalten CR (strings/fixtures), prettier-grün;
+  nicht Teil von TYPE-1.
