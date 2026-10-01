@@ -3,7 +3,8 @@
 **Feature ID:** `015-registry-hot-reload-deps`
 **Closes tracks:** HR-1 (LOW, Registry-Hot-Reload-Konzept) · DB-1-Rest (MEDIUM, generische `deps-install`/`deps-reinstall`-Operation)
 **Namespace:** neue FRs ab FR-1201 (keine Kollision mit FR-1101… aus specs/014, FR-001…995 davor)
-**Status:** Draft (SDD 2026-09-30 — Umsetzung ausstehend)
+**Status:** Implemented (SDD 2026-09-30; Umsetzung 2026-10-01 — US1 feature/015-us1-registry-register, US2 feature/015-us2-deps-operations)
+<!-- docs-drift: status ok -->
 **Date:** 2026-09-30
 
 ## Overview

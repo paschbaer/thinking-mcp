@@ -562,3 +562,18 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** guidance repository-analysis-Gate fragt den Container-gitnexus (:4747) ab; dessen Registry kennt das WSL-indexierte Repo nicht („No indexed repositories") bzw. „foreign" bei geteiltem .gitnexus (unterschiedliche repoPath: /mnt/d/... vs /workspace).
 - **Fix (arbeitshaft):** Container mit Repo-Mount /workspace + `GITNEXUS_STORAGE_PATH=/data/gitnexus/index-thinking-mcp gitnexus analyze /workspace --no-stats` (eigenes Duplikat-Index im Volume); zusätzlich `git config --global --add safe.directory /workspace` im Container und MSYS_NO_PATHCONV=1 bei docker exec aus Git-Bash (sonst Pfad-Verstümmelung C:/Program Files/Git/...).
 - **Offen:** Dauerhafte Verankerung als compose-env (GDS-7) — nur außerhalb von Guidance-Sessions ändern.
+
+## 2026-10-01 — Handgeschriebene JSON-RPC-Payloads über file+curl: fehlende/überzählige schließende Klammern
+- **Issue:** Große Guidance-Submissions (submit_understanding/submit_plan) als handgeschriebenes JSON via write_file + curl: zweimal Syntax-/Bad-Request-Fehler durch falsche Klammerbilanz am Dateiende (depth ±1) — parse errors auf Serverseite waren nicht diagnostizierbar (nur HTTP 400).
+- **Fix:** Vor jedem POST Klammer-Tiefe (String-aware Scanner) + JSON.parse in WSL prüfen; ab dem zweiten Vorfall die Payload mit einem Node-Builder-Script konstruiert (JS-Objekt-Literal → JSON.stringify) — deterministisch korrekt.
+- **Preventive measure:** Für Guidance-HTTP-Submissions NIEMALS hand-escapen: immer Builder-Script oder mindestens depth-Scan vor dem POST; bei HTML "Bad Request" zuerst JSON-Validität des Bodies prüfen, nicht die Server-Logik verdächtigen.
+
+## 2026-10-01 — Composite firstAvailable stoppt beim ersten Erfolg (deps-reinstall Design-Falle)
+- **Issue:** deps-reinstall als 2-Step-Composite (rm node_modules → npm install) modelliert: firstAvailable liefert nach dem ERFOLGREICHEN rm-Step zurück — npm install läuft nie; via-Label zeigte fälschlich den Clean-Step.
+- **Fix:** deps-reinstall als einzelner process-Step (node -e: rmSync + spawnSync npm install, exit propagate).
+- **Preventive measure:** Composite-strategies kennen: sequential/firstAvailable sind ODER-Verknüpfungen (Alternativen), keine sequentiellen Pipelines — jede Step-Kette mit "erst X, dann Y"-Semantik gehört in EINEN process-Step (sh -c / node -e) oder in einen Workflow.
+
+## 2026-10-01 — Zero-Dependency-npm-Installs erzeugen kein node_modules
+- **Issue:** Contract-Tests für deps-Ops mit dep-freiem package.json: npm install/ci succeedet, aber existsSync(node_modules)=false — Assertion "Tree installiert" schlägt trotz Success zu.
+- **Fix:** Lokale file:-Dependency (deps/tiny) in das Fixture — npm materialisiert dann node_modules/tiny; Lockfile für den npm-ci-Test per echtem npm install generieren (handgeschriebene Lockfiles sind fragil).
+- **Preventive measure:** npm-behavior-Tests immer mit mindestens einer (lokalen) Dependency fahren; Lockfiles generieren, nicht tippen.
