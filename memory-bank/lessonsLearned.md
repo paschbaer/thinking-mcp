@@ -552,3 +552,13 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
   Abbrüchen und Token-Verschwendung. **Preventive:** Gezielte Edits aus
   bereits bekannten Code-Stellen; ein gelesener Ausschnitt reicht — nicht
   dieselbe Datei in Dutzenden Window-Reads erneut anfassen.
+
+## 2026-10-01 — Guidance-Completion: First-Try grün fahren, Retry finalisiert nicht (GDS-6)
+- **Issue:** Nach Hook-Fehlschlag bei complete_workflow (z.B. index-freshness mtime-Race) und erfolgreichem retry_operation bleibt die Session in status=active/phase=completed stecken — kein Terminal-Übergang, kein Audit, kein Chain-Successor; erneutes complete_workflow → invalid_active_phase.
+- **Root cause:** Finalisierung (Terminal-Transition + Successor-Erzeugung) läuft nur im ersten complete_workflow-Pfad; der Retry-Pfad führt nur die Operationen aus.
+- **Preventive measure:** Vor complete_workflow ALLE Gates lokal vorab prüfen (check-final-review.mjs, check-index-freshness.mjs, docs-drift) und `gitnexus analyze --no-stats --force` als LETZTEN Schritt vor dem Completion-Call fahren (plain analyze short-circuitet „already up to date" ohne mtime-Refresh). Bei eingefrorener Session: canceln + frische Session statt Retry-Schleife.
+
+## 2026-10-01 — Dual-GITNEXUS_HOME (WSL-Index vs. gitnexus-server-Container)
+- **Issue:** guidance repository-analysis-Gate fragt den Container-gitnexus (:4747) ab; dessen Registry kennt das WSL-indexierte Repo nicht („No indexed repositories") bzw. „foreign" bei geteiltem .gitnexus (unterschiedliche repoPath: /mnt/d/... vs /workspace).
+- **Fix (arbeitshaft):** Container mit Repo-Mount /workspace + `GITNEXUS_STORAGE_PATH=/data/gitnexus/index-thinking-mcp gitnexus analyze /workspace --no-stats` (eigenes Duplikat-Index im Volume); zusätzlich `git config --global --add safe.directory /workspace` im Container und MSYS_NO_PATHCONV=1 bei docker exec aus Git-Bash (sonst Pfad-Verstümmelung C:/Program Files/Git/...).
+- **Offen:** Dauerhafte Verankerung als compose-env (GDS-7) — nur außerhalb von Guidance-Sessions ändern.
