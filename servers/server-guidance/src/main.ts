@@ -84,7 +84,12 @@ export function composeApplication(
   // specs/014 FR-1103/FR-1106: config-truth boot diagnostics (stderr warns).
   warnLegacyMonolith(config);
   warnDormantGuidanceConfigs(config, workspaceRoot);
-  warnNodeDeps(config, workspaceRoot);
+  // specs/015 US2 (AC-10, FR-1214): when the proactive probe flag is ON, boot
+  // diagnostics reference the deps-install/deps-reinstall operations so the
+  // agent can heal node deps BEFORE gates run. OFF (default) = plain remedy text.
+  warnNodeDeps(config, workspaceRoot, undefined, undefined, {
+    operational: config.nodeDeps.proactiveProbe,
+  });
   // Amendment 002 (FR-117 State-Brücke): pending spec-kit tasks in tasks.md
   // order — inserted here so WorkflowEngine stays free of spec-kit imports.
   // Missing state file (head never imported artifacts) ⇒ [] ⇒ silent chain end.

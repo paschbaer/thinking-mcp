@@ -47,11 +47,20 @@ export function warnLegacyMonolith(
  * INCOMPATIBLE (native addon present but unloadable — Windows/ABI install).
  * Pure detection; the fix (npm ci in the repo) is the operator's/agent's call.
  */
+export interface NodeDepsWarnOptions {
+  /** specs/015 US2 (AC-10, FR-1214): proactive-probe mode — reference the
+   *  guidance deps-install/deps-reinstall operations in the messages so the
+   *  agent can heal before gates run. Default OFF keeps the plain npm
+   *  remedy text (DB-1 boot diagnostics unchanged). */
+  operational?: boolean;
+}
+
 export function warnNodeDeps(
   config: LoadedConfig,
   workspaceRoot: string,
   out: (msg: string) => void = (m) => process.stderr.write(m + "\n"),
   probe?: (addonPath: string) => boolean,
+  options?: NodeDepsWarnOptions,
 ): void {
   const loadable =
     probe ??
@@ -69,7 +78,9 @@ export function warnNodeDeps(
     const nm = join(w.root, "node_modules");
     if (!existsSync(nm)) {
       out(
-        `[guidance] warning: workspace "${w.name}" (${w.root}) has a package.json but no node_modules — run "npm install" in the repo (or ask the agent), otherwise build/test gates will fail.`,
+        options?.operational
+          ? `[guidance] warning: workspace "${w.name}" (${w.root}) has a package.json but no node_modules — run the guidance operation "deps-install" in this workspace (npm ci; falls back to npm install without a lockfile), otherwise build/test gates will fail.`
+          : `[guidance] warning: workspace "${w.name}" (${w.root}) has a package.json but no node_modules — run "npm install" in the repo (or ask the agent), otherwise build/test gates will fail.`,
       );
       continue;
     }
@@ -88,7 +99,9 @@ export function warnNodeDeps(
     }
     if (addon && !loadable(addon)) {
       out(
-        `[guidance] warning: workspace "${w.name}" (${w.root}) has a node_modules with a native addon that does NOT load in this container (platform/ABI mismatch — likely installed on a different OS). Fix: delete node_modules and run "npm ci" INSIDE the container (or ask the agent), otherwise build/test gates will fail.`,
+        options?.operational
+          ? `[guidance] warning: workspace "${w.name}" (${w.root}) has a node_modules with a native addon that does NOT load in this container (platform/ABI mismatch — likely installed on a different OS). Run the guidance operation "deps-reinstall" in this workspace (deletes node_modules and reinstalls — inside the container for a Linux-native tree), otherwise build/test gates will fail.`
+          : `[guidance] warning: workspace "${w.name}" (${w.root}) has a node_modules with a native addon that does NOT load in this container (platform/ABI mismatch — likely installed on a different OS). Fix: delete node_modules and run "npm ci" INSIDE the container (or ask the agent), otherwise build/test gates will fail.`,
       );
     }
   }

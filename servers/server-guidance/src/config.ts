@@ -28,6 +28,10 @@ export interface GuidanceMainConfig {
   policies?: { file: string };
   /** FR-1207: gates the registry_register MCP tool (default OFF, fail-closed). */
   registryRegister?: { enabled?: boolean };
+  /** specs/015 US2 (AC-10, FR-1214): proactive node-deps probe — when ON,
+   *  boot diagnostics reference the guidance deps-install/deps-reinstall
+   *  operations so the agent can heal before gates run. Default OFF. */
+  nodeDeps?: { proactiveProbe?: boolean };
   state?: {
     directory: string;
     persistAfterEveryOperation?: boolean;
@@ -132,6 +136,8 @@ export interface LoadedConfig {
   main: GuidanceMainConfig;
   /** FR-1207: registry_register tool gate (default OFF). */
   registryRegister: { enabled: boolean };
+  /** specs/015 US2: proactive node-deps probe flag (default OFF). */
+  nodeDeps: { proactiveProbe: boolean };
   chain: ChainConfig;
   /** specs/014: true when guidance.json carries no process file-refs
    *  (workflow/responses/operations/policies/downstreamServers) — a
@@ -182,6 +188,13 @@ Object.assign(mainConfigSchema, {
       additionalProperties: false,
       properties: {
         enabled: { type: "boolean" },
+      },
+    },
+    nodeDeps: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        proactiveProbe: { type: "boolean" },
       },
     },
     workflow: { $ref: "#/$defs/fileRef" },
@@ -1157,6 +1170,7 @@ export function loadConfig(
     main: cfg,
     chain,
     registryRegister: { enabled: cfg.registryRegister?.enabled === true },
+    nodeDeps: { proactiveProbe: cfg.nodeDeps?.proactiveProbe === true },
     registryOnly,
     workflow: loaded["workflow"],
     responses: loaded["responses"],
