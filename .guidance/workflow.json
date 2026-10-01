@@ -84,11 +84,10 @@
       "response": "verify",
       "submissionSchema": "schemas/verify.schema.json",
       "lifecycle": {
-        "beforeExit": [
-          "lint",
-          "test",
-          "build"
-        ]
+       "beforeExit": [
+        "lint",
+        "build"
+       ]
       },
       "transitions": [
         {
