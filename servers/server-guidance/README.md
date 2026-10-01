@@ -1132,9 +1132,12 @@ Shared rules for **any** language:
    execution in the `verify` phase.
 
 **Toolchain availability in the image (opt-in):** `node`/`npm` and the
-Python toolchain (`python3` + pinned `uv`) are always installed. The Rust
-and C# toolchains are **not** installed by default (image size) — opt in
-at build time:
+Python toolchain (`python3` + pinned `uv`) are always installed, along with
+the **node-gyp build chain** (`make`, `g++`, `gcc`, `libc6-dev`) so native
+addons (e.g. `better-sqlite3`) compile inside the container during
+`deps-install`/`deps-reinstall` (specs/015 US2, DEPLOY-015b). The Rust and
+C# toolchains are **not** installed by default (image size) — opt in at
+build time:
 
 ```sh
 docker build --build-arg INSTALL_RUST=true --build-arg INSTALL_CSHARP=true .

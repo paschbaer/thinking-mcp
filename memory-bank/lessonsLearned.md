@@ -593,3 +593,8 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Ergebnis:** lint + test Gates im Container grün (test: Root-Suite 43/43; Vollauf server-guidance bleibt WSL-authoritativ: 496 passed).
 - **Offen (DEPLOY-015b):** Build-Tools leben nur im laufenden Container — ins Image backen oder Prebuilds sicherstellen, sonst schlägt der nächste Rebuild-Reinstall fehl.
 - **Preventive measure:** npm ci in frischen Containern IMMER mit Allowlist-Check starten; nach npm-Installationsaktionen `git status` auf package.json/yarn.lock-Kollateral prüfen (npm fängt an, yarn.lock zu schreiben, wenn kein lockfile-respect greift).
+
+### 2026-10-01 — DEPLOY-015b erledigt (feature/015-deploy-015b-image-tools)
+- **What works:** make + g++ in der Dockerfile-apt-Layer (node-gyp-Toolchain komplett im Image); duplizierter unbedingter dotnet-Block entfernt (INSTALL_CSHARP=false funktioniert wieder, README-Aussage stimmt). Verifiziert per `docker compose build guidance` + Throwaway-Probe: make/g++/python3 ✅, dotnet absent ✅.
+- **Lesson:** Beim Zusammenführen von Dockerfile-Abschnitten opt-in-Blöcke duplizieren sich leicht — der zweite Block lief ohne if-Guard und machte das Build-ARG wirkungslos; Image-Eigenschaften immer per Throwaway-`docker run --rm`-Probe verifizieren statt der Dockerfile zu vertrauen.
+- **Offen:** Roll-out (`docker compose up -d --force-recreate`) nach Session-Completion; danach heilt ein frischer Container native Deps ohne manuelle apt-Nacharbeit.
