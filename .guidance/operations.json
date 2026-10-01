@@ -13,11 +13,11 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "test": {
-      "description": "Run the automated test suite (npm workspaces). Runs on the Linux-native node_modules installed via deps-install/deps-reinstall inside the container (specs/015 US2) — required since 2026-10-01.",
+      "description": "Run the automated test suite (npm test --workspaces). Linux-native node_modules come from deps-install/deps-reinstall in-container (specs/015 US2). Non-blocking for now: the container suite currently crashes at vitest worker teardown (node RemoveEnvironmentCleanupHook assert with native addons — tracked DEPLOY-015c); the WSL host suite is the authoritative signal until then.",
       "type": "process",
       "executable": "npm",
       "args": ["test"],
-      "required": true,
+      "required": false,
       "timeoutSeconds": 900,
       "riskClass": "read_only",
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
