@@ -124,3 +124,38 @@ Container-Kommandos.
 - HR-1: `memory-bank/remaining-work-plan.md` (2026-09-30, Registry-Hot-Reload)
 - DB-1-Rest: `memory-bank/remaining-work-plan.md` (2026-09-30, Dependency-Bootstrap)
 - Kontext: GATE-1-Observation (Container-Gates umweltbedingt, required:false)
+
+## Addendum: AC-5-Rebind-Semantik (R2-Entscheidung, 2026-09-30/10-01)
+
+Nutzerentscheidung R2 (2026-09-30): **Weiterführung mit Re-Validierung.**
+Live-Reproduktion des Defekts (2026-10-01, session-77a51a32): eine
+Mid-Session-Config-Änderung (operations.json) plus Container-Restart
+invalidierte die Session fail-closed
+(`configuration_invalid`, WorkflowEngine.ts:639-648, `recoverable:false`) —
+exakt der seit 2026-09-30 getrackte CHAIN-1-Symptom (Auto-Folgesession
+erbt den Hash des Kettenstarts).
+
+Verbindliche Akzeptanzkriterien für die US1-Implementierung:
+
+- AC-13: `completed`-Sessions überleben einen Registry-/Config-Wechsel
+  unverändert (kein Rebind nötig, Audit-Event dokumentiert den Wechsel).
+- AC-14: `active`- und `blocked`-Sessions werden bei Aktivierung/State-Zugriff
+  gegen die neue Registry **re-validiert** (Rebind an die neue
+  `configurationVersion` nur nach erfolgreicher Re-Validierung: Registry-
+  Validation läuft vollständig, alle referenzierten Roots existieren).
+- AC-15: Schlägt die Re-Validierung fehl, bleibt das Verhalten fail-closed
+  (`configuration_invalid`, wie heute) — kein stiller Weiterlauf auf
+  ungeprüfter Config.
+- AC-16: Chain-Successor-Sessions erben NICHT mehr den Hash des
+  Kettenstarts, sondern werden bei Aktivierung an die dann aktuelle
+  Konfiguration gebunden (Rebind-Pfad aus AC-14); Regressionstest:
+  Registry-Änderung zwischen Kettenstart und Folgesession-Aktivierung →
+  Folgesession aktiviert mit Re-Validierung statt `configuration_invalid`.
+- AC-17: Jeder Rebind erzeugt ein Audit-Event
+  (`session_rebound`, from/to configurationVersion).
+- Verwandt (Completion-Pfad, separater Defekt GDS-6): nach erfolgreichem
+  `retry_operation` in Phase `complete` unterbleibt die Finalisierung
+  (kein Terminal-Übergang, kein `workflow_completed`-Audit, keine
+  Successor-Erzeugung); `complete_workflow` erneut liefert
+  `invalid_active_phase`. Wird mit US1 nicht gelöst, aber im selben
+  WorkflowEngine-Bereich adressiert (siehe remaining-work-plan).
