@@ -12,6 +12,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig, type LoadedConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
+import { WorkflowTools } from "../../src/mcp-server/ToolHandlers.js";
+import { registerWorkflowTools } from "../../src/mcp-server/register-tools.js";
 import { SessionRepository } from "../../src/state/SessionRepository.js";
 
 /** specs/015 US1 contract tests: AC-5 rebind semantics (addendum AC-13..17),
@@ -237,6 +239,83 @@ describe("registry_register (specs/015 US1, FR-1201..1210)", () => {
       JSON.parse(readFileSync(join(poolDir, "guidance.json"), "utf8"))
         .workspaces,
     ).toHaveLength(1);
+  });
+});
+
+/** REV-04a2b4c-1: the MCP handler must await the async registerWorkspace()
+ *  promise before serialization. The defect class was toJson(Promise) →
+ *  "{}"; these tests pin the serialized response shape and the fail-closed
+ *  rejection path at the handler level. The SDK zod layer is intentionally
+ *  bypassed by the stub — scope is the handler serialization below zod. */
+describe("review F-handler: registry_register MCP handler response shape", () => {
+  type ToolHandler = (
+    args: unknown,
+  ) => Promise<{ content: { type: string; text: string }[] }>;
+
+  function stubServer(): {
+    handlers: Map<string, ToolHandler>;
+    server: unknown;
+  } {
+    const handlers = new Map<string, ToolHandler>();
+    const server = {
+      tool: (
+        name: string,
+        _description: string,
+        _schema: unknown,
+        handler: ToolHandler,
+      ) => {
+        handlers.set(name, handler);
+      },
+    };
+    return { handlers, server };
+  }
+
+  it("serializes the awaited result: configurationVersion + registry present (not '{}')", async () => {
+    writePoolConfig({ registerWs: false, flag: true });
+    const engine = poolEngine();
+    const { handlers, server } = stubServer();
+    registerWorkflowTools(
+      server as Parameters<typeof registerWorkflowTools>[0],
+      new WorkflowTools(engine),
+      root,
+      undefined as unknown as Parameters<typeof registerWorkflowTools>[3],
+    );
+    const handler = handlers.get("registry_register");
+    expect(handler).toBeDefined();
+    const response = await handler!({
+      name: "ws",
+      root: ws,
+      projectName: "WS",
+    });
+    const parsed = JSON.parse(response.content[0]!.text) as {
+      configurationVersion: string;
+      registry: { name: string; root: string; projectName?: string }[];
+    };
+    expect(parsed.configurationVersion).toBe(
+      loadConfig(poolDir, { workspaceRoot: root }).configVersion,
+    );
+    expect(parsed.registry).toContainEqual({
+      name: "ws",
+      root: ws,
+      projectName: "WS",
+    });
+  });
+
+  it("rejects fail-closed on invalid input instead of resolving to an un-awaited body", async () => {
+    writePoolConfig({ registerWs: false, flag: true });
+    const engine = poolEngine();
+    const { handlers, server } = stubServer();
+    registerWorkflowTools(
+      server as Parameters<typeof registerWorkflowTools>[0],
+      new WorkflowTools(engine),
+      root,
+      undefined as unknown as Parameters<typeof registerWorkflowTools>[3],
+    );
+    const handler = handlers.get("registry_register");
+    expect(handler).toBeDefined();
+    await expect(
+      handler!({ name: "bad", root: join(root, "does-not-exist") }),
+    ).rejects.toThrowError(/root does not exist/);
   });
 });
 
