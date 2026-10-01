@@ -1078,7 +1078,7 @@ Node workspaces get two healing operations in the shipped catalogs
 
 | Operation | Semantics |
 |---|---|
-| `deps-install` | composite `firstAvailable`: `npm ci` (clean semantics, lockfile required) with fallback to `npm install` when no lockfile exists — the result's `data.via` label (`npm-ci-lockfile` / `npm-install-fallback`) records which strategy ran (audit note) |
+| `deps-install` | composite `firstAvailable`: `npm ci` (clean semantics) with `npm install` fallback — the fallback runs whenever `npm ci` fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); note `npm ci` removes `node_modules` before failing, so a masked failure leaves `node_modules` deleted. The result's `data.via` label (`npm-ci-lockfile` / `npm-install-fallback`) records which strategy ran (audit note) |
 | `deps-reinstall` | deletes `node_modules` (lockfile preserved) and reinstalls in one step — workspace-scoped (runs in the workspace root, no path traversal); the remedy for `ERR_DLOPEN_FAILED` native-addon ABI mismatches (reinstall INSIDE the container for a Linux-native tree) |
 
 Both are `riskClass: workspace_write`, `required: false`,
