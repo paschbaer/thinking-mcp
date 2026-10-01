@@ -70,13 +70,8 @@
   "workspaces": [
     {
       "name": "thinking-mcp",
-      "root": "/workspace",
+      "root": "/workspaces/Thinking-MCP",
       "projectName": "Thinking-MCP"
-    },
-    {
-      "name": "niyama",
-      "root": "/workspaces/Niyama",
-      "projectName": "Niyama"
     }
   ]
 }

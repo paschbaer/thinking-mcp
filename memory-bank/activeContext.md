@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-09-30: Guidance-Container-Start-Crash behoben (falscher /workspaces-Mount)
+- **Symptom:** Container crashete beim Start mit `EACCES ... mkdir '/workspaces/.guidance'` (scaffold.js).
+- **Root cause:** Veralteter Container (`thinking-mcp-guidance-1`) mit falschem Mount `bind /mnt -> /workspaces` (root-owned, für `USER node` nicht schreibbar) statt `D:\repos -> /workspaces` — aus einer früheren/WSL-seitigen Erzeugung. Isoliertest mit korrektem Mount bestätigte Schreibbarkeit als `node`.
+- **Fix:** `docker compose up -d --force-recreate` aus `servers/server-guidance`; `/health` → `configured:true, reachable:true`. Alt-Container via `docker rm -v` entfernt.
+- **Doku:** Lesson in lessonsLearned.md (2026-09-30) + neue Start-Discipline-Regel in AGENTS.md (Guidance-Sektion; Backup `AGENTS.md.bak` angelegt, Clear-Thought-Konsistenzcheck ohne Konflikte).
+
 ## 2026-09-28: Config-Assistant generic patterns (session-2c0c15fe, MERGED: develop @ 42e37bf)
 - **Root cause (Niyama-Folge):** der FRESH-Generator selbst war nicht generisch — `buildOperations` (ConfigAssistant.ts) hardcodete den Lint-Op als `npx prettier --check servers/*/src/**/*.{ts,tsx}` (Thinking-MCP-Glob) → exit 2 in jedem Repo ohne `servers/`-Layout. Zweitbefund: Adopt-Klassifikation prüfte Genericität nur über Op-NAMEN (+ kryptische `includes('"repo"')`-Heuristik) — repo-spezifische Args unter generischem Name entkamen dem `[adopted]`-Marker.
 - **Umgesetzt:** (1) Lint-Op → `npm run lint` (required:false, aligned mit examples/default-guidance); (2) strukturelle Genericitätsregel (nach Review-Verfeinerung): Preset-Ops werden IMMER aus dem Target-Fresh-Template regeneriert — divergente Ref-Args erzeugen eine laute `REGENERATED … reference args discarded`-Note statt Kopie; nur Non-Preset-Ops werden mit `[adopted — review args/paths]`-Marker kopiert (deckt beide Fehlerichtungen: Glob-Leak UND Scope-Kontamination); (3) Tests: Fresh-Args frei von Repo-Globs + Lint-Shape gepinnt; Niyama-Klasse (mutierter Lint-Args → regeneriert + Note), Builtin-Konvergenz + Builtin-Sync-Pin, Preset-Op ohne Fresh-Entsprechung → nonGeneric; (4) README: Genericity-Rule + npm/npx/sh-Konventionsannahme dokumentiert.
@@ -928,3 +934,17 @@
 - Rule added to `AGENTS.md` under "User Preferences & Persistent Memory";
   backup created as `AGENTS.md.bak` beforehand per Rule Update & Backup
   Protocol. Convention also noted in `memory-bank/lessonsLearned.md`.
+
+### 2026-09-30 — Neue Maschine: Guidance-Registry neu aufgesetzt
+- Pool-Registry `/workspaces/.guidance/guidance.json` (host `D:\repos\.guidance`):
+  Workspace **thinking-mcp** → `/workspaces/Thinking-MCP` registriert (neben default).
+  Alt-Container `server-guidance-guidance-1` (falscher Kontext, Port-Drift,
+  fremder `/workspace`-Volume) entfernt; Neustart aus Root-Compose
+  (`thinking-mcp-guidance-1`, Mount `D:\repos -> /workspaces`).
+- Repo-`.guidance/guidance.json` maschinenspezifisch korrigiert (UNGECOMMITTET,
+  geht in den nächsten Feature-Branch-Commit): `thinking-mcp.root` `/workspace` →
+  `/workspaces/Thinking-MCP`; `niyama`-Eintrag entfernt (Repo auf dieser
+  Maschine nicht vorhanden; Re-Registrierung bei Klon-Vorhandensein).
+- Chained Workflow gestartet: session-77a51a32-ac77-413e-9339-e37fec32700f,
+  4 Steps (TYPE-1 → WC1B-F3 → GATE-1 → CHAIN-1). specs/015-Umsetzung als
+  separate Chain nach R1/R2-Nutzerentscheid.
