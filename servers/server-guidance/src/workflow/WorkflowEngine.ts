@@ -1464,6 +1464,18 @@ export class WorkflowEngine {
       input.chain !== undefined
         ? this.validateChainManifest(input.chain)
         : undefined;
+    // CHAIN-Replay (remaining-work-plan L19-34): a top-level request that
+    // duplicates steps[0] runs step 0 twice (session-0 under the top-level
+    // request, successor-0 under steps[0]). Fail closed instead of guessing
+    // intent; generic-context chains (request != steps[0]) stay valid.
+    const firstStep = chainSpec?.steps?.[0];
+    if (firstStep && input.request.trim() === firstStep.request.trim()) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "chain manifest: the top-level request duplicates steps[0] — step 0 would run twice (session head + first successor). Remove the duplicated step or give the head request its own scope",
+        { recoverable: true },
+      );
+    }
     const session: WorkflowSession = {
       sessionId,
       workflowId: input.workflowId ?? this.definition.workflowId,
@@ -2355,9 +2367,17 @@ export class WorkflowEngine {
     const result = await this.sessions.withLock(sessionId, () =>
       this.completeWorkflowLocked(sessionId, report, requestId),
     );
-    // Amendment 002: Successor-Lifecycle OUTSIDE the predecessor lock (Spec §4.2).
-    // Guard "activating": replays (requestIds idempotency) return the cached
-    // result whose successor is already active/blocked — no double activation.
+    return await this.activateSuccessor(result, requestId);
+  }
+
+  /** Amendment 002: Successor-Lifecycle OUTSIDE the predecessor lock (Spec §4.2).
+   *  Guard "activating": replays (requestIds idempotency) return the cached
+   *  result whose successor is already active/blocked — no double activation.
+   *  Shared by completeWorkflow AND retryOperations (GDS-6 finalize). */
+  private async activateSuccessor(
+    result: SubmitResult,
+    requestId?: string,
+  ): Promise<SubmitResult> {
     if (result.nextSessionId) {
       // MEDIUM-3: activation runs under the SUCCESSOR's lock with an in-lock
       // re-check — a concurrent replay of the same requestId can only win the
@@ -2380,7 +2400,7 @@ export class WorkflowEngine {
           },
         ];
         if (requestId) {
-          this.sessions.update(sessionId, (s) => {
+          this.sessions.update(result.sessionId, (s) => {
             s.requestIds[requestId] = result;
           });
         }
@@ -2502,6 +2522,12 @@ export class WorkflowEngine {
         phase: "complete",
         data: { results: opResults },
       });
+      // GDS-6: retain the completion report so a successful retry_operation
+      // can finalize (status/audit/successor) instead of wedging the session
+      // in status=active/phase=completed.
+      this.sessions.update(sessionId, (s) => {
+        s.pendingCompletion = { report, ...(requestId ? { requestId } : {}) };
+      });
       const err = new GuidanceError(
         "required_hook_failed",
         "mandatory completion operations failed; the workflow cannot complete",
@@ -2546,6 +2572,26 @@ export class WorkflowEngine {
     });
     // Amendment 002: chain successor creation (lazy, inside the predecessor
     // lock — the successor session is NEW, per-session locks ⇒ no inversion).
+    // GDS-6: shared with retryOperations' finalize path (same semantics from
+    // the retained completion report).
+    return this.createChainSuccessorLocked(
+      session,
+      report,
+      successResult,
+      requestId,
+    );
+  }
+
+  /** Chain successor creation for BOTH completion paths: completeWorkflow
+   *  (direct success) and retryOperations finalize (GDS-6, from the retained
+   *  pendingCompletion report). Runs inside the predecessor's session lock;
+   *  activation happens OUTSIDE via activateSuccessor (Spec §4.2). */
+  private createChainSuccessorLocked(
+    session: WorkflowSession,
+    report: Record<string, unknown>,
+    successResult: SubmitResult,
+    requestId?: string,
+  ): SubmitResult {
     const resolved = this.resolveChainStep(session, report);
     if (resolved === null) {
       // CHN-4: a silent Form-B end (source set, no pending candidate) is the
@@ -2554,7 +2600,7 @@ export class WorkflowEngine {
       // silent per Spec §3.2.
       if (session.chainSpec?.source === "spec_kit_tasks") {
         this.audit.append({
-          sessionId,
+          sessionId: session.sessionId,
           eventType: "chain_end",
           phase: "completed",
           data: {
@@ -2564,7 +2610,7 @@ export class WorkflowEngine {
         });
       }
       if (requestId) {
-        this.sessions.update(sessionId, (s) => {
+        this.sessions.update(session.sessionId, (s) => {
           s.requestIds[requestId] = successResult;
         });
       }
@@ -2572,7 +2618,7 @@ export class WorkflowEngine {
     }
     if ("failure" in resolved) {
       this.audit.append({
-        sessionId,
+        sessionId: session.sessionId,
         eventType: "chain_failed",
         phase: "completed",
         data: {
@@ -2590,7 +2636,7 @@ export class WorkflowEngine {
         },
       ];
       if (requestId) {
-        this.sessions.update(sessionId, (s) => {
+        this.sessions.update(session.sessionId, (s) => {
           s.requestIds[requestId] = successResult;
         });
       }
@@ -2628,7 +2674,7 @@ export class WorkflowEngine {
       createdAt: succNow,
       updatedAt: succNow,
       completedAt: null,
-      chainFrom: sessionId,
+      chainFrom: session.sessionId,
       chainIndex,
       chainSpec: successorSpec,
       // CHN-3: always advance the Form-A marker — with a mixed manifest the
@@ -2644,15 +2690,15 @@ export class WorkflowEngine {
       eventType: "session_started",
       data: {
         workflowId: successor.workflowId,
-        chainFrom: sessionId,
+        chainFrom: session.sessionId,
         chainIndex,
       },
     });
     this.audit.append({
-      sessionId,
+      sessionId: session.sessionId,
       eventType: "chain_successor_created",
       phase: "completed",
-      data: { from: sessionId, to: successor.sessionId, chainIndex },
+      data: { from: session.sessionId, to: successor.sessionId, chainIndex },
     });
     successResult.nextSessionId = successor.sessionId;
     // CHN-5: cache the FULL result already in the lock (status 'activating')
@@ -2666,7 +2712,7 @@ export class WorkflowEngine {
       },
     ];
     if (requestId) {
-      this.sessions.update(sessionId, (s) => {
+      this.sessions.update(session.sessionId, (s) => {
         s.requestIds[requestId] = successResult;
       });
     }
@@ -2678,7 +2724,7 @@ export class WorkflowEngine {
     const routed = this.routedFor(sessionId);
     if (routed) return routed.retryOperations(sessionId);
 
-    return this.sessions.withLock(sessionId, async () => {
+    const result = await this.sessions.withLock(sessionId, async () => {
       // CHN-1: a crash-orphaned 'activating' chain successor fails getSession
       // (chain_activation_incomplete) — this is the documented recovery path.
       // getSession would throw inside the lock, so load raw and re-activate.
@@ -2784,6 +2830,48 @@ export class WorkflowEngine {
           phase: target,
           data: { retried: true },
         });
+        // GDS-6: a successful retry of the COMPLETION phase's hooks must
+        // finalize the workflow — before this fix the session was left in
+        // status=active/phase=completed with no workflow_completed audit,
+        // no completedAt and no chain successor (wedged; a later
+        // complete_workflow failed invalid_active_phase).
+        if (previousPhase === "complete") {
+          const now = new Date().toISOString();
+          const finalResult: SubmitResult = {
+            accepted: true,
+            sessionId,
+            previousPhase,
+            currentPhase: target,
+            status: "completed",
+            operations: opResults,
+          };
+          this.sessions.update(sessionId, (s) => {
+            s.status = "completed";
+            s.completedAt = now;
+          });
+          this.audit.append({
+            sessionId,
+            eventType: "workflow_completed",
+            phase: "completed",
+            data: {
+              operations: opResults,
+              finalizedBy: "retry_operation",
+            },
+          });
+          const pending = session.pendingCompletion;
+          this.sessions.update(sessionId, (s) => {
+            delete s.pendingCompletion;
+          });
+          if (pending) {
+            return this.createChainSuccessorLocked(
+              session,
+              pending.report,
+              finalResult,
+              pending.requestId,
+            );
+          }
+          return finalResult;
+        }
         return {
           accepted: true,
           sessionId,
@@ -2801,6 +2889,7 @@ export class WorkflowEngine {
         operations: opResults,
       };
     });
+    return await this.activateSuccessor(result);
   }
 
   reportBlocker(
