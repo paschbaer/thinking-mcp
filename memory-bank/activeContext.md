@@ -960,3 +960,10 @@
   fokussiert 7/7, Vollauf 474 passed / 9 skipped (63 Files).
 - Observation: ~10 weitere Testdateien enthalten CR (strings/fixtures), prettier-grün;
   nicht Teil von TYPE-1.
+
+### 2026-10-01 — TYPE-1 gemerged; Cleanup-Chain neu gestartet
+- feature/type1-ts2532 per Fast-Forward nach develop gemerged (58faa7e…e0b2f60,
+  develop ahead 6 of origin — Push wartet auf Nutzer), Branch gelöscht.
+- Neue Chain session-293a251f-77ef-4ea1-a20d-f7587b926663 gestartet:
+  3 Steps (WC1B-F3 → GATE-1 → CHAIN-1-Evidence). CONSTRAINT je Step: keine
+  .guidance-Config-Änderungen mid-session (CHAIN-1-Workaround).
