@@ -977,3 +977,16 @@
   Step-Failures als Result (status failed + errors), sie werfen nicht — exakt das
   Live-Bild des repository-analysis-Gates (CHAIN-1-Kontext).
 - Fokussiert 20/20, Vollauf 475 passed / 9 skipped (63 Files), prettier grün.
+
+### 2026-10-01 — GATE-1 Evidenznotiz (feature/gate1-evidence, Guidance-Session session-a0577447, Kettenschritt 1/2)
+- Klassifizierung bestätigt: Container-Verify-Gates (lint=prettier --check,
+  test=root npm test --workspaces) bleiben umweltbedingt — der Guidance-Container
+  hat keine Linux-nativen node_modules (DB-1-Kontext, specs/015 US2 löst es).
+- Evidenz aus session-293a251f-Completion (2026-10-01): ausgeführte Completion-Hooks
+  waren ausschließlich skriptbasiert (docs-drift, final-review-gate, index-freshness,
+  repository-analysis, capture-session-lessons — alle grün); lint (required:false)
+  wurde übersprungen; test/build liefen im Completion-Flow NICHT. Authoritative
+  Verifikationsroute war WSL (Vollauf 475 passed / 9 skipped, prettier grün).
+- Konsequenz: Gates NICHT auf required:true ziehen, keine nativen node_modules im
+  Container installieren — beides erst mit DB-1 (deps-install). Hardening bleibt
+  bis dahin blockiert; GATE-1 bleibt OBSERVATION mit erweiterter Evidenz.
