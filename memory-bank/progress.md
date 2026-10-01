@@ -734,3 +734,8 @@ für Umsetzungs-Planning.
 **What works:** TS2532 in shipped-configs.test.ts(125) gefixt (`CONFIG_SETS[1]!.dir`), File auf LF normalisiert (CRLF-Root-Cause: WC-4-Commit 235e9e6). typecheck/prettier grün, fokussiert 7/7, Vollauf 474 passed / 9 skipped (63 Files). Neue Maschine: Node v24.21.0 via nvm in WSL installiert, Guidance-Pool-Registry um thinking-mcp ergänzt (Commits 7428bd1, bd5edd3 auf develop).
 **What's left:** Kettenschritte 2/4 WC1B-F3, 3/4 GATE-1, 4/4 CHAIN-1; danach specs/015-Umsetzungs-Chain (R1=B entschieden, R2=Weiterführung mit Re-Validierung; Variante A getrackt als SPEC015-A). Merge von feature/type1-ts2532 nach develop + Rebase-Regel beachten.
 **Current state:** TYPE-1 implementiert und committed; Guidance-Phasen implement/review/verification offen.
+
+## 2026-10-01: WC1B-F3 (feature/wc1b-f3-integration-test, Guidance-Session session-293a251f, Kettenschritt 1/3)
+**What works:** Integrationstest für WC-1-B-Closure-Wiring (Wildcard + unkonfiguriertes Tool → authorization_required, kein Downstream-Contact). Fokussiert 20/20, Vollauf 475 passed / 9 skipped (63 Files), prettier grün.
+**What's left:** Kettenschritte 2/3 (GATE-1-Evidenz), 3/3 (CHAIN-1-Evidence/ACs); specs/015-US1-Umsetzung (schließt CHAIN-1); Push develop.
+**Current state:** Step 1 implementiert; Review/Verification/Completion offen.
