@@ -990,3 +990,9 @@
 - Konsequenz: Gates NICHT auf required:true ziehen, keine nativen node_modules im
   Container installieren — beides erst mit DB-1 (deps-install). Hardening bleibt
   bis dahin blockiert; GATE-1 bleibt OBSERVATION mit erweiterter Evidenz.
+
+### 2026-10-01 — specs/015 Umsetzung gestartet (feature/015-us1-registry-register, Guidance-Session session-7e69dcdd, Schritt 1/4)
+- T001 erledigt: Spec gegen Codebase geprüft (WorkflowEngine/PolicyEngine/
+  specs/014-Registry; GDS-6 als verwandter WorkflowEngine-Defekt referenziert).
+- T002 erledigt: FR-1201…1210 (US1, Alternative B) und FR-1211…1216 (US2)
+  im spec.md verankert; R1/R2-Entscheidungen als entschieden eingetragen.

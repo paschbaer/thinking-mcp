@@ -6,10 +6,10 @@ aus plan.md sind vor Phase 3 zu schließen.
 
 ## Phase 1 — Setup
 
-- [ ] T001 Feature-Branch + Spec-Review: spec.md/plan.md gegen aktuelle
+- [x] T001 Feature-Branch + Spec-Review: spec.md/plan.md gegen aktuelle
       Codebasis abgleichen (Zeilen-/Symbol-Referenzen können driftete sein);
       R1/R2-Entscheidungen mit Nutzer protokollieren
-- [ ] T002 FR-1201…-Nummern final vergeben und in spec.md einsetzen
+- [x] T002 FR-1201…-Nummern final vergeben und in spec.md einsetzen
 
 ## Phase 2 — US1: Registry-Hot-Reload (FR-1201…1210, je nach Alternative)
 

@@ -41,8 +41,11 @@ atomaren Registry-Swap mit definierter Session-Semantik, **oder** über ein
 möglich wird, ohne die specs/008-Garantien (statische Registry, fail-closed,
 auditiert) aufzuweichen.
 
-**Offene Design-Entscheidung (in der plan-Phase der Umsetzung zu treffen,
-beide Alternativen sind SDD-konform):**
+**Design-Entscheidung (2026-09-30, Nutzer): Alternative B — `registry-register`-Tool.**
+Alternative A (config-watch + atomarer Swap) ist als Follow-up getrackt
+(remaining-work-plan, SPEC015-A) und wird umgesetzt, falls Datei-Edit-Workflows
+dominieren. Die Alternative-Tabelle bleibt als Entscheidungsdokumentation
+stehen:
 
 |                    | **A: config-watch + atomarer Swap**                                                                                                              | **B: `registry-register`-Tool**                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
@@ -51,7 +54,8 @@ beide Alternativen sind SDD-konform):**
 | specs/008-Spannung | muss widerlegen: Watcher ist kein „Laufzeit-Registry-Tool", sondern deterministische Neubewertung derselben statischen Quelle                    | respektiert specs/008 teilweise: ein enges, fail-closed-Tool statt beliebiger Laufzeit-Mutation |
 | Risiken            | Watcher-Flakiness, Partial-Read, Restart-Rennen                                                                                                  | Angriffsfläche des Tools (riskClass `workspace_write` + Approval-Pflicht)                       |
 
-**Acceptance Criteria (gültig für beide Alternativen):**
+**Acceptance Criteria (gültig für beide Alternativen; Requirements-Mapping
+siehe unten, FR-1201…1210 für Alternative B):**
 
 - AC-1: Jede zur Laufzeit übernommene Registry durchläuft **dieselbe**
   Fail-closed-Validierung wie beim Boot (`WorkspaceRegistry.build`:
@@ -109,9 +113,25 @@ Container-Kommandos.
   Garantie äquivalent rekonstruieren (deterministische Neubewertung derselben
   Quelle, atomarer Swap, Audit), sonst ist der Kandidat zu verwerfen.
 - **AC-5-Interaktion (US1):** Jede Registry-Änderung ändert
-  `configurationVersion` → bestehende Sessions. Die Session-Semantik
-  (Weiterführung vs. Invalidierung) ist der heikelste Punkt und muss vor
-  Implementierung final entschieden werden.
+  `configurationVersion` → bestehende Sessions. Session-Semantik ist
+  ENTSCHEIDEN (R2, 2026-09-30): Weiterführung mit Re-Validierung —
+  spezifiziert im Addendum (AC-13…17).
+- **Requirements-Mapping US1 (Alternative B):** FR-1201 `registry-register`-
+  Tool (profile-abhängig registriert); FR-1202 Ausführung ausschließlich über
+  `WorkspaceRegistry.build` auf der kompletten neuen Registry (keine
+  Sonderbehandlung); FR-1203 fail-closed bei invalider Eingabe (kein Swap);
+  FR-1204 atomare persistente Registry-Datei; FR-1205 Audit-Event pro
+  Übernahme (alte → neue Registry); FR-1206 neue `configurationVersion`
+  pro Übernahme (AC-5-Interaktion über bestehenden Hash-Vergleich, Rebind
+  gemäß Addendum AC-13…17); FR-1207 Konfig-Flag (Default aus);
+  FR-1208 Pool-Onboarding ohne Restart; FR-1209 specs/008-Konformität
+  (ein enges, fail-closed-Tool); FR-1210 Entfernen einer Root (`remove?`).
+- **Requirements-Mapping US2:** FR-1211 `deps-install` (npm ci Clean-Semantik
+  + Lockfile-Fallback mit Audit-Vermerk); FR-1212 `deps-reinstall`
+  (workspace-scoped); FR-1213 reaktive Erkennung über Gate-Fehlermuster;
+  FR-1214 optionale proaktive Sonde; FR-1215 riskClass workspace_write +
+  FR-053-Approval + Egress-Filterung; FR-1216 Container-Installation
+  (Linux-ABI).
 - **Plattform-Fallstricke (US2):** Native Addons müssen im Container
   gebaut werden (Linux-ABI); Windows-Host-`node_modules` sind unbrauchbar —
   genau deshalb installieren die Operationen **im Container**.
