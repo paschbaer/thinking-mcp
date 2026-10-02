@@ -1114,3 +1114,9 @@
 - REV-F053-1 als GELÖST verifiziert: alle vier Loops (activateSession beforeEnter, runAfterEnter, submitLocked beforeEnter, afterExit) hoisten Resolution + assertApprovals vor die erste Ausführung; consumeApprovals bleibt erfolgsbasiert pro Op; Batch-Sites (completeWorkflowLocked, retryOperations, runOperation, Submit-Gates 2491/2832/3122) unverändert; Audit-Rename id → op.operationId ist neutral (operationId = Config-Key, WorkflowEngine.ts:330).
 - Neue Tests pinnen den Defekt: Pre-Loop-Denial nennt repository-analysis, KEIN approval_consumed in History, build-Grant intakt — auf Pre-Fix-Code (per-op-assert) würde der Test fehlschlagen (früheres Op lief + konsumierte Grant).
 - Neues getracktes Finding: REV-F053-1b-1 (INFO, Kosmetik — Kommentartext-Einrückung WorkflowEngine.ts:2622). Details in remaining-work-plan.md.
+
+## 2026-10-02 — REV-F053-1 All-or-Nothing + GDS-7-Doku + F2F3F4-2 (Guidance-Session session-a6005ca0)
+- Die vier op-by-op-Lifecycle-Loops (activateSession-beforeEnter, runAfterEnter, submitLocked-beforeEnter/afterExit) validieren jetzt die gesamte Hook-Liste vor der ersten Ausführung (all-or-nothing); Konsum erfolgsbasiert pro Op. Audit-Events id→op.operationId (wertidentisch).
+- Regressionstests (approval-gate.test.ts, plan.beforeEnter Multi-Gate-Liste [ungated, build, RA]): Denial am letzten gated Op VOR jeder Ausführung, kein approval_consumed, früherer Grant intakt; Happy Path konsumiert genau 2 Grants.
+- GDS-7: Dual-Index-Prozedere in README verankert (lowercase-Pfad, --skip-skills, --force bei 'Already up to date', Container-/data-Split). F2F3F4-2: via-Label 'visible in run history' in 3 Katalogen.
+- Review (980283a0): APPROVED, 0 HIGH/CRIT; REV-F053-1b-1 (INFO, Einrückung) gefixt in 10cc5a9. Vollauf 532/532; tsc/prettier grün.
