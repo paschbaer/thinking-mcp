@@ -20,7 +20,7 @@
 
 - [KA-2] LOW (2026-10-02, Review feature/mcp-keep-alive-timeout) | `Number(process.env.KEEP_ALIVE_TIMEOUT_MS) || 65000` frisst absichtliche `0`-Werte (""/"0" → Fallback 65000). Kein gültiger Use-Case für einen Server; bewusst so gewählt. **Trigger:** falls ein bewusster Opt-out (`KEEP_ALIVE_TIMEOUT_MS=0`) benötigt wird → explizites `!== undefined`-Handling. Accepted with rationale.
 
-- [KA-3] LOW (2026-10-02, ops) | Laufende Docker-Container fahren weiterhin den alten dist und advertise `Keep-Alive: timeout=5` bis `docker compose up -d --build`. **Trigger:** Deployment des Keep-Alive-Fixes. Action required (Rebuild + Live-Gegenprobe `curl -sI http://localhost:<port>/health | grep -i keep-alive` → `timeout=65`).
+- [KA-3] LOW (2026-10-02, ops) — **GELÖST (2026-10-02)** | Container neu gebaut + neu gestartet; Live-Verifikation: Port 3000 (clear-thought), 3002 (insight), 3003 (guidance) alle `Keep-Alive: timeout=65` ✓. Port 3001 (stochastic) nicht deployed — **Server ist deprecated**, kein Rebuild/Re-Deploy nötig (Fix bleibt im Source für den Fall einer Reaktivierung).
 
 - [CT-ARGS-2] INFO (2026-10-02, re-review affa7f0, APPROVED) — zwei nicht-blockierende Beobachtungen aus dem unabhängigen Re-Review: (1) `callDownstream` prüft `outcome.structuredContent` per Truthiness statt `!== undefined/null` (strukturierter Content `0`/`""`/`false` würde verworfen — per MCP-Protokoll immer Objekt, praktisch irrelevant); (2) kein dedizierter cancel_workflow-während-callDownstream-Test (Code-Pfad spiegelt runOperation). **Trigger:** nächste Änderung an WorkflowEngine.callDownstream. Accepted observation.
 
