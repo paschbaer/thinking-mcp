@@ -1336,8 +1336,9 @@ export class WorkflowEngine {
     session: WorkflowSession,
     ops: OperationConfig[],
   ): void {
+    const approvals = this.config.approvals;
     for (const op of ops) {
-      if (!this.policyEngine.requiresApproval(op)) continue;
+      if (!this.policyEngine.requiresApproval(op, approvals)) continue;
       if (!(session.approvedOperations ?? []).includes(op.operationId)) {
         this.audit.append({
           sessionId: session.sessionId,
@@ -1359,8 +1360,9 @@ export class WorkflowEngine {
     ops: OperationConfig[],
     results: { operationId: string; status: string }[],
   ): void {
+    const approvals = this.config.approvals;
     for (const op of ops) {
-      if (!this.policyEngine.requiresApproval(op)) continue;
+      if (!this.policyEngine.requiresApproval(op, approvals)) continue;
       const result = results.find((r) => r.operationId === op.operationId);
       if (!result || result.status !== "succeeded") continue; // keep grant
       const approved = session.approvedOperations ?? [];
@@ -2093,7 +2095,11 @@ export class WorkflowEngine {
           sessionId,
           eventType: "hook_failed",
           phase,
-          data: { lifecycle: "beforeEnter", operationId: op.operationId, blocked: true },
+          data: {
+            lifecycle: "beforeEnter",
+            operationId: op.operationId,
+            blocked: true,
+          },
         });
         // Symmetrie zum Submit-Pfad: ein required failure blockiert sofort;
         // weitere beforeEnter/afterEnter-Ops laufen nicht mehr (fail-fast).

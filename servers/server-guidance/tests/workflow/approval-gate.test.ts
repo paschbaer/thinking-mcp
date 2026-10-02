@@ -1,11 +1,13 @@
 /**
- * FR-053 approval gate (REV-US2-F1, scope A) + REV-F2F3F4-1 warnings
- * pass-through:
- * - workspace_write/destructive/credential_sensitive operations require a
- *   per-execution user grant on ALL execution paths (run_operation and
- *   lifecycle executions); grants come from the approval ceremony
- *   (report_blocker category "approval" + resume_workflow decision
- *   "approve <operation-id>") and are consumed one-shot.
+ * FR-053 approval gate (REV-US2-F1 rework) + REV-F2F3F4-1 warnings
+ * pass-through + REV-F053-1 all-or-nothing hook lists:
+ * - The approval decision resolves from policies.approvals (defaults:
+ *   destructive/credential_sensitive → 'require' (interactive ceremony via
+ *   report_blocker + resume 'approve <operation-id>', one-shot
+ *   success-based grants); workspace_write/external_write/read_only →
+ *   'allow' (unattended operation).
+ * - Op-by-op lifecycle hook lists validate the WHOLE list before any op
+ *   executes (all-or-nothing); consumption stays success-based per op.
  * - applyExposure mode summary_and_errors lets warnings through so the
  *   AC-9 node_deps_hint reaches the agent (content/data stay suppressed).
  */
@@ -26,6 +28,8 @@ import { OperationEngine } from "../../src/orchestration/OperationEngine.js";
 import { SessionRepository } from "../../src/state/SessionRepository.js";
 import { PolicyEngine } from "../../src/policy/PolicyEngine.js";
 
+const FIXTURE = join(import.meta.dirname, "fixtures/guidance");
+
 let ws: string;
 let config: LoadedConfig;
 let engine: WorkflowEngine;
@@ -40,6 +44,36 @@ function makeEngine(): void {
     stateDir: join(ws, "state"),
     operationEngine: opEngine,
   });
+}
+
+/** Copies the fixture into ws/.guidance and sets policies.approvals — for
+ *  tests that need the interactive ceremony ('require') instead of the
+ *  unattended default. */
+function useRequirePolicy(): void {
+  const dir = join(ws, ".guidance");
+  mkdirSync(join(dir, "schemas"), { recursive: true });
+  for (const f of [
+    "guidance.json",
+    "workflow.json",
+    "responses.json",
+    "operations.json",
+    "downstream-servers.json",
+    "policies.json",
+  ]) {
+    writeFileSync(join(dir, f), readFileSync(join(FIXTURE, f)));
+  }
+  for (const f of readdirSync(join(FIXTURE, "schemas"))) {
+    writeFileSync(
+      join(dir, "schemas", f),
+      readFileSync(join(FIXTURE, "schemas", f)),
+    );
+  }
+  const policiesPath = join(dir, "policies.json");
+  const policies = JSON.parse(readFileSync(policiesPath, "utf8"));
+  policies.approvals = { workspace_write: "require" };
+  writeFileSync(policiesPath, JSON.stringify(policies));
+  config = loadConfig(dir, { workspaceRoot: ws });
+  config.chain = { enabled: true, maxChainDepth: 8, maxStepsPerManifest: 16 };
 }
 
 function grant(sessionId: string, operationId: string): void {
@@ -74,8 +108,20 @@ afterEach(() => {
   rmSync(ws, { recursive: true, force: true });
 });
 
-describe("FR-053 approval gate (scope A)", () => {
-  it("run_operation on a workspace_write op without a grant → recoverable authorization_required + audit; ceremony grants a one-shot execution", async () => {
+describe("FR-053 approval policy (REV-US2-F1 rework)", () => {
+  it("DEFAULT: workspace_write ops run unattended (no grant, no denial)", async () => {
+    const start = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+    });
+    const result = await engine.runOperation(start.sessionId, "build");
+    expect(result.status).toBe("succeeded");
+  });
+
+  it("policies.approvals { workspace_write: 'require' } gates the op; the ceremony grants a one-shot execution", async () => {
+    useRequirePolicy();
+    makeEngine();
+
     const start = await engine.startWorkflow({
       workspaceRoot: ws,
       request: "r",
@@ -114,7 +160,10 @@ describe("FR-053 approval gate (scope A)", () => {
     );
   });
 
-  it("lifecycle path: a workspace_write verify gate fails the submit without a grant and completes after the ceremony", async () => {
+  it("lifecycle path: with 'require' policy a workspace_write verify gate fails the submit and completes after the ceremony", async () => {
+    useRequirePolicy();
+    makeEngine();
+
     const start = await engine.startWorkflow({
       workspaceRoot: ws,
       request: "r",
@@ -137,8 +186,7 @@ describe("FR-053 approval gate (scope A)", () => {
       filesChangedDuringReview: [],
     });
     // verify submit runs the verify→complete transition incl. the build
-    // gate (workspace_write); the throw aborts with the phase parked on
-    // verify.
+    // gate (require); the throw aborts with the phase parked on verify.
     await expect(
       sub("verify", { verificationSummary: ["ok"] }),
     ).rejects.toThrowError(/authorization_required|FR-053/);
@@ -150,13 +198,45 @@ describe("FR-053 approval gate (scope A)", () => {
     expect((await engine.getSession(sid)).currentPhase).toBe("complete");
   });
 
-  it("read_only ops are unaffected by the gate", async () => {
+  it("read_only ops are unaffected by the gate (default and require policy)", async () => {
     const start = await engine.startWorkflow({
       workspaceRoot: ws,
       request: "r",
     });
     const result = await engine.runOperation(start.sessionId, "lint");
     expect(result.status).toBe("succeeded");
+  });
+
+  it("config validation fails closed on unknown approvals classes and values", () => {
+    const writeBad = (dir: string, policies: object): void => {
+      mkdirSync(join(dir, "schemas"), { recursive: true });
+      for (const f of readdirSync(FIXTURE, { withFileTypes: true })) {
+        if (!f.isFile()) continue;
+        if (f.name === "policies.json") {
+          writeFileSync(join(dir, f.name), JSON.stringify(policies));
+        } else {
+          writeFileSync(join(dir, f.name), readFileSync(join(FIXTURE, f.name)));
+        }
+      }
+      for (const f of readdirSync(join(FIXTURE, "schemas"))) {
+        writeFileSync(
+          join(dir, "schemas", f),
+          readFileSync(join(FIXTURE, "schemas", f)),
+        );
+      }
+    };
+
+    const dir = join(ws, "bad-approvals-class");
+    writeBad(dir, { version: 2, approvals: { teleportation: "allow" } });
+    expect(() => loadConfig(dir, { workspaceRoot: ws })).toThrowError(
+      /not a known risk class/,
+    );
+
+    const dir2 = join(ws, "bad-approvals-value");
+    writeBad(dir2, { version: 2, approvals: { destructive: "maybe" } });
+    expect(() => loadConfig(dir2, { workspaceRoot: ws })).toThrowError(
+      /must be "allow" or "require"/,
+    );
   });
 });
 
@@ -224,13 +304,13 @@ describe("REV-F2F3F4-1: summary_and_errors lets warnings through", () => {
 /** REV-F053-1: all-or-nothing approval for op-by-op lifecycle loops. Uses a
  *  workspace-local workflow.json whose plan.beforeEnter list is
  *  [query-project-insights (ungated), build (gated), repository-analysis
- *  (gated)] — a denial on the LAST gated op must fire BEFORE any op of the
- *  list executes and must not burn the earlier gated op's grant. */
+ *  (gated)] with the 'require' policy — a denial on the LAST gated op must
+ *  fire BEFORE any op of the list executes and must not burn the earlier
+ *  gated op's grant. */
 describe("REV-F053-1: lifecycle hook lists are all-or-nothing", () => {
   function wsGuidanceMultiGate(): string {
     const dir = join(ws, ".guidance");
     mkdirSync(join(dir, "schemas"), { recursive: true });
-    const FIX = join(import.meta.dirname, "fixtures/guidance");
     for (const f of [
       "guidance.json",
       "workflow.json",
@@ -239,23 +319,23 @@ describe("REV-F053-1: lifecycle hook lists are all-or-nothing", () => {
       "downstream-servers.json",
       "policies.json",
     ]) {
-      writeFileSync(join(dir, f), readFileSync(join(FIX, f)));
+      writeFileSync(join(dir, f), readFileSync(join(FIXTURE, f)));
     }
-    for (const f of readdirSync(join(FIX, "schemas"))) {
+    for (const f of readdirSync(join(FIXTURE, "schemas"))) {
       writeFileSync(
         join(dir, "schemas", f),
-        readFileSync(join(FIX, "schemas", f)),
+        readFileSync(join(FIXTURE, "schemas", f)),
       );
     }
     const wf = JSON.parse(readFileSync(join(dir, "workflow.json"), "utf8"));
     wf.phases.plan.lifecycle = {
       ...wf.phases.plan.lifecycle,
-      beforeEnter: [
-        "query-project-insights",
-        "build",
-        "repository-analysis",
-      ],
+      beforeEnter: ["query-project-insights", "build", "repository-analysis"],
     };
+    const policiesPath = join(dir, "policies.json");
+    const policies = JSON.parse(readFileSync(policiesPath, "utf8"));
+    policies.approvals = { workspace_write: "require" };
+    writeFileSync(policiesPath, JSON.stringify(policies));
     writeFileSync(join(dir, "workflow.json"), JSON.stringify(wf));
     return dir;
   }
@@ -270,13 +350,6 @@ describe("REV-F053-1: lifecycle hook lists are all-or-nothing", () => {
       config,
       stateDir: join(ws, "state"),
       operationEngine: opEngine,
-    });
-  }
-
-  async function startAndReachPlan(sid: string): Promise<void> {
-    await engine.submit(sid, "understand", {
-      summary: "s",
-      acceptanceCriteria: ["a"],
     });
   }
 
@@ -320,7 +393,10 @@ describe("REV-F053-1: lifecycle hook lists are all-or-nothing", () => {
     grant(sid, "build");
     grant(sid, "repository-analysis");
 
-    await startAndReachPlan(sid);
+    await engine.submit(sid, "understand", {
+      summary: "s",
+      acceptanceCriteria: ["a"],
+    });
     const history = readFileSync(
       join(ws, "state", "history", `${sid}.jsonl`),
       "utf8",

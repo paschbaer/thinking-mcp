@@ -18,7 +18,6 @@ import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
 import { WorkflowTools } from "../../src/mcp-server/ToolHandlers.js";
-import { SessionRepository } from "../../src/state/SessionRepository.js";
 
 const FIXTURE_CONFIG = join(
   import.meta.dirname,
@@ -320,12 +319,6 @@ describe("requestId replay hardening (RID-1)", () => {
       request: "r",
     })) as { sessionId: string };
     const sid = start.sessionId;
-    // FR-053: pre-grant the fixture's gated ops; the gate is covered in
-    // approval-gate.test.ts.
-    new SessionRepository(join(ws, "state", "sessions")).update(sid, (s) => {
-      s.approvedOperations ??= [];
-      s.approvedOperations.push("build", "repository-analysis");
-    });
     await tools.submitUnderstanding(sid, { summary: "v1" }, "req-A");
     await tools.submitPlan(
       sid,

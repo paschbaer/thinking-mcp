@@ -149,6 +149,11 @@ export interface LoadedConfig {
   operations?: Record<string, unknown>;
   downstreamServers?: Record<string, unknown>;
   policies?: Record<string, unknown>;
+  /** FR-053 approval policy (REV-US2-F1 rework): effective per-risk-class
+   *  decision after defaults — destructive/credential_sensitive default to
+   *  'require' (interactive ceremony), everything else to 'allow'
+   *  (unattended operation). Overridable via policies.approvals. */
+  approvals: Record<string, "allow" | "require">;
   specKit?: SpecKitConfig;
   workspaces: WorkspaceRegistry;
 }
@@ -874,22 +879,86 @@ function applyHttpTransports(
   }
 }
 
+/** FR-053 approval policy defaults (REV-US2-F1 rework): destructive and
+ *  credential_sensitive classes require the interactive ceremony (FR-053
+ *  minimum); everything else runs unattended. policies.approvals entries
+ *  override per class. */
+const APPROVAL_DEFAULTS: Record<string, "allow" | "require"> = {
+  read_only: "allow",
+  workspace_write: "allow",
+  external_write: "allow",
+  destructive: "require",
+  credential_sensitive: "require",
+};
+
+function resolveApprovals(
+  policies: unknown,
+): Record<string, "allow" | "require"> {
+  const overrides =
+    (policies as { approvals?: Record<string, unknown> } | undefined)
+      ?.approvals ?? {};
+  const resolved: Record<string, "allow" | "require"> = {};
+  for (const riskClass of Object.keys(APPROVAL_DEFAULTS)) {
+    const override = overrides[riskClass];
+    resolved[riskClass] =
+      override === "allow" || override === "require"
+        ? override
+        : APPROVAL_DEFAULTS[riskClass]!;
+  }
+  return resolved;
+}
+
 function validatePolicies(policiesFile: Record<string, unknown>): void {
   // RID-1: submission.requestIdReuse — optional enum, fail-closed.
   const submission = policiesFile["submission"];
-  if (submission === undefined) return;
-  if (typeof submission !== "object" || Array.isArray(submission)) {
+  if (submission !== undefined) {
+    if (typeof submission !== "object" || Array.isArray(submission)) {
+      throw new ConfigurationError(
+        "configuration_invalid",
+        "policies.submission must be an object",
+      );
+    }
+    const mode = (submission as { requestIdReuse?: unknown }).requestIdReuse;
+    if (mode !== undefined && mode !== "warn" && mode !== "reject-mismatch") {
+      throw new ConfigurationError(
+        "configuration_invalid",
+        'policies.submission.requestIdReuse must be "warn" or "reject-mismatch"',
+      );
+    }
+  }
+  // REV-US2-F1 rework: policies.approvals — optional per-risk-class approval
+  // policy ('allow' runs unattended, 'require' forces the interactive
+  // ceremony). Fail-closed on unknown classes or values.
+  const approvals = policiesFile["approvals"];
+  if (approvals === undefined) return;
+  if (typeof approvals !== "object" || Array.isArray(approvals)) {
     throw new ConfigurationError(
       "configuration_invalid",
-      "policies.submission must be an object",
+      "policies.approvals must be an object",
     );
   }
-  const mode = (submission as { requestIdReuse?: unknown }).requestIdReuse;
-  if (mode !== undefined && mode !== "warn" && mode !== "reject-mismatch") {
-    throw new ConfigurationError(
-      "configuration_invalid",
-      'policies.submission.requestIdReuse must be "warn" or "reject-mismatch"',
-    );
+  const KNOWN = new Set([
+    "read_only",
+    "workspace_write",
+    "external_write",
+    "destructive",
+    "credential_sensitive",
+  ]);
+  for (const [riskClass, decision] of Object.entries(
+    approvals as Record<string, unknown>,
+  )) {
+    if (!KNOWN.has(riskClass)) {
+      throw new ConfigurationError(
+        "configuration_invalid",
+        `policies.approvals."${riskClass}" is not a known risk class (known: ${[...KNOWN].join(", ")})`,
+      );
+    }
+    if (decision !== "allow" && decision !== "require") {
+      throw new ConfigurationError(
+        "configuration_invalid",
+        'policies.approvals."' + riskClass + '" must be "allow" or "require"',
+      );
+    }
   }
 }
 
@@ -1177,6 +1246,7 @@ export function loadConfig(
     operations: loaded["operations"],
     downstreamServers: loaded["downstreamServers"],
     policies: loaded["policies"],
+    approvals: resolveApprovals(loaded["policies"]),
     specKit,
     workspaces,
   };

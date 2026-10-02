@@ -45,18 +45,34 @@ describe("PolicyEngine (FR-052/053, FR-048-adjacent)", () => {
     ).not.toThrow();
   });
 
-  it("requires approval for workspace_write, destructive and credential-sensitive risk classes (scope A)", () => {
+  it("approval decision resolves from policies.approvals (defaults: destructive/credential_sensitive require, others allow)", () => {
     const destructive: Pick<OperationConfig, "riskClass"> = {
       riskClass: "destructive",
     };
     expect(engine.requiresApproval(destructive)).toBe(true);
-    expect(engine.requiresApproval({ riskClass: "workspace_write" })).toBe(
-      true,
-    );
     expect(engine.requiresApproval({ riskClass: "credential_sensitive" })).toBe(
       true,
     );
+    // Unattended defaults (REV-US2-F1 rework).
+    expect(engine.requiresApproval({ riskClass: "workspace_write" })).toBe(
+      false,
+    );
     expect(engine.requiresApproval({ riskClass: "read_only" })).toBe(false);
+    expect(engine.requiresApproval({ riskClass: "external_write" })).toBe(
+      false,
+    );
+    // Explicit policies.approvals entries override the defaults.
+    expect(
+      engine.requiresApproval(
+        { riskClass: "workspace_write" },
+        {
+          workspace_write: "require",
+        },
+      ),
+    ).toBe(true);
+    expect(engine.requiresApproval(destructive, { destructive: "allow" })).toBe(
+      false,
+    );
     expect(() =>
       engine.evaluateEgress({
         serverId: "p",

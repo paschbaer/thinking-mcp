@@ -17,7 +17,6 @@ import { join } from "node:path";
 import { loadConfig, type LoadedConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
 import { OperationEngine } from "../../src/orchestration/OperationEngine.js";
-import { SessionRepository } from "../../src/state/SessionRepository.js";
 
 let ws: string;
 let engine: WorkflowEngine;
@@ -50,18 +49,6 @@ function makeEngine(
   });
 }
 
-/** FR-053: pre-grant the fixture's gated ops; the gate is covered in
- *  approval-gate.test.ts. */
-function grant(sessionId: string): void {
-  new SessionRepository(join(ws, "state", "sessions")).update(
-    sessionId,
-    (s) => {
-      s.approvedOperations ??= [];
-      s.approvedOperations.push("build", "repository-analysis");
-    },
-  );
-}
-
 beforeEach(() => {
   ws = mkdtempSync(join(tmpdir(), "guidance-chain-"));
   writeFileSync(
@@ -85,7 +72,6 @@ afterEach(() => {
 
 /** Walks a session from understand to verify (ready for complete_workflow). */
 async function walkToVerify(sessionId: string): Promise<void> {
-  grant(sessionId); // FR-053: pre-grant build/repository-analysis
   const sub = (p: string, payload: Record<string, unknown>) =>
     engine.submit(sessionId, p, payload);
   await sub("understand", { summary: "s", acceptanceCriteria: ["a"] });
