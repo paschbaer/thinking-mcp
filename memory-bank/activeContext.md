@@ -1120,3 +1120,11 @@
 - Regressionstests (approval-gate.test.ts, plan.beforeEnter Multi-Gate-Liste [ungated, build, RA]): Denial am letzten gated Op VOR jeder Ausführung, kein approval_consumed, früherer Grant intakt; Happy Path konsumiert genau 2 Grants.
 - GDS-7: Dual-Index-Prozedere in README verankert (lowercase-Pfad, --skip-skills, --force bei 'Already up to date', Container-/data-Split). F2F3F4-2: via-Label 'visible in run history' in 3 Katalogen.
 - Review (980283a0): APPROVED, 0 HIGH/CRIT; REV-F053-1b-1 (INFO, Einrückung) gefixt in 10cc5a9. Vollauf 532/532; tsc/prettier grün.
+
+## 2026-10-02 — Approval-Policy-Config (Unattended-Rework, session-0861a7b4)
+- Nutzer-Design-Korrektur: Workflows müssen unattended laufen — per-Execution-Approvals (Scope A) widersprachen dem. Trust-Act in die Konfiguration verschoben: policies.approvals (riskClass → allow|require, RID-1-Stil fail-closed validiert); Defaults: destructive/credential_sensitive → require (Zeremonie bleibt vollständig), alle anderen → allow (Unattended).
+- En route gefundener + gefixter Bug: validatePolicies early-returned bei fehlender submission-Sektion und übersprang die approvals-Validierung — Fail-closed-Test pinnt den Fix (scheitert unter Alt-Code).
+- requiresApproval(config, approvals) resolvt entry ?? default; assertApprovals/consumeApprovals übergeben config.approvals (Child-Engines nutzen ihre Workspace-Config); configVersion-Hash erfasst policies inkl. approvals.
+- Test-Umbau: Scope-A-Harness-Grants in 6 Suiten entfernt (redundant), approval-gate.test.ts auf Require-Policy-Fixtures umgestellt + Default-Unattended-Test + Config-Validation-Fail-closed-Test. Vollauf 534/534.
+- Review (b0690aa5): APPROVED, 0 HIGH/CRIT; REV-APPCFG-1 (LOW, Composite-RiskClass-Claim-Check re-scheduled), REV-APPCFG-2 (INFO) getrackt.
+- Deployment: neuer Build nötig; danach läuft der Betrieb unattended — die Zeremonie greift nur noch bei destructive/credential_sensitive (aktuell keine solche Op in den Profilen).
