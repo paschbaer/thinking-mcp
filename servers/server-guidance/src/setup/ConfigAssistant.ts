@@ -435,6 +435,8 @@ export function buildResponses(shell: string): string {
     : "";
   const idempotency =
     " Submission idempotency: never reuse a requestId across submissions — each phase advance requires a fresh requestId; if a submission returns accepted but the phase is unchanged, do not retry the same requestId — check get_workflow_state (requestIds) instead.";
+  const timeoutPolicy =
+    " Timeout policy: NEVER retry the original call after a downstream MCP transport/request timeout — the call may already have run on the server. Instead, invoke the tool ONCE via the server's configured container route (containerRoute in downstream-servers.json; agent-side: run_operation through the guidance server). If the server has no containerRoute defined, or the container-route call also fails, make ONE direct call of the same tool over its HTTP MCP endpoint via curl (streamable-HTTP JSON-RPC). Non-idempotent calls (workspace_write/external_write) are never replayed on any route — for those, or if the direct call also fails, escalate via report_blocker (category: infrastructure). Route heavy GitNexus work (analyze/reindex) through the terminal CLI instead of MCP.";
   const responses = {
     understand: {
       title: "Understand the Request",
@@ -443,6 +445,7 @@ export function buildResponses(shell: string): string {
         idempotency +
         " Do not create an implementation plan yet." +
         shellSentence +
+        timeoutPolicy +
         questionsSentence("openQuestions"),
       requiredActions: [
         "Inspect the relevant repository context.",
@@ -456,6 +459,7 @@ export function buildResponses(shell: string): string {
       instruction:
         "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. Do not start implementation yet." +
         idempotency +
+        timeoutPolicy +
         questionsSentence("openQuestions"),
       requiredActions: [
         "Run at least one Clear-Thought sequential_thinking or decision_framework pass for decomposition/prioritization and reference its results in the plan submission.",
@@ -466,6 +470,7 @@ export function buildResponses(shell: string): string {
       instruction:
         "Review the plan critically from architecture, correctness, maintainability, testability, security, backward-compatibility, performance, and operational perspectives, using the Clear-Thought tools: stress-test the plan's assumptions with assumption_xray, socratic_method, or argument_map, and reference the reasoning results in the findings. Submit the complete adjusted plan." +
         idempotency +
+        timeoutPolicy +
         questionsSentence("remainingConcerns"),
       requiredActions: [
         "Run at least one Clear-Thought stress-test pass (assumption_xray, socratic_method, or argument_map) and reference its results in the findings.",
@@ -476,6 +481,7 @@ export function buildResponses(shell: string): string {
       instruction:
         "Implement the approved plan. Follow the approved task identifiers, avoid unrelated changes, and report all changed, created, and deleted files plus deviations. FIRST step: verify you are on the branch you expect (git status), then create a feature branch (feature/<meaningful-name>). LAST step: update the documentation (README.md) and the memory-bank files." +
         idempotency +
+        timeoutPolicy +
         questionsSentence("unresolvedIssues"),
       requiredActions: [],
     },
@@ -484,6 +490,7 @@ export function buildResponses(shell: string): string {
       instruction:
         "Review the implementation for correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, and plan conformity. Apply fixes before submitting, using the Clear-Thought tools: run metacognitive_monitoring as a final confidence check before submitting, and debugging_approach for non-trivial findings — reference the results in the findings." +
         idempotency +
+        timeoutPolicy +
         questionsSentence("unresolvedFindings"),
       requiredActions: [
         "Run Clear-Thought metacognitive_monitoring as a final confidence check before submitting; when findings are non-trivial, additionally apply debugging_approach and reference its results in the findings.",
@@ -492,7 +499,8 @@ export function buildResponses(shell: string): string {
     verify: {
       title: "Verify the Implementation",
       instruction:
-        "Guidance will execute the configured verification operations. Analyze failures and return to implementation review when code changes are required. Do not claim success while a mandatory operation is failing.",
+        "Guidance will execute the configured verification operations. Analyze failures and return to implementation review when code changes are required. Do not claim success while a mandatory operation is failing." +
+        timeoutPolicy,
       requiredActions: [],
     },
     complete: {
@@ -500,6 +508,7 @@ export function buildResponses(shell: string): string {
       instruction:
         "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to .guidance/state/session-lessons.json as [{slug, observation, cause, fix}] — ALWAYS create the file (an empty array is the explicit no-op success); a MISSING file FAILS the capture-session-lessons gate, so the lessons review step must not be skipped." +
         idempotency +
+        timeoutPolicy +
         questionsSentence("deferredWork/nextSteps"),
       requiredActions: [],
     },
