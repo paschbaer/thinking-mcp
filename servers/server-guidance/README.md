@@ -180,6 +180,96 @@ node-deps warning and the gates). A git
 **worktree** checkout has a `.git` *file* instead of a directory, which
 breaks git-reading gates run from inside that worktree.
 
+### Container route (FR-035 timeout fallback)
+
+The **container route** is a per-downstream-server escape hatch: when a
+read-only operation times out on its primary transport, Guidance makes
+**exactly one** automatic invocation over a transient HTTP endpoint (the
+server's `containerRoute`) before surfacing the failure. It never retries and
+never touches the primary client for that server.
+
+**Configuration** — in the repo's `.guidance/downstream-servers.json`:
+
+```json
+{
+  "version": 2,
+  "servers": {
+    "myservice": {
+      "enabled": true,
+      "trustLevel": "trusted",
+      "transport": {
+        "type": "http",
+        "http": { "url": "http://host.docker.internal:4747/api/mcp" }
+      },
+      "capabilities": { "allow": { "tools": ["*"], "resources": [], "prompts": [] } },
+      "connection": {
+        "requestTimeoutSeconds": 300,
+        "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+      },
+      "containerRoute": {
+        "url": "http://host.docker.internal:4747/api/mcp",
+        "headers": { "authorization": "Bearer ${MY_TOKEN}" }
+      }
+    }
+  }
+}
+```
+
+For a **stdio** server the same `containerRoute` block works — this is the
+typical case where the fallback adds real value, because stdio has no HTTP
+endpoint of its own.
+
+**Fail-closed requirements (validation fails the config load otherwise):**
+
+1. `containerRoute.url` must be a valid `http(s)` URL (same rules as
+   `transport.http.url`).
+2. The URL host **must appear in `policies.json` → `egress.httpHostAllowlist`**.
+   The container route counts as HTTP egress even for stdio servers — a stdio
+   server's containerRoute cannot bypass egress policy. An absent allowlist is
+   a configuration error (egress denied by default).
+3. A wildcard tool allowlist ("*" as the **sole** entry — mixed lists are
+   rejected) requires `trustLevel: "trusted"`, because tools without an
+   operations entry can never trigger the risk-class approval gate.
+4. `${ENV_VAR}` references in `containerRoute.headers` are resolved from the
+   process environment at load time; unset variables fail the config load.
+   Resolved secrets never enter the configuration hash.
+
+**Runtime gating** — the fallback fires only when ALL of these hold:
+
+- the primary call failed with a **transport timeout** (`timedOut`),
+- the invoked tool has an `operations.json` entry (`server` + `capability`
+  match) whose `riskClass` is **`read_only`** — non-idempotent calls are never
+  auto-replayed (the call may already have run on the primary path),
+- the server has a `containerRoute.url` configured.
+
+If the route itself fails, the error message names the container-route
+failure; per-server outcome counters are exposed in `get_metrics` under
+`containerRouteFallbacks` (`attempted`/`succeeded`/`failed`).
+
+**Operation entry** — the `read_only` risk class comes from the operation
+definition (`.guidance/operations.json`); tools without such an entry get no
+fallback (and on a wildcard server they are rejected outright):
+
+```json
+{
+  "my-check": {
+    "type": "mcpTool",
+    "server": "myservice",
+    "capability": "check",
+    "invocableByAgent": true,
+    "required": false,
+    "timeoutSeconds": 60,
+    "riskClass": "read_only",
+    "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+    "output": { "retainRawResult": true }
+  }
+}
+```
+
+Note that `run_operation` passes no agent-supplied arguments — argument values
+come from the operation definition itself (`arguments` with mode
+`fixed`/`template`).
+
 ### Bearer authentication (HTTP)
 
 The bearer token is a **shared secret you choose yourself** — the server does
