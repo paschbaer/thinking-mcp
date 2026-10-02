@@ -1104,3 +1104,7 @@
 - Unabhängiger Review (d6994259): APPROVED, 0 HIGH/CRIT; Bypass-Analyse (routed engines, argumentOverrides, TOCTOU, replay) sauber; REV-F053-1 (over-approval bei Multi-Gate-Hook-Listen) getrackt, -2/-3 accepted.
 - Vollauf 530/530; tsc 0 Fehler; prettier grün. Commit 5d782c9 auf feature/fr053-approval-gate.
 - Deployment-Note: der laufende Container erzwingt den Gate erst nach dem nächsten Rebuild/Redeploy.
+
+## 2026-10-02 — FR-053-Batch deployed
+- develop → origin/develop gepusht (5d782c9 + 46a3afa); Container neu gebaut (Image 2026-10-02T13:08Z) und neu gestartet (healthy). Der FR-053-Approval-Gate (Scope A), die GDS-6-Retry-Finalisierung und der CHAIN-Replay-Schutz sind damit in der laufenden Instanz aktiv.
+- Betriebs-Hinweis: erste Ausführung einer workspace_write/destructive/credential_sensitive-Op pro Run → authorization_required → Approval-Zeremonie (report_blocker category approval + resume "approve <op>"), siehe README "FR-053 approval ceremony".
