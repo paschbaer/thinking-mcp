@@ -1089,3 +1089,18 @@
 - F4: Drei Kataloge field-identisch (canonical: protocolRequestMustSucceed + summary_and_errors + 'Runs in the workspace root'-Phrase); Drift-Guard-Test vergleicht scaffold-Generierung vs. ConfigAssistant-generateFiles vs. shipped example über 10 Felder.
 - Unabhängiger Review (036a6d4d): APPROVED, 0 HIGH/CRIT; Follow-ups REV-F2F3F4-1/-2 accepted+tracked (Exposure-Filtering: merged warnings unter summary_and_errors agent-invisible), -3 (Join-Separator) gefixt in 3ed06b9.
 - Vollauf 504 passed / 9 skipped; tsc/prettier grün. Commits 7edef62 + 3ed06b9 auf feature/rev-us2-f2f3f4; Merge nach develop nach Completion.
+
+## 2026-10-02 — Independent Review 5d782c9 (feature/fr053-approval-gate) — APPROVED (0 HIGH/CRIT offen)
+- Snapshot: branch feature/fr053-approval-gate @ 5d782c9, Basis origin/develop 5a0a3b6, clean tree. Tests: approval-gate/policy-engine/exposure-wiring/deps-operations — 26/26 grün (WSL vitest).
+- Gate-Verdrahtung semantisch verifiziert: 8 assert/consume-Paare (runOperation, activateSession, runAfterEnter, submitLocked beforeExit/beforeEnter/afterExit, completeWorkflowLocked, retryOperations); assert vor JEGLICHER Ausführung, consume nur bei status=succeeded; Replay-Check (requestIds) VOR assert → Replay re-executiert keine Ops; runningOps/Workspace-Lock schließt TOCTOU-Fenster; routedFor delegiert komplett an die Child-Engine, die dieselbe Session-Datei (inkl. Grants) liest. Exposure: warnings unter summary_and_errors now redacted-at-source (stderr → redactor), errors führten redigierten stderr bereits vorher — keine neue Leak-Klasse. Harness-Rewrites (replay/e2e) keine geschwächten Assertions, alle SC-Cases erhalten.
+- Neue getrackte Findings: REV-F053-1 (LOW, Hook-Listen Op-für-Op statt Batch-Assert — Re-Approval nach Retry), REV-F053-2 (LOW, deklaratives riskClass-Vertrauen bei Composites — accepted), REV-F053-3 (INFO, consume lost-update-Fenster — unerreichbar, accepted). Details in remaining-work-plan.md.
+
+## 2026-10-02 — FR-053 Approval Gate verdrahtet (Guidance-Session session-01df2607, Rest-Backlog)
+- ESCALATION: requiresApproval hatte KEINEN Runtime-Consumer — der FR-053-Gate war komplett unverdrahtet (F1-Befund schärfer als getrackt).
+- Umsetzung (Scope-A Nutzerentscheid): requiresApproval + workspace_write; assertApprovals an allen 8 Executions-Pfaden (runOperation + Lifecycle); Grants via Approval-Zeremonie (report_blocker category approval + resume "approve <op>", session.approvedOperations, erfolgsbasierter Einmal-Konsum); Audit approval_required/granted/consumed.
+- REV-F2F3F4-1: applyExposure summary_and_errors lässt Warnings durch (node_deps_hint agent-sichtbar).
+- F5: Plattform-Note (deps ops Linux/Container-only) in README + 3 Kataloge; F6: require→Import.
+- Python-Profil: toolchain-sync aus understand.afterEnter entfernt (Auto-Workspace-Write inkompatibel mit Zeremonie; E2E nutzt run_operation).
+- Unabhängiger Review (d6994259): APPROVED, 0 HIGH/CRIT; Bypass-Analyse (routed engines, argumentOverrides, TOCTOU, replay) sauber; REV-F053-1 (over-approval bei Multi-Gate-Hook-Listen) getrackt, -2/-3 accepted.
+- Vollauf 530/530; tsc 0 Fehler; prettier grün. Commit 5d782c9 auf feature/fr053-approval-gate.
+- Deployment-Note: der laufende Container erzwingt den Gate erst nach dem nächsten Rebuild/Redeploy.
