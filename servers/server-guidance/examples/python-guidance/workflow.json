@@ -18,12 +18,7 @@
           "to": "plan",
           "when": "submission_valid"
         }
-      ],
-      "lifecycle": {
-        "afterEnter": [
-          "toolchain-sync"
-        ]
-      }
+      ]
     },
     "plan": {
       "response": "plan",

@@ -1325,6 +1325,59 @@ export class WorkflowEngine {
    *  operations through the trusted lifecycle pipeline (OperationEngine →
    *  exposure → downstream state → audit). Fail-closed: nur Operationen mit
    *  invocableByAgent:true sind aufrufbar. */
+  /** FR-053 approval gate (REV-US2-F1, scope A): workspace_write,
+   *  destructive and credential_sensitive operations require a per-execution
+   *  user grant. Grants are stored on the session via resume_workflow
+   *  decision "approve <operation-id>" and are consumed AFTER a successful
+   *  execution (a failed run keeps its grant so the retry ceremony works).
+   *  Validation runs before ANY op of the batch executes (fail before side
+   *  effects). */
+  private assertApprovals(
+    session: WorkflowSession,
+    ops: OperationConfig[],
+  ): void {
+    for (const op of ops) {
+      if (!this.policyEngine.requiresApproval(op)) continue;
+      if (!(session.approvedOperations ?? []).includes(op.operationId)) {
+        this.audit.append({
+          sessionId: session.sessionId,
+          eventType: "operation_invocation_denied",
+          data: { operationId: op.operationId, reason: "approval_required" },
+        });
+        throw new GuidanceError(
+          "authorization_required",
+          `operation ${op.operationId} (riskClass: ${op.riskClass}) requires explicit user approval (FR-053) — escalate via report_blocker { category: "approval", requiresUserDecision: true, options: ["approve ${op.operationId}", "deny"] } and then resume_workflow with decision "approve ${op.operationId}"`,
+          { recoverable: true },
+        );
+      }
+    }
+  }
+
+  /** One-shot consumption after a SUCCESSFUL execution (see assertApprovals). */
+  private consumeApprovals(
+    session: WorkflowSession,
+    ops: OperationConfig[],
+    results: { operationId: string; status: string }[],
+  ): void {
+    for (const op of ops) {
+      if (!this.policyEngine.requiresApproval(op)) continue;
+      const result = results.find((r) => r.operationId === op.operationId);
+      if (!result || result.status !== "succeeded") continue; // keep grant
+      const approved = session.approvedOperations ?? [];
+      const idx = approved.indexOf(op.operationId);
+      if (idx === -1) continue;
+      approved.splice(idx, 1);
+      this.sessions.update(session.sessionId, (s) => {
+        s.approvedOperations = approved;
+      });
+      this.audit.append({
+        sessionId: session.sessionId,
+        eventType: "approval_consumed",
+        data: { operationId: op.operationId },
+      });
+    }
+  }
+
   async runOperation(
     sessionId: string,
     operationId: string,
@@ -1391,6 +1444,7 @@ export class WorkflowEngine {
           summary: `session is ${session.status}`,
         };
       }
+      this.assertApprovals(session, [op]);
       const run = await this.operationEngine.execute(
         op,
         this.ctxFor(session),
@@ -1398,6 +1452,7 @@ export class WorkflowEngine {
         controller.signal,
         argumentOverrides,
       );
+      this.consumeApprovals(session, [op], [run]);
       // FR-202 (Hard-Kill seit Feature 004): Cancel/Timeout bricht den Child
       // via Abort ab (SIGTERM→SIGKILL); das Ergebnis wird verworfen und als
       // cancelled auditiert.
@@ -2001,10 +2056,12 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
+      this.assertApprovals(this.sessions.load(sessionId), [op]);
       const run = await this.operationEngine.executeRequired([op], {
         workspaceRoot: this.sessions.load(sessionId).workspaceRoot,
         redactionPatterns: this.redactionPatterns,
       });
+      this.consumeApprovals(this.sessions.load(sessionId), [op], run.results);
       for (const r of run.results) {
         opResultsStart.push(this.exposeOpResult(r, op));
         this.recordDownstreamState(
@@ -2093,10 +2150,12 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
+      this.assertApprovals(session, [op]);
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
       );
+      this.consumeApprovals(session, [op], run.results);
       for (const r of run.results) {
         out.push(this.exposeOpResult(r, op));
         if (op.required && r.status !== "succeeded") {
@@ -2417,7 +2476,9 @@ export class WorkflowEngine {
       for (const op of ops) {
         this.recordDownstreamState(sessionId, op.operationId, "running", "");
       }
+      this.assertApprovals(session, ops);
       const run = await this.operationEngine.executeRequired(ops, ctx);
+      this.consumeApprovals(session, ops, run.results);
       opsSucceeded = run.allSucceeded;
       const opById = new Map(ops.map((op) => [op.operationId, op]));
       opResults = run.results.map((r) =>
@@ -2475,10 +2536,12 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
+      this.assertApprovals(session, [op]);
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
       );
+      this.consumeApprovals(session, [op], run.results);
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));
         this.recordDownstreamState(
@@ -2547,10 +2610,12 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
+      this.assertApprovals(session, [op]);
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
       );
+      this.consumeApprovals(session, [op], run.results);
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));
         this.recordDownstreamState(
@@ -2742,10 +2807,12 @@ export class WorkflowEngine {
         );
       return op;
     });
+    this.assertApprovals(session, ops);
     const run = await this.operationEngine.executeRequired(
       ops,
       this.ctxFor(session),
     );
+    this.consumeApprovals(session, ops, run.results);
     const opById = new Map(ops.map((op) => [op.operationId, op]));
     const opResults = run.results.map((r) =>
       this.exposeOpResult(r, opById.get(r.operationId)),
@@ -3030,10 +3097,12 @@ export class WorkflowEngine {
           );
         return op;
       });
+      this.assertApprovals(session, ops);
       const run = await this.operationEngine.executeRequired(
         ops,
         this.ctxFor(session),
       );
+      this.consumeApprovals(session, ops, run.results);
       const opById = new Map(ops.map((op) => [op.operationId, op]));
       const opResults = run.results.map((r) =>
         this.exposeOpResult(r, opById.get(r.operationId)),
@@ -3211,12 +3280,27 @@ export class WorkflowEngine {
         s.status = "active";
         s.currentPhase = target;
         const open = [...s.blockers].reverse().find((b) => !b.resolution);
-        if (open)
+        if (open) {
           open.resolution = {
             decision: input.decision,
             notes: input.notes,
             resolvedAt: new Date().toISOString(),
           };
+          // FR-053 approval grant (REV-US2-F1, scope A): an approval blocker
+          // resolved with "approve <operation-id>" stores a one-shot grant.
+          if (open.category === "approval") {
+            const m = /^approve\s+([a-z0-9-]+)\s*$/i.exec(input.decision);
+            if (m) {
+              s.approvedOperations ??= [];
+              s.approvedOperations.push(m[1]!);
+              this.audit.append({
+                sessionId,
+                eventType: "approval_granted",
+                data: { operationId: m[1] },
+              });
+            }
+          }
+        }
       });
       this.audit.append({
         sessionId,

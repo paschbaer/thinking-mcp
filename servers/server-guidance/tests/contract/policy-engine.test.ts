@@ -45,11 +45,17 @@ describe("PolicyEngine (FR-052/053, FR-048-adjacent)", () => {
     ).not.toThrow();
   });
 
-  it("requires approval for destructive and credential-sensitive risk classes", () => {
+  it("requires approval for workspace_write, destructive and credential-sensitive risk classes (scope A)", () => {
     const destructive: Pick<OperationConfig, "riskClass"> = {
       riskClass: "destructive",
     };
     expect(engine.requiresApproval(destructive)).toBe(true);
+    expect(engine.requiresApproval({ riskClass: "workspace_write" })).toBe(
+      true,
+    );
+    expect(engine.requiresApproval({ riskClass: "credential_sensitive" })).toBe(
+      true,
+    );
     expect(engine.requiresApproval({ riskClass: "read_only" })).toBe(false);
     expect(() =>
       engine.evaluateEgress({

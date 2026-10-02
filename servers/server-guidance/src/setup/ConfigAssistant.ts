@@ -600,7 +600,7 @@ function buildOperations(
   };
   operations["deps-reinstall"] = {
     description:
-      "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1212).",
+      "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. Platform note: spawns npm directly (no shell) — supported on Linux/container hosts (FR-1216); Windows hosts are not supported without shell adaptation. riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1212).",
     type: "process",
     executable: "node",
     args: [

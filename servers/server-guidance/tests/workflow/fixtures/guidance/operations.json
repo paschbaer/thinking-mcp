@@ -7,10 +7,17 @@
       "executable": "npm",
       "args": ["run", "lint"],
       "required": true,
+      "invocableByAgent": true,
       "timeoutSeconds": 300,
       "riskClass": "read_only",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
+      "output": {
+        "returnToAgent": "summary_and_errors",
+        "retainRawResult": true
+      }
     },
     "test": {
       "description": "Run the automated test suite.",
@@ -20,8 +27,14 @@
       "required": true,
       "timeoutSeconds": 900,
       "riskClass": "read_only",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
+      "output": {
+        "returnToAgent": "summary_and_errors",
+        "retainRawResult": true
+      }
     },
     "build": {
       "description": "Build the project.",
@@ -29,10 +42,17 @@
       "executable": "npm",
       "args": ["run", "build"],
       "required": true,
+      "invocableByAgent": true,
       "timeoutSeconds": 600,
       "riskClass": "workspace_write",
-      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true }
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "exitCodeMustBeZero": true
+      },
+      "output": {
+        "returnToAgent": "summary_and_errors",
+        "retainRawResult": true
+      }
     },
     "repository-analysis": {
       "description": "Analyze the repository using GitNexus (fallback: local CLI).",
@@ -59,8 +79,15 @@
         "toolResultMustNotBeError": true,
         "requiredContent": true
       },
-      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true },
-      "failure": { "remainInPhase": true, "allowManualRetry": true, "reportToAgent": true }
+      "output": {
+        "returnToAgent": "summary_and_errors",
+        "retainRawResult": true
+      },
+      "failure": {
+        "remainInPhase": true,
+        "allowManualRetry": true,
+        "reportToAgent": true
+      }
     },
     "query-project-insights": {
       "description": "Retrieve existing development insights.",
@@ -74,7 +101,10 @@
         "mode": "template",
         "value": { "query": "${session.request}", "scope": "${project.name}" }
       },
-      "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "toolResultMustNotBeError": true
+      },
       "output": { "returnToAgent": "normalized", "retainRawResult": false }
     },
     "store-completion-insight": {
@@ -89,7 +119,10 @@
         "mode": "template",
         "value": { "summary": "${phase.completionReport.summary}" }
       },
-      "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+      "validation": {
+        "protocolRequestMustSucceed": true,
+        "toolResultMustNotBeError": true
+      },
       "output": { "returnToAgent": "status_only", "retainRawResult": false }
     }
   }

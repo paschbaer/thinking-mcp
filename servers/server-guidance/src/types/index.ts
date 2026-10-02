@@ -175,6 +175,10 @@ export interface WorkflowSession {
    *  workflow_completed audit, chain successor) instead of wedging the
    *  session in status=active/phase=completed. */
   pendingCompletion?: { report: Record<string, unknown>; requestId?: string };
+  /** FR-053 approval grants (REV-US2-F1, scope A): operation IDs approved
+   *  via resume_workflow decision "approve <operation-id>"; one entry is
+   *  consumed per gated execution. */
+  approvedOperations?: string[];
   downstream: {
     servers: Record<
       string,

@@ -111,15 +111,22 @@ export class PolicyEngine {
       case "summary":
         return { ...result, content: [], data: {}, warnings: [] };
       case "summary_and_errors":
-        return { ...result, content: [], data: {}, warnings: [] };
+        // REV-F2F3F4-1: warnings pass through — the AC-9 node_deps_hint is
+        // the actionable payload of a failing gate; content/data stay
+        // suppressed.
+        return { ...result, content: [], data: {} };
       default:
         return result;
     }
   }
 
-  /** Loads operation risk classes into the approval gate. */
+  /** Loads operation risk classes into the approval gate (REV-US2-F1,
+   *  scope A): workspace_write joins destructive/credential_sensitive —
+   *  deps ops and build/toolchain-sync write the workspace without being
+   *  destructive per se. */
   requiresApproval(config: Pick<OperationConfig, "riskClass">): boolean {
     return (
+      config.riskClass === "workspace_write" ||
       config.riskClass === "destructive" ||
       config.riskClass === "credential_sensitive"
     );
