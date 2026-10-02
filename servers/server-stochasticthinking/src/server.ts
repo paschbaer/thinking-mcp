@@ -51,6 +51,15 @@ function startServer(): void {
     console.log(`MCP endpoint available at http://localhost:${PORT}/mcp`);
   });
 
+  // Node >= 19 defaults keepAliveTimeout to 5 s and advertises it via the
+  // "Keep-Alive: timeout=5" header; idle sockets are then destroyed, which
+  // stalls long-lived MCP clients and forces reconnects. Raise it above
+  // common proxy idle timeouts (60 s); env-overridable.
+  const KEEP_ALIVE_TIMEOUT_MS =
+    Number(process.env.KEEP_ALIVE_TIMEOUT_MS) || 65000;
+  server.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS;
+  server.headersTimeout = KEEP_ALIVE_TIMEOUT_MS + 5000;
+
   // Graceful shutdown handling
   process.on("SIGTERM", () => {
     console.log("SIGTERM received, shutting down gracefully");

@@ -3,6 +3,16 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-02: MCP HTTP Keep-Alive-Timeout raised from 5 s to 65 s (feature/mcp-keep-alive-timeout)
+- **Symptom:** All MCP HTTP servers advertised `Keep-Alive: timeout=5`; client/agent connections stalled and dropped constantly.
+- **Root cause:** All four servers start via Express `app.listen()` → Node `http.Server`. Since Node 19, `keepAliveTimeout` defaults to 5000 ms and Node emits that value in the `Keep-Alive` response header, destroying idle sockets after 5 s.
+- **Fix:** In each `servers/*/src/server.ts` listen callback: `server.keepAliveTimeout = 65000` (env-overridable via `KEEP_ALIVE_TIMEOUT_MS`), `server.headersTimeout = +5000`. 65 s sits above common proxy idle timeouts (60 s).
+- **Verification:** tsc --noEmit green on all four servers; isolated Node 24 repro on same build: `keepAliveTimeout=65000` → `Keep-Alive: timeout=65`. Local WSL end-to-end run of server dist blocked by known env artifacts (better-sqlite3 dlopen TMPL-2; top-level stdio-import hang in `index.js` when run outside container) — Docker containers must be rebuilt (`docker compose up -d --build`) to pick up the change.
+- **Note:** GitNexus + direct Clear-Thought MCP routes both timed out during this session; grep/source verification used as documented fallback (FR-035 pattern).
+- **Next:** Commit, then rebuild containers; verify live header via `curl -sI http://localhost:<port>/health`.
+- **Review:** unabhängiger Reviewer (Sub-Agent, frischer Kontext): **APPROVED, 0 HIGH/CRITICAL**. Snapshot verifiziert (Branch, HEAD c64d112, nur unstaged Diff). Evidenz: Node-24-Header-Repro (`keep-alive: timeout=65`) in /tmp, `server.close()`-Idle-Socket-Repro (1 ms), tsc --noEmit je Server exit 0, keine Tests pinnen das Listen-Verhalten. Residuen als KA-1 (stochastic Shutdown-Asymmetrie, LOW), KA-2 (Env-Parse frisst 0-Werte, LOW), KA-3 (Container-Rebuild nötig, LOW/ops) in remaining-work-plan.md getrackt.
+- **Next:** Merge nach develop; Container-Rebuild (`docker compose up -d --build`), danach Live-Gegenprobe des Headers.
+
 ## 2026-10-02: REV-RRDO-1/2 abgearbeitet (Guidance-Session session-1bb0632b, Commit 9f7bc5f)
 - **Was:** Coverage-Lücken aus dem Review von 283fc74 geschlossen: Opt-out-Tool-Listen-Test (tools-registration.test.ts — `registryRegister.enabled:false` → `tools/list` exkludiert `registry_register`, exakte Surface = WORKFLOW_TOOL_NAMES) + Emissions-Assertions (scaffold.test.ts, config-assistant.test.ts AC-6, config-assistant-extensions.test.ts adopt+registry-edit — jeweils `registryRegister: {enabled: true}`). Nur Tests, keine Produktionscode-Änderung. Vollauf 537/537, tsc/prettier grün, detect_changes risk low.
 - **Notiz:** direkte Clear-Thought-MCP-Route wieder durchgehend getimed-out; `reasoning-pass` über Container-Route (`run_operation`) erfolgreich — FR-035-Passthrough-Muster erneut produktiv bestätigt. Final-Review über den Session-Diff (Sub-Agent aa18d064): APPROVED, 0 HIGH/CRIT; FR-FINAL-1 (Hash-Ref) hiermit korrigiert, FR-FINAL-2 getrackt.
