@@ -1,13 +1,27 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { composeApplication } from "../../src/main.js";
-import { registerWorkflowTools, WORKFLOW_TOOL_NAMES } from "../../src/mcp-server/register-tools.js";
-import { registerSpecKitTools, SPEC_KIT_TOOL_NAMES, toEngineSpecKitConfig } from "../../src/mcp-server/register-spec-kit-tools.js";
+import {
+  registerWorkflowTools,
+  WORKFLOW_TOOL_NAMES,
+} from "../../src/mcp-server/register-tools.js";
+import {
+  registerSpecKitTools,
+  SPEC_KIT_TOOL_NAMES,
+  toEngineSpecKitConfig,
+} from "../../src/mcp-server/register-spec-kit-tools.js";
 import { createGuidanceServer } from "../../src/mcp-server/GuidanceServer.js";
 import { loadConfig } from "../../src/config.js";
 import { GuidanceError } from "../../src/types/errors.js";
@@ -16,16 +30,27 @@ let ws: string;
 let server: ReturnType<typeof createGuidanceServer>;
 let client: Client;
 
-function setupWorkspace(profile: "plain" | "spec-kit"): { cfgDir: string; stateDir: string } {
+function setupWorkspace(profile: "plain" | "spec-kit"): {
+  cfgDir: string;
+  stateDir: string;
+} {
   ws = mkdtempSync(join(tmpdir(), "guidance-skt-"));
   writeFileSync(join(ws, "package.json"), JSON.stringify({ name: "ws" }));
   const fixture = join(import.meta.dirname, "../workflow/fixtures/guidance");
   const cfgDir = join(ws, ".guidance");
   mkdirSync(cfgDir, { recursive: true });
-  for (const f of ["workflow.json", "responses.json", "operations.json", "downstream-servers.json", "policies.json"]) {
+  for (const f of [
+    "workflow.json",
+    "responses.json",
+    "operations.json",
+    "downstream-servers.json",
+    "policies.json",
+  ]) {
     writeFileSync(join(cfgDir, f), readFileSync(join(fixture, f)));
   }
-  const guidance = JSON.parse(readFileSync(join(fixture, "guidance.json"), "utf-8")) as Record<string, unknown>;
+  const guidance = JSON.parse(
+    readFileSync(join(fixture, "guidance.json"), "utf-8"),
+  ) as Record<string, unknown>;
   guidance.profile = profile;
   if (profile === "spec-kit") {
     guidance.integrations = {
@@ -35,17 +60,29 @@ function setupWorkspace(profile: "plain" | "spec-kit"): { cfgDir: string; stateD
       },
     };
   }
-  writeFileSync(join(cfgDir, "guidance.json"), JSON.stringify(guidance, null, 2));
+  writeFileSync(
+    join(cfgDir, "guidance.json"),
+    JSON.stringify(guidance, null, 2),
+  );
   mkdirSync(join(cfgDir, "schemas"), { recursive: true });
   for (const f of readdirSync(join(fixture, "schemas"))) {
-    writeFileSync(join(cfgDir, "schemas", f), readFileSync(join(fixture, "schemas", f)));
+    writeFileSync(
+      join(cfgDir, "schemas", f),
+      readFileSync(join(fixture, "schemas", f)),
+    );
   }
   // Minimales Spec-Kit-Feature (spec/plan/tasks) für den Import.
   const feature = join(ws, "specs", "001-demo");
   mkdirSync(feature, { recursive: true });
-  writeFileSync(join(feature, "spec.md"), "# Feature\n\n## Acceptance Criteria\n\n- **SC-001**: works\n");
+  writeFileSync(
+    join(feature, "spec.md"),
+    "# Feature\n\n## Acceptance Criteria\n\n- **SC-001**: works\n",
+  );
   writeFileSync(join(feature, "plan.md"), "# Plan\n");
-  writeFileSync(join(feature, "tasks.md"), "# Tasks\n\n- [ ] T001 First task\n- [ ] T002 Second task\n");
+  writeFileSync(
+    join(feature, "tasks.md"),
+    "# Tasks\n\n- [ ] T001 First task\n- [ ] T002 Second task\n",
+  );
   return { cfgDir, stateDir: join(ws, "state") };
 }
 
@@ -64,14 +101,21 @@ async function start(profile: "plain" | "spec-kit"): Promise<void> {
     });
   }
   const pair = InMemoryTransport.createLinkedPair();
-  await Promise.all([server.connect(pair[0]), (client = new Client({ name: "test", version: "1" })).connect(pair[1])]);
+  await Promise.all([
+    server.connect(pair[0]),
+    (client = new Client({ name: "test", version: "1" })).connect(pair[1]),
+  ]);
 }
 
 function textOf(res: unknown): Record<string, unknown> {
-  return JSON.parse(((res as { content: { type: string; text: string }[] }).content)[0]!.text) as Record<string, unknown>;
+  return JSON.parse(
+    (res as { content: { type: string; text: string }[] }).content[0]!.text,
+  ) as Record<string, unknown>;
 }
 
-beforeEach(() => { ws = ""; });
+beforeEach(() => {
+  ws = "";
+});
 afterEach(async () => {
   if (client) await client.close();
   if (ws) rmSync(ws, { recursive: true, force: true });
@@ -81,7 +125,9 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
   it("fail-closed: registerSpecKitTools ohne Konfiguration wirft spec_kit_not_enabled", () => {
     expect(() =>
       registerSpecKitTools(new McpServer({ name: "t", version: "1" }), {
-        workspaceRoot: "/tmp", stateDir: "/tmp", configVersion: "x",
+        workspaceRoot: "/tmp",
+        stateDir: "/tmp",
+        configVersion: "x",
         specKitConfig: undefined as never,
         audit: () => {},
       }),
@@ -99,7 +145,13 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
     await start("spec-kit");
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
-    const expected = [...WORKFLOW_TOOL_NAMES, ...SPEC_KIT_TOOL_NAMES].sort();
+    const expected = [
+      ...WORKFLOW_TOOL_NAMES,
+      "registry_register",
+      ...SPEC_KIT_TOOL_NAMES,
+    ].sort();
+    // registry_register is flag-gated (default ON) and profile-independent —
+    // part of the default surface in both profiles.
     // Exakte Mengengleichheit: fängt fehlende UND doppelt registrierte Tools.
     expect(names).toEqual(expected);
     expect(new Set(names).size).toBe(names.length);
@@ -107,68 +159,172 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
 
   it("discover → import → get_next_task Round-Trip über das Protokoll", async () => {
     await start("spec-kit");
-    const disc = textOf(await client.callTool({ name: "discover_spec_kit_feature", arguments: { sessionId: "s1" } }));
+    const disc = textOf(
+      await client.callTool({
+        name: "discover_spec_kit_feature",
+        arguments: { sessionId: "s1" },
+      }),
+    );
     expect(disc.featureId).toBe("001-demo");
-    const imp = textOf(await client.callTool({ name: "import_spec_kit_artifacts", arguments: { sessionId: "s1" } }));
+    const imp = textOf(
+      await client.callTool({
+        name: "import_spec_kit_artifacts",
+        arguments: { sessionId: "s1" },
+      }),
+    );
     expect(imp.activeSnapshotId).toBeTruthy();
     expect(imp.taskCount).toBe(2);
-    const next = textOf(await client.callTool({ name: "get_next_task", arguments: { sessionId: "s1" } }));
+    const next = textOf(
+      await client.callTool({
+        name: "get_next_task",
+        arguments: { sessionId: "s1" },
+      }),
+    );
     expect(next.nextTaskId).toBe("T001");
-    const status = textOf(await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "s1" } }));
+    const status = textOf(
+      await client.callTool({
+        name: "get_spec_kit_status",
+        arguments: { sessionId: "s1" },
+      }),
+    );
     expect((status.tasks as Record<string, number>)["pending"]).toBe(2);
   });
 
   it("release_batch → start_task Lifecycle (Regression: Release-Tool-Lücke — releaseBatch war nicht exponiert)", async () => {
     await start("spec-kit");
-    await client.callTool({ name: "import_spec_kit_artifacts", arguments: { sessionId: "s4" } });
+    await client.callTool({
+      name: "import_spec_kit_artifacts",
+      arguments: { sessionId: "s4" },
+    });
     // Ohne Release muss start_task scheitern (spec_kit_task_not_released).
-    const early = await client.callTool({ name: "start_task", arguments: { sessionId: "s4", taskIds: ["T001"] } });
+    const early = await client.callTool({
+      name: "start_task",
+      arguments: { sessionId: "s4", taskIds: ["T001"] },
+    });
     expect(early.isError).toBe(true);
-    expect(String((early.content as { type: string; text: string }[])[0]!.text)).toMatch(/not released|no batchId supplied/);
+    expect(
+      String((early.content as { type: string; text: string }[])[0]!.text),
+    ).toMatch(/not released|no batchId supplied/);
     // Release (Default-Modus 'batch') macht die Tasks startbar.
-    const rel = textOf(await client.callTool({ name: "release_batch", arguments: { sessionId: "s4" } }));
+    const rel = textOf(
+      await client.callTool({
+        name: "release_batch",
+        arguments: { sessionId: "s4" },
+      }),
+    );
     expect(rel.batchId).toBeTruthy();
     expect((rel.taskIds as string[]).sort()).toEqual(["T001", "T002"]);
-    await client.callTool({ name: "start_task", arguments: { sessionId: "s4", taskIds: ["T001", "T002"] } });
-    const status = textOf(await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "s4" } }));
+    await client.callTool({
+      name: "start_task",
+      arguments: { sessionId: "s4", taskIds: ["T001", "T002"] },
+    });
+    const status = textOf(
+      await client.callTool({
+        name: "get_spec_kit_status",
+        arguments: { sessionId: "s4" },
+      }),
+    );
     expect((status.tasks as Record<string, number>)["in_progress"]).toBe(2);
     // Lifecycle-Fix: verify_task schreibt task.verification (war read-only) —
     // ohne diesen Write-Pfad war complete_task unerreichbar.
-    const imp = textOf(await client.callTool({ name: "submit_task_implementation", arguments: { sessionId: "s4", evidence: [{ taskId: "T001", summary: "s", changedFiles: ["a.ts"], testsAddedOrUpdated: ["t"], deviations: [], unresolvedIssues: [] }] } }));
+    const imp = textOf(
+      await client.callTool({
+        name: "submit_task_implementation",
+        arguments: {
+          sessionId: "s4",
+          evidence: [
+            {
+              taskId: "T001",
+              summary: "s",
+              changedFiles: ["a.ts"],
+              testsAddedOrUpdated: ["t"],
+              deviations: [],
+              unresolvedIssues: [],
+            },
+          ],
+        },
+      }),
+    );
     expect(imp).toBeTruthy();
-    const ver = textOf(await client.callTool({ name: "verify_task", arguments: { sessionId: "s4", taskId: "T001", executions: ["vitest run"] } }));
+    const ver = textOf(
+      await client.callTool({
+        name: "verify_task",
+        arguments: {
+          sessionId: "s4",
+          taskId: "T001",
+          executions: ["vitest run"],
+        },
+      }),
+    );
     expect((ver.verification as Record<string, unknown>).succeeded).toBe(true);
-    const done = textOf(await client.callTool({ name: "complete_task", arguments: { sessionId: "s4", taskId: "T001" } }));
-    expect((done.tasks as Record<string, { status: string }>).T001?.status).toBe("completed");
+    const done = textOf(
+      await client.callTool({
+        name: "complete_task",
+        arguments: { sessionId: "s4", taskId: "T001" },
+      }),
+    );
+    expect(
+      (done.tasks as Record<string, { status: string }>).T001?.status,
+    ).toBe("completed");
   });
 
   it("withState-Tools liefern ein nicht-leeres Payload (Regression: fehlendes await)", async () => {
     await start("spec-kit");
-    await client.callTool({ name: "import_spec_kit_artifacts", arguments: { sessionId: "s2" } });
+    await client.callTool({
+      name: "import_spec_kit_artifacts",
+      arguments: { sessionId: "s2" },
+    });
     // propose_plan_change geht durch withState — Response darf nicht {} sein.
-    const res = await client.callTool({ name: "propose_plan_change", arguments: { sessionId: "s2", changeType: "changed_requirement", reason: "clarified SC-001", affectedTasks: [], impact: { acceptanceCriteria: true, publicApi: false, dependencies: false } } });
+    const res = await client.callTool({
+      name: "propose_plan_change",
+      arguments: {
+        sessionId: "s2",
+        changeType: "changed_requirement",
+        reason: "clarified SC-001",
+        affectedTasks: [],
+        impact: {
+          acceptanceCriteria: true,
+          publicApi: false,
+          dependencies: false,
+        },
+      },
+    });
     const parsed = textOf(res);
     // withState gibt den (mutierten) State zurück — die Plan-Änderung muss
     // darin enthalten sein, das Payload darf nicht leer sein.
-    const changes = parsed.planChanges as Record<string, Record<string, unknown>>;
+    const changes = parsed.planChanges as Record<
+      string,
+      Record<string, unknown>
+    >;
     expect(Object.keys(changes).length).toBe(1);
     expect(Object.values(changes)[0]!.classification).toBeDefined();
     // Ein zweiter Aufruf validiert die Mutex-Kette (kein Poisoning).
-    const res2 = await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "s2" } });
-    expect((textOf(res2).pendingPlanChanges as number)).toBe(1);
+    const res2 = await client.callTool({
+      name: "get_spec_kit_status",
+      arguments: { sessionId: "s2" },
+    });
+    expect(textOf(res2).pendingPlanChanges as number).toBe(1);
   });
 
   it("Traversal-SessionId wird abgewiesen (Path Safety Regression)", async () => {
     await start("spec-kit");
-    const res = await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "../../escaped" } });
+    const res = await client.callTool({
+      name: "get_spec_kit_status",
+      arguments: { sessionId: "../../escaped" },
+    });
     expect(res.isError).toBe(true);
-    const text = String((res.content as { type: string; text: string }[])[0]!.text);
+    const text = String(
+      (res.content as { type: string; text: string }[])[0]!.text,
+    );
     expect(text).toMatch(/invalid sessionId/);
   });
 
   it("get_spec_kit_status vor dem Import liefert strukturierten Fehler (kein Crash)", async () => {
     await start("spec-kit");
-    const res = await client.callTool({ name: "get_spec_kit_status", arguments: { sessionId: "ghost" } });
+    const res = await client.callTool({
+      name: "get_spec_kit_status",
+      arguments: { sessionId: "ghost" },
+    });
     expect(res.isError).toBe(true);
   });
 });

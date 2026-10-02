@@ -839,6 +839,9 @@ export function generateFiles(answers: SetupAnswers): {
         { name: "default", root: regWorkspaceRoot, projectName: name },
         ...regExtras,
       ],
+      // FR-1207: runtime registration is ON by default (opt-out via
+      // enabled: false) — the emitted registry reflects the shipped default.
+      registryRegister: { enabled: true },
       state: { directory: "state", persistAfterEveryOperation: true },
     };
     const regNotes = [

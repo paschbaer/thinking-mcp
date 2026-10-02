@@ -149,6 +149,9 @@ export function scaffoldIfMissing(
             root: resolve(workspaceRoot ?? join(configDir, "..")),
           },
         ],
+        // FR-1207: runtime registration is ON by default (opt-out via
+        // enabled: false) — the scaffold reflects the shipped default.
+        registryRegister: { enabled: true },
         workflow: { file: "workflow.json" },
         responses: { file: "responses.json" },
         operations: { file: "operations.json" },

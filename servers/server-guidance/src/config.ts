@@ -26,7 +26,9 @@ export interface GuidanceMainConfig {
   operations?: { file: string };
   downstreamServers?: { file: string };
   policies?: { file: string };
-  /** FR-1207: gates the registry_register MCP tool (default OFF, fail-closed). */
+  /** FR-1207: gates the registry_register MCP tool (default ON — opt-out via
+   *  enabled: false; profile-independent since runtime registration is an
+   *  instance-level concern, not a process/workflow-type concern). */
   registryRegister?: { enabled?: boolean };
   /** specs/015 US2 (AC-10, FR-1214): proactive node-deps probe — when ON,
    *  boot diagnostics reference the guidance deps-install/deps-reinstall
@@ -134,7 +136,7 @@ export interface LoadedConfig {
   profile: ProfileId;
   configVersion: string;
   main: GuidanceMainConfig;
-  /** FR-1207: registry_register tool gate (default OFF). */
+  /** FR-1207: registry_register tool gate (default ON, opt-out). */
   registryRegister: { enabled: boolean };
   /** specs/015 US2: proactive node-deps probe flag (default OFF). */
   nodeDeps: { proactiveProbe: boolean };
@@ -1238,7 +1240,7 @@ export function loadConfig(
     configVersion,
     main: cfg,
     chain,
-    registryRegister: { enabled: cfg.registryRegister?.enabled === true },
+    registryRegister: { enabled: cfg.registryRegister?.enabled !== false },
     nodeDeps: { proactiveProbe: cfg.nodeDeps?.proactiveProbe === true },
     registryOnly,
     workflow: loaded["workflow"],
