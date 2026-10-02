@@ -67,7 +67,10 @@ function deepMergeArgs(
       b !== null &&
       typeof b === "object" &&
       !Array.isArray(b)
-        ? deepMergeArgs(b as Record<string, unknown>, v as Record<string, unknown>)
+        ? deepMergeArgs(
+            b as Record<string, unknown>,
+            v as Record<string, unknown>,
+          )
         : v;
   }
   return out;
