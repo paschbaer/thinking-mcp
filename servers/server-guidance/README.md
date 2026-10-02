@@ -1845,7 +1845,8 @@ ends the run in the `cancelled` terminal state.
 and validated fixes (procedure: `.github/prompts/capture-lessons.prompt.md`)
 and writes them to `.guidance/state/session-lessons.json` as
 `[{"slug", "observation", "cause", "fix"}]` — always create the file, an
-empty array is a no-op success. The gate runs
+empty array is the explicit no-op success, and a **missing file fails the
+gate** (a skipped lessons review must surface, not pass silently). The gate runs
 `servers/server-insight/scripts/seed-lessons.mjs` against the
 experience-memory server (`EMMS_HTTP_URL=http://host.docker.internal:3002/mcp`,
 scope `thinking-mcp-lessons`); seeding is idempotent per slug (`duplicate`

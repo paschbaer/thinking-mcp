@@ -742,7 +742,7 @@
       "output": { "retainRawResult": true }
     },
     "capture-session-lessons": {
-      "description": "Seed validated session lessons (see .github/prompts/capture-lessons.prompt.md pattern). The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow (empty array = no-op success; redact secrets). Idempotent per slug.",
+      "description": "Seed validated session lessons (see .github/prompts/capture-lessons.prompt.md pattern). The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow (empty array = explicit no-op success; a MISSING file FAILS the gate — the lessons review step must not be skipped; redact secrets). Idempotent per slug.",
       "type": "process",
       "executable": "node",
       "args": ["servers/server-insight/scripts/seed-lessons.mjs", ".guidance/state/session-lessons.json"],
