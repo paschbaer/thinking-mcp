@@ -2619,7 +2619,7 @@ export class WorkflowEngine {
     // Required-Failures werden auditiert).
     const afterExitIds =
       this.definition.phases[previousPhase]?.lifecycle?.afterExit ?? [];
-        // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
+    // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
     // list before any op executes.
     const afterExitOps = afterExitIds.map((id) => {
       const op = this.operations[id];

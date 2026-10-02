@@ -1108,3 +1108,9 @@
 ## 2026-10-02 — FR-053-Batch deployed
 - develop → origin/develop gepusht (5d782c9 + 46a3afa); Container neu gebaut (Image 2026-10-02T13:08Z) und neu gestartet (healthy). Der FR-053-Approval-Gate (Scope A), die GDS-6-Retry-Finalisierung und der CHAIN-Replay-Schutz sind damit in der laufenden Instanz aktiv.
 - Betriebs-Hinweis: erste Ausführung einer workspace_write/destructive/credential_sensitive-Op pro Run → authorization_required → Approval-Zeremonie (report_blocker category approval + resume "approve <op>"), siehe README "FR-053 approval ceremony".
+
+## 2026-10-02 — Independent Review 588fa62 (feature/f0531-gds7-cleanup) — APPROVED (0 HIGH/CRIT offen)
+- Basis: 588fa62 vs. origin/develop 46a3afa; 34/34 Tests grün (approval-gate, deps-operations, engine, lifecycle-points).
+- REV-F053-1 als GELÖST verifiziert: alle vier Loops (activateSession beforeEnter, runAfterEnter, submitLocked beforeEnter, afterExit) hoisten Resolution + assertApprovals vor die erste Ausführung; consumeApprovals bleibt erfolgsbasiert pro Op; Batch-Sites (completeWorkflowLocked, retryOperations, runOperation, Submit-Gates 2491/2832/3122) unverändert; Audit-Rename id → op.operationId ist neutral (operationId = Config-Key, WorkflowEngine.ts:330).
+- Neue Tests pinnen den Defekt: Pre-Loop-Denial nennt repository-analysis, KEIN approval_consumed in History, build-Grant intakt — auf Pre-Fix-Code (per-op-assert) würde der Test fehlschlagen (früheres Op lief + konsumierte Grant).
+- Neues getracktes Finding: REV-F053-1b-1 (INFO, Kosmetik — Kommentartext-Einrückung WorkflowEngine.ts:2622). Details in remaining-work-plan.md.
