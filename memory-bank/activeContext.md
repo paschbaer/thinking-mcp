@@ -3,6 +3,11 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-02: Clear-Thought-Operationen für Container-Route generiert (46 neue Ops)
+- **Was:** `.guidance/operations.json` um `ct-*`-mcpTool-Operationen für ALLE Clear-Thought-Tools erweitert (38× `read_only`, 8× `external_write` für session_save/load/import, session/recipe_runner/workflow/Stochastic-Toolsets — nicht idempotent, daher bewusst NICHT fallback-eligibel). Capabilities gegen `server-clear-thought/src/tools/tool-metadata.ts` + Toolset-Slugs verifiziert; JSON per Node-Parser validiert (47 Clear-Thought-Ops inkl. reasoning-pass).
+- **Befund / Runtime-Limitierung:** `run_operation` nimmt KEINE Agent-Argumente entgegen (register-tools.ts L280: nur sessionId+operationId); mcpTool-Ops ziehen Args ausschließlich aus `arguments` (fixed/template). Die neuen Ops sind daher sofort funktional für parameterlose Tools (session_info/export, existing_tool_example) — parametrisierte Tools benötigen entweder feste Args im Op-Eintrag oder einen künftigen Downstream-Passthrough. Getrackt als CT-ARGS-1 (remaining-work-plan.md).
+- **Nächste Schritte:** Guidance-Container neu starten/Config neu laden (`docker compose up -d` bzw. Session neu initialisieren), dann Smoke-Test: `run_operation(ct-session-info)` über die Container-Route.
+
 ## 2026-09-30: Guidance-Container-Start-Crash behoben (falscher /workspaces-Mount)
 - **Symptom:** Container crashete beim Start mit `EACCES ... mkdir '/workspaces/.guidance'` (scaffold.js).
 - **Root cause:** Veralteter Container (`thinking-mcp-guidance-1`) mit falschem Mount `bind /mnt -> /workspaces` (root-owned, für `USER node` nicht schreibbar) statt `D:\repos -> /workspaces` — aus einer früheren/WSL-seitigen Erzeugung. Isoliertest mit korrektem Mount bestätigte Schreibbarkeit als `node`.
