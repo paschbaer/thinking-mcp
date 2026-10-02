@@ -7,6 +7,8 @@
 
 ## What Works
 
+- **MCP HTTP Keep-Alive-Timeout 65 s (2026-10-02, feature/mcp-keep-alive-timeout):** Root Cause aller "Connection stallt/brecht ab"-Symptome — Node ≥19-Default `keepAliveTimeout=5000 ms` → `Keep-Alive: timeout=5` in allen vier MCP-HTTP-Servern. Fix: `server.keepAliveTimeout=65000` (env `KEEP_ALIVE_TIMEOUT_MS`) + `headersTimeout=+5s` in clear-thought/guidance/insight/stochasticthinking. Unabhängiger Review (Sub-Agent, frischer Kontext): APPROVED 0 HIGH/CRIT (Node-24-Header-Repro + Shutdown-Repro + tsc je Server). Fast-Forward-Merge nach develop (1677a9d), Branch gelöscht. Folgen-ups KA-1/2/3/4 in remaining-work-plan getrackt.
+- **Offen:** Push develop (Nutzerentscheid, ahead 6); Container-Rebuild (`docker compose up -d --build`) + Live-Gegenprobe `curl -sI .../health` → `timeout=65`; KA-4: `gitnexus analyze` bricht mit Storage-Status `foreign` ab (Index-Auffrischung blockiert, Ownership klären).
 - **registry_register Default-ON + Profil-Bindung entfernt (2026-10-02, feature/registry-register-default-on):** FR-1207-Gate jetzt Opt-out (`registryRegister.enabled: false`), `registry_register` profilunabhängig (Registrierung = Instanz-Concern, Workflow-Typ = pro Session); beide Templates emitieren `enabled: true`; README aktualisiert; Review APPROVED 0 HIGH/CRIT. Fast-Forward-Merge nach develop (283fc74..39a0be2, 5 Commits), Branch gelöscht. LOW-Follow-ups REV-RRDO-1/2 (Coverage) in 9f7bc5f geschlossen, FR-FINAL-2 (AGENTS/CLAUDE-CLI-Tabellen) committet; Guidance-Session session-1bb0632b completed (alle Gates grün). Vollauf 537/537.
 - **Offen:** Push develop (Nutzerentscheid, ahead 5); Container-Rebuild, bis `registry_register` in der laufenden Instanz sichtbar ist.
 
