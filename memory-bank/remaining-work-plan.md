@@ -16,6 +16,8 @@
 
 ## Tracked Follow-ups
 
+- [CT-ARGS-1] MEDIUM (2026-10-02) — **run_operation trägt keine Agent-Argumente: parametrisierte Clear-Thought-Ops ohne feste `arguments` liefern am Tool ein Validierungs-Error (tool_reported)**. Die 46 `ct-*`-Einträge in `.guidance/operations.json` registrieren Risk-Class + invocableByAgent + Container-Route-Fallback-Eligibilität, aber `run_operation(sessionId, operationId)` (register-tools.ts L280) kann keine Freitext-/Struktur-Args übergeben; mcpTool-Ops nutzen ausschließlich `arguments` fixed/template aus der Op-Definition. **Optionen:** (a) feste Template-Args pro Use-Case (Muster: `reasoning-pass` mit `${session.request}`), (b) neuer Guidance-Passthrough `call_downstream(serverId, toolName, args)` mit WC-1/FR-053-Gating, (c) `run_operation` um optionales `arguments`-Parameter erweitern. **Trigger:** erste Nutzung eines parametrisierten `ct-*`-Ops über die Container-Route ODER nächste Änderung an register-tools.ts/OperationEngine.ts. Action required.
+
 - [CHAIN-1] MEDIUM — **GELÖST (US1 implementiert a40f485/04a2b4c/b09f74b auf develop; Rest-Scopes GDS-6 + CHAIN-Replay durch feature/gds6-chain-replay-hardening)** | Rebind-Semantik AC-13..17 in getWorkflowState (R2: completed überlebt, active/blocked Rebind + Re-Validierung, session_rebound-Audit, AC-15 fail-closed), registry_register (R1=B), Successor-born-invalid via Probe-Routing-Delegation (AC-16) — Regressionsschutz registry-rebind.test.ts (12 Tests). Mid-Session-Config-Änderungen invalidieren Sessions nicht mehr (Rebind); Chained Workflows wieder voll nutzbar.
 
 - [REV-1] LOW (Session-Review 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-28) |
