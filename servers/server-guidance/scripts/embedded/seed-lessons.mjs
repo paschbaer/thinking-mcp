@@ -11,7 +11,9 @@
  *
  * Semantics mirror the package-internal insight seeder script (this file is
  * its dependency-free twin for generated repositories):
- * - empty lessons file = no-op success
+ * - empty lessons file = explicit no-op success
+ * - MISSING lessons file = exit 1 (the capture contract requires the agent to
+ *   ALWAYS create the file; a skipped lessons review must fail the gate)
  * - exit 1 on transport/tool errors or failed lessons
  * - per-lesson idempotency is enforced server-side (slug key)
  */
@@ -23,7 +25,26 @@ if (!inputPath) {
   process.exit(1);
 }
 
-const LESSONS = JSON.parse(readFileSync(inputPath, "utf8"));
+const LESSONS = (() => {
+  try {
+    return JSON.parse(readFileSync(inputPath, "utf8"));
+  } catch (err) {
+    if (err && err.code === "ENOENT") {
+      // Fail-closed (capture contract): the agent MUST create the lessons file
+      // before complete_workflow — an empty array is the documented explicit
+      // no-op. A MISSING file means the lessons review step was skipped, which
+      // must surface as a gate failure instead of a silent pass.
+      console.error(
+        `ERROR: lessons file not found: ${inputPath}\n` +
+          "The capture-session-lessons contract requires the agent to ALWAYS create\n" +
+          "the lessons file before complete_workflow. Write [] (empty array) when\n" +
+          "there are no validated lessons, then re-run the gate."
+      );
+      process.exit(1);
+    }
+    throw err;
+  }
+})();
 // Empty input = nothing to seed = success (no-op). The MCP tool rejects
 // empty arrays (minItems 1), so guard here to keep gate semantics simple.
 if (Array.isArray(LESSONS) && LESSONS.length === 0) {
