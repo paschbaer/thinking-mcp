@@ -6,6 +6,18 @@
 
 ## Avoid These Mistakes
 
+- **GitNexus Storage-„foreign" durch Pfad-Casing-Drift (2026-10-02):** `gitnexus analyze` aus
+  `/mnt/d/repos/Thinking-MCP` scheiterte mit `Storage path is in state "foreign"`, weil `.gitnexus/meta.json`
+  den Index unter `/mnt/d/repos/thinking-mcp` (lowercase) referenziert — DrvFs ist case-insensitive
+  (beide Pfade funktionieren zum cd), aber die Storage-Ownership prüft den Pfad-STRING. → Prevention:
+  Index-Refresh immer vom exakt in `meta.json` (`repoPath`/`storagePath`) eingetragenen Pfad aufrufen;
+  bei „foreign“ zuerst `meta.json` lesen, nicht die Storage löschen. Betroffen ist jeder Agent, der den
+  Checkout über abweichendes Casing anspricht (Windows-/WSL-Mix).
+- **Timeout auf MCP-Mutation ≠ Fehlschlag (2026-10-02, rezidiv-tauglich):** `submit_verification` lief in
+  einen Context-Server-Timeout, der Workflow-State zeigte danach aber `accepted` + Phase-Advance — der
+  requestId-Ledger hatte die Submission bereits verarbeitet. → Prevention: nach einem Mutation-Timeout
+  IMMER erst `get_workflow_state` (read-only) gegenchecken, nie blind re-submitten (Doppel-Submission/
+  Replay-Risiko); der FR-035-Retry-once gilt nur für read-only/idempotente Calls.
 - **Undocumented language conventions (2026-09-30):** user preferences like output
   language must be persisted in `AGENTS.md` immediately when stated, otherwise they
   are lost across sessions. Convention here: chat in German, all artifacts in English.
