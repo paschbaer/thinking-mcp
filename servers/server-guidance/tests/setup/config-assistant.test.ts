@@ -167,6 +167,8 @@ describe("configuration assistant (stateless wizard)", () => {
     ]);
     expect(guidance.workflow).toBeUndefined();
     expect(guidance.operations).toBeUndefined();
+    // REV-RRDO-2: runtime registration is emitted ON by default (FR-1207)
+    expect(guidance.registryRegister).toEqual({ enabled: true });
     expect(notes.some((n) => n.includes("registry-edit"))).toBe(true);
     // workspace mode hint present (GUIDANCE_REMOTE_MODE unset)
     expect(notes.some((n) => n.includes("Workspace mode"))).toBe(true);
