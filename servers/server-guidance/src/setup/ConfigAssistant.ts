@@ -662,7 +662,7 @@ function buildOperations(
     };
     operations["capture-session-lessons"] = {
       description:
-        "Seed validated session lessons. The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow ([{slug, observation, cause, fix}]; empty array = no-op success; redact secrets — the script bypasses Guidance pattern redaction). Idempotent per slug.",
+        "Seed validated session lessons. The agent writes .guidance/state/session-lessons.json BEFORE calling complete_workflow ([{slug, observation, cause, fix}]; empty array = explicit no-op success; a MISSING file FAILS the gate — the lessons review step must not be skipped; redact secrets — the script bypasses Guidance pattern redaction). Idempotent per slug.",
       type: "process",
       executable: "sh",
       args: [
