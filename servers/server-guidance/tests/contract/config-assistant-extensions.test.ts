@@ -1753,6 +1753,7 @@ describe("specs/014: wizard-driven registry-edit + repo-config separation", () =
       expect(Object.keys(byPath)).toEqual(["guidance.json"]);
       const guidance = JSON.parse(byPath["guidance.json"]!) as {
         workspaces?: Array<{ name: string; root: string }>;
+        registryRegister?: { enabled?: boolean };
       };
       expect(guidance.workspaces).toEqual([
         { name: "default", root: "/target-root", projectName: "target-repo" },
@@ -1760,6 +1761,8 @@ describe("specs/014: wizard-driven registry-edit + repo-config separation", () =
       ]);
       expect(byPath["guidance.json"]).not.toContain("/reference-root");
       expect(byPath["guidance.json"]).not.toContain("/reference-legacy");
+      // REV-RRDO-2: runtime registration is emitted ON by default (FR-1207)
+      expect(guidance.registryRegister).toEqual({ enabled: true });
     } finally {
       rmSync(ref, { recursive: true, force: true });
     }

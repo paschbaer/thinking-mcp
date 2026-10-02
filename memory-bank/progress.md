@@ -12,8 +12,9 @@
   (`registryRegister.enabled: false`); `registry_register` profilunabhängig
   (Registrierung = Instanz-Concern, Workflow-Typ = pro Session). Beide
   Templates (Scaffold + Config-Assistant registry-edit) emitieren
-  `enabled: true`. README aktualisiert. Vollauf 535/535, tsc/prettier grün.
-  Ausstehend: Review, Merge, Container-Rebuild.
+  `enabled: true`. README aktualisiert. Review APPROVED 0 HIGH/CRIT;
+  LOW-Follow-ups REV-RRDO-1/2 (Coverage) in 98cb690 geschlossen — Vollauf
+  537/537. Ausstehend: Merge, Container-Rebuild.
 
 - **Guidance-Container-Deployment (2026-09-30)**: Start-Crash (EACCES
   mkdir '/workspaces/.guidance') behoben — veralteter Container mit falschem

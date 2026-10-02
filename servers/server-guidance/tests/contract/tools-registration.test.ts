@@ -69,6 +69,46 @@ describe("tool registration (Review Finding 1)", () => {
     expect(names).not.toContain("discover_spec_kit_feature"); // plain profile: keine Spec-Kit-Tools (R17)
   });
 
+  it("REV-RRDO-1: opts OUT of registry_register via registryRegister.enabled=false (tool-list gate)", async () => {
+    // Self-contained server: inject the opt-out flag into the COPIED fixture
+    // guidance.json BEFORE composeApplication (loadConfig reads it once).
+    const cfgPath = join(ws, ".guidance", "guidance.json");
+    const cfg = JSON.parse(readFileSync(cfgPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    cfg.registryRegister = { enabled: false };
+    writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+
+    const optOutApp = composeApplication(
+      ws,
+      join(ws, ".guidance"),
+      join(ws, "state"),
+    );
+    const optOutServer = createGuidanceServer();
+    registerWorkflowTools(
+      optOutServer,
+      optOutApp.tools,
+      ws,
+      optOutApp.config.workspaces,
+    );
+    const pair = InMemoryTransport.createLinkedPair();
+    const optOutClient = new Client({ name: "test-opt-out", version: "1" });
+    await Promise.all([
+      optOutServer.connect(pair[0]),
+      optOutClient.connect(pair[1]),
+    ]);
+    try {
+      const { tools } = await optOutClient.listTools();
+      const names = tools.map((t) => t.name).sort();
+      // exact surface: workflow tools only — registry_register is NOT exposed
+      expect(names).toEqual([...WORKFLOW_TOOL_NAMES].sort());
+      expect(names).not.toContain("registry_register");
+    } finally {
+      await optOutClient.close();
+    }
+  });
+
   it("round-trips start_workflow over the MCP protocol", async () => {
     const res = await client.callTool({
       name: "start_workflow",
