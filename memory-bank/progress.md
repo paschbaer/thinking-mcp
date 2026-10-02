@@ -7,14 +7,8 @@
 
 ## What Works
 
-- **registry_register Default-ON + Profil-Bindung entfernt (2026-10-02,
-  feature/registry-register-default-on)**: FR-1207-Gate ist jetzt Opt-out
-  (`registryRegister.enabled: false`); `registry_register` profilunabhängig
-  (Registrierung = Instanz-Concern, Workflow-Typ = pro Session). Beide
-  Templates (Scaffold + Config-Assistant registry-edit) emitieren
-  `enabled: true`. README aktualisiert. Review APPROVED 0 HIGH/CRIT;
-  LOW-Follow-ups REV-RRDO-1/2 (Coverage) in 9f7bc5f geschlossen — Vollauf
-  537/537. Ausstehend: Merge, Container-Rebuild.
+- **registry_register Default-ON + Profil-Bindung entfernt (2026-10-02, feature/registry-register-default-on):** FR-1207-Gate jetzt Opt-out (`registryRegister.enabled: false`), `registry_register` profilunabhängig (Registrierung = Instanz-Concern, Workflow-Typ = pro Session); beide Templates emitieren `enabled: true`; README aktualisiert; Review APPROVED 0 HIGH/CRIT. Fast-Forward-Merge nach develop (283fc74..39a0be2, 5 Commits), Branch gelöscht. LOW-Follow-ups REV-RRDO-1/2 (Coverage) in 9f7bc5f geschlossen, FR-FINAL-2 (AGENTS/CLAUDE-CLI-Tabellen) committet; Guidance-Session session-1bb0632b completed (alle Gates grün). Vollauf 537/537.
+- **Offen:** Push develop (Nutzerentscheid, ahead 5); Container-Rebuild, bis `registry_register` in der laufenden Instanz sichtbar ist.
 
 - **Guidance-Container-Deployment (2026-09-30)**: Start-Crash (EACCES
   mkdir '/workspaces/.guidance') behoben — veralteter Container mit falschem
