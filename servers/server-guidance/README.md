@@ -168,6 +168,27 @@ From a bare machine to a running multi-workspace instance:
 5. **Per-repo analysis index**: run `gitnexus analyze --no-stats` inside
    each registered repo (host-side pre-complete step; the freshness gate
    checks `<root>/.gitnexus/meta.json` against git HEAD).
+
+   **Dual-index procedure (GDS-7)**: the index-freshness gate reads the
+   **repo-local** `.gitnexus/` storage, which is owned by the exact path
+   identity it was created with (e.g. `/mnt/d/repos/thinking-mcp` —
+   lowercase). Deterministic refresh:
+
+   ```bash
+   wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && \
+     cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats --skip-skills'
+   ```
+
+   - Run it from the **exact registered path** (case-sensitive) — a
+     different case yields `StorageRequirementError: storage "foreign"`.
+   - `gitnexus-server` (container, `GITNEXUS_HOME=/data/gitnexus`) refreshes
+     only its **own** storage — it does NOT update the repo-local index the
+     gate reads.
+   - If analyze reports `Already up to date` it writes nothing; when only
+     file mtimes moved (e.g. a `git checkout` of identical content), re-run
+     with `--force`.
+   - Never omit `--skip-skills`: a plain analyze rewrites `AGENTS.md`/
+     `CLAUDE.md` (skill-template refresh) and dirties the tree.
 6. **Hardening (optional)**: set `GUIDANCE_AUTH_TOKEN` for bearer auth on
    `/mcp`; keep `GUIDANCE_BIND_HOST` at loopback unless the instance must
    be reachable from other hosts.

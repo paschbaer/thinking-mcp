@@ -13,6 +13,7 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -217,5 +218,115 @@ describe("REV-F2F3F4-1: summary_and_errors lets warnings through", () => {
     expect(
       exposed.warnings.find((w) => w.code === "node_deps_hint"),
     ).toBeDefined();
+  });
+});
+
+/** REV-F053-1: all-or-nothing approval for op-by-op lifecycle loops. Uses a
+ *  workspace-local workflow.json whose plan.beforeEnter list is
+ *  [query-project-insights (ungated), build (gated), repository-analysis
+ *  (gated)] — a denial on the LAST gated op must fire BEFORE any op of the
+ *  list executes and must not burn the earlier gated op's grant. */
+describe("REV-F053-1: lifecycle hook lists are all-or-nothing", () => {
+  function wsGuidanceMultiGate(): string {
+    const dir = join(ws, ".guidance");
+    mkdirSync(join(dir, "schemas"), { recursive: true });
+    const FIX = join(import.meta.dirname, "fixtures/guidance");
+    for (const f of [
+      "guidance.json",
+      "workflow.json",
+      "responses.json",
+      "operations.json",
+      "downstream-servers.json",
+      "policies.json",
+    ]) {
+      writeFileSync(join(dir, f), readFileSync(join(FIX, f)));
+    }
+    for (const f of readdirSync(join(FIX, "schemas"))) {
+      writeFileSync(
+        join(dir, "schemas", f),
+        readFileSync(join(FIX, "schemas", f)),
+      );
+    }
+    const wf = JSON.parse(readFileSync(join(dir, "workflow.json"), "utf8"));
+    wf.phases.plan.lifecycle = {
+      ...wf.phases.plan.lifecycle,
+      beforeEnter: [
+        "query-project-insights",
+        "build",
+        "repository-analysis",
+      ],
+    };
+    writeFileSync(join(dir, "workflow.json"), JSON.stringify(wf));
+    return dir;
+  }
+
+  function multiGateEngine(): void {
+    config = loadConfig(wsGuidanceMultiGate(), { workspaceRoot: ws });
+    const opEngine = new OperationEngine();
+    opEngine.setDownstreamInvoker({
+      invokeTool: async () => ({ kind: "success" as const, content: [] }),
+    });
+    engine = new WorkflowEngine({
+      config,
+      stateDir: join(ws, "state"),
+      operationEngine: opEngine,
+    });
+  }
+
+  async function startAndReachPlan(sid: string): Promise<void> {
+    await engine.submit(sid, "understand", {
+      summary: "s",
+      acceptanceCriteria: ["a"],
+    });
+  }
+
+  it("a denial on the LAST gated op fires before ANY op executes and keeps earlier grants", async () => {
+    multiGateEngine();
+    const start = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+    });
+    const sid = start.sessionId;
+    grant(sid, "build"); // repository-analysis NOT granted
+
+    // plan.beforeEnter validates the WHOLE list before executing anything:
+    // the denial names the LAST unapproved op, the ungated op did NOT run,
+    // and the earlier gated op's grant was not burned.
+    await expect(
+      engine.submit(sid, "understand", {
+        summary: "s",
+        acceptanceCriteria: ["a"],
+      }),
+    ).rejects.toThrowError(/repository-analysis/);
+
+    const history = readFileSync(
+      join(ws, "state", "history", `${sid}.jsonl`),
+      "utf8",
+    );
+    expect(history).not.toContain("approval_consumed");
+    const still = new SessionRepository(join(ws, "state", "sessions")).load(
+      sid,
+    );
+    expect(still.approvedOperations).toContain("build");
+  });
+
+  it("after granting all gated ops the list executes once, consuming each grant on success", async () => {
+    multiGateEngine();
+    const start = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+    });
+    const sid = start.sessionId;
+    grant(sid, "build");
+    grant(sid, "repository-analysis");
+
+    await startAndReachPlan(sid);
+    const history = readFileSync(
+      join(ws, "state", "history", `${sid}.jsonl`),
+      "utf8",
+    );
+    expect(history.match(/approval_consumed/g) ?? []).toHaveLength(2);
+    const s = new SessionRepository(join(ws, "state", "sessions")).load(sid);
+    expect(s.approvedOperations ?? []).toHaveLength(0);
   });
 });
