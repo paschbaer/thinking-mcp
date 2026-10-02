@@ -295,7 +295,7 @@ describe("review F-handler: registry_register MCP handler response shape", () =>
       server as Parameters<typeof registerWorkflowTools>[0],
       new WorkflowTools(engine),
       root,
-      undefined as unknown as Parameters<typeof registerWorkflowTools>[3],
+      () => engine.config.workspaces,
     );
     const handler = handlers.get("registry_register");
     expect(handler).toBeDefined();
@@ -326,13 +326,81 @@ describe("review F-handler: registry_register MCP handler response shape", () =>
       server as Parameters<typeof registerWorkflowTools>[0],
       new WorkflowTools(engine),
       root,
-      undefined as unknown as Parameters<typeof registerWorkflowTools>[3],
+      () => engine.config.workspaces,
     );
     const handler = handlers.get("registry_register");
     expect(handler).toBeDefined();
     await expect(
       handler!({ name: "bad", root: join(root, "does-not-exist") }),
     ).rejects.toThrowError(/root does not exist/);
+  });
+});
+
+describe("Fix: start_workflow resolves against the LIVE registry (no restart)", () => {
+  type ToolHandler = (
+    args: unknown,
+  ) => Promise<{ content: { type: string; text: string }[] }>;
+
+  function stubServer(): { handlers: Map<string, ToolHandler>; server: unknown } {
+    const handlers = new Map<string, ToolHandler>();
+    const server = {
+      tool: (
+        name: string,
+        _description: string,
+        _schema: unknown,
+        handler: ToolHandler,
+      ) => {
+        handlers.set(name, handler);
+      },
+    };
+    return { handlers, server };
+  }
+
+  function wiredHandlers() {
+    writePoolConfig({ registerWs: false, flag: true });
+    const engine = poolEngine();
+    const { handlers, server } = stubServer();
+    registerWorkflowTools(
+      server as Parameters<typeof registerWorkflowTools>[0],
+      new WorkflowTools(engine),
+      root,
+      () => engine.config.workspaces,
+    );
+    return handlers;
+  }
+
+  it("start_workflow accepts a workspace right after registry_register — same process, no restart", async () => {
+    const handlers = wiredHandlers();
+    const register = handlers.get("registry_register");
+    const start = handlers.get("start_workflow");
+    expect(register).toBeDefined();
+    expect(start).toBeDefined();
+
+    await register!({ name: "ws", root: ws, projectName: "WS" });
+
+    // Pre-fix, this closed over the frozen boot registry and rejected with
+    // workspace_not_registered until the process was restarted.
+    const response = await start!({ workspace: "ws", request: "r" });
+    const parsed = JSON.parse(response.content[0]!.text) as {
+      accepted?: boolean;
+      sessionId?: string;
+      status?: string;
+    };
+    expect(parsed.accepted).toBe(true);
+    expect(parsed.sessionId).toMatch(/^session-/);
+  });
+
+  it("start_workflow fails closed for a workspace removed via registry_register", async () => {
+    const handlers = wiredHandlers();
+    const register = handlers.get("registry_register");
+    const start = handlers.get("start_workflow");
+
+    await register!({ name: "ws", root: ws, projectName: "WS" });
+    await register!({ name: "ws", root: ws, remove: true });
+
+    await expect(start!({ workspace: "ws", request: "r" })).rejects.toThrowError(
+      /workspace_not_registered/,
+    );
   });
 });
 

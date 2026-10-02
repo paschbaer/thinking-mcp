@@ -88,7 +88,7 @@ beforeEach(() => {
     join(wsA, ".guidance", "state"),
   );
   const server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, wsA, app.config.workspaces);
+  registerWorkflowTools(server, app.tools, wsA, () => app.config.workspaces);
   const pair = InMemoryTransport.createLinkedPair();
   void server.connect(pair[0]);
   client = new Client({ name: "test", version: "1" });
@@ -188,7 +188,7 @@ describe("multi-workspace parallel sessions (specs/008 T10, AC-1)", () => {
       join(wsA, ".guidance", "state"),
     );
     const server2 = createGuidanceServer();
-    registerWorkflowTools(server2, app2.tools, wsA, app2.config.workspaces);
+    registerWorkflowTools(server2, app2.tools, wsA, () => app2.config.workspaces);
     const pair2 = InMemoryTransport.createLinkedPair();
     void server2.connect(pair2[0]);
     client = new Client({ name: "test2", version: "1" });
