@@ -1740,12 +1740,25 @@ export class WorkflowEngine {
             workspaceRoot: session.workspaceRoot,
             redactionPatterns: this.redactionPatterns,
           });
+          const res = run.results[0];
           this.recordDownstreamState(
             session.id,
             depsOp.operationId,
-            run.results[0]?.status ?? "failed",
-            run.results[0]?.summary ?? "deps pre-flight",
+            res?.status ?? "failed",
+            res?.summary ?? "deps pre-flight",
           );
+          if (res?.status !== "succeeded") {
+            // Terminal audit outcome — fail-open: the gate runs anyway.
+            this.audit.append({
+              sessionId: session.id,
+              eventType: "deps_preflight",
+              data: {
+                workspaceRoot: root,
+                failed: true,
+                status: res?.status ?? "failed",
+              },
+            });
+          }
         } catch (err) {
           // Fail-open: audited, then the gate runs anyway.
           this.audit.append({
@@ -2138,11 +2151,13 @@ export class WorkflowEngine {
       return op;
     });
     this.assertApprovals(this.sessions.load(sessionId), beforeEnterOps);
-    const startSession = this.sessions.load(sessionId);
-    await this.runDepsPreflight({
-      id: sessionId,
-      workspaceRoot: startSession.workspaceRoot,
-    });
+    if (beforeEnterOps.length > 0) {
+      const startSession = this.sessions.load(sessionId);
+      await this.runDepsPreflight({
+        id: sessionId,
+        workspaceRoot: startSession.workspaceRoot,
+      });
+    }
     for (const op of beforeEnterOps) {
       const run = await this.operationEngine.executeRequired([op], {
         workspaceRoot: this.sessions.load(sessionId).workspaceRoot,

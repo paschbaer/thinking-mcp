@@ -150,7 +150,9 @@ export function createHttpApp(opts: HttpAppOptions) {
         configVersion: composed.config.configVersion,
         specKit: composed.config.specKit,
         engine: composed.engine,
-        workspaces: composed.config.workspaces,
+        // Live getter — never re-freeze the registry snapshot here: that
+        // was exactly the stale-closure bug this file fixed.
+        workspaces: composed.workspaces,
       }
     : undefined;
 
