@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-02: registry_register aktiviert + Profil-Bindung entfernt (feature/registry-register-default-on)
+- **Was:** `registryRegister.enabled` ist jetzt Default-ON mit Opt-out (`enabled: false`) statt Default-OFF (config.ts Loader, FR-1207); die `spec-kit`-Profil-Bindung an `registry_register` wurde entfernt (ToolHandlers.isRegistryRegisterEnabled, WorkflowEngine.registerWorkspace, register-tools.ts) — Begründung: Workspace-Registrierung ist ein einmaliger Instanz-/Infrastruktur-Concern, der Workflow-Typ wird pro `start_workflow` gewählt; die Profil-Bindung mischte diese Ebenen. Beide Templates emitieren `registryRegister: { enabled: true }` (scaffold.ts Scaffold + ConfigAssistant registry-edit). README „Runtime registry registration“-Tabelle + Tool-Referenz-Zeile dokumentieren das neue Verhalten (Default ON, Opt-out, profilunabhängig).
+- **Tests:** registry-rebind (Opt-out-Test auf explizites `flag: false` umgestellt + neuer Default-ON/Plain-Profile-Regressionstest), tools-registration + spec-kit-tools-registration (erwartete Surface um `registry_register` erweitert), http-transport Tool-Count 23→24. Vollauf **535/535 grün** (68 Files), tsc + prettier clean.
+- **detect_changes:** risk `critical` (loadConfig/registerWorkflowTools an jedem Boot-Flow) — beabsichtigte Behavior-Änderung, durch Vollauf abgesichert.
+- **Next:** Review, dann Merge nach develop; Container-Rebuild nötig, bis das Tool in der laufenden Instanz sichtbar ist (Hot-Reload gibt es nicht).
+
 ## 2026-10-02: CT-ARGS-1 implementiert (feature/ct-args-passthrough)
 - **Was:** Guidance-Workflow session-b0c6df8b — `call_downstream`-Passthrough-Tool + `run_operation`-Arguments-Parameter (Deep-Merge, Agent-Keys gewinnen) + `argumentsLocked`-Fail-closed-Flag. Neue Tests `tests/contract/call-downstream.test.ts` (12, in-process HTTP-MCP-Stub); http-transport Tool-Count 22→23. Full-Suite 516/516 (9 skipped), tsc clean.
 - **Review:** unabhängiger Reviewer (Sub-Agent): CHANGES REQUIRED (1 HIGH Redaction, 2 MEDIUM Router-Override-Drop/Cancel-Semantik) → alle gefixt (d1f0c7d), Re-Review: **APPROVED, 0 offene HIGH/CRITICAL** (Residuen als CT-ARGS-2 getrackt).

@@ -653,8 +653,10 @@ export class WorkflowEngine {
    * runtime via the same WorkspaceRegistry.build validation path — fail-closed
    * on any invalid input (FR-1203), atomic persistent write (FR-1204), audit
    * event (FR-1205), new configurationVersion (FR-1206). Tool availability is
-   * gated by config (FR-1207, registryRegister.enabled, default OFF). Only the
-   * instance/pool engine may mutate the registry (not child engines).
+   * gated by config only (FR-1207, registryRegister.enabled — default ON,
+   * opt-out; profile-independent: registration is an instance-level concern,
+   * the workflow type is chosen per session). Only the instance/pool engine
+   * may mutate the registry (not child engines).
    */
   async registerWorkspace(input: {
     name: string;
@@ -672,14 +674,10 @@ export class WorkflowEngine {
         { recoverable: false },
       );
     }
-    // FR-1201: profile-gated (defense in depth with the tool-list gate).
-    if (this.config.profile !== "spec-kit") {
-      throw new GuidanceError(
-        "configuration_invalid",
-        "registry-register requires the spec-kit profile (FR-1201)",
-        { recoverable: true },
-      );
-    }
+    // FR-1207: flag-gated (opt-out; defense in depth with the tool-list gate).
+    // The former spec-kit profile gate was removed: workspace registration is
+    // an instance/infrastructure concern, while the workflow type is chosen
+    // per session — the two are independent.
     if (!this.config.registryRegister.enabled) {
       throw new GuidanceError(
         "configuration_invalid",

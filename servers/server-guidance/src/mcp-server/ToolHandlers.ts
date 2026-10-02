@@ -176,13 +176,11 @@ export class WorkflowTools {
     return this.engine.registerWorkspace(input);
   }
 
-  /** FR-1207 + FR-1201: tool-list gate — registry_register is profile-gated
-   *  (spec-kit only) and flag-gated (default OFF); keeps the tool off the
-   *  tool list entirely when gated (defense in depth with the engine check). */
+  /** FR-1207: tool-list gate — registry_register is flag-gated only
+   *  (default ON, opt-out via enabled: false; profile-independent); keeps
+   *  the tool off the tool list entirely when gated (defense in depth with
+   *  the engine check). */
   isRegistryRegisterEnabled(): boolean {
-    return (
-      this.engine.config.profile === "spec-kit" &&
-      this.engine.config.registryRegister.enabled
-    );
+    return this.engine.config.registryRegister.enabled;
   }
 }

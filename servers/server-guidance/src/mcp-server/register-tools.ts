@@ -322,10 +322,10 @@ export function registerWorkflowTools(
       ],
     }),
   );
-  // specs/015 US1 (FR-1201..1210): profile-gated runtime registration.
-  // FR-1207: only exposed when registryRegister.enabled is true (fail-closed
-  // otherwise — the engine re-checks, this gate keeps the attack surface off
-  // the tool list entirely).
+  // specs/015 US1 (FR-1201..1210): flag-gated runtime registration
+  // (default ON, opt-out via registryRegister.enabled: false — profile-
+  // independent; the engine re-checks, this gate keeps the attack surface
+  // off the tool list entirely when opted out).
   if (tools.isRegistryRegisterEnabled()) {
     server.tool(
       "registry_register",

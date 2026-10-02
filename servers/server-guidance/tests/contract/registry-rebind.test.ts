@@ -175,12 +175,29 @@ describe("AC-5 rebind semantics (specs/015 addendum AC-13..17)", () => {
 });
 
 describe("registry_register (specs/015 US1, FR-1201..1210)", () => {
-  it("is fail-closed when the flag is off (FR-1207 default)", async () => {
-    writePoolConfig({ registerWs: false });
+  it("is fail-closed when the flag is explicitly opted out (FR-1207)", async () => {
+    writePoolConfig({ registerWs: false, flag: false });
     const engine = poolEngine();
     await expect(
       engine.registerWorkspace({ name: "ws", root: ws }),
     ).rejects.toThrowError(/disabled/);
+  });
+
+  it("defaults to enabled when the flag is absent, in any profile (FR-1207, profile-independent)", async () => {
+    writePoolConfig({ registerWs: false });
+    // strip the explicit flag AND demote the profile: registration is an
+    // instance-level concern and must not depend on the workflow profile
+    const cfgPath = join(poolDir, "guidance.json");
+    const cfg = JSON.parse(readFileSync(cfgPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    delete cfg.registryRegister;
+    cfg.profile = "plain";
+    writeFileSync(cfgPath, JSON.stringify(cfg));
+    const engine = poolEngine();
+    const res = await engine.registerWorkspace({ name: "ws", root: ws });
+    expect(res.registry.some((e) => e.name === "ws")).toBe(true);
   });
 
   it("registers a root fail-closed: valid input persists + audits, invalid input leaves the registry untouched", async () => {
