@@ -1728,47 +1728,52 @@ export class WorkflowEngine {
     if (!depsOp) return; // no configured healing op — nothing to reuse
     const root = resolve(session.workspaceRoot);
     const prev = WorkflowEngine.preflightLocks.get(root) ?? Promise.resolve();
-    const run = prev.catch(() => undefined).then(() =>
-      (async () => {
-        this.audit.append({
-          sessionId: session.id,
-          eventType: "deps_preflight",
-          data: { workspaceRoot: root, trigger: "node_modules_missing_or_stale" },
-        });
-        try {
-          const run = await this.operationEngine.executeRequired([depsOp], {
-            workspaceRoot: session.workspaceRoot,
-            redactionPatterns: this.redactionPatterns,
-          });
-          const res = run.results[0];
-          this.recordDownstreamState(
-            session.id,
-            depsOp.operationId,
-            res?.status ?? "failed",
-            res?.summary ?? "deps pre-flight",
-          );
-          if (res?.status !== "succeeded") {
-            // Terminal audit outcome — fail-open: the gate runs anyway.
-            this.audit.append({
-              sessionId: session.id,
-              eventType: "deps_preflight",
-              data: {
-                workspaceRoot: root,
-                failed: true,
-                status: res?.status ?? "failed",
-              },
-            });
-          }
-        } catch (err) {
-          // Fail-open: audited, then the gate runs anyway.
+    const run = prev
+      .catch(() => undefined)
+      .then(() =>
+        (async () => {
           this.audit.append({
             sessionId: session.id,
             eventType: "deps_preflight",
-            data: { workspaceRoot: root, failed: true, error: String(err) },
+            data: {
+              workspaceRoot: root,
+              trigger: "node_modules_missing_or_stale",
+            },
           });
-        }
-      })(),
-    );
+          try {
+            const run = await this.operationEngine.executeRequired([depsOp], {
+              workspaceRoot: session.workspaceRoot,
+              redactionPatterns: this.redactionPatterns,
+            });
+            const res = run.results[0];
+            this.recordDownstreamState(
+              session.id,
+              depsOp.operationId,
+              res?.status ?? "failed",
+              res?.summary ?? "deps pre-flight",
+            );
+            if (res?.status !== "succeeded") {
+              // Terminal audit outcome — fail-open: the gate runs anyway.
+              this.audit.append({
+                sessionId: session.id,
+                eventType: "deps_preflight",
+                data: {
+                  workspaceRoot: root,
+                  failed: true,
+                  status: res?.status ?? "failed",
+                },
+              });
+            }
+          } catch (err) {
+            // Fail-open: audited, then the gate runs anyway.
+            this.audit.append({
+              sessionId: session.id,
+              eventType: "deps_preflight",
+              data: { workspaceRoot: root, failed: true, error: String(err) },
+            });
+          }
+        })(),
+      );
     WorkflowEngine.preflightLocks.set(
       root,
       run.catch(() => undefined),
@@ -2588,7 +2593,10 @@ export class WorkflowEngine {
         this.recordDownstreamState(sessionId, op.operationId, "running", "");
       }
       this.assertApprovals(session, ops);
-      await this.runDepsPreflight({ id: sessionId, workspaceRoot: ctx.workspaceRoot });
+      await this.runDepsPreflight({
+        id: sessionId,
+        workspaceRoot: ctx.workspaceRoot,
+      });
       const run = await this.operationEngine.executeRequired(ops, ctx);
       this.consumeApprovals(session, ops, run.results);
       opsSucceeded = run.allSucceeded;
