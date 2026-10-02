@@ -83,6 +83,11 @@ export interface OperationConfig {
   /** FR-102 (spec 003): opt-in marker — the operation may be invoked on
    *  demand by the agent via run_operation. Default false (fail-closed). */
   invocableByAgent?: boolean;
+  /** CT-ARGS-1 (review F2): when true, agent-supplied argument overrides
+   *  (run_operation `arguments`) are rejected for this operation — protects
+   *  template-pinned safety-relevant values (e.g. repo/scope pinning).
+   *  Default false (permissive override). */
+  argumentsLocked?: boolean;
   fallback?: OperationConfig[];
   condition?: unknown;
 }

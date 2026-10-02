@@ -393,16 +393,27 @@ export class WorkflowEngine {
       let downstreamEngine: OperationEngine | undefined;
       if (downstreamEnabled) {
         downstreamEngine = new OperationEngine();
-        downstreamEngine.setDownstreamInvoker({
-          invokeTool: this.buildInvokerClosure(servers, deps.stateDir),
-        });
+        // CT-ARGS-1: keep the gated invoker closure reachable for the
+        // call_downstream passthrough — it carries WC-1/WC-1-B/FR-053 gating,
+        // capability-pin drift checks and the read-only containerRoute
+        // fallback. Built once, shared with the downstream OperationEngine.
+        this.agentInvoker = this.buildInvokerClosure(servers, deps.stateDir);
+        downstreamEngine.setDownstreamInvoker({ invokeTool: this.agentInvoker });
         // spec 005 F3/M2 (final review feature 007): Lifecycle-Pfade laufen
         // über executeRequired — Metrics auch dort aufzeichnen, sonst zählt
         // remote nur der direkte execute-Pfad (run_operation).
         const deRaw = downstreamEngine.execute.bind(downstreamEngine);
-        downstreamEngine.execute = (config, ctx, attempt, signal) => {
+        downstreamEngine.execute = (
+          config,
+          ctx,
+          attempt,
+          signal,
+          argumentOverrides,
+        ) => {
           const t0 = Date.now();
-          return Promise.resolve(deRaw(config, ctx, attempt, signal)).then(
+          return Promise.resolve(
+            deRaw(config, ctx, attempt, signal, argumentOverrides),
+          ).then(
             (res) => {
               this.metrics.recordOperation(
                 config.operationId,
@@ -492,8 +503,9 @@ export class WorkflowEngine {
         },
       ) as unknown as OperationEngine;
     } else if (downstreamEnabled && !deps.operationEngine) {
+      this.agentInvoker = this.buildInvokerClosure(servers, deps.stateDir);
       this.operationEngine.setDownstreamInvoker({
-        invokeTool: this.buildInvokerClosure(servers, deps.stateDir),
+        invokeTool: this.agentInvoker,
       });
     }
     // spec 005 FR-403: metrics recording wrapper — records every operation
@@ -505,9 +517,17 @@ export class WorkflowEngine {
     ).execute?.bind(this.operationEngine);
     if (rawExecute) {
       const metrics = this.metrics;
-      this.operationEngine.execute = (config, ctx, attempt, signal) => {
+      this.operationEngine.execute = (
+        config,
+        ctx,
+        attempt,
+        signal,
+        argumentOverrides,
+      ) => {
         const t0 = Date.now();
-        return Promise.resolve(rawExecute(config, ctx, attempt, signal)).then(
+        return Promise.resolve(
+          rawExecute(config, ctx, attempt, signal, argumentOverrides),
+        ).then(
           (res) => {
             metrics.recordOperation(
               config.operationId,
@@ -532,6 +552,10 @@ export class WorkflowEngine {
 
   private clientManager?: ClientManager;
   private allowlists?: Map<string, string[]>;
+  /** CT-ARGS-1: gated invoker closure (buildInvokerClosure) reused by the
+   *  call_downstream passthrough so agent-driven tool calls pass the exact
+   *  same WC-1/WC-1-B/FR-053/pin/containerRoute stack as operations. */
+  private agentInvoker?: DownstreamInvoker["invokeTool"];
   /** GDS-1: enabled downstream server configs for on-demand status probes. */
   private downstreamServers?: Map<string, Record<string, unknown>>;
   private readonly stateDir: string;
@@ -1268,9 +1292,11 @@ export class WorkflowEngine {
   async runOperation(
     sessionId: string,
     operationId: string,
+    argumentOverrides?: Record<string, unknown>,
   ): Promise<ExposedOpResult> {
     const routed = this.routedFor(sessionId);
-    if (routed) return routed.runOperation(sessionId, operationId);
+    if (routed)
+      return routed.runOperation(sessionId, operationId, argumentOverrides);
 
     const session = this.getSession(sessionId);
     const auditDenial = (data: Record<string, unknown>): void =>
@@ -1334,6 +1360,7 @@ export class WorkflowEngine {
         this.ctxFor(session),
         1,
         controller.signal,
+        argumentOverrides,
       );
       // FR-202 (Hard-Kill seit Feature 004): Cancel/Timeout bricht den Child
       // via Abort ab (SIGTERM→SIGKILL); das Ergebnis wird verworfen und als
@@ -1392,6 +1419,134 @@ export class WorkflowEngine {
       const controllers = this.activeOpControllers.get(sessionId);
       controllers?.delete(controller);
       if (controllers && controllers.size === 0)
+        this.activeOpControllers.delete(sessionId);
+      this.releaseWorkspaceOpLock(session.workspaceRoot);
+    }
+  }
+
+  /** CT-ARGS-1: agent-facing passthrough to a configured downstream tool.
+   *  Transparent proxy (GDS-5, raw default) — but routed through the SAME
+   *  gated invoker closure as operations (WC-1 allowlist, WC-1-B
+   *  unconfigured-wildcard rejection, FR-053 egress/approval gate,
+   *  capability-pin drift check, read-only containerRoute timeout fallback).
+   *  Arguments are NOT schema-validated here — input validation stays with
+   *  the downstream tool (MCP protocol), content is redacted before exposure. */
+  async callDownstream(
+    sessionId: string,
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown> = {},
+  ): Promise<ExposedOpResult> {
+    const routed = this.routedFor(sessionId);
+    if (routed)
+      return routed.callDownstream(sessionId, serverId, toolName, args);
+
+    const session = this.getSession(sessionId);
+    const auditDenial = (reason: string): void =>
+      this.audit.append({
+        sessionId,
+        eventType: "operation_invocation_denied",
+        data: { operationId: `call_downstream:${serverId}:${toolName}`, reason },
+      });
+    if (!this.agentInvoker || !this.downstreamServers?.has(serverId)) {
+      auditDenial("downstream_server_not_configured");
+      throw new GuidanceError(
+        "downstream_server_not_configured",
+        `downstream server ${serverId} is not configured or the downstream stack is disabled`,
+        { recoverable: false },
+      );
+    }
+    if (this.runningOps.has(sessionId)) {
+      auditDenial("operation_in_progress");
+      throw new GuidanceError(
+        "operation_in_progress",
+        `an operation is already running for session ${sessionId}`,
+        { recoverable: true },
+      );
+    }
+    this.acquireWorkspaceOpLock(session.workspaceRoot);
+    this.runningOps.add(sessionId);
+    const controller = new AbortController();
+    let controllers = this.activeOpControllers.get(sessionId);
+    if (!controllers) {
+      controllers = new Set();
+      this.activeOpControllers.set(sessionId, controllers);
+    }
+    controllers.add(controller);
+    const startedAt = Date.now();
+    const opId = `call_downstream:${serverId}:${toolName}`;
+    try {
+      if (session.status !== "active") {
+        auditDenial(`session_${session.status}`);
+        return {
+          id: opId,
+          status: "failed",
+          summary: `session is ${session.status}`,
+        };
+      }
+      const outcome = await this.agentInvoker(serverId, toolName, args);
+      const result =
+        outcome.kind === "success"
+          ? {
+              operationId: opId,
+              status: "succeeded" as const,
+              summary: `${opId} succeeded`,
+              content: outcome.content,
+              data: {},
+              errors: [] as { code?: string; message: string }[],
+              warnings: [] as { code?: string; message: string }[],
+              protocolMetadata: outcome.structuredContent
+                ? { structuredContent: outcome.structuredContent }
+                : {},
+            }
+          : outcome.kind === "tool_reported"
+            ? {
+                operationId: opId,
+                status: "failed" as const,
+                summary: "tool reported an error",
+                content: outcome.content,
+                data: {},
+                errors: [{ code: "operation_result_invalid", message: outcome.message }],
+                warnings: [] as { code?: string; message: string }[],
+                protocolMetadata: {},
+              }
+            : {
+                operationId: opId,
+                status: "failed" as const,
+                summary: "transport failure",
+                content: [] as unknown[],
+                data: {},
+                errors: [{ code: "downstream_connection_failed", message: outcome.message }],
+                warnings: [] as { code?: string; message: string }[],
+                protocolMetadata: {},
+              };
+      this.audit.append({
+        sessionId,
+        eventType: "operation_invoked",
+        data: {
+          operationId: opId,
+          status: result.status,
+          durationMs: Date.now() - startedAt,
+          via: "call_downstream",
+        },
+      });
+      return this.exposeOpResult(result);
+    } catch (err) {
+      this.audit.append({
+        sessionId,
+        eventType: "operation_invoked",
+        data: {
+          operationId: opId,
+          status: "failed",
+          durationMs: Date.now() - startedAt,
+          via: "call_downstream",
+        },
+      });
+      throw err;
+    } finally {
+      this.runningOps.delete(sessionId);
+      controllers.delete(controller);
+      if (controllers.size === 0)
         this.activeOpControllers.delete(sessionId);
       this.releaseWorkspaceOpLock(session.workspaceRoot);
     }

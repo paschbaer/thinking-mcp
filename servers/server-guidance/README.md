@@ -270,6 +270,60 @@ Note that `run_operation` passes no agent-supplied arguments — argument values
 come from the operation definition itself (`arguments` with mode
 `fixed`/`template`).
 
+#### `call_downstream`: gated downstream tool passthrough (CT-ARGS-1)
+
+For ad-hoc calls with **agent-supplied arguments**, `call_downstream`
+invokes an arbitrary configured downstream tool directly:
+
+```json
+{
+  "sessionId": "session-…",
+  "serverId": "clearthought",
+  "toolName": "assumption_xray",
+  "args": { "claim": "the build is flaky", "context": "vitest workers" }
+}
+```
+
+It is a **transparent proxy** (GDS-5: raw response, identical schema to a
+direct tool call) but runs through the same fail-closed stack as operations:
+
+- WC-1 tool allowlist (`capabilities.allow.tools`, wildcard `"*"` permitted),
+- WC-1-B rejection of tools **without an operations entry** on wildcard
+  servers — register a read-only operation entry (see above) to unlock a tool,
+- FR-053 egress/approval gate per risk class,
+- capability-pin drift check, reconnect semantics, and the containerRoute
+  timeout fallback for `read_only` tools,
+- per-session single-flight guard and workspace lock (same as `run_operation`),
+- audit events (`operation_invoked` / `operation_invocation_denied`),
+  downstream content redacted before exposure.
+
+Input validation is **not** performed by Guidance — args are passed verbatim
+and the downstream tool validates its own schema (violations surface as
+`tool_reported` errors).
+
+#### `run_operation` with argument overrides (CT-ARGS-1)
+
+`run_operation` accepts an optional `arguments` record for `mcpTool`
+operations. Agent keys are **deep-merged over** the operation's resolved
+`fixed`/`template` arguments (agent keys win per-key, operation-only keys are
+retained):
+
+```json
+{
+  "sessionId": "session-…",
+  "operationId": "ct-existing-tool-example",
+  "arguments": { "text": "smoke" }
+}
+```
+
+- Template resolution runs first; overrides apply after — so
+  `${session.request}` templates can still be partially overridden.
+- Operations that pin safety-relevant values can declare
+  `"argumentsLocked": true` in `operations.json`; overrides are then rejected
+  fail-closed (`operation_arguments_invalid`).
+- `process`/`composite` operations ignore overrides and return an
+  `argument_overrides_ignored` warning (no argv injection from agent input).
+
 ### Bearer authentication (HTTP)
 
 The bearer token is a **shared secret you choose yourself** — the server does

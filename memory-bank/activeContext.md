@@ -3,6 +3,11 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-02: CT-ARGS-1 implementiert (feature/ct-args-passthrough)
+- **Was:** Guidance-Workflow session-b0c6df8b — `call_downstream`-Passthrough-Tool + `run_operation`-Arguments-Parameter (Deep-Merge, Agent-Keys gewinnen) + `argumentsLocked`-Fail-closed-Flag. Neue Tests `tests/contract/call-downstream.test.ts` (9, in-process HTTP-MCP-Stub); http-transport Tool-Count 22→23. Full-Suite 513/513 (9 skipped), tsc clean.
+- **Live-Evidenz im Workflow:** direkte Clear-Thought-MCP-Route durchgehend getimed-out (4×), Container-Route-Fallback (`reasoning-pass`) jedes Mal erfolgreich — FR-035-Verhalten produktiv bestätigt; nach CT-ARGS-1 sind parametrisierte Reasoning-Pässe (`assumption_xray` etc.) über `call_downstream` nutzbar.
+- **Next:** Verification-Phase des Workflows, Merge nach develop.
+
 ## 2026-10-02: Clear-Thought-Operationen für Container-Route generiert (46 neue Ops)
 - **Was:** `.guidance/operations.json` um `ct-*`-mcpTool-Operationen für ALLE Clear-Thought-Tools erweitert (38× `read_only`, 8× `external_write` für session_save/load/import, session/recipe_runner/workflow/Stochastic-Toolsets — nicht idempotent, daher bewusst NICHT fallback-eligibel). Capabilities gegen `server-clear-thought/src/tools/tool-metadata.ts` + Toolset-Slugs verifiziert; JSON per Node-Parser validiert (47 Clear-Thought-Ops inkl. reasoning-pass).
 - **Befund / Runtime-Limitierung:** `run_operation` nimmt KEINE Agent-Argumente entgegen (register-tools.ts L280: nur sessionId+operationId); mcpTool-Ops ziehen Args ausschließlich aus `arguments` (fixed/template). Die neuen Ops sind daher sofort funktional für parameterlose Tools (session_info/export, existing_tool_example) — parametrisierte Tools benötigen entweder feste Args im Op-Eintrag oder einen künftigen Downstream-Passthrough. Getrackt als CT-ARGS-1 (remaining-work-plan.md).
