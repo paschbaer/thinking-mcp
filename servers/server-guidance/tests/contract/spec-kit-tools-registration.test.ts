@@ -90,7 +90,7 @@ async function start(profile: "plain" | "spec-kit"): Promise<void> {
   const { cfgDir, stateDir } = setupWorkspace(profile);
   const app = composeApplication(ws, cfgDir, stateDir);
   server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, ws, app.config.workspaces);
+  registerWorkflowTools(server, app.tools, ws, () => app.config.workspaces);
   if (profile === "spec-kit") {
     registerSpecKitTools(server, {
       workspaceRoot: ws,

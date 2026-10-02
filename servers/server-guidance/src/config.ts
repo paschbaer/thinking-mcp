@@ -34,6 +34,11 @@ export interface GuidanceMainConfig {
    *  boot diagnostics reference the guidance deps-install/deps-reinstall
    *  operations so the agent can heal before gates run. Default OFF. */
   nodeDeps?: { proactiveProbe?: boolean };
+  /** Automatic dependency pre-flight before build/test gates: when ON,
+   *  a gate running in a workspace whose node_modules is missing or stale
+   *  (vs. package.json/package-lock.json) triggers deps-install first.
+   *  Default ON — opt-out via enabled: false. */
+  preFlight?: { enabled?: boolean };
   state?: {
     directory: string;
     persistAfterEveryOperation?: boolean;
@@ -140,6 +145,8 @@ export interface LoadedConfig {
   registryRegister: { enabled: boolean };
   /** specs/015 US2: proactive node-deps probe flag (default OFF). */
   nodeDeps: { proactiveProbe: boolean };
+  /** Automatic deps pre-flight before gates (default ON, opt-out). */
+  preFlight: { enabled: boolean };
   chain: ChainConfig;
   /** specs/014: true when guidance.json carries no process file-refs
    *  (workflow/responses/operations/policies/downstreamServers) — a
@@ -191,6 +198,13 @@ Object.assign(mainConfigSchema, {
       },
     },
     registryRegister: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        enabled: { type: "boolean" },
+      },
+    },
+    preFlight: {
       type: "object",
       additionalProperties: false,
       properties: {
@@ -1242,6 +1256,7 @@ export function loadConfig(
     chain,
     registryRegister: { enabled: cfg.registryRegister?.enabled !== false },
     nodeDeps: { proactiveProbe: cfg.nodeDeps?.proactiveProbe === true },
+    preFlight: { enabled: cfg.preFlight?.enabled !== false },
     registryOnly,
     workflow: loaded["workflow"],
     responses: loaded["responses"],

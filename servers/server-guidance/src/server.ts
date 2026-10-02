@@ -68,6 +68,9 @@ interface ComposedApp {
   profile: string;
   configVersion: string;
   specKit?: import("./config.js").SpecKitConfig;
+  /** Live engine accessor — config (and the workspace registry) is
+   *  recomposed on registry_register; readers must go through it. */
+  engine: import("./workflow/WorkflowEngine.js").WorkflowEngine;
   workspaces: import("./workspace-registry.js").WorkspaceRegistry;
 }
 
@@ -84,7 +87,7 @@ export function createConfiguredServer(
     server,
     composed.tools,
     opts.workspaceRoot,
-    composed.workspaces,
+    () => composed.engine.config.workspaces,
   );
   registerSetupTools(server);
   if (composed.profile === "spec-kit") {
@@ -146,6 +149,7 @@ export function createHttpApp(opts: HttpAppOptions) {
         profile: composed.config.profile,
         configVersion: composed.config.configVersion,
         specKit: composed.config.specKit,
+        engine: composed.engine,
         workspaces: composed.config.workspaces,
       }
     : undefined;

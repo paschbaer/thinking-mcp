@@ -137,7 +137,11 @@ export function composeApplication(
     stateDir,
     engine,
     tools,
-    workspaces: config.workspaces,
+    // Live getter: registry_register recomposes engine.config — a frozen
+    // snapshot here made /workspaces listings and tool wiring stale (specs/015).
+    get workspaces() {
+      return engine.config.workspaces;
+    },
   };
 }
 

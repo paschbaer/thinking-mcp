@@ -23,7 +23,7 @@ async function main(): Promise<void> {
     server,
     app.tools,
     workspaceRoot,
-    app.config.workspaces,
+    () => app.engine.config.workspaces,
   );
   registerSetupTools(server);
   // Option C (Review Finding 7): Spec-Kit-Tools nur bei Profil "spec-kit".

@@ -48,7 +48,7 @@ beforeEach(async () => {
   }
   const app = composeApplication(ws, cfgDir, join(ws, "state"));
   server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, ws, app.config.workspaces);
+  registerWorkflowTools(server, app.tools, ws, () => app.config.workspaces);
   const pair = InMemoryTransport.createLinkedPair();
   await Promise.all([
     server.connect(pair[0]),
@@ -90,7 +90,7 @@ describe("tool registration (Review Finding 1)", () => {
       optOutServer,
       optOutApp.tools,
       ws,
-      optOutApp.config.workspaces,
+      () => optOutApp.config.workspaces,
     );
     const pair = InMemoryTransport.createLinkedPair();
     const optOutClient = new Client({ name: "test-opt-out", version: "1" });

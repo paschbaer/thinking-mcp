@@ -84,7 +84,7 @@ function setup(): string {
   }
   const app = composeApplication(ws, cfgDir, join(cfgDir, "state"));
   const server = createGuidanceServer();
-  registerWorkflowTools(server, app.tools, ws, app.config.workspaces);
+  registerWorkflowTools(server, app.tools, ws, () => app.config.workspaces);
   const pair = InMemoryTransport.createLinkedPair();
   void server.connect(pair[0]);
   client = new Client({ name: "test", version: "1" });

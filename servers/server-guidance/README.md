@@ -1116,6 +1116,7 @@ under. The `registry_register` tool is gated by the config flag only.
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `registryRegister.enabled` (default `true`) | register/remove one root at runtime; full `WorkspaceRegistry.build` validation, atomic `guidance.json` write, `registry_changed` audit, new `configurationVersion` |
 | `registryRegister.enabled: false` (opt-out) | `registry_register` tool not exposed; engine calls fail closed with `configuration_invalid`                                                                        |
+| `preFlight.enabled` (default `true`)        | automatic `deps-install` pre-flight before gates when `node_modules` is missing/stale (see "Automatic dependency pre-flight"); opt-out via `false`                 |
 | Profile                                     | none — available in every profile (`plain` and `spec-kit`); only the instance engine may mutate the registry                                                       |
 | Session semantics on any config change      | `completed` survives; `active`/`blocked` rebind after successful re-validation (`session_rebound` audit); failed re-validation stays fail-closed                   |
 | User decision required                      | chain halts — chaining never bypasses `report_blocker`                                                                                                             |
@@ -1348,6 +1349,30 @@ matching operation. The optional proactive probe
 (`nodeDeps.proactiveProbe` in `guidance.json`, **default OFF**) makes the
 boot diagnostics reference the deps operations so the agent can heal
 before gates run.
+
+### Automatic dependency pre-flight (`preFlight.enabled`, default ON)
+
+Before required lifecycle operations (gates) run in a workspace, guidance
+checks the workspace's dependency state and — when stale — runs the
+configured `deps-install` operation automatically (healing chain:
+boot warning → **pre-flight** → reactive `node_deps_hint`):
+
+- **Trigger (deterministic):** `node_modules` missing while a
+  `package.json` exists.
+- **Trigger (best-effort):** `package.json` or `package-lock.json`
+  newer than `node_modules`. mtime comparison over bind mounts (e.g.
+  Windows `drvfs`) is coarse — a missed stale install is not silent:
+  the gate then fails and the reactive `node_deps_hint` fires.
+- **Not detected here:** native-addon ABI mismatches
+  (`ERR_DLOPEN_FAILED`) with a fresh `node_modules` — remedy stays the
+  reactive `deps-reinstall` path.
+- **Semantics:** fail-open (a pre-flight failure is audited as
+  `deps_preflight` and never masks the gate's own error); serialized
+  per workspace root (concurrent sessions cannot race two npm runs into
+  one tree); reuses the configured `deps-install` operation — no
+  duplicated npm logic; no-op when the workspace has no `package.json`,
+  when `deps-install` is not configured, or when disabled via
+  `preFlight.enabled: false` in `guidance.json`.
 
 ## Completion final-review gate
 

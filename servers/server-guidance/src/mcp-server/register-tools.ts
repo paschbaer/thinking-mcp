@@ -102,7 +102,10 @@ export function registerWorkflowTools(
   server: McpServer,
   tools: WorkflowTools,
   workspaceRoot: string,
-  registry: WorkspaceRegistry,
+  /** Live provider — the engine recomposes its config (and registry) on
+   *  registry_register; a frozen boot-time instance here was the root cause
+   *  of workspace_not_registered right after a successful registration. */
+  resolveRegistry: () => WorkspaceRegistry,
 ): void {
   server.tool(
     "start_workflow",
@@ -120,9 +123,9 @@ export function registerWorkflowTools(
         await tools.startWorkflow({
           ...input,
           workspaceRoot: input.workspace
-            ? assertWorkspaceRegistered(registry, input.workspace)
+            ? assertWorkspaceRegistered(resolveRegistry(), input.workspace)
             : assertWorkspaceRegistered(
-                registry,
+                resolveRegistry(),
                 input.workspaceRoot ?? workspaceRoot,
               ),
         }),

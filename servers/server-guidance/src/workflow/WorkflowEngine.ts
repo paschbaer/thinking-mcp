@@ -1689,6 +1689,80 @@ export class WorkflowEngine {
     }
   }
 
+  /** specs/015 healing chain, automatic stage: before required lifecycle
+   *  gates run, a workspace with missing or stale node_modules gets its
+   *  deps-install operation executed (config-gated via preFlight.enabled,
+   *  default ON). Fail-open: a pre-flight failure is audited but never
+   *  masks the gate — the gate's own error plus the reactive nodeDepsHints
+   *  remain the source of truth. Serialized per workspace root so
+   *  concurrent sessions cannot race two npm runs into one tree. */
+  private static readonly preflightLocks = new Map<string, Promise<void>>();
+
+  /** mtime trigger is best-effort (drvfs granularity over bind mounts):
+   *  a MISSING node_modules is the deterministic trigger; staleness only
+   *  adds the common "manifest newer than install" case. Native-ABI
+   *  mismatch is intentionally NOT detected here — it stays on the
+   *  reactive deps-reinstall path (nodeDepsHints). */
+  private static nodeDepsStale(workspaceRoot: string): boolean {
+    const pkg = join(workspaceRoot, "package.json");
+    if (!existsSync(pkg)) return false; // not an npm workspace — no-op
+    const nm = join(workspaceRoot, "node_modules");
+    if (!existsSync(nm)) return true;
+    try {
+      const nmMtime = statSync(nm).mtimeMs;
+      if (statSync(pkg).mtimeMs > nmMtime) return true;
+      const lock = join(workspaceRoot, "package-lock.json");
+      return existsSync(lock) && statSync(lock).mtimeMs > nmMtime;
+    } catch {
+      return false;
+    }
+  }
+
+  private async runDepsPreflight(session: {
+    id: string;
+    workspaceRoot: string;
+  }): Promise<void> {
+    if (!this.config.preFlight.enabled) return;
+    if (!WorkflowEngine.nodeDepsStale(session.workspaceRoot)) return;
+    const depsOp = this.operations["deps-install"];
+    if (!depsOp) return; // no configured healing op — nothing to reuse
+    const root = resolve(session.workspaceRoot);
+    const prev = WorkflowEngine.preflightLocks.get(root) ?? Promise.resolve();
+    const run = prev.catch(() => undefined).then(() =>
+      (async () => {
+        this.audit.append({
+          sessionId: session.id,
+          eventType: "deps_preflight",
+          data: { workspaceRoot: root, trigger: "node_modules_missing_or_stale" },
+        });
+        try {
+          const run = await this.operationEngine.executeRequired([depsOp], {
+            workspaceRoot: session.workspaceRoot,
+            redactionPatterns: this.redactionPatterns,
+          });
+          this.recordDownstreamState(
+            session.id,
+            depsOp.operationId,
+            run.results[0]?.status ?? "failed",
+            run.results[0]?.summary ?? "deps pre-flight",
+          );
+        } catch (err) {
+          // Fail-open: audited, then the gate runs anyway.
+          this.audit.append({
+            sessionId: session.id,
+            eventType: "deps_preflight",
+            data: { workspaceRoot: root, failed: true, error: String(err) },
+          });
+        }
+      })(),
+    );
+    WorkflowEngine.preflightLocks.set(
+      root,
+      run.catch(() => undefined),
+    );
+    await run;
+  }
+
   private ctxFor(session: {
     workspaceRoot: string;
     request: string;
@@ -2064,6 +2138,11 @@ export class WorkflowEngine {
       return op;
     });
     this.assertApprovals(this.sessions.load(sessionId), beforeEnterOps);
+    const startSession = this.sessions.load(sessionId);
+    await this.runDepsPreflight({
+      id: sessionId,
+      workspaceRoot: startSession.workspaceRoot,
+    });
     for (const op of beforeEnterOps) {
       const run = await this.operationEngine.executeRequired([op], {
         workspaceRoot: this.sessions.load(sessionId).workspaceRoot,
@@ -2494,6 +2573,7 @@ export class WorkflowEngine {
         this.recordDownstreamState(sessionId, op.operationId, "running", "");
       }
       this.assertApprovals(session, ops);
+      await this.runDepsPreflight({ id: sessionId, workspaceRoot: ctx.workspaceRoot });
       const run = await this.operationEngine.executeRequired(ops, ctx);
       this.consumeApprovals(session, ops, run.results);
       opsSucceeded = run.allSucceeded;
