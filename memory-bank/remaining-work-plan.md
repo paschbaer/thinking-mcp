@@ -16,6 +16,8 @@
 
 ## Tracked Follow-ups
 
+- [KA-4] LOW (2026-10-02) — **GELÖST (2026-10-02, Option 1 + 4)** | `gitnexus analyze` brach mit Storage-Status `foreign` ab — Root Cause: Case-Mismatch, Storage registriert als `/mnt/d/repos/thinking-mcp` (lowercase), Shell-Cwd war `/mnt/d/repos/Thinking-MCP`. Fix: Reindex mit exakt kleingeschriebenem Cwd — erfolgreich (8.988 Nodes / 21.534 Edges, 177 s). detect-changes: "No changes detected"; die `foreign`-Warning bei read-only Checks ist kosmetisch (Storage-Pfad wird vom CLI ohnehin kanonisiert). Regel in AGENTS.md dokumentiert (Backup `AGENTS.md.bak`): künftig jeden Reindex mit `cd /mnt/d/repos/thinking-mcp` ausführen.
+
 - [KA-1] LOW (2026-10-02, Review feature/mcp-keep-alive-timeout, APPROVED 0 HIGH/CRIT) | server-stochasticthinking SIGTERM/SIGINT-Handler haben keinen `setTimeout(process.exit, 5000).unref()`-Fallback (Asymmetrie zu clear-thought/insight). Empirisch harmlos: Node ≥19 `server.close()` schließt idle Keep-Alive-Sockets selbst (Repro: 1 ms). **Trigger:** nächste Änderung am Shutdown-Pfad von server-stochasticthinking. Accepted observation.
 
 - [KA-2] LOW (2026-10-02, Review feature/mcp-keep-alive-timeout) | `Number(process.env.KEEP_ALIVE_TIMEOUT_MS) || 65000` frisst absichtliche `0`-Werte (""/"0" → Fallback 65000). Kein gültiger Use-Case für einen Server; bewusst so gewählt. **Trigger:** falls ein bewusster Opt-out (`KEEP_ALIVE_TIMEOUT_MS=0`) benötigt wird → explizites `!== undefined`-Handling. Accepted with rationale.

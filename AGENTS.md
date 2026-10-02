@@ -4,6 +4,7 @@
 - Before answering architecture or codebase questions, use the GitNexus graph tools to analyze the codebase (skill: gitnexus-workflow.md).
 - Do not make blind edits or assumptions about execution pathways. Always query the precomputed knowledge graph for context.
 - Type `gitnexus analyze --no-stats` in Terminal to build or update the knowledge graph. The `--no-stats` flag is mandatory in this repo: it keeps AGENTS.md/CLAUDE.md free of volatile symbol/relationship counts so code changes don't dirty these files.
+- **GitNexus path case matters (KA-4, resolved 2026-10-02):** the index storage is registered as `/mnt/d/repos/thinking-mcp` (all lowercase). Run every reindex with `cd /mnt/d/repos/thinking-mcp` (exact case) — a mixed-case cwd (`/mnt/d/repos/Thinking-MCP`) makes the storage validate as `foreign` and aborts the analysis (`StorageRequirementError`). Read-only checks (`detect-changes`) tolerate the mismatch; a `foreign` warning there is cosmetic.
 
 ## Agent Working Rules
 - Always break down complex tasks into a plan first. See Reasoning & Planning Rules.
