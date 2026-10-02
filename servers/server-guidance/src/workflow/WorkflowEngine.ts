@@ -399,7 +399,9 @@ export class WorkflowEngine {
         // capability-pin drift checks and the read-only containerRoute
         // fallback. Built once, shared with the downstream OperationEngine.
         this.agentInvoker = this.buildInvokerClosure(servers, deps.stateDir);
-        downstreamEngine.setDownstreamInvoker({ invokeTool: this.agentInvoker });
+        downstreamEngine.setDownstreamInvoker({
+          invokeTool: this.agentInvoker,
+        });
         // spec 005 F3/M2 (final review feature 007): Lifecycle-Pfade laufen
         // über executeRequired — Metrics auch dort aufzeichnen, sonst zählt
         // remote nur der direkte execute-Pfad (run_operation).
@@ -455,7 +457,8 @@ export class WorkflowEngine {
         ) {
           result.warnings.push({
             code: "argument_overrides_ignored",
-            message: "argument overrides are only supported for downstream mcpTool operations",
+            message:
+              "argument overrides are only supported for downstream mcpTool operations",
           });
         }
         return result;
@@ -468,8 +471,20 @@ export class WorkflowEngine {
         argumentOverrides,
       ) =>
         isDownstreamOp(config) && downstreamEngine
-          ? downstreamEngine.execute(config, ctx, attempt, signal, argumentOverrides)
-          : clientExecuteSingle(config, ctx, attempt, signal, argumentOverrides);
+          ? downstreamEngine.execute(
+              config,
+              ctx,
+              attempt,
+              signal,
+              argumentOverrides,
+            )
+          : clientExecuteSingle(
+              config,
+              ctx,
+              attempt,
+              signal,
+              argumentOverrides,
+            );
       const routerExecuteRequired = async (
         configs: OperationConfig[],
         ctx: OperationContext,
@@ -1472,7 +1487,10 @@ export class WorkflowEngine {
       this.audit.append({
         sessionId,
         eventType: "operation_invocation_denied",
-        data: { operationId: `call_downstream:${serverId}:${toolName}`, reason },
+        data: {
+          operationId: `call_downstream:${serverId}:${toolName}`,
+          reason,
+        },
       });
     if (!this.agentInvoker || !this.downstreamServers?.has(serverId)) {
       auditDenial("downstream_server_not_configured");
@@ -1551,9 +1569,7 @@ export class WorkflowEngine {
               data: {},
               errors: [] as { code?: string; message: string }[],
               warnings: [] as { code?: string; message: string }[],
-              protocolMetadata: structuredContent
-                ? { structuredContent }
-                : {},
+              protocolMetadata: structuredContent ? { structuredContent } : {},
             }
           : outcome.kind === "tool_reported"
             ? {
@@ -1562,7 +1578,12 @@ export class WorkflowEngine {
                 summary: "tool reported an error",
                 content: redactedContent,
                 data: {},
-                errors: [{ code: "operation_result_invalid", message: outcome.message }],
+                errors: [
+                  {
+                    code: "operation_result_invalid",
+                    message: outcome.message,
+                  },
+                ],
                 warnings: [] as { code?: string; message: string }[],
                 protocolMetadata: {},
               }
@@ -1572,7 +1593,12 @@ export class WorkflowEngine {
                 summary: "transport failure",
                 content: [] as unknown[],
                 data: {},
-                errors: [{ code: "downstream_connection_failed", message: outcome.message }],
+                errors: [
+                  {
+                    code: "downstream_connection_failed",
+                    message: outcome.message,
+                  },
+                ],
                 warnings: [] as { code?: string; message: string }[],
                 protocolMetadata: {},
               };
@@ -1602,8 +1628,7 @@ export class WorkflowEngine {
     } finally {
       this.runningOps.delete(sessionId);
       controllers.delete(controller);
-      if (controllers.size === 0)
-        this.activeOpControllers.delete(sessionId);
+      if (controllers.size === 0) this.activeOpControllers.delete(sessionId);
       this.releaseWorkspaceOpLock(session.workspaceRoot);
     }
   }
