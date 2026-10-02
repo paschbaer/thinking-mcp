@@ -68,6 +68,10 @@ function startEchoMcpServer(): Promise<StubState> {
       server.tool("ping", "no-args health check", {}, async () => ({
         content: [{ type: "text", text: "pong" }],
       }));
+      server.tool("leak", "returns a secret-shaped payload", {}, async () => ({
+        content: [{ type: "text", text: "harmless" }],
+        structuredContent: { api_key: "sk-live-123" },
+      }));
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         enableJsonResponse: true,
@@ -248,6 +252,46 @@ describe("call_downstream: gated passthrough (CT-ARGS-1)", () => {
     ).rejects.toMatchObject({ code: "authorization_required" });
   });
 
+  it("denies a destructive tool without approval (FR-053)", async () => {
+    seedWorkspace(
+      { stub: { allowTools: ["*"], url: stub!.url } },
+      {
+        "stub-echo-destructive": {
+          type: "mcpTool",
+          server: "stub",
+          capability: "echo",
+          required: false,
+          riskClass: "destructive",
+        },
+      },
+    );
+    const engine = makeEngine();
+    const start = await startSession(engine);
+    await expect(
+      engine.callDownstream(start.sessionId, "stub", "echo", { message: "x" }),
+    ).rejects.toMatchObject({ code: "authorization_required" });
+  });
+
+  it("redacts secret-shaped downstream payloads before exposure (HIGH-fix regression)", async () => {
+    seedWorkspace(
+      { stub: { allowTools: ["*"], url: stub!.url } },
+      {
+        "stub-leak": {
+          type: "mcpTool",
+          server: "stub",
+          capability: "leak",
+          required: false,
+          riskClass: "read_only",
+        },
+      },
+    );
+    const engine = makeEngine();
+    const start = await startSession(engine);
+    const res = await engine.callDownstream(start.sessionId, "stub", "leak", {});
+    expect(res.status).toBe("succeeded");
+    expect(JSON.stringify(res)).not.toContain("sk-live-123");
+  });
+
   it("routes a workspace (child-engine) session like run_operation", async () => {
     seedWorkspace(
       { stub: { allowTools: ["*"], url: stub!.url } },
@@ -298,6 +342,15 @@ describe("run_operation arguments override (CT-ARGS-1)", () => {
     const engine = makeEngine();
     const start = await startSession(engine);
     const res = await engine.runOperation(start.sessionId, "ct-op");
+    expect(res.status).toBe("succeeded");
+    expect(JSON.stringify(res.content)).toContain("echo:from-op");
+  });
+
+  it("treats an empty overrides object like absent overrides", async () => {
+    seedWorkspace({ stub: { allowTools: ["*"], url: stub!.url } }, baseOps());
+    const engine = makeEngine();
+    const start = await startSession(engine);
+    const res = await engine.runOperation(start.sessionId, "ct-op", {});
     expect(res.status).toBe("succeeded");
     expect(JSON.stringify(res.content)).toContain("echo:from-op");
   });

@@ -36,6 +36,7 @@ import type {
   DownstreamInvoker,
   ExecuteFn,
 } from "../orchestration/OperationEngine.js";
+import { redactUnknown } from "../policy/redaction.js";
 import { SessionRepository } from "../state/SessionRepository.js";
 import { AuditRepository } from "../state/SessionRepository.js";
 import { createValidator, type SchemaValidator } from "./schema-validator.js";
@@ -441,14 +442,34 @@ export class WorkflowEngine {
         ctx: OperationContext,
         attempt: number,
         signal?: AbortSignal,
+        argumentOverrides?: Record<string, unknown>,
       ): Promise<NormalizedResult> => {
         const r = await clientEngine.executeRequired([config], ctx);
-        return r.results[0]!;
+        const result = r.results[0]!;
+        // CT-ARGS-1: client-side ops (clientOpEngine) have no argument channel
+        // — surface the same ignore-warning the OperationEngine uses instead
+        // of silently dropping overrides.
+        if (
+          argumentOverrides !== undefined &&
+          Object.keys(argumentOverrides).length > 0
+        ) {
+          result.warnings.push({
+            code: "argument_overrides_ignored",
+            message: "argument overrides are only supported for downstream mcpTool operations",
+          });
+        }
+        return result;
       };
-      const routerExecute: ExecuteFn = (config, ctx, attempt, signal) =>
+      const routerExecute: ExecuteFn = (
+        config,
+        ctx,
+        attempt,
+        signal,
+        argumentOverrides,
+      ) =>
         isDownstreamOp(config) && downstreamEngine
-          ? downstreamEngine.execute(config, ctx, attempt, signal)
-          : clientExecuteSingle(config, ctx, attempt, signal);
+          ? downstreamEngine.execute(config, ctx, attempt, signal, argumentOverrides)
+          : clientExecuteSingle(config, ctx, attempt, signal, argumentOverrides);
       const routerExecuteRequired = async (
         configs: OperationConfig[],
         ctx: OperationContext,
@@ -1430,7 +1451,12 @@ export class WorkflowEngine {
    *  unconfigured-wildcard rejection, FR-053 egress/approval gate,
    *  capability-pin drift check, read-only containerRoute timeout fallback).
    *  Arguments are NOT schema-validated here — input validation stays with
-   *  the downstream tool (MCP protocol), content is redacted before exposure. */
+   *  the downstream tool (MCP protocol); downstream content IS redacted
+   *  before exposure (same redactUnknown seam as the operation path).
+   *  Cancellation note: the in-flight HTTP call is not hard-cancellable
+   *  (MCP callTool has no AbortSignal) — the controller bookkeeping below
+   *  enables future signal threading; results issued before a cancel are
+   *  discarded like runOperation does. */
   async callDownstream(
     sessionId: string,
     serverId: string,
@@ -1485,18 +1511,48 @@ export class WorkflowEngine {
         };
       }
       const outcome = await this.agentInvoker(serverId, toolName, args);
+      // FR-202 parity with runOperation: a call issued before cancel_workflow
+      // has its result discarded (the in-flight HTTP request itself cannot be
+      // aborted — see JSDoc).
+      if (this.sessions.load(sessionId).status === "cancelled") {
+        this.audit.append({
+          sessionId,
+          eventType: "operation_invoked",
+          data: {
+            operationId: opId,
+            status: "cancelled",
+            durationMs: Date.now() - startedAt,
+            via: "call_downstream",
+          },
+        });
+        return {
+          id: opId,
+          status: "failed",
+          summary: "session cancelled during operation; result discarded",
+        };
+      }
+      // Same sanitization seam as the operation path (OperationEngine):
+      // downstream payloads are redacted BEFORE they become agent-facing.
+      const redactedContent =
+        outcome.kind === "transport"
+          ? []
+          : (redactUnknown(outcome.content) as unknown[]);
+      const structuredContent =
+        outcome.kind === "success" && outcome.structuredContent
+          ? redactUnknown(outcome.structuredContent)
+          : undefined;
       const result =
         outcome.kind === "success"
           ? {
               operationId: opId,
               status: "succeeded" as const,
               summary: `${opId} succeeded`,
-              content: outcome.content,
+              content: redactedContent,
               data: {},
               errors: [] as { code?: string; message: string }[],
               warnings: [] as { code?: string; message: string }[],
-              protocolMetadata: outcome.structuredContent
-                ? { structuredContent: outcome.structuredContent }
+              protocolMetadata: structuredContent
+                ? { structuredContent }
                 : {},
             }
           : outcome.kind === "tool_reported"
@@ -1504,7 +1560,7 @@ export class WorkflowEngine {
                 operationId: opId,
                 status: "failed" as const,
                 summary: "tool reported an error",
-                content: outcome.content,
+                content: redactedContent,
                 data: {},
                 errors: [{ code: "operation_result_invalid", message: outcome.message }],
                 warnings: [] as { code?: string; message: string }[],
