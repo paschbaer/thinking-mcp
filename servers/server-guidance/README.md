@@ -845,6 +845,43 @@ decisions the agent cannot make (risk-class approvals, ambiguous blockers):
 → session `blocked` → after the user decides:
 `resume_workflow { "sessionId": "…" }`.
 
+### FR-053 approval ceremony (REV-US2-F1, scope A)
+
+Operations with `riskClass` `workspace_write`, `destructive` or
+`credential_sensitive` require **explicit user approval per execution** — on
+`run_operation` AND on lifecycle executions (phase gates, beforeEnter/afterExit,
+completion hooks). Without a grant the execution fails **before any side
+effect** with a recoverable `authorization_required` (audited as
+`operation_invocation_denied` / reason `approval_required`). The agent
+escalates:
+
+```
+report_blocker { "sessionId": "…", "category": "approval",
+                 "requiresUserDecision": true,
+                 "options": ["approve <operation-id>", "deny"] }
+→ session blocked
+resume_workflow { "sessionId": "…", "decision": "approve <operation-id>" }
+→ grant stored on the session (audit: approval_granted), session active again
+```
+
+The grant is **consumed one-shot** at the next execution of that operation
+(audit: `approval_consumed`) — a repeated execution requires a fresh grant.
+`read_only` operations are unaffected. Note: approval enforcement is engine
+code — a running guidance container enforces the gate only after it runs the
+deployed build.
+
+### Platform note for the dependency operations
+
+`deps-install` / `deps-reinstall` spawn `npm` directly (no shell). They are
+supported on Linux/container hosts (FR-1216); Windows hosts are not supported
+without shell adaptation (`npm.cmd` resolution).
+
+Profile change (REV-US2-F1): the python-guidance profile no longer auto-runs
+`toolchain-sync` at `understand.afterEnter` — an auto-executed
+`workspace_write` op is incompatible with the approval ceremony (the session
+could not even start without a grant). The agent invokes `toolchain-sync`
+explicitly via `run_operation` instead (the E2E suite models this flow).
+
 ### Example: Spec-Kit profile
 
 With `profile: "spec-kit"` the agent orchestrates an existing feature folder:

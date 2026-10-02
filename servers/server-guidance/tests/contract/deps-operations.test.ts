@@ -12,6 +12,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -330,7 +331,7 @@ describe("specs/015 US2 root scoping (AC-8 negative)", () => {
       writeFileSync(join(configDir, f), readFileSync(join(FIXTURE, f)));
     }
     mkdirSync(join(configDir, "schemas"), { recursive: true });
-    for (const f of require("node:fs").readdirSync(join(FIXTURE, "schemas"))) {
+    for (const f of readdirSync(join(FIXTURE, "schemas"))) {
       writeFileSync(
         join(configDir, "schemas", f),
         readFileSync(join(FIXTURE, "schemas", f)),

@@ -6,16 +6,28 @@
  * always stay legal (both modes); fresh requestIds always advance the phase.
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, cpSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  cpSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
 import { WorkflowTools } from "../../src/mcp-server/ToolHandlers.js";
+import { SessionRepository } from "../../src/state/SessionRepository.js";
 
-const FIXTURE_CONFIG = join(import.meta.dirname, "../workflow/fixtures/guidance");
+const FIXTURE_CONFIG = join(
+  import.meta.dirname,
+  "../workflow/fixtures/guidance",
+);
 
-function makeTools(opts: { policies?: object; reachableCompletion?: boolean } = {}): {
+function makeTools(
+  opts: { policies?: object; reachableCompletion?: boolean } = {},
+): {
   tools: WorkflowTools;
   ws: string;
 } {
@@ -25,9 +37,9 @@ function makeTools(opts: { policies?: object; reachableCompletion?: boolean } = 
     JSON.stringify({
       name: "ws",
       scripts: {
-        lint: "node -e \"process.exit(0)\"",
-        test: "node -e \"process.exit(0)\"",
-        build: "node -e \"process.exit(0)\"",
+        lint: 'node -e "process.exit(0)"',
+        test: 'node -e "process.exit(0)"',
+        build: 'node -e "process.exit(0)"',
       },
     }),
   );
@@ -36,7 +48,10 @@ function makeTools(opts: { policies?: object; reachableCompletion?: boolean } = 
     configDir = join(ws, "config");
     cpSync(FIXTURE_CONFIG, configDir, { recursive: true });
     if (opts.policies) {
-      writeFileSync(join(configDir, "policies.json"), JSON.stringify(opts.policies));
+      writeFileSync(
+        join(configDir, "policies.json"),
+        JSON.stringify(opts.policies),
+      );
     }
     if (opts.reachableCompletion) {
       // RID-1 review RID-2: disable the lifecycle gates so the phase walk can
@@ -78,7 +93,9 @@ async function startAndSubmitUnderstanding(
 
 describe("requestId replay hardening (RID-1)", () => {
   let cleanup: string[] = [];
-  beforeEach(() => { cleanup = []; });
+  beforeEach(() => {
+    cleanup = [];
+  });
   afterEach(() => {
     for (const dir of cleanup) rmSync(dir, { recursive: true, force: true });
   });
@@ -115,7 +132,11 @@ describe("requestId replay hardening (RID-1)", () => {
       workspaceRoot: mkdtempSync(join(tmpdir(), "guidance-rid1-ws-")),
       request: "r",
     })) as { sessionId: string };
-    await tools.submitUnderstanding(start.sessionId, { summary: "v1" }, "req-A");
+    await tools.submitUnderstanding(
+      start.sessionId,
+      { summary: "v1" },
+      "req-A",
+    );
     const r1 = (await tools.submitUnderstanding(
       start.sessionId,
       { summary: "v1" },
@@ -136,7 +157,11 @@ describe("requestId replay hardening (RID-1)", () => {
       workspaceRoot: mkdtempSync(join(tmpdir(), "guidance-rid1-ws-")),
       request: "r",
     })) as { sessionId: string };
-    await tools.submitUnderstanding(start.sessionId, { summary: "v1" }, "req-A");
+    await tools.submitUnderstanding(
+      start.sessionId,
+      { summary: "v1" },
+      "req-A",
+    );
     const replay = (await tools.submitUnderstanding(
       start.sessionId,
       { summary: "TOTALLY DIFFERENT" },
@@ -148,14 +173,21 @@ describe("requestId replay hardening (RID-1)", () => {
 
   it("reject-mismatch policy rejects a changed payload, allows same-payload retries", async () => {
     const { tools, ws } = makeTools({
-      policies: { version: 2, submission: { requestIdReuse: "reject-mismatch" } },
+      policies: {
+        version: 2,
+        submission: { requestIdReuse: "reject-mismatch" },
+      },
     });
     cleanup.push(ws);
     const start = (await tools.startWorkflow({
       workspaceRoot: mkdtempSync(join(tmpdir(), "guidance-rid1-ws-")),
       request: "r",
     })) as { sessionId: string };
-    await tools.submitUnderstanding(start.sessionId, { summary: "v1" }, "req-A");
+    await tools.submitUnderstanding(
+      start.sessionId,
+      { summary: "v1" },
+      "req-A",
+    );
     await expect(
       tools.submitUnderstanding(
         start.sessionId,
@@ -191,7 +223,9 @@ describe("requestId replay hardening (RID-1)", () => {
     // NEXT phase tool with a fresh requestId.
     const s2 = (await tools.submitPlan(
       start.sessionId,
-      { tasks: [{ id: "T1", title: "t", files: [], tests: "", dependsOn: [] }] },
+      {
+        tasks: [{ id: "T1", title: "t", files: [], tests: "", dependsOn: [] }],
+      },
       "req-B",
     )) as unknown as Record<string, unknown>;
     expect(s2.replayed).toBeUndefined();
@@ -215,7 +249,11 @@ describe("requestId replay hardening (RID-1)", () => {
     // Phase-locked guard still wins over replay: submitUnderstanding at plan
     // phase with the ALREADY-REGISTERED understand requestId is replayed, not
     // re-validated — proves the replay check runs before phase validation.
-    await tools.submitUnderstanding(start.sessionId, { summary: "v1" }, "req-A");
+    await tools.submitUnderstanding(
+      start.sessionId,
+      { summary: "v1" },
+      "req-A",
+    );
     const replay = (await tools.submitUnderstanding(
       start.sessionId,
       { summary: "v1" },
@@ -233,7 +271,7 @@ describe("requestId replay hardening (RID-1)", () => {
       join(ws, "package.json"),
       JSON.stringify({
         name: "ws",
-        scripts: { lint: "node -e \"process.exit(0)\"" },
+        scripts: { lint: 'node -e "process.exit(0)"' },
       }),
     );
     const config = loadConfig(FIXTURE_CONFIG);
@@ -246,21 +284,35 @@ describe("requestId replay hardening (RID-1)", () => {
       workspaceRoot: ws,
       request: "r",
     })) as { sessionId: string };
-    await tools.submitUnderstanding(start.sessionId, { summary: "v1" }, "req-A");
-    await tools.submitUnderstanding(start.sessionId, { summary: "v1" }, "req-A");
+    await tools.submitUnderstanding(
+      start.sessionId,
+      { summary: "v1" },
+      "req-A",
+    );
+    await tools.submitUnderstanding(
+      start.sessionId,
+      { summary: "v1" },
+      "req-A",
+    );
     await tools.submitUnderstanding(
       start.sessionId,
       { summary: "changed" },
       "req-A",
     );
     const metrics = await engine.getMetrics();
-    expect(metrics.requestIdReplays).toEqual({ total: 2, payloadMismatches: 1 });
+    expect(metrics.requestIdReplays).toEqual({
+      total: 2,
+      payloadMismatches: 1,
+    });
   });
 
   it("review RID-2: a failed completion does not poison the payload hash (reject-mismatch)", async () => {
     const { tools, ws } = makeTools({
       reachableCompletion: true,
-      policies: { version: 2, submission: { requestIdReuse: "reject-mismatch" } },
+      policies: {
+        version: 2,
+        submission: { requestIdReuse: "reject-mismatch" },
+      },
     });
     cleanup.push(ws);
     const start = (await tools.startWorkflow({
@@ -268,10 +320,18 @@ describe("requestId replay hardening (RID-1)", () => {
       request: "r",
     })) as { sessionId: string };
     const sid = start.sessionId;
+    // FR-053: pre-grant the fixture's gated ops; the gate is covered in
+    // approval-gate.test.ts.
+    new SessionRepository(join(ws, "state", "sessions")).update(sid, (s) => {
+      s.approvedOperations ??= [];
+      s.approvedOperations.push("build", "repository-analysis");
+    });
     await tools.submitUnderstanding(sid, { summary: "v1" }, "req-A");
     await tools.submitPlan(
       sid,
-      { tasks: [{ id: "T1", title: "t", files: [], tests: "", dependsOn: [] }] },
+      {
+        tasks: [{ id: "T1", title: "t", files: [], tests: "", dependsOn: [] }],
+      },
       "req-P",
     );
     await tools.submitPlanReview(
@@ -284,11 +344,7 @@ describe("requestId replay hardening (RID-1)", () => {
       { implementedTasks: ["T1"], changedFiles: ["a.ts"] },
       "req-I",
     );
-    await tools.submitImplementationReview(
-      sid,
-      { findings: [] },
-      "req-IR",
-    );
+    await tools.submitImplementationReview(sid, { findings: [] }, "req-IR");
     await tools.submitVerification(
       sid,
       { verificationSummary: ["all green"] },
@@ -298,7 +354,10 @@ describe("requestId replay hardening (RID-1)", () => {
     // result registered, but the first-seen hash was stored.
     await tools.completeWorkflow(
       sid,
-      { knownLimitations: ["x"] } as unknown as unknown as Record<string, unknown>,
+      { knownLimitations: ["x"] } as unknown as unknown as Record<
+        string,
+        unknown
+      >,
       "req-C",
     );
     // Attempt 2: corrected payload → must succeed and UPDATE the hash.
@@ -322,7 +381,10 @@ describe("requestId replay hardening (RID-1)", () => {
     await expect(
       tools.completeWorkflow(
         sid,
-        { knownLimitations: ["x"] } as unknown as unknown as Record<string, unknown>,
+        { knownLimitations: ["x"] } as unknown as unknown as Record<
+          string,
+          unknown
+        >,
         "req-C",
       ),
     ).rejects.toThrowError(/requestId_reuse_payload_mismatch/);
