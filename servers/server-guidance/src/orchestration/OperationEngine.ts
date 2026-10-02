@@ -43,7 +43,33 @@ export type ExecuteFn = (
   ctx: OperationContext,
   attempt: number,
   signal?: AbortSignal,
+  /** CT-ARGS-1: agent-supplied argument overrides (run_operation
+   *  `arguments`). mcpTool ops only; deep-merged OVER resolved args. */
+  argumentOverrides?: Record<string, unknown>,
 ) => Promise<NormalizedResult>;
+
+/** CT-ARGS-1: deep-merge agent overrides OVER operation-resolved arguments —
+ *  agent keys win per-key, operation-only keys are retained. Plain objects
+ *  merge recursively; arrays and primitives replace wholesale. */
+function deepMergeArgs(
+  base: Record<string, unknown>,
+  overrides: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(overrides)) {
+    const b = out[k];
+    out[k] =
+      v !== null &&
+      typeof v === "object" &&
+      !Array.isArray(v) &&
+      b !== null &&
+      typeof b === "object" &&
+      !Array.isArray(b)
+        ? deepMergeArgs(b as Record<string, unknown>, v as Record<string, unknown>)
+        : v;
+  }
+  return out;
+}
 
 /**
  * GUID-3: resolves `${token}` placeholders in template arguments against
@@ -113,12 +139,13 @@ export interface DownstreamInvoker {
 export class OperationEngine {
   /** Overridable for tests. The optional signal carries hard-cancellation
    *  (spec 004 FR-202): aborting it kills the child (SIGTERM). */
-  execute: ExecuteFn = (config, ctx, attempt, signal) =>
+  execute: ExecuteFn = (config, ctx, attempt, signal, argumentOverrides) =>
     this.executeOperation(
       config,
       ctx,
       attempt,
       signal,
+      argumentOverrides,
     ) as unknown as Promise<NormalizedResult>;
 
   private downstreamInvoker: DownstreamInvoker | null = null;
@@ -149,8 +176,29 @@ export class OperationEngine {
     ctx: OperationContext,
     attempt: number,
     signal?: AbortSignal,
+    argumentOverrides?: Record<string, unknown>,
   ): Promise<NormalizedResult> {
-    return await this.executeSync(config, ctx, attempt, signal);
+    const result = await this.executeSync(
+      config,
+      ctx,
+      attempt,
+      signal,
+      argumentOverrides,
+    );
+    // CT-ARGS-1: overrides are an mcpTool-only feature — process/composite
+    // ops ignore them with a visible warning (no argv injection from agent
+    // input), keeping the call itself successful.
+    if (
+      argumentOverrides !== undefined &&
+      Object.keys(argumentOverrides).length > 0 &&
+      config.type !== "mcpTool"
+    ) {
+      result.warnings.push({
+        code: "argument_overrides_ignored",
+        message: `argument overrides are only supported for mcpTool operations (type: ${config.type})`,
+      });
+    }
+    return result;
   }
 
   /** Runs a list of operations; required failures stop the run (FR-040). */
@@ -160,6 +208,7 @@ export class OperationEngine {
     ctx: OperationContext,
     attempt: number,
     signal?: AbortSignal,
+    argumentOverrides?: Record<string, unknown>,
   ): Promise<NormalizedResult> {
     const base = baseResult(config);
 
@@ -242,6 +291,27 @@ export class OperationEngine {
           ],
           summary: "template arguments invalid",
         };
+      }
+      // CT-ARGS-1: agent argument overrides (run_operation `arguments`).
+      // Deep-merged OVER resolved args (agent keys win per-key); rejected
+      // fail-closed when the operation declares argumentsLocked.
+      if (
+        argumentOverrides !== undefined &&
+        Object.keys(argumentOverrides).length > 0
+      ) {
+        if (config.argumentsLocked === true) {
+          return {
+            ...base,
+            errors: [
+              {
+                code: "operation_arguments_invalid",
+                message: `operations.${config.operationId}: arguments are locked (argumentsLocked) — agent overrides rejected`,
+              },
+            ],
+            summary: "argument overrides rejected (argumentsLocked)",
+          };
+        }
+        args = deepMergeArgs(args, argumentOverrides);
       }
       let outcome: Awaited<ReturnType<typeof invoker.invokeTool>>;
       try {

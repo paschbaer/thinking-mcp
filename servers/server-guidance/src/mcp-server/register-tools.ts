@@ -58,6 +58,7 @@ export const WORKFLOW_TOOL_NAMES = [
   "list_configured_operations",
   "retry_operation",
   "run_operation",
+  "call_downstream",
   "get_metrics",
   "get_downstream_status",
 ] as const;
@@ -279,10 +280,28 @@ export function registerWorkflowTools(
   );
   server.tool(
     "run_operation",
-    "Führt eine konfigurierte Operation on-demand aus (nur mit invocableByAgent:true)",
-    { ...sessionId, operationId: z.string().min(1) },
-    async ({ sessionId, operationId }) =>
-      toJson(await tools.runOperation(sessionId, operationId)),
+    "Führt eine konfigurierte Operation on-demand aus (nur mit invocableByAgent:true); optionale arguments werden für mcpTool-Ops über die konfigurierten Argumente gemergt (Agent-Keys gewinnen; argumentsLocked-Ops lehnen Overrides ab)",
+    {
+      ...sessionId,
+      operationId: z.string().min(1),
+      arguments: z.record(z.unknown()).optional(),
+    },
+    async ({ sessionId, operationId, arguments: argumentOverrides }) =>
+      toJson(
+        await tools.runOperation(sessionId, operationId, argumentOverrides),
+      ),
+  );
+  server.tool(
+    "call_downstream",
+    "Transparenter Passthrough zu einem konfigurierten Downstream-Tool (serverId/toolName/args) — durchläuft dieselben Fail-closed-Gates wie Operationen (Allowlist, Wildcard-Rejection, Egress, Capability-Pin, Container-Route-Fallback bei read-only-Timeout). Args werden nicht schema-validiert — Input-Validierung bleibt beim Downstream-Tool.",
+    {
+      ...sessionId,
+      serverId: z.string().min(1),
+      toolName: z.string().min(1),
+      args: z.record(z.unknown()).default({}),
+    },
+    async ({ sessionId, serverId, toolName, args }) =>
+      toJson(await tools.callDownstream(sessionId, serverId, toolName, args)),
   );
   server.tool(
     "get_metrics",

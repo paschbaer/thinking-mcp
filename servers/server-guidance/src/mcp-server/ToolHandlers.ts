@@ -151,8 +151,19 @@ export class WorkflowTools {
   async runOperation(
     sessionId: string,
     operationId: string,
+    argumentOverrides?: Record<string, unknown>,
   ): Promise<ReturnType<WorkflowEngine["runOperation"]>> {
-    return this.engine.runOperation(sessionId, operationId);
+    return this.engine.runOperation(sessionId, operationId, argumentOverrides);
+  }
+
+  /** CT-ARGS-1: transparent downstream tool passthrough (gated invoker). */
+  async callDownstream(
+    sessionId: string,
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown> = {},
+  ): Promise<ReturnType<WorkflowEngine["callDownstream"]>> {
+    return this.engine.callDownstream(sessionId, serverId, toolName, args);
   }
 
   async getMetrics(): Promise<ReturnType<WorkflowEngine["getMetrics"]>> {
