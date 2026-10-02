@@ -57,6 +57,8 @@ function deepMergeArgs(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...base };
   for (const [k, v] of Object.entries(overrides)) {
+    // Prototype-pollution hardening: skip structural keys from agent input.
+    if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
     const b = out[k];
     out[k] =
       v !== null &&

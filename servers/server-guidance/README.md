@@ -299,7 +299,13 @@ direct tool call) but runs through the same fail-closed stack as operations:
 
 Input validation is **not** performed by Guidance — args are passed verbatim
 and the downstream tool validates its own schema (violations surface as
-`tool_reported` errors).
+`tool_reported` errors). Residual note: a tool that is **explicitly**
+allowlisted but has no `operations.json` entry runs without a risk class (the
+approval gate cannot fire) — operator-controlled allowlists are the opt-in;
+register an operation entry to classify the tool.
+
+`call_downstream` is not registered in remote mode (`remote-tools.ts`),
+consistent with `run_operation` — fail-closed.
 
 #### `run_operation` with argument overrides (CT-ARGS-1)
 
@@ -2169,7 +2175,8 @@ details.
 | `list_configured_operations` | — | Read-only: all operations defined in `operations.json` (no session needed) |
 | `retry_operation` | `sessionId` | Re-runs failed **required** operations of the current phase (transient downstream failures) |
 | `get_downstream_status` | — | Read-only: connection health of all configured downstream servers |
-| `run_operation` | `sessionId`, `operationId` | Runs a configured operation on demand (only operations with `invocableByAgent: true`) |
+| `run_operation` | `sessionId`, `operationId`, `arguments?` | Runs a configured operation on demand (only operations with `invocableByAgent: true`). The optional `arguments` record is deep-merged over the operation's resolved args for `mcpTool` ops (agent keys win per-key; `argumentsLocked` ops reject overrides; process/composite ops ignore them with a warning) |
+| `call_downstream` | `sessionId`, `serverId`, `toolName`, `args` | **CT-ARGS-1:** transparent passthrough to a configured downstream tool — runs through the same fail-closed gates as operations (allowlist, wildcard rejection, egress, capability pins, container-route fallback for read-only). Args are NOT schema-validated by Guidance (the downstream tool validates its own input); downstream content is redacted before exposure. Not registered in remote mode (fail-closed) |
 | `get_metrics` | — | Read-only: aggregated metrics (operation counters, runtimes, connection health) |
 | `registry_register` | `name`, `root`, `projectName?`, `remove?` | **specs/015 US1 (FR-1201..1210), only when profile is `spec-kit` AND `registryRegister.enabled: true` (default OFF).** Registers/removes one workspace root at runtime through the same fail-closed `WorkspaceRegistry.build` validation (invalid input → no change), persists `workspaces[]` atomically in `guidance.json`, appends a `registry_changed` audit event and produces a new `configurationVersion` (existing sessions follow the AC-5 rebind semantics — see the specs/015 addendum AC-13..17) |
 
