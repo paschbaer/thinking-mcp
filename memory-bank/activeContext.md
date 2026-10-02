@@ -4,9 +4,10 @@
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
 ## 2026-10-02: CT-ARGS-1 implementiert (feature/ct-args-passthrough)
-- **Was:** Guidance-Workflow session-b0c6df8b — `call_downstream`-Passthrough-Tool + `run_operation`-Arguments-Parameter (Deep-Merge, Agent-Keys gewinnen) + `argumentsLocked`-Fail-closed-Flag. Neue Tests `tests/contract/call-downstream.test.ts` (9, in-process HTTP-MCP-Stub); http-transport Tool-Count 22→23. Full-Suite 513/513 (9 skipped), tsc clean.
+- **Was:** Guidance-Workflow session-b0c6df8b — `call_downstream`-Passthrough-Tool + `run_operation`-Arguments-Parameter (Deep-Merge, Agent-Keys gewinnen) + `argumentsLocked`-Fail-closed-Flag. Neue Tests `tests/contract/call-downstream.test.ts` (12, in-process HTTP-MCP-Stub); http-transport Tool-Count 22→23. Full-Suite 516/516 (9 skipped), tsc clean.
+- **Review:** unabhängiger Reviewer (Sub-Agent): CHANGES REQUIRED (1 HIGH Redaction, 2 MEDIUM Router-Override-Drop/Cancel-Semantik) → alle gefixt (d1f0c7d), Re-Review: **APPROVED, 0 offene HIGH/CRITICAL** (Residuen als CT-ARGS-2 getrackt).
 - **Live-Evidenz im Workflow:** direkte Clear-Thought-MCP-Route durchgehend getimed-out (4×), Container-Route-Fallback (`reasoning-pass`) jedes Mal erfolgreich — FR-035-Verhalten produktiv bestätigt; nach CT-ARGS-1 sind parametrisierte Reasoning-Pässe (`assumption_xray` etc.) über `call_downstream` nutzbar.
-- **Next:** Verification-Phase des Workflows, Merge nach develop.
+- **Next:** Merge nach develop.
 
 ## 2026-10-02: Clear-Thought-Operationen für Container-Route generiert (46 neue Ops)
 - **Was:** `.guidance/operations.json` um `ct-*`-mcpTool-Operationen für ALLE Clear-Thought-Tools erweitert (38× `read_only`, 8× `external_write` für session_save/load/import, session/recipe_runner/workflow/Stochastic-Toolsets — nicht idempotent, daher bewusst NICHT fallback-eligibel). Capabilities gegen `server-clear-thought/src/tools/tool-metadata.ts` + Toolset-Slugs verifiziert; JSON per Node-Parser validiert (47 Clear-Thought-Ops inkl. reasoning-pass).
