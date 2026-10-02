@@ -2047,8 +2047,12 @@ export class WorkflowEngine {
     const opResultsStart: { id: string; status: string; summary: string }[] =
       [];
     let blocked = false;
-    for (const id of this.definition.phases[phase]?.lifecycle?.beforeEnter ??
-      []) {
+    // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
+    // list before any op executes (a later denial must not burn the grants
+    // of already-executed ops).
+    const beforeEnterOps = (
+      this.definition.phases[phase]?.lifecycle?.beforeEnter ?? []
+    ).map((id) => {
       const op = this.operations[id];
       if (!op)
         throw new GuidanceError(
@@ -2056,7 +2060,10 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
-      this.assertApprovals(this.sessions.load(sessionId), [op]);
+      return op;
+    });
+    this.assertApprovals(this.sessions.load(sessionId), beforeEnterOps);
+    for (const op of beforeEnterOps) {
       const run = await this.operationEngine.executeRequired([op], {
         workspaceRoot: this.sessions.load(sessionId).workspaceRoot,
         redactionPatterns: this.redactionPatterns,
@@ -2078,7 +2085,7 @@ export class WorkflowEngine {
           s.blockers.push({
             blockerId: `blocker-${randomUUID()}`,
             category: "required_operation_failed",
-            description: `beforeEnter operation ${id} failed at session start`,
+            description: `beforeEnter operation ${op.operationId} failed at session start`,
             requiresUserDecision: false,
           });
         });
@@ -2086,7 +2093,7 @@ export class WorkflowEngine {
           sessionId,
           eventType: "hook_failed",
           phase,
-          data: { lifecycle: "beforeEnter", operationId: id, blocked: true },
+          data: { lifecycle: "beforeEnter", operationId: op.operationId, blocked: true },
         });
         // Symmetrie zum Submit-Pfad: ein required failure blockiert sofort;
         // weitere beforeEnter/afterEnter-Ops laufen nicht mehr (fail-fast).
@@ -2142,7 +2149,9 @@ export class WorkflowEngine {
   ): Promise<{ id: string; status: string; summary: string }[]> {
     const ids = this.definition.phases[phase]?.lifecycle?.afterEnter ?? [];
     const out: { id: string; status: string; summary: string }[] = [];
-    for (const id of ids) {
+    // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
+    // list before any op executes.
+    const ops = ids.map((id) => {
       const op = this.operations[id];
       if (!op)
         throw new GuidanceError(
@@ -2150,7 +2159,10 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
-      this.assertApprovals(session, [op]);
+      return op;
+    });
+    this.assertApprovals(session, ops);
+    for (const op of ops) {
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
@@ -2163,7 +2175,7 @@ export class WorkflowEngine {
             sessionId: session.sessionId,
             eventType: "hook_failed",
             phase,
-            data: { operationId: id },
+            data: { operationId: op.operationId },
           });
         }
       }
@@ -2528,7 +2540,9 @@ export class WorkflowEngine {
     // blockiert die Transition (Session bleibt in der alten Phase).
     const beforeEnterIds =
       this.definition.phases[target]?.lifecycle?.beforeEnter ?? [];
-    for (const id of beforeEnterIds) {
+    // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
+    // list before any op executes.
+    const beforeEnterOps = beforeEnterIds.map((id) => {
       const op = this.operations[id];
       if (!op)
         throw new GuidanceError(
@@ -2536,7 +2550,10 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
-      this.assertApprovals(session, [op]);
+      return op;
+    });
+    this.assertApprovals(session, beforeEnterOps);
+    for (const op of beforeEnterOps) {
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
@@ -2556,11 +2573,11 @@ export class WorkflowEngine {
           sessionId,
           eventType: "hook_failed",
           phase: target,
-          data: { lifecycle: "beforeEnter", operationId: id },
+          data: { lifecycle: "beforeEnter", operationId: op.operationId },
         });
         const err = new GuidanceError(
           "required_hook_failed",
-          `beforeEnter operation ${id} failed; transition blocked`,
+          `beforeEnter operation ${op.operationId} failed; transition blocked`,
           {
             recoverable: true,
             currentPhase: session.currentPhase,
@@ -2602,7 +2619,9 @@ export class WorkflowEngine {
     // Required-Failures werden auditiert).
     const afterExitIds =
       this.definition.phases[previousPhase]?.lifecycle?.afterExit ?? [];
-    for (const id of afterExitIds) {
+        // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
+    // list before any op executes.
+    const afterExitOps = afterExitIds.map((id) => {
       const op = this.operations[id];
       if (!op)
         throw new GuidanceError(
@@ -2610,7 +2629,10 @@ export class WorkflowEngine {
           `operation ${id} is not configured`,
           { recoverable: false },
         );
-      this.assertApprovals(session, [op]);
+      return op;
+    });
+    this.assertApprovals(session, afterExitOps);
+    for (const op of afterExitOps) {
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
@@ -2630,7 +2652,7 @@ export class WorkflowEngine {
           sessionId,
           eventType: "hook_failed",
           phase: previousPhase,
-          data: { lifecycle: "afterExit", operationId: id },
+          data: { lifecycle: "afterExit", operationId: op.operationId },
         });
       }
     }

@@ -574,7 +574,7 @@ function buildOperations(
   // in the workspace root (OperationEngine cwd), so they are workspace-scoped.
   operations["deps-install"] = {
     description:
-      "Install Node dependencies: npm ci (clean semantics), with npm install as the firstAvailable fallback — the fallback runs whenever npm ci fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); npm ci removes node_modules before failing, so a masked failure leaves node_modules deleted. Runs in the workspace root; the result's via label records which strategy ran (audit note). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
+      "Install Node dependencies: npm ci (clean semantics), with npm install as the firstAvailable fallback — the fallback runs whenever npm ci fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); npm ci removes node_modules before failing, so a masked failure leaves node_modules deleted. Runs in the workspace root; the result's via label records which strategy ran (audit note; visible in run history). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
     type: "composite",
     strategy: "firstAvailable",
     required: false,
