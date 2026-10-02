@@ -65,6 +65,7 @@ function privateOf<E>(engine: E, method: string): (arg: unknown) => unknown {
   const fn = (
     engine as unknown as Record<string, (a: unknown) => unknown>
   )[method];
+  if (!fn) throw new Error(`private method not found: ${method}`);
   return fn.bind(engine);
 }
 
@@ -173,6 +174,36 @@ describe("runDepsPreflight", () => {
       "runDepsPreflight",
     )({ id: "s-test", workspaceRoot: ws } as never);
     expect(existsSync(join(ws, "node_modules"))).toBe(false);
+  });
+
+  it("fail-open: a FAILING deps-install does not throw and audits the failure", async () => {
+    const opsPath = join(poolDir, "operations.json");
+    const ops = JSON.parse(readFileSync(opsPath, "utf8")) as {
+      operations: Record<string, unknown>;
+    };
+    ops.operations["deps-install"] = {
+      description: "test double: always fails",
+      type: "process",
+      executable: "node",
+      args: ["-e", "process.exit(1)"],
+      required: false,
+      timeoutSeconds: 10,
+    };
+    writeFileSync(opsPath, JSON.stringify(ops, null, 2));
+    writeFileSync(join(ws, "package.json"), "{}");
+    const eng = engine();
+    await expect(
+      privateOf(eng, "runDepsPreflight")({
+        id: "s-test",
+        workspaceRoot: ws,
+      } as never),
+    ).resolves.toBeUndefined();
+    const audit = readFileSync(
+      join(poolDir, "state", "history", "s-test.jsonl"),
+      "utf8",
+    );
+    expect(audit).toContain("deps_preflight");
+    expect(audit).toContain('"failed":true');
   });
 
   it("no configured deps-install: no-op (fail-open, nothing to reuse)", async () => {

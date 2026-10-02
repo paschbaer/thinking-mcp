@@ -1373,6 +1373,10 @@ boot warning → **pre-flight** → reactive `node_deps_hint`):
   duplicated npm logic; no-op when the workspace has no `package.json`,
   when `deps-install` is not configured, or when disabled via
   `preFlight.enabled: false` in `guidance.json`.
+- **Deliberately NOT hashed** into `configurationVersion`: the flag is a
+  fail-open healing toggle and does not change gate acceptance semantics,
+  so flipping it must not invalidate persisted sessions (unlike
+  `chain`, which changes workflow semantics and therefore IS hashed).
 
 ## Completion final-review gate
 
