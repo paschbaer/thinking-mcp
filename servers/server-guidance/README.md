@@ -14,7 +14,6 @@ Dual-role:
 
 Why this design? See [Why Guidance?](#why-guidance).
 
-Defined by `specs/002-guidance-workflow-server/spec.md`
 (v1 workflow control, v2 downstream orchestration, v2.1 Spec-Kit profile).
 
 ## Why Guidance?
@@ -93,7 +92,7 @@ review-checked — Guidance can only gate deterministic, observable checks.
   this profile work without imported artifacts too: the spec-kit task tools
   require `import_spec_kit_artifacts` first, but the workflow can equally be
   driven via plan-level submissions (`submit_plan`/`submit_implementation`/
-  `submit_verification`), which need no spec-kit state (REV-2).
+  `submit_verification`), which need no spec-kit state.
 
 ## Installation
 
@@ -126,17 +125,17 @@ docker compose -f docker-compose.yml -f your-override.yml up -d
 ```
 
 The base compose file mounts nothing and sets no workspace root — provide
-both via your override (specs/014). For the multi-repo pool deployment use
+both via your override. For the multi-repo pool deployment use
 the shipped override as-is:
 
 Environment variables (HTTP):
 
-| Variable                  | Default     | Meaning                                                                                                          |
-| ------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------- |
-| `PORT`                    | `3003`      | HTTP port                                                                                                        |
-| `GUIDANCE_BIND_HOST`      | `127.0.0.1` | Bind address. **Loopback by default (fail-closed, FR-027).** Set `0.0.0.0` explicitly for container port-mapping |
-| `GUIDANCE_WORKSPACE_ROOT` | cwd         | Workspace containing `.guidance/`                                                                                |
-| `GUIDANCE_AUTH_TOKEN`     | _(unset)_   | If set, `/mcp` requires `Authorization: Bearer <token>` (401 otherwise). `/health` stays open                    |
+| Variable                  | Default     | Meaning                                                                                                  |
+| ------------------------- | ----------- | -------------------------------------------------------------------------------------------------------- |
+| `PORT`                    | `3003`      | HTTP port                                                                                                |
+| `GUIDANCE_BIND_HOST`      | `127.0.0.1` | Bind address. **Loopback by default (fail-closed).** Set `0.0.0.0` explicitly for container port-mapping |
+| `GUIDANCE_WORKSPACE_ROOT` | cwd         | Workspace containing `.guidance/`                                                                        |
+| `GUIDANCE_AUTH_TOKEN`     | _(unset)_   | If set, `/mcp` requires `Authorization: Bearer <token>` (401 otherwise). `/health` stays open            |
 
 ### New-system setup checklist (HTTP + multi-workspace)
 
@@ -150,11 +149,11 @@ From a bare machine to a running multi-workspace instance:
 2. **Clone & build** (see above) — then start HTTP via
    `docker compose -f docker-compose.yml -f docker-compose.override.yml up -d`.
    The override mounts the **repos pool** via a relative path (`../../../` →
-   `/workspaces`, specs/014: the only volume mount) and sets
+   `/workspaces` — the only volume mount) and sets
    `GUIDANCE_WORKSPACE_ROOT=/workspaces` — no absolute host paths to adapt
    when the checkout moves.
 3. **First boot**: the instance `.guidance/` at the served root is expected
-   to be **registry-only** (specs/014 — `workspaces[]` + project/state; the
+   to be **registry-only** (`workspaces[]` + project/state; the
    generic scaffold creates a legacy full config, which is served with a
    boot warning). Verify: `curl localhost:3003/health` → `"configured": true`
    plus the workspace list.
@@ -169,7 +168,7 @@ From a bare machine to a running multi-workspace instance:
    each registered repo (host-side pre-complete step; the freshness gate
    checks `<root>/.gitnexus/meta.json` against git HEAD).
 
-   **Dual-index procedure (GDS-7)**: the index-freshness gate reads the
+   **Dual-index procedure**: the index-freshness gate reads the
    **repo-local** `.gitnexus/` storage, which is owned by the exact path
    identity it was created with (e.g. `/mnt/d/repos/thinking-mcp` —
    lowercase). Deterministic refresh:
@@ -202,7 +201,7 @@ node-deps warning and the gates). A git
 **worktree** checkout has a `.git` _file_ instead of a directory, which
 breaks git-reading gates run from inside that worktree.
 
-### Container route (FR-035 timeout fallback)
+### Container route (timeout fallback)
 
 The **container route** is a per-downstream-server escape hatch: when a
 read-only operation times out on its primary transport, Guidance makes
@@ -301,7 +300,7 @@ Note that `run_operation` passes no agent-supplied arguments — argument values
 come from the operation definition itself (`arguments` with mode
 `fixed`/`template`).
 
-#### `call_downstream`: gated downstream tool passthrough (CT-ARGS-1)
+#### `call_downstream`: gated downstream tool passthrough
 
 For ad-hoc calls with **agent-supplied arguments**, `call_downstream`
 invokes an arbitrary configured downstream tool directly:
@@ -315,13 +314,13 @@ invokes an arbitrary configured downstream tool directly:
 }
 ```
 
-It is a **transparent proxy** (GDS-5: raw response, identical schema to a
+It is a **transparent proxy** (raw response, identical schema to a
 direct tool call) but runs through the same fail-closed stack as operations:
 
-- WC-1 tool allowlist (`capabilities.allow.tools`, wildcard `"*"` permitted),
-- WC-1-B rejection of tools **without an operations entry** on wildcard
+- Tool allowlist (`capabilities.allow.tools`, wildcard `"*"` permitted),
+- Rejection of tools **without an operations entry** on wildcard
   servers — register a read-only operation entry (see above) to unlock a tool,
-- FR-053 egress/approval gate per risk class,
+- Egress/approval gate per risk class,
 - capability-pin drift check, reconnect semantics, and the containerRoute
   timeout fallback for `read_only` tools,
 - per-session single-flight guard and workspace lock (same as `run_operation`),
@@ -338,7 +337,7 @@ register an operation entry to classify the tool.
 `call_downstream` is not registered in remote mode (`remote-tools.ts`),
 consistent with `run_operation` — fail-closed.
 
-#### `run_operation` with argument overrides (CT-ARGS-1)
+#### `run_operation` with argument overrides
 
 `run_operation` accepts an optional `arguments` record for `mcpTool`
 operations. Agent keys are **deep-merged over** the operation's resolved
@@ -463,7 +462,7 @@ Question catalog v2: `configSource` (**fresh / adopt** — see below),
 `projectName`, `transport` (stdio / http-docker — controls `localhost` vs.
 `host.docker.internal` URLs and the egress allowlist), `referencePath`
 (adopt only: `builtin` — the shipped baseline template, default — or a path
-`to the reference `.guidance/`directory),`profile`(plain / spec-kit — locked to the reference when adopting),`target`(**repo-config** / **registry-edit** — specs/014: repo-config generates
+`to the reference `.guidance/`directory),`profile`(plain / spec-kit — locked to the reference when adopting),`target`(**repo-config** / **registry-edit** — repo-config generates
 the full repo file set without any`workspaces[]`block; registry-edit
 generates ONLY the instance registry`guidance.json`for`GUIDANCE_WORKSPACE_ROOT`— process truth is the repo, registry truth
 is the instance),`shell`(optional, agent-facing — placed in`workflow.json` `instructions.global`and injected into EVERY phase instruction),`workspaceRoot`and`extraWorkspaces`(optional multi-workspace registry — see below),`insight`and`gitnexus`(on/off — control the downstream entries and their
@@ -473,7 +472,7 @@ seven submission schemas (from `examples/default-guidance/schemas`; if the
 directory is missing from the installation, the agent receives a copy hint
 instead of an error).
 
-**Multi-workspace registration (specs/014):** which answers apply depends on
+**Multi-workspace registration:** which answers apply depends on
 the `target` question:
 
 - **`target: registry-edit`** — generates ONLY the instance registry
@@ -490,7 +489,7 @@ the `target` question:
   the operator's behalf.
 - **`target: repo-config`** (default) — the repo's process config; it NEVER
   carries a `workspaces[]` block. `workspaceRoot`/`extraWorkspaces` answers
-  are rejected in this mode (specs/014: process truth is the repo, registry
+  are rejected in this mode (process truth is the repo, registry
   truth is the instance).
 
 In adopt mode the target question is asked in both modes; reference
@@ -529,7 +528,7 @@ npm/npx/sh convention with `package.json` scripts. `lint` and `test` are
 non-blocking (`required: false`), so a target without the matching script
 degrades gracefully; `build` stays blocking (`required: true`).
 
-`responses.json` is **adopted from the reference** (specs/012 FR-981): the
+`responses.json` is **adopted from the reference**: the
 reference's phase instructions — including any process wisdom they carry —
 are kept, and only the `instructions.global` slot is swapped to the target's
 own shell answer (removed when no shell answer is given).
@@ -546,7 +545,7 @@ before the final-review gate and fails when a `specs/*/spec.md` is still
 marked Draft while its `tasks.md` has no open checkboxes (escape hatch: a
 `docs-drift: status ok` comment in the spec).
 
-> **Two response baselines (specs/013):** `responses.json` is the generic
+> **Two response baselines:** `responses.json` is the generic
 > baseline — byte-identical to what a fresh generation produces (a drift
 > guard test enforces this). `responses-wisdom.json` is the curated
 > **wisdom baseline** used by adopt mode: it carries accumulated process
@@ -627,7 +626,7 @@ the guidance server so the target repo picks up the new wizard behavior):
 > drop such ops.
 >
 > **Deployment note:** a mounted reference path only works when that path
-> is actually served by the deployment. In the specs/014 pool deployment
+> is actually served by the deployment. In the pool deployment
 > the served root is `/workspaces` — a reference in a pool repo would be
 > `/workspaces/Thinking-MCP/.guidance/` (this repo). In a container-only
 > deployment (`docker compose up` from the package) there is no proven
@@ -637,7 +636,7 @@ the guidance server so the target repo picks up the new wizard behavior):
 > closed with `adopt source: missing/unreadable file guidance.json` if the
 > chosen reference (mounted or builtin) is incomplete.
 >
-> **Builtin template (specs/011):** `referencePath: "builtin"` (or an
+> **Builtin template:** `referencePath: "builtin"` (or an
 > omitted `referencePath` in adopt mode) resolves to the generic baseline
 > template shipped with the guidance package
 > (`examples/default-guidance/`). Note the distinction: the builtin
@@ -650,91 +649,91 @@ the guidance server so the target repo picks up the new wizard behavior):
 
 ### Error codes
 
-All registered `ERROR_CODES` (exact-surface snapshot, spec 002 FR-028 / R-010):
+All registered `ERROR_CODES` (exact-surface snapshot):
 
-| Code                                       | Meaning                                                                                                                                           |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `configuration_not_found`                  | Configuration Not Found                                                                                                                           |
-| `configuration_invalid`                    | Configuration Invalid                                                                                                                             |
-| `workflow_not_found`                       | Workflow Not Found                                                                                                                                |
-| `session_not_found`                        | Session Not Found                                                                                                                                 |
-| `session_locked`                           | Session Locked                                                                                                                                    |
-| `workspace_not_registered`                 | Workspace Not Registered                                                                                                                          |
-| `workspace_process_config_missing`         | Workspace Process Config Missing (specs/014 — registered workspace without its own `.guidance/guidance.json`; the former silent copy was removed) |
-| `invalid_active_phase`                     | Invalid Active Phase                                                                                                                              |
-| `invalid_transition`                       | Invalid Transition                                                                                                                                |
-| `submission_invalid`                       | Submission Invalid                                                                                                                                |
-| `required_field_missing`                   | Required Field Missing                                                                                                                            |
-| `required_hook_failed`                     | Required Hook Failed                                                                                                                              |
-| `hook_not_found`                           | Hook Not Found                                                                                                                                    |
-| `hook_retry_not_allowed`                   | Hook Retry Not Allowed                                                                                                                            |
-| `hook_timed_out`                           | Hook Timed Out                                                                                                                                    |
-| `command_not_found`                        | Command Not Found                                                                                                                                 |
-| `working_directory_invalid`                | Working Directory Invalid                                                                                                                         |
-| `workspace_boundary_violation`             | Workspace Boundary Violation                                                                                                                      |
-| `state_persistence_failed`                 | State Persistence Failed                                                                                                                          |
-| `workflow_already_completed`               | Workflow Already Completed                                                                                                                        |
-| `workflow_cancelled`                       | Workflow Cancelled                                                                                                                                |
-| `workflow_blocked`                         | Workflow Blocked                                                                                                                                  |
-| `chain_activation_incomplete`              | Chain Activation Incomplete                                                                                                                       |
-| `internal_error`                           | Internal Error                                                                                                                                    |
-| `downstream_server_not_configured`         | Downstream Server Not Configured                                                                                                                  |
-| `downstream_server_disabled`               | Downstream Server Disabled                                                                                                                        |
-| `downstream_server_unavailable`            | Downstream Server Unavailable                                                                                                                     |
-| `downstream_connection_failed`             | Downstream Connection Failed                                                                                                                      |
-| `downstream_protocol_error`                | Downstream Protocol Error                                                                                                                         |
-| `downstream_capability_missing`            | Downstream Capability Missing                                                                                                                     |
-| `downstream_capability_not_allowed`        | Downstream Capability Not Allowed                                                                                                                 |
-| `downstream_capability_changed`            | Downstream Capability Changed                                                                                                                     |
-| `operation_not_configured`                 | Operation Not Configured                                                                                                                          |
-| `operation_not_allowed_in_phase`           | Operation Not Allowed In Phase                                                                                                                    |
-| `operation_arguments_invalid`              | Operation Arguments Invalid                                                                                                                       |
-| `operation_input_required`                 | Operation Input Required                                                                                                                          |
-| `operation_cancelled`                      | Operation Cancelled                                                                                                                               |
-| `operation_timed_out`                      | Operation Timed Out                                                                                                                               |
-| `operation_result_invalid`                 | Operation Result Invalid                                                                                                                          |
-| `operation_result_too_large`               | Operation Result Too Large                                                                                                                        |
-| `operation_retry_not_allowed`              | Operation Retry Not Allowed                                                                                                                       |
-| `operation_retry_limit_exceeded`           | Operation Retry Limit Exceeded                                                                                                                    |
-| `authorization_required`                   | Authorization Required                                                                                                                            |
-| `authorization_failed`                     | Authorization Failed                                                                                                                              |
-| `user_approval_required`                   | User Approval Required                                                                                                                            |
-| `user_approval_declined`                   | User Approval Declined                                                                                                                            |
-| `data_egress_denied`                       | Data Egress Denied                                                                                                                                |
-| `fallback_unavailable`                     | Fallback Unavailable                                                                                                                              |
-| `nested_request_limit_exceeded`            | Nested Request Limit Exceeded                                                                                                                     |
-| `agent_invocation_denied`                  | Agent Invocation Denied                                                                                                                           |
-| `operation_in_progress`                    | Operation In Progress                                                                                                                             |
-| `workspace_lock_unavailable`               | Workspace Lock Unavailable                                                                                                                        |
-| `client_report_invalid`                    | Client Report Invalid                                                                                                                             |
-| `spec_kit_feature_in_use`                  | Spec Kit Feature In Use                                                                                                                           |
-| `spec_kit_not_enabled`                     | Spec Kit Not Enabled                                                                                                                              |
-| `spec_kit_feature_not_found`               | Spec Kit Feature Not Found                                                                                                                        |
-| `spec_kit_feature_ambiguous`               | Spec Kit Feature Ambiguous                                                                                                                        |
-| `spec_kit_feature_outside_workspace`       | Spec Kit Feature Outside Workspace                                                                                                                |
-| `spec_kit_artifact_missing`                | Spec Kit Artifact Missing                                                                                                                         |
-| `spec_kit_artifact_unreadable`             | Spec Kit Artifact Unreadable                                                                                                                      |
-| `spec_kit_artifact_empty`                  | Spec Kit Artifact Empty                                                                                                                           |
-| `spec_kit_artifact_invalid`                | Spec Kit Artifact Invalid                                                                                                                         |
-| `spec_kit_required_section_missing`        | Spec Kit Required Section Missing                                                                                                                 |
-| `spec_kit_task_id_missing`                 | Spec Kit Task Id Missing                                                                                                                          |
-| `spec_kit_duplicate_task_id`               | Spec Kit Duplicate Task Id                                                                                                                        |
-| `spec_kit_unknown_dependency`              | Spec Kit Unknown Dependency                                                                                                                       |
-| `spec_kit_dependency_cycle`                | Spec Kit Dependency Cycle                                                                                                                         |
-| `spec_kit_snapshot_stale`                  | Spec Kit Snapshot Stale                                                                                                                           |
-| `spec_kit_reconciliation_required`         | Spec Kit Reconciliation Required                                                                                                                  |
-| `spec_kit_task_not_found`                  | Spec Kit Task Not Found                                                                                                                           |
-| `spec_kit_task_not_ready`                  | Spec Kit Task Not Ready                                                                                                                           |
-| `spec_kit_task_not_released`               | Spec Kit Task Not Released                                                                                                                        |
-| `spec_kit_task_already_active`             | Spec Kit Task Already Active                                                                                                                      |
-| `spec_kit_task_dependency_unsatisfied`     | Spec Kit Task Dependency Unsatisfied                                                                                                              |
-| `spec_kit_task_review_required`            | Spec Kit Task Review Required                                                                                                                     |
-| `spec_kit_task_verification_required`      | Spec Kit Task Verification Required                                                                                                               |
-| `spec_kit_plan_change_required`            | Spec Kit Plan Change Required                                                                                                                     |
-| `spec_kit_plan_change_pending`             | Spec Kit Plan Change Pending                                                                                                                      |
-| `spec_kit_traceability_incomplete`         | Spec Kit Traceability Incomplete                                                                                                                  |
-| `spec_kit_acceptance_criterion_unverified` | Spec Kit Acceptance Criterion Unverified                                                                                                          |
-| `spec_kit_completion_invariant_failed`     | Spec Kit Completion Invariant Failed                                                                                                              |
+| Code                                       | Meaning                                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `configuration_not_found`                  | Configuration Not Found                                                                                                               |
+| `configuration_invalid`                    | Configuration Invalid                                                                                                                 |
+| `workflow_not_found`                       | Workflow Not Found                                                                                                                    |
+| `session_not_found`                        | Session Not Found                                                                                                                     |
+| `session_locked`                           | Session Locked                                                                                                                        |
+| `workspace_not_registered`                 | Workspace Not Registered                                                                                                              |
+| `workspace_process_config_missing`         | Workspace Process Config Missing (registered workspace without its own `.guidance/guidance.json`; the former silent copy was removed) |
+| `invalid_active_phase`                     | Invalid Active Phase                                                                                                                  |
+| `invalid_transition`                       | Invalid Transition                                                                                                                    |
+| `submission_invalid`                       | Submission Invalid                                                                                                                    |
+| `required_field_missing`                   | Required Field Missing                                                                                                                |
+| `required_hook_failed`                     | Required Hook Failed                                                                                                                  |
+| `hook_not_found`                           | Hook Not Found                                                                                                                        |
+| `hook_retry_not_allowed`                   | Hook Retry Not Allowed                                                                                                                |
+| `hook_timed_out`                           | Hook Timed Out                                                                                                                        |
+| `command_not_found`                        | Command Not Found                                                                                                                     |
+| `working_directory_invalid`                | Working Directory Invalid                                                                                                             |
+| `workspace_boundary_violation`             | Workspace Boundary Violation                                                                                                          |
+| `state_persistence_failed`                 | State Persistence Failed                                                                                                              |
+| `workflow_already_completed`               | Workflow Already Completed                                                                                                            |
+| `workflow_cancelled`                       | Workflow Cancelled                                                                                                                    |
+| `workflow_blocked`                         | Workflow Blocked                                                                                                                      |
+| `chain_activation_incomplete`              | Chain Activation Incomplete                                                                                                           |
+| `internal_error`                           | Internal Error                                                                                                                        |
+| `downstream_server_not_configured`         | Downstream Server Not Configured                                                                                                      |
+| `downstream_server_disabled`               | Downstream Server Disabled                                                                                                            |
+| `downstream_server_unavailable`            | Downstream Server Unavailable                                                                                                         |
+| `downstream_connection_failed`             | Downstream Connection Failed                                                                                                          |
+| `downstream_protocol_error`                | Downstream Protocol Error                                                                                                             |
+| `downstream_capability_missing`            | Downstream Capability Missing                                                                                                         |
+| `downstream_capability_not_allowed`        | Downstream Capability Not Allowed                                                                                                     |
+| `downstream_capability_changed`            | Downstream Capability Changed                                                                                                         |
+| `operation_not_configured`                 | Operation Not Configured                                                                                                              |
+| `operation_not_allowed_in_phase`           | Operation Not Allowed In Phase                                                                                                        |
+| `operation_arguments_invalid`              | Operation Arguments Invalid                                                                                                           |
+| `operation_input_required`                 | Operation Input Required                                                                                                              |
+| `operation_cancelled`                      | Operation Cancelled                                                                                                                   |
+| `operation_timed_out`                      | Operation Timed Out                                                                                                                   |
+| `operation_result_invalid`                 | Operation Result Invalid                                                                                                              |
+| `operation_result_too_large`               | Operation Result Too Large                                                                                                            |
+| `operation_retry_not_allowed`              | Operation Retry Not Allowed                                                                                                           |
+| `operation_retry_limit_exceeded`           | Operation Retry Limit Exceeded                                                                                                        |
+| `authorization_required`                   | Authorization Required                                                                                                                |
+| `authorization_failed`                     | Authorization Failed                                                                                                                  |
+| `user_approval_required`                   | User Approval Required                                                                                                                |
+| `user_approval_declined`                   | User Approval Declined                                                                                                                |
+| `data_egress_denied`                       | Data Egress Denied                                                                                                                    |
+| `fallback_unavailable`                     | Fallback Unavailable                                                                                                                  |
+| `nested_request_limit_exceeded`            | Nested Request Limit Exceeded                                                                                                         |
+| `agent_invocation_denied`                  | Agent Invocation Denied                                                                                                               |
+| `operation_in_progress`                    | Operation In Progress                                                                                                                 |
+| `workspace_lock_unavailable`               | Workspace Lock Unavailable                                                                                                            |
+| `client_report_invalid`                    | Client Report Invalid                                                                                                                 |
+| `spec_kit_feature_in_use`                  | Spec Kit Feature In Use                                                                                                               |
+| `spec_kit_not_enabled`                     | Spec Kit Not Enabled                                                                                                                  |
+| `spec_kit_feature_not_found`               | Spec Kit Feature Not Found                                                                                                            |
+| `spec_kit_feature_ambiguous`               | Spec Kit Feature Ambiguous                                                                                                            |
+| `spec_kit_feature_outside_workspace`       | Spec Kit Feature Outside Workspace                                                                                                    |
+| `spec_kit_artifact_missing`                | Spec Kit Artifact Missing                                                                                                             |
+| `spec_kit_artifact_unreadable`             | Spec Kit Artifact Unreadable                                                                                                          |
+| `spec_kit_artifact_empty`                  | Spec Kit Artifact Empty                                                                                                               |
+| `spec_kit_artifact_invalid`                | Spec Kit Artifact Invalid                                                                                                             |
+| `spec_kit_required_section_missing`        | Spec Kit Required Section Missing                                                                                                     |
+| `spec_kit_task_id_missing`                 | Spec Kit Task Id Missing                                                                                                              |
+| `spec_kit_duplicate_task_id`               | Spec Kit Duplicate Task Id                                                                                                            |
+| `spec_kit_unknown_dependency`              | Spec Kit Unknown Dependency                                                                                                           |
+| `spec_kit_dependency_cycle`                | Spec Kit Dependency Cycle                                                                                                             |
+| `spec_kit_snapshot_stale`                  | Spec Kit Snapshot Stale                                                                                                               |
+| `spec_kit_reconciliation_required`         | Spec Kit Reconciliation Required                                                                                                      |
+| `spec_kit_task_not_found`                  | Spec Kit Task Not Found                                                                                                               |
+| `spec_kit_task_not_ready`                  | Spec Kit Task Not Ready                                                                                                               |
+| `spec_kit_task_not_released`               | Spec Kit Task Not Released                                                                                                            |
+| `spec_kit_task_already_active`             | Spec Kit Task Already Active                                                                                                          |
+| `spec_kit_task_dependency_unsatisfied`     | Spec Kit Task Dependency Unsatisfied                                                                                                  |
+| `spec_kit_task_review_required`            | Spec Kit Task Review Required                                                                                                         |
+| `spec_kit_task_verification_required`      | Spec Kit Task Verification Required                                                                                                   |
+| `spec_kit_plan_change_required`            | Spec Kit Plan Change Required                                                                                                         |
+| `spec_kit_plan_change_pending`             | Spec Kit Plan Change Pending                                                                                                          |
+| `spec_kit_traceability_incomplete`         | Spec Kit Traceability Incomplete                                                                                                      |
+| `spec_kit_acceptance_criterion_unverified` | Spec Kit Acceptance Criterion Unverified                                                                                              |
+| `spec_kit_completion_invariant_failed`     | Spec Kit Completion Invariant Failed                                                                                                  |
 
 ## Using Guidance inside an agent (chat)
 
@@ -803,14 +802,14 @@ outcomes — then pick the matching case:
 | Phase gate operation failed (exit ≠ 0)                                                                          | Session **stayed in the phase**; failed required operations are recorded                                       | Fix the cause, then `retry_operation { "sessionId": "…" }` re-runs the failed required operations; the gate re-evaluates                                                                                                                          |
 | Session status `blocked` (via `report_blocker`, or a required `beforeEnter` failure at session/successor start) | Session is paused on the system state `blocked`; the previous phase is preserved                               | Get the user decision, then `resume_workflow { "sessionId": "…", "decision": "…" }` returns to the previous phase                                                                                                                                 |
 | Client timeout on a submission or on `retry_operation`/`complete_workflow`                                      | The orchestrator may **have executed** the operation anyway (state is persisted per mutation)                  | Do **not** blindly resubmit: check `get_workflow_state` first. Re-submitting the same phase payload is safe (requestId replay returns the recorded result instead of double-executing), but a changed payload may be rejected by the reuse policy |
-| Server or container restarted mid-session                                                                       | Sessions persist in the workspace bind mount (`.guidance/state/`); `configurationVersion` is image-independent | Continue by `sessionId`: `get_workflow_state` / `get_current_guidance` return the exact position. A `.guidance/` config change, however, invalidates persisted sessions (fail-closed, specs/008 AC-5)                                             |
+| Server or container restarted mid-session                                                                       | Sessions persist in the workspace bind mount (`.guidance/state/`); `configurationVersion` is image-independent | Continue by `sessionId`: `get_workflow_state` / `get_current_guidance` return the exact position. A `.guidance/` config change, however, invalidates persisted sessions (fail-closed)                                                             |
 
 Re-submission semantics (requestId ledger): every phase submission carries a
 `requestId`. Replaying the **same** payload with the **same** `requestId`
 returns the recorded result marked `replayed` — it never re-executes work. A
 **changed** payload under the same `requestId` is governed by
 `policies.submission.requestIdReuse` (`warn` default, `reject-mismatch` for
-fail-closed setups; amendment 006). When in doubt after an unclear failure:
+fail-closed setups). When in doubt after an unclear failure:
 new `requestId`, state first via `get_workflow_state`.
 
 Operations can tune their failure behavior in `operations.json` via the
@@ -877,7 +876,7 @@ decisions the agent cannot make (risk-class approvals, ambiguous blockers):
 → session `blocked` → after the user decides:
 `resume_workflow { "sessionId": "…" }`.
 
-### FR-053 approval policy (REV-US2-F1 rework: config-based, unattended)
+### Approval policy (config-based, unattended)
 
 The approval decision resolves from **`policies.json` → `policies.approvals`**
 — the operator's trust decision lives in config, not in runtime clicks, so
@@ -919,10 +918,10 @@ gate only after it runs the deployed build.
 ### Platform note for the dependency operations
 
 `deps-install` / `deps-reinstall` spawn `npm` directly (no shell). They are
-supported on Linux/container hosts (FR-1216); Windows hosts are not supported
+supported on Linux/container hosts; Windows hosts are not supported
 without shell adaptation (`npm.cmd` resolution).
 
-Profile change (REV-US2-F1): the python-guidance profile no longer auto-runs
+Profile change: the python-guidance profile no longer auto-runs
 `toolchain-sync` at `understand.afterEnter` — an auto-executed
 `workspace_write` op is incompatible with the approval ceremony (the session
 could not even start without a grant). The agent invokes `toolchain-sync`
@@ -1104,16 +1103,16 @@ In the `plain` profile a manifest containing `source` is rejected entirely
 | `maxStepsPerManifest` (default 16) | manifests whose explicit `steps` exceed the limit rejected                            |
 | Mixed manifest in plain profile    | rejected entirely (`spec-kit` required for the `source` part — no silent degradation) |
 | Unresolved template variable       | no successor created; predecessor stays `completed`                                   |
-| Successor gate failure (FR-040)    | successor starts `blocked`; predecessor stays `completed`; chain halts                |
+| Successor gate failure             | successor starts `blocked`; predecessor stays `completed`; chain halts                |
 
-### Runtime registry registration (specs/015 US1)
+### Runtime registry registration
 
-| Rule                                        | Behavior                                                                                                                                                                           |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `registryRegister.enabled: false` (default) | `registry_register` tool not exposed; engine calls fail closed with `configuration_invalid` (FR-1207)                                                                              |
-| Enabled (profile `spec-kit`)                | register/remove one root at runtime; full `WorkspaceRegistry.build` validation, atomic `guidance.json` write, `registry_changed` audit, new `configurationVersion` (FR-1201..1210) |
-| Session semantics on any config change      | specs/015 addendum AC-13..17: `completed` survives; `active`/`blocked` rebind after successful re-validation (`session_rebound` audit); failed re-validation stays fail-closed     |
-| User decision required                      | chain halts — chaining never bypasses `report_blocker`                                                                                                                             |
+| Rule                                        | Behavior                                                                                                                                                           |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `registryRegister.enabled: false` (default) | `registry_register` tool not exposed; engine calls fail closed with `configuration_invalid`                                                                        |
+| Enabled (profile `spec-kit`)                | register/remove one root at runtime; full `WorkspaceRegistry.build` validation, atomic `guidance.json` write, `registry_changed` audit, new `configurationVersion` |
+| Session semantics on any config change      | `completed` survives; `active`/`blocked` rebind after successful re-validation (`session_rebound` audit); failed re-validation stays fail-closed                   |
+| User decision required                      | chain halts — chaining never bypasses `report_blocker`                                                                                                             |
 
 Chained sessions are fully audited: `chain_successor_created`,
 `chain_failed` (with reason), plus the regular per-session event streams.
@@ -1173,8 +1172,7 @@ and checks against.
 ## Configuration (`.guidance/`)
 
 All configuration is JSON, version 2. Full contract:
-[`specs/002-guidance-workflow-server/contracts/downstream-config-contract.md`](../../specs/002-guidance-workflow-server/contracts/downstream-config-contract.md)
-· runnable example set: [`examples/default-guidance/`](./examples/default-guidance/).
+the shipped runnable example set: [`examples/default-guidance/`](./examples/default-guidance/).
 
 ```
 .guidance/
@@ -1295,7 +1293,7 @@ phase (a required failure at session start starts the session `blocked`).
 }
 ```
 
-## Remote sessions & downstream operations (spec 007 / amendment 004)
+## Remote sessions & downstream operations
 
 Remote sessions execute downstream MCP operations (`server`/`capability`)
 **server-side** through the same trust stack as local workflows (allowlist,
@@ -1313,7 +1311,7 @@ The `capture-lessons` prompt ships inside the npm package:
 the copy in sync when the master changes). No per-repo copies needed;
 reference the packaged file from your agent workflow.
 
-## Metrics (spec 005, FR-059)
+## Metrics
 
 Every operation execution is recorded (counts by outcome, duration
 aggregates; connection health snapshots). Query via the session-independent
@@ -1325,7 +1323,7 @@ The scaffold detects the workspace language: a `pyproject.toml` in the
 workspace root generates the uv-based Python op set (`toolchain-sync`,
 `lint`, `test`, `check`) instead of the npm set.
 
-### Dependency-bootstrap operations (specs/015 US2, FR-1211..1216)
+### Dependency-bootstrap operations
 
 Node workspaces get two healing operations in the shipped catalogs
 (scaffold template, config-assistant, `examples/default-guidance`):
@@ -1336,7 +1334,7 @@ Node workspaces get two healing operations in the shipped catalogs
 | `deps-reinstall` | deletes `node_modules` (lockfile preserved) and reinstalls in one step — workspace-scoped (runs in the workspace root, no path traversal); the remedy for `ERR_DLOPEN_FAILED` native-addon ABI mismatches (reinstall INSIDE the container for a Linux-native tree)                                                                                                                                                                        |
 
 Both are `riskClass: workspace_write`, `required: false`,
-`invocableByAgent: true` (FR-053 approval semantics per the policy engine),
+`invocableByAgent: true` (approval semantics per the policy engine),
 with exposure-filtered output (npm output can carry registry URLs with
 tokens). Reactive detection: a gate failure matching `Cannot find module`
 or `ERR_DLOPEN_FAILED` carries a `node_deps_hint` warning pointing at the
@@ -1345,13 +1343,13 @@ matching operation. The optional proactive probe
 boot diagnostics reference the deps operations so the agent can heal
 before gates run.
 
-## Completion final-review gate (amendment 003)
+## Completion final-review gate
 
 The `complete` phase enforces the mandatory independent final review as a
 machine-checkable gate (`final-review-gate`, required). Before submitting
 the completion, write `.guidance/state/final-review.json`:
 
-- strict schema (see amendment 003 §4): `sessionId`, `reviewerRef`
+- strict schema (see §4): `sessionId`, `reviewerRef`
   (sub-agent/review-tool reference), `reviewScope`, `baseCommit`,
   `headCommit`, `commits[]`, `reviewedAt`, `openHighCritical`, `findings[]`
   with `id`/`severity`/`status`/`evidence` each;
@@ -1401,7 +1399,7 @@ Shared rules for **any** language:
 Python toolchain (`python3` + pinned `uv`) are always installed, along with
 the **node-gyp build chain** (`make`, `g++`, `gcc`, `libc6-dev`) so native
 addons (e.g. `better-sqlite3`) compile inside the container during
-`deps-install`/`deps-reinstall` (specs/015 US2, DEPLOY-015b). The Rust and
+`deps-install`/`deps-reinstall`. The Rust and
 C# toolchains are **not** installed by default (image size) — opt in at
 build time:
 
@@ -1447,11 +1445,11 @@ without the corresponding toolchain, the process gate fails closed
    carry `invocableByAgent: true` so the agent can also run them ad hoc via
    `run_operation`.
 5. **Concurrency & cancellation** — one operation per session at a time
-   (FR-107); venv-mutating operations serialize across sessions **per
-   workspace** via hash-suffixed lock files (FR-309/FR-502 — different
+   ; venv-mutating operations serialize across sessions **per
+   workspace** via hash-suffixed lock files (different
    workspaces run in parallel); cancellation (and operation timeout)
    hard-kills the child — SIGTERM, escalating to SIGKILL after a 5 s grace
-   (FR-202) — and releases the lock. A cancelled run discards its result
+   ) — and releases the lock. A cancelled run discards its result
    and is audited as cancelled.
 6. **venv caveat** — the venv lives in the workspace (`.venv`, cwd-relative
    to the project root)
@@ -1511,7 +1509,7 @@ invocation.
    dependency graph and can take several minutes; the example ops
    therefore use 600–900 s timeouts (vs. 300 s for Python).
 7. **Concurrency** — cargo locks `target/` internally; combined with the
-   per-workspace operation lock (FR-107/FR-309) two sessions on the same
+   per-workspace operation lock two sessions on the same
    workspace queue instead of corrupting each other's build directory.
 
 ### Step by step: C# (`examples/csharp-guidance/`)
@@ -1562,7 +1560,7 @@ the Dockerfile), so nothing has to be installed per-workspace. NuGet
    Update a stale lock file deliberately: run `dotnet restore` locally
    and commit the changed `packages.lock.json`.
 7. **Concurrency** — MSBuild locks `obj/`/`bin/` internally; combined
-   with the per-workspace operation lock (FR-107/FR-309) two sessions on
+   with the per-workspace operation lock two sessions on
    the same workspace queue instead of corrupting each other's build
    outputs.
 
@@ -1646,33 +1644,33 @@ Roles at a glance:
 > (`servers/server-guidance/`). That directory is server code only; its
 > `.guidance/` (if present, e.g. from a test run with cwd=server dir) is
 > git-ignored. In Docker, place it inside the served workspace root (see
-> `docker-compose.override.yml`, specs/014).
+> `docker-compose.override.yml`).
 
 ### `guidance.json` — attribute reference
 
-| Attribute                                       | Type                      | Default          | Meaning                                                                                                            |
-| ----------------------------------------------- | ------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `version`                                       | number                    | — (**required**) | Config format version; must be `2`                                                                                 |
-| `profile`                                       | `"plain"` \| `"spec-kit"` | derived          | Tool surface selection. If omitted: `spec-kit` when `integrations.specKit` keys are present (FR-060), else `plain` |
-| `project.name`                                  | string                    | — (**required**) | Project identity, used in responses/audit                                                                          |
-| `workflow.file`                                 | string                    | —                | Path to `workflow.json` (relative to `.guidance/`)                                                                 |
-| `responses.file`                                | string                    | —                | Path to `responses.json`                                                                                           |
-| `operations.file`                               | string                    | —                | Path to `operations.json`                                                                                          |
-| `downstreamServers.file`                        | string                    | —                | Path to `downstream-servers.json`                                                                                  |
-| `policies.file`                                 | string                    | —                | Path to `policies.json`                                                                                            |
-| `state.directory`                               | string                    | `state`          | State directory (sessions, audit, snapshots)                                                                       |
-| `state.persistAfterEveryOperation`              | boolean                   | —                | Persist session state after each mutation (crash safety)                                                           |
-| `state.retainRawMcpResponses`                   | boolean                   | —                | Keep raw downstream responses on disk (audit depth vs. disk usage)                                                 |
-| `orchestration.defaultTimeoutSeconds`           | number                    | —                | Default timeout for operations without own `timeoutSeconds`                                                        |
-| `orchestration.defaultRetryCount`               | number                    | —                | Default retry count for transient downstream failures                                                              |
-| `orchestration.maximumConcurrentOperations`     | number                    | —                | Concurrency cap for parallel operations                                                                            |
-| `orchestration.failClosedForRequiredOperations` | boolean                   | —                | Required operation failure ⇒ block (true) instead of continue-with-warning                                         |
-| `security.allowAgentDefinedServers`             | boolean                   | —                | May the _agent_ register new downstream servers at runtime (default: no)                                           |
-| `security.allowAgentDefinedOperations`          | boolean                   | —                | May the agent define new operations at runtime                                                                     |
-| `security.allowAgentProvidedCommands`           | boolean                   | —                | May the agent pass raw commands to process operations                                                              |
-| `security.restrictWorkingDirectory`             | boolean                   | —                | Pin process operations to the workspace root                                                                       |
-| `security.redactSensitiveOutput`                | boolean                   | —                | Apply policy redaction patterns to agent-facing output                                                             |
-| `integrations.specKit`                          | object                    | —                | Spec-Kit integration config; presence influences profile resolution (see below)                                    |
+| Attribute                                       | Type                      | Default          | Meaning                                                                                                    |
+| ----------------------------------------------- | ------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| `version`                                       | number                    | — (**required**) | Config format version; must be `2`                                                                         |
+| `profile`                                       | `"plain"` \| `"spec-kit"` | derived          | Tool surface selection. If omitted: `spec-kit` when `integrations.specKit` keys are present , else `plain` |
+| `project.name`                                  | string                    | — (**required**) | Project identity, used in responses/audit                                                                  |
+| `workflow.file`                                 | string                    | —                | Path to `workflow.json` (relative to `.guidance/`)                                                         |
+| `responses.file`                                | string                    | —                | Path to `responses.json`                                                                                   |
+| `operations.file`                               | string                    | —                | Path to `operations.json`                                                                                  |
+| `downstreamServers.file`                        | string                    | —                | Path to `downstream-servers.json`                                                                          |
+| `policies.file`                                 | string                    | —                | Path to `policies.json`                                                                                    |
+| `state.directory`                               | string                    | `state`          | State directory (sessions, audit, snapshots)                                                               |
+| `state.persistAfterEveryOperation`              | boolean                   | —                | Persist session state after each mutation (crash safety)                                                   |
+| `state.retainRawMcpResponses`                   | boolean                   | —                | Keep raw downstream responses on disk (audit depth vs. disk usage)                                         |
+| `orchestration.defaultTimeoutSeconds`           | number                    | —                | Default timeout for operations without own `timeoutSeconds`                                                |
+| `orchestration.defaultRetryCount`               | number                    | —                | Default retry count for transient downstream failures                                                      |
+| `orchestration.maximumConcurrentOperations`     | number                    | —                | Concurrency cap for parallel operations                                                                    |
+| `orchestration.failClosedForRequiredOperations` | boolean                   | —                | Required operation failure ⇒ block (true) instead of continue-with-warning                                 |
+| `security.allowAgentDefinedServers`             | boolean                   | —                | May the _agent_ register new downstream servers at runtime (default: no)                                   |
+| `security.allowAgentDefinedOperations`          | boolean                   | —                | May the agent define new operations at runtime                                                             |
+| `security.allowAgentProvidedCommands`           | boolean                   | —                | May the agent pass raw commands to process operations                                                      |
+| `security.restrictWorkingDirectory`             | boolean                   | —                | Pin process operations to the workspace root                                                               |
+| `security.redactSensitiveOutput`                | boolean                   | —                | Apply policy redaction patterns to agent-facing output                                                     |
+| `integrations.specKit`                          | object                    | —                | Spec-Kit integration config; presence influences profile resolution (see below)                            |
 
 ### `workflow.json` — attribute reference
 
@@ -1706,35 +1704,35 @@ Phase keys must match the phase names in `workflow.json`.
 
 ### `operations.json` — attribute reference
 
-| Attribute                                       | Type                     | Meaning                                                                                                                                                                                                     |
-| ----------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `operations.<id>.description`                   | string                   | Human-readable description                                                                                                                                                                                  |
-| `operations.<id>.type`                          | `"process"` \| MCP types | `process` runs a local executable; MCP types call downstream servers                                                                                                                                        |
-| `operations.<id>.executable` / `.args`          | string / string[]        | Command for `type: "process"`                                                                                                                                                                               |
-| `operations.<id>.server` / `.capability`        | string                   | For MCP operations: downstream server ID + tool name                                                                                                                                                        |
-| `operations.<id>.required`                      | boolean                  | Required operations gate transitions (`required_hook_failed` on failure); optional failures are warnings                                                                                                    |
-| `operations.<id>.timeoutSeconds`                | number                   | Per-operation timeout; on exceed the call fails as transport error (retried per policy)                                                                                                                     |
-| `operations.<id>.validation.exitCodeMustBeZero` | boolean                  | `process`: exit code 0 ⇒ succeeded                                                                                                                                                                          |
-| `operations.<id>.output.returnToAgent`          | string                   | Exposure mode: `summary_and_errors` (redacted default), `status_only`, `normalized`, `raw` — controls how much reaches the agent                                                                            |
-| `operations.<id>.riskClass`                     | string                   | Risk-class approval gate: the decision resolves from `policies.approvals` (defaults: `destructive`/`credential_sensitive` → interactive approval ceremony, others → unattended; see FR-053 approval policy) |
+| Attribute                                       | Type                     | Meaning                                                                                                                                                                         |
+| ----------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operations.<id>.description`                   | string                   | Human-readable description                                                                                                                                                      |
+| `operations.<id>.type`                          | `"process"` \| MCP types | `process` runs a local executable; MCP types call downstream servers                                                                                                            |
+| `operations.<id>.executable` / `.args`          | string / string[]        | Command for `type: "process"`                                                                                                                                                   |
+| `operations.<id>.server` / `.capability`        | string                   | For MCP operations: downstream server ID + tool name                                                                                                                            |
+| `operations.<id>.required`                      | boolean                  | Required operations gate transitions (`required_hook_failed` on failure); optional failures are warnings                                                                        |
+| `operations.<id>.timeoutSeconds`                | number                   | Per-operation timeout; on exceed the call fails as transport error (retried per policy)                                                                                         |
+| `operations.<id>.validation.exitCodeMustBeZero` | boolean                  | `process`: exit code 0 ⇒ succeeded                                                                                                                                              |
+| `operations.<id>.output.returnToAgent`          | string                   | Exposure mode: `summary_and_errors` (redacted default), `status_only`, `normalized`, `raw` — controls how much reaches the agent                                                |
+| `operations.<id>.riskClass`                     | string                   | Risk-class approval gate: the decision resolves from `policies.approvals` (defaults: `destructive`/`credential_sensitive` → interactive approval ceremony, others → unattended) |
 
 ### `downstream-servers.json` — attribute reference
 
-| Attribute                                                | Type     | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| -------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `servers.<id>.displayName`                               | string   | Human-readable name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `servers.<id>.enabled`                                   | boolean  | `false` = server is skipped entirely                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `servers.<id>.required`                                  | boolean  | Required servers must become ready at startup (fail otherwise)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `servers.<id>.trustLevel`                                | string   | One of `policies.trustLevels` — drives egress policy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `servers.<id>.transport`                                 | object   | `type: "stdio"` + `command.executable/args/cwd`, **or** `type: "http"` + `http.url` + `http.headers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `servers.<id>.transport.http.headers.<NAME>`             | string   | HTTP request headers; `${ENV_VAR}` references are resolved at config load (unset variable ⇒ configuration error)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `servers.<id>.connection.startupTimeoutSeconds`          | number   | Handshake timeout (positive finite; overrides the 10 s default per server)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `servers.<id>.connection.requestTimeoutSeconds`          | number   | Per-request timeout (positive finite; enforced as transport failure)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `servers.<id>.connection.reconnect`                      | object   | `enabled`, `maximumAttempts` (positive integer, required for effect), `delayMilliseconds` (non-negative integer). On a transport failure guidance drops the dead client and re-runs the handshake up to `maximumAttempts` times (delay between attempts), retrying the call after each successful reconnect. Never retried: config errors (invalid timeouts) and request-timeout failures — a timed-out call already ran downstream and is not automatically replayed (retry semantics stay upstream, FR-035)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `servers.<id>.containerRoute`                            | object   | **FR-035 amendment (2026-09-28):** optional HTTP endpoint reachable from the guidance container (`url` + optional `headers`, same `${ENV_VAR}` resolution and egress-allowlist rules as `transport.http`). When a **read-only** operation call times out on the primary transport, guidance makes exactly **one** automatic attempt over this route before surfacing the failure (`workspace_write`/`external_write` calls are never auto-retried). Outcomes are counted per server in `get_metrics` → `containerRouteFallbacks` (in-memory counters; they reset on restart — operations/connections metrics replay from `metrics.jsonl`, fallback attempts intentionally do not). Generated configs predefine the route for `gitnexus` (`:4747/api/mcp`); the shipped Thinking-MCP sample additionally defines routes for `clearthought` and `insight`; the fallback applies to the MCP tool calls the engine makes against that server (REV-1, 2026-09-28)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `servers.<id>.capabilities.allow.tools`                  | string[] | **Allowlist**: only these tools may be invoked on this server. The sole entry `"*"` is a **wildcard**: every tool of the server is invocable, regardless of name — newly added downstream tools are covered without a config change (routing itself is tool-name-agnostic; the automatic `containerRoute` timeout-fallback stays restricted to configured `read_only` operations). The wildcard applies to the **primary transport** as well as the fallback, and it applies only to the tool-name check: egress, dataEgress and approval gating stay per-call. Note: mixed lists like `["*", "tool"]` are rejected at config load (`configuration_invalid`) because their intent is ambiguous. **Fail-closed coupling (WC-1, 2026-09-29):** the wildcard is only accepted on servers whose **effective `trustLevel` is `trusted`** (an absent or unknown `trustLevel` defaults to `trusted`, same semantics as the runtime). A wildcard on a `restricted`/`untrusted` server is rejected at config load because tools without an `operations.json` entry run under `riskClass: undefined`, so the FR-053 approval gate could never fire for them. **Unconfigured-tool approval (WC-1-B, 2026-09-30):** invoking a tool that has no `operations.json` entry on a wildcard server fails with a recoverable `authorization_required` — unknown tools always require explicit approval until an operation entry assigns them a risk class. Configured tools are unaffected; to make a new tool callable without approval, add an operations.json entry with an appropriate `riskClass` |
-| `servers.<id>.capabilities.allow.resources` / `.prompts` | string[] | Same for resources/prompts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `servers.<id>.environment`                               | object   | Env for the child process (`inherit`, `variables.<NAME>.fromHost`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Attribute                                                | Type     | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `servers.<id>.displayName`                               | string   | Human-readable name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `servers.<id>.enabled`                                   | boolean  | `false` = server is skipped entirely                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `servers.<id>.required`                                  | boolean  | Required servers must become ready at startup (fail otherwise)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `servers.<id>.trustLevel`                                | string   | One of `policies.trustLevels` — drives egress policy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `servers.<id>.transport`                                 | object   | `type: "stdio"` + `command.executable/args/cwd`, **or** `type: "http"` + `http.url` + `http.headers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `servers.<id>.transport.http.headers.<NAME>`             | string   | HTTP request headers; `${ENV_VAR}` references are resolved at config load (unset variable ⇒ configuration error)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `servers.<id>.connection.startupTimeoutSeconds`          | number   | Handshake timeout (positive finite; overrides the 10 s default per server)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `servers.<id>.connection.requestTimeoutSeconds`          | number   | Per-request timeout (positive finite; enforced as transport failure)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `servers.<id>.connection.reconnect`                      | object   | `enabled`, `maximumAttempts` (positive integer, required for effect), `delayMilliseconds` (non-negative integer). On a transport failure guidance drops the dead client and re-runs the handshake up to `maximumAttempts` times (delay between attempts), retrying the call after each successful reconnect. Never retried: config errors (invalid timeouts) and request-timeout failures — a timed-out call already ran downstream and is not automatically replayed (retry semantics stay upstream)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `servers.<id>.containerRoute`                            | object   | **Amendment (2026-09-28):** optional HTTP endpoint reachable from the guidance container (`url` + optional `headers`, same `${ENV_VAR}` resolution and egress-allowlist rules as `transport.http`). When a **read-only** operation call times out on the primary transport, guidance makes exactly **one** automatic attempt over this route before surfacing the failure (`workspace_write`/`external_write` calls are never auto-retried). Outcomes are counted per server in `get_metrics` → `containerRouteFallbacks` (in-memory counters; they reset on restart — operations/connections metrics replay from `metrics.jsonl`, fallback attempts intentionally do not). Generated configs predefine the route for `gitnexus` (`:4747/api/mcp`); the shipped Thinking-MCP sample additionally defines routes for `clearthought` and `insight`; the fallback applies to the MCP tool calls the engine makes against that server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `servers.<id>.capabilities.allow.tools`                  | string[] | **Allowlist**: only these tools may be invoked on this server. The sole entry `"*"` is a **wildcard**: every tool of the server is invocable, regardless of name — newly added downstream tools are covered without a config change (routing itself is tool-name-agnostic; the automatic `containerRoute` timeout-fallback stays restricted to configured `read_only` operations). The wildcard applies to the **primary transport** as well as the fallback, and it applies only to the tool-name check: egress, dataEgress and approval gating stay per-call. Note: mixed lists like `["*", "tool"]` are rejected at config load (`configuration_invalid`) because their intent is ambiguous. **Fail-closed coupling:** the wildcard is only accepted on servers whose **effective `trustLevel` is `trusted`** (an absent or unknown `trustLevel` defaults to `trusted`, same semantics as the runtime). A wildcard on a `restricted`/`untrusted` server is rejected at config load because tools without an `operations.json` entry run under `riskClass: undefined`, so the approval gate could never fire for them. **Unconfigured-tool approval:** invoking a tool that has no `operations.json` entry on a wildcard server fails with a recoverable `authorization_required` — unknown tools always require explicit approval until an operation entry assigns them a risk class. Configured tools are unaffected; to make a new tool callable without approval, add an operations.json entry with an appropriate `riskClass` |
+| `servers.<id>.capabilities.allow.resources` / `.prompts` | string[] | Same for resources/prompts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `servers.<id>.environment`                               | object   | Env for the child process (`inherit`, `variables.<NAME>.fromHost`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ### `policies.json` — attribute reference
 
@@ -1822,13 +1820,13 @@ as a blueprint: copy it to your project root and adapt the operations.
 | `workflow.json`           | The state machine — see the phase walkthrough below                                                                                                                                                                                                                        |
 | `responses.json`          | Per-phase agent instruction: title, instruction, `requiredActions`                                                                                                                                                                                                         |
 | `operations.json`         | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
-| `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`, specs/014) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight                                         |
+| `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight                                                    |
 | `policies.json`           | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3000`, `:3002`, `:4747`), redaction patterns, review-blocking severities `high\|critical`    |
 | `schemas/*.schema.json`   | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission                                                                                                                                                                                 |
 
 ### ⚠️ Important: workspace binding under HTTP/Docker
 
-When Guidance runs as a Docker HTTP server (specs/014 pool deployment), the
+When Guidance runs as a Docker HTTP server (pool deployment), the
 instance serves the pool at `GUIDANCE_WORKSPACE_ROOT` (`/workspaces`) and
 carries only the `workspaces[]` registry. **`start_workflow` MUST be called
 with a registered workspace NAME (`workspace: "thinking-mcp"` /
@@ -1973,7 +1971,7 @@ recorded) or ends the run via `cancel_workflow`.
 
 ### Operating notes for this sample
 
-- **Docker deployment (specs/014 pool mode):** the override mounts ONLY the
+- **Docker deployment (pool mode):** the override mounts ONLY the
   repos pool at `/workspaces` — this checkout is served as registered
   workspace `thinking-mcp` (`/workspaces/Thinking-MCP`), and its gates use
   the repo's own `node_modules` (install dependencies under WSL, Node 24 —
@@ -2090,12 +2088,12 @@ Real first production run (docs-only change):
 > Add a verification hint and make the Docker sentence precise.
 
 The agent then calls `start_workflow` with `workspace: "thinking-mcp"`
-(specs/014: registered workspace name; `workspaceRoot` must realpath-match
+(registered workspace name; `workspaceRoot` must realpath-match
 a registered root exactly) and walks understand → … → complete; the
 `lint/test/build` gates (before `verify`) and `repository-analysis` (before
 `complete`) run server-side automatically.
 
-## Repo setup — step by step (specs/014, two modes × two setup paths)
+## Repo setup — step by step (two modes × two setup paths)
 
 There are exactly two deployment modes and two setup styles — pick the cell
 you need:
@@ -2165,7 +2163,7 @@ start_workflow { "workspace": "zed", "request": "..." }
 ### Path 2 — Workspace-Mode, assistant
 
 The config assistant is mode-aware and splits the work into two wizard runs
-(new `target` question, specs/014). Give your agent ONE prompt — it runs the
+(new `target` question). Give your agent ONE prompt — it runs the
 wizard twice and edits the registry on your behalf:
 
 ```
@@ -2244,7 +2242,7 @@ Our Guidance container runs in Remote-Mode at http://localhost:3003/mcp
 
 The assistant is mode-aware: with `GUIDANCE_REMOTE_MODE=1` visible to the
 serving instance, its generated notes already point at `init_session`
-instead of the instance registry (specs/014 AC-7).
+instead of the instance registry.
 
 ---
 
@@ -2255,7 +2253,7 @@ instead of the instance registry (specs/014 AC-7).
 - Many repos/teams registering themselves against a central container, no
   shared writable config → **Remote-Mode** (Paths 3/4).
 - Legacy monolith (full config at the instance root): keeps working with a
-  boot warning — migrate to registry-only + repo-level configs (specs/014).
+  boot warning — migrate to registry-only + repo-level configs.
 
 ## Tool reference
 
@@ -2266,31 +2264,33 @@ apply the change twice (request ledger). Submissions are validated against the
 phase's JSON-Schema; validation failures return `submission_invalid` with
 details.
 
-### Workflow tools (19 + `registry_register`, specs/015)
+### Workflow tools (19 + `registry_register`)
 
-| Tool                           | Parameters                                                                                                                                           | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `start_workflow`               | `workspace` (registered name, preferred), `workspaceRoot` (deprecated: realpath-must-match a registered root), `request`, `workflowId?`, `metadata?` | Starts a session, runs initial-phase `beforeEnter` operations (a required failure starts the session `blocked`) and returns the initial phase instruction. `workspace`/`workspaceRoot` must resolve to a registered workspace (`workspace_not_registered` otherwise; specs/014 composition v2)                                                                                                                                                                                                              |
-| `get_current_guidance`         | `sessionId`                                                                                                                                          | Read-only: title, instruction and required actions of the current phase (from `responses.json`). Call after every transition                                                                                                                                                                                                                                                                                                                                                                                |
-| `submit_understanding`         | `sessionId`, `requestId?`, `summary`, `assumptions?`, `acceptanceCriteria?`                                                                          | Submits the _understand_ phase: request analysis, assumptions, measurable acceptance criteria. **RID-1:** replaying an already-registered `requestId` returns the cached result annotated with `replayed: true` + `duplicateOf` + `warning` (no phase advance); a replay with a different payload is flagged `payloadMismatch: true` (policy `submission.requestIdReuse: "warn"`, default) or rejected with `requestId_reuse_payload_mismatch` (`"reject-mismatch"`)                                        |
-| `submit_plan`                  | `sessionId`, `requestId?`, `tasks`                                                                                                                   | Submits the implementation plan: stable task IDs, dependencies, affected files, planned tests                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `submit_plan_review`           | `sessionId`, `requestId?`, `findings?`, `approvedPlan?`                                                                                              | Plan review; blocking findings (per policy severities) loop back to `plan`, approval advances to `implement`                                                                                                                                                                                                                                                                                                                                                                                                |
-| `submit_implementation`        | `sessionId`, `requestId?`, `implementedTasks`, `changedFiles`                                                                                        | Implementation evidence: which tasks were implemented and which files changed                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `submit_implementation_review` | `sessionId`, `requestId?`, `findings?`, `filesChangedDuringReview?`                                                                                  | Code-review results; `implementation_changes_required` loops back to `implement`                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `submit_verification`          | `sessionId`, `requestId?`, `verificationSummary`                                                                                                     | Verification report; the phase's `beforeExit` gates (lint/test/build) run on transition                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `complete_workflow`            | `sessionId`, `requestId?`, `summary`                                                                                                                 | Final report; runs required completion operations (e.g. repository analysis). Success moves the session to the terminal state                                                                                                                                                                                                                                                                                                                                                                               |
-| `get_workflow_state`           | `sessionId`, `includeHistory?`                                                                                                                       | Read-only: full persisted session state (phases, downstream operation states, blockers). Reconciles stale `running` operations to `unknown` under a lock                                                                                                                                                                                                                                                                                                                                                    |
-| `report_blocker`               | `sessionId`, `category`, `description`, `requiresUserDecision?`, `options?`                                                                          | Reports a blocker the agent cannot resolve; the session enters `blocked` until `resume_workflow`                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `resume_workflow`              | `sessionId`, `decision`, `notes?`                                                                                                                    | Ends `blocked` and returns the session to its previous phase with the user decision recorded                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `cancel_workflow`              | `sessionId`                                                                                                                                          | Graceful cancellation (FR-057): no new operations run, state moves to the `cancelled` terminal state                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `get_orchestration_status`     | `sessionId`                                                                                                                                          | Read-only: status of the operations of the active phase (running / succeeded / failed / timed_out)                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `list_configured_operations`   | —                                                                                                                                                    | Read-only: all operations defined in `operations.json` (no session needed)                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `retry_operation`              | `sessionId`                                                                                                                                          | Re-runs failed **required** operations of the current phase (transient downstream failures)                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `get_downstream_status`        | —                                                                                                                                                    | Read-only: connection health of all configured downstream servers                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `run_operation`                | `sessionId`, `operationId`, `arguments?`                                                                                                             | Runs a configured operation on demand (only operations with `invocableByAgent: true`). The optional `arguments` record is deep-merged over the operation's resolved args for `mcpTool` ops (agent keys win per-key; `argumentsLocked` ops reject overrides; process/composite ops ignore them with a warning)                                                                                                                                                                                               |
-| `call_downstream`              | `sessionId`, `serverId`, `toolName`, `args`                                                                                                          | **CT-ARGS-1:** transparent passthrough to a configured downstream tool — runs through the same fail-closed gates as operations (allowlist, wildcard rejection, egress, capability pins, container-route fallback for read-only). Args are NOT schema-validated by Guidance (the downstream tool validates its own input); downstream content is redacted before exposure. Not registered in remote mode (fail-closed)                                                                                       |
-| `get_metrics`                  | —                                                                                                                                                    | Read-only: aggregated metrics (operation counters, runtimes, connection health)                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `registry_register`            | `name`, `root`, `projectName?`, `remove?`                                                                                                            | **specs/015 US1 (FR-1201..1210), only when profile is `spec-kit` AND `registryRegister.enabled: true` (default OFF).** Registers/removes one workspace root at runtime through the same fail-closed `WorkspaceRegistry.build` validation (invalid input → no change), persists `workspaces[]` atomically in `guidance.json`, appends a `registry_changed` audit event and produces a new `configurationVersion` (existing sessions follow the AC-5 rebind semantics — see the specs/015 addendum AC-13..17) |
+| Tool                           | Parameters                                                                                                                                           | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `start_workflow`               | `workspace` (registered name, preferred), `workspaceRoot` (deprecated: realpath-must-match a registered root), `request`, `workflowId?`, `metadata?` | Starts a session, runs initial-phase `beforeEnter` operations (a required failure starts the session `blocked`) and returns the initial phase instruction. `workspace`/`workspaceRoot` must resolve to a registered workspace (`workspace_not_registered` otherwise)                                                                                                                                                                                               |
+| `get_current_guidance`         | `sessionId`                                                                                                                                          | Read-only: title, instruction and required actions of the current phase (from `responses.json`). Call after every transition                                                                                                                                                                                                                                                                                                                                       |
+| `submit_understanding`         | `sessionId`, `requestId?`, `summary`, `assumptions?`, `acceptanceCriteria?`                                                                          | Submits the _understand_ phase: request analysis, assumptions, measurable acceptance criteria. Replaying an already-registered `requestId` returns the cached result annotated with `replayed: true` + `duplicateOf` + `warning` (no phase advance); a replay with a different payload is flagged `payloadMismatch: true` (policy `submission.requestIdReuse: "warn"`, default) or rejected with `requestId_reuse_payload_mismatch` (`"reject-mismatch"`)          |
+| `submit_plan`                  | `sessionId`, `requestId?`, `tasks`                                                                                                                   | Submits the implementation plan: stable task IDs, dependencies, affected files, planned tests                                                                                                                                                                                                                                                                                                                                                                      |
+| `submit_plan_review`           | `sessionId`, `requestId?`, `findings?`, `approvedPlan?`                                                                                              | Plan review; blocking findings (per policy severities) loop back to `plan`, approval advances to `implement`                                                                                                                                                                                                                                                                                                                                                       |
+| `submit_implementation`        | `sessionId`, `requestId?`, `implementedTasks`, `changedFiles`                                                                                        | Implementation evidence: which tasks were implemented and which files changed                                                                                                                                                                                                                                                                                                                                                                                      |
+| `submit_implementation_review` | `sessionId`, `requestId?`, `findings?`, `filesChangedDuringReview?`                                                                                  | Code-review results; `implementation_changes_required` loops back to `implement`                                                                                                                                                                                                                                                                                                                                                                                   |
+| `submit_verification`          | `sessionId`, `requestId?`, `verificationSummary`                                                                                                     | Verification report; the phase's `beforeExit` gates (lint/test/build) run on transition                                                                                                                                                                                                                                                                                                                                                                            |
+| `complete_workflow`            | `sessionId`, `requestId?`, `summary`                                                                                                                 | Final report; runs required completion operations (e.g. repository analysis). Success moves the session to the terminal state                                                                                                                                                                                                                                                                                                                                      |
+| `get_workflow_state`           | `sessionId`, `includeHistory?`                                                                                                                       | Read-only: full persisted session state (phases, downstream operation states, blockers). Reconciles stale `running` operations to `unknown` under a lock                                                                                                                                                                                                                                                                                                           |
+| `report_blocker`               | `sessionId`, `category`, `description`, `requiresUserDecision?`, `options?`                                                                          | Reports a blocker the agent cannot resolve; the session enters `blocked` until `resume_workflow`                                                                                                                                                                                                                                                                                                                                                                   |
+| `resume_workflow`              | `sessionId`, `decision`, `notes?`                                                                                                                    | Ends `blocked` and returns the session to its previous phase with the user decision recorded                                                                                                                                                                                                                                                                                                                                                                       |
+| `cancel_workflow`              | `sessionId`                                                                                                                                          | Graceful cancellation: no new operations run, state moves to the `cancelled` terminal state                                                                                                                                                                                                                                                                                                                                                                        |
+| `get_orchestration_status`     | `sessionId`                                                                                                                                          | Read-only: status of the operations of the active phase (running / succeeded / failed / timed_out)                                                                                                                                                                                                                                                                                                                                                                 |
+| `list_configured_operations`   | —                                                                                                                                                    | Read-only: all operations defined in `operations.json` (no session needed)                                                                                                                                                                                                                                                                                                                                                                                         |
+| `retry_operation`              | `sessionId`                                                                                                                                          | Re-runs failed **required** operations of the current phase (transient downstream failures)                                                                                                                                                                                                                                                                                                                                                                        |
+| `get_downstream_status`        | —                                                                                                                                                    | Read-only: connection health of all configured downstream servers                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `run_operation`                | `sessionId`, `operationId`, `arguments?`                                                                                                             | Runs a configured operation on demand (only operations with `invocableByAgent: true`). The optional `arguments` record is deep-merged over the operation's resolved args for `mcpTool` ops (agent keys win per-key; `argumentsLocked` ops reject overrides; process/composite ops ignore them with a warning)                                                                                                                                                      |
+| `call_downstream`              | `sessionId`, `serverId`, `toolName`, `args`                                                                                                          | **Transparent passthrough:** transparent passthrough to a configured downstream tool — runs through the same fail-closed gates as operations (allowlist, wildcard rejection, egress, capability pins, container-route fallback for read-only). Args are NOT schema-validated by Guidance (the downstream tool validates its own input); downstream content is redacted before exposure. Not registered in remote mode (fail-closed)                                |
+| `get_metrics`                  | —                                                                                                                                                    | Read-only: aggregated metrics (operation counters, runtimes, connection health)                                                                                                                                                                                                                                                                                                                                                                                    |
+| `registry_register`            | `name`, `root`, `projectName?`, `remove?`                                                                                                            | Only when profile is `spec-kit` AND `registryRegister.enabled: true` (default OFF). Registers/removes one workspace root at runtime through the same fail-closed `WorkspaceRegistry.build` validation (invalid input → no change), persists `workspaces[]` atomically in `guidance.json`, appends a `registry_changed` audit event and produces a new `configurationVersion` (existing sessions follow the rebind semantics — see "Runtime registry registration") |
+
+Registry semantics are documented in the "Runtime registry registration" table (above).
 
 ### Configuration assistant tools (3)
 
@@ -2338,15 +2338,13 @@ npm run typecheck
 
 ## Further documentation
 
-- Spec: [`specs/002-guidance-workflow-server/spec.md`](../../specs/002-guidance-workflow-server/spec.md)
-- Contracts: [`specs/002-guidance-workflow-server/contracts/`](../../specs/002-guidance-workflow-server/contracts/)
 - Example configuration: [`examples/default-guidance/`](./examples/default-guidance/)
 
-## Multi-Workspace Operation (specs/008, composition v2 per specs/014)
+## Multi-Workspace Operation (composition v2)
 
 One guidance instance can serve multiple registered repositories.
 
-### Config truth (specs/014, normative)
+### Config truth (normative)
 
 Two deployment modes; in both, the instance config and the repo configs own
 DIFFERENT concerns — they never compete:
@@ -2402,13 +2400,13 @@ Rules (fail-closed):
 - `name`: `^[a-z][a-z0-9-]{0,63}$`, unique; `root`: absolute, must exist,
   unique after `realpath` resolution.
 - Missing `workspaces[]` ⇒ single implicit workspace `default` mapped to
-  `GUIDANCE_WORKSPACE_ROOT` (backward compatible, AC-3).
+  `GUIDANCE_WORKSPACE_ROOT` (backward compatible).
 - A fresh scaffold (`ensureConfiguration`) now writes the default workspace
   entry explicitly, so the registry is visible and editable from day one.
 
 ### Deployment mounts (relative, no absolute host paths)
 
-specs/014: exactly ONE volume mount — the repos pool (paths resolved relative
+Exactly ONE volume mount — the repos pool (paths resolved relative
 to the compose file in `servers/server-guidance/`):
 
 ```yaml
@@ -2437,27 +2435,27 @@ workspaces (`workspace_not_registered` otherwise).
 `workspaceRoot` (deprecated: only accepted when it realpath-matches a
 registered root exactly). Anything else is rejected with
 `workspace_not_registered` — including sub-paths of registered roots
-(intentional hardening, AC-2).
+(intentional hardening).
 
 ### Isolation
 
 Each non-default workspace gets its own lazy composition:
 
 - Config from `<root>/.guidance/` with its own `configurationVersion`
-  (registry changes invalidate sessions, AC-5).
+  (registry changes invalidate sessions).
 - State in `<root>/.guidance/state/` (sessions, snapshots, capability pins,
   audit). **`.guidance/state` MUST be gitignored in every workspace repo** —
   otherwise the dirty tree breaks `check-final-review` /
   `index-freshness` gates.
-- Operation locks are scoped per workspace (FR-502 soft-cap semantics).
+- Operation locks are scoped per workspace (soft-cap semantics).
 - Spec-kit gates run with `cwd` = the session workspace root; the GitNexus
   index is expected at `<root>/.gitnexus`.
 
 A workspace without `.guidance/guidance.json` **fails closed** with
-`workspace_process_config_missing` (specs/014 — run the config assistant in
+`workspace_process_config_missing` (run the config assistant in
 that repo; the former boot-config copy was removed). Likewise, the boot
 scaffold writes the default workspace entry into a fresh `guidance.json`
-(see Deployment mounts above). Spec-kit task chaining (FR-117 bridge)
+(see Deployment mounts above). Spec-kit task chaining (bridge)
 is currently parent-workspace only.
 
 ### Observability
