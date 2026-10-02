@@ -3,15 +3,15 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
-## 2026-10-02: REV-RRDO-1/2 abgearbeitet (Guidance-Session session-1bb0632b, Commit 98cb690)
+## 2026-10-02: REV-RRDO-1/2 abgearbeitet (Guidance-Session session-1bb0632b, Commit 9f7bc5f)
 - **Was:** Coverage-Lücken aus dem Review von 283fc74 geschlossen: Opt-out-Tool-Listen-Test (tools-registration.test.ts — `registryRegister.enabled:false` → `tools/list` exkludiert `registry_register`, exakte Surface = WORKFLOW_TOOL_NAMES) + Emissions-Assertions (scaffold.test.ts, config-assistant.test.ts AC-6, config-assistant-extensions.test.ts adopt+registry-edit — jeweils `registryRegister: {enabled: true}`). Nur Tests, keine Produktionscode-Änderung. Vollauf 537/537, tsc/prettier grün, detect_changes risk low.
-- **Notiz:** direkte Clear-Thought-MCP-Route wieder durchgehend getimed-out; `reasoning-pass` über Container-Route (`run_operation`) erfolgreich — FR-035-Passthrough-Muster erneut produktiv bestätigt.
+- **Notiz:** direkte Clear-Thought-MCP-Route wieder durchgehend getimed-out; `reasoning-pass` über Container-Route (`run_operation`) erfolgreich — FR-035-Passthrough-Muster erneut produktiv bestätigt. Final-Review über den Session-Diff (Sub-Agent aa18d064): APPROVED, 0 HIGH/CRIT; FR-FINAL-1 (Hash-Ref) hiermit korrigiert, FR-FINAL-2 getrackt.
 
 ## 2026-10-02: registry_register aktiviert + Profil-Bindung entfernt (feature/registry-register-default-on)
 - **Was:** `registryRegister.enabled` ist jetzt Default-ON mit Opt-out (`enabled: false`) statt Default-OFF (config.ts Loader, FR-1207); die `spec-kit`-Profil-Bindung an `registry_register` wurde entfernt (ToolHandlers.isRegistryRegisterEnabled, WorkflowEngine.registerWorkspace, register-tools.ts) — Begründung: Workspace-Registrierung ist ein einmaliger Instanz-/Infrastruktur-Concern, der Workflow-Typ wird pro `start_workflow` gewählt; die Profil-Bindung mischte diese Ebenen. Beide Templates emitieren `registryRegister: { enabled: true }` (scaffold.ts Scaffold + ConfigAssistant registry-edit). README „Runtime registry registration“-Tabelle + Tool-Referenz-Zeile dokumentieren das neue Verhalten (Default ON, Opt-out, profilunabhängig).
 - **Tests:** registry-rebind (Opt-out-Test auf explizites `flag: false` umgestellt + neuer Default-ON/Plain-Profile-Regressionstest), tools-registration + spec-kit-tools-registration (erwartete Surface um `registry_register` erweitert), http-transport Tool-Count 23→24. Vollauf **535/535 grün** (68 Files), tsc + prettier clean.
 - **detect_changes:** risk `critical` (loadConfig/registerWorkflowTools an jedem Boot-Flow) — beabsichtigte Behavior-Änderung, durch Vollauf abgesichert.
-- **Review:** unabhängiger Reviewer (Sub-Agent, Post-Commit-Review von 283fc74): **APPROVED, 0 HIGH/CRITICAL, 0 MEDIUM**, 2 LOW-Coverage-Lücken + 3 INFO (als REV-RRDO-1..3 in remaining-work-plan.md getrackt). Snapshot verifiziert (Branch/HEAD/clean Tree, Review-Basis = `git show 283fc74`).
+- **Review:** unabhängiger Reviewer (Sub-Agent, Post-Commit-Review von 283fc74): **APPROVED, 0 HIGH/CRITICAL, 0 MEDIUM**, 2 LOW-Coverage-Lücken + 3 INFO (als REV-RRDO-1..3 in remaining-work-plan.md getrackt; 1/2 in 9f7bc5f gelöst, 4/5 nachgetragen). Snapshot verifiziert (Branch/HEAD/clean Tree, Review-Basis = `git show 283fc74`).
 - **Next:** Merge nach develop; Container-Rebuild nötig, bis das Tool in der laufenden Instanz sichtbar ist (Hot-Reload gibt es nicht).
 
 ## 2026-10-02: CT-ARGS-1 implementiert (feature/ct-args-passthrough)
