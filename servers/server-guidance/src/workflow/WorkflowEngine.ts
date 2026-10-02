@@ -1325,13 +1325,14 @@ export class WorkflowEngine {
    *  operations through the trusted lifecycle pipeline (OperationEngine →
    *  exposure → downstream state → audit). Fail-closed: nur Operationen mit
    *  invocableByAgent:true sind aufrufbar. */
-  /** FR-053 approval gate (REV-US2-F1, scope A): workspace_write,
-   *  destructive and credential_sensitive operations require a per-execution
-   *  user grant. Grants are stored on the session via resume_workflow
-   *  decision "approve <operation-id>" and are consumed AFTER a successful
-   *  execution (a failed run keeps its grant so the retry ceremony works).
-   *  Validation runs before ANY op of the batch executes (fail before side
-   *  effects). */
+  /** FR-053 approval gate (REV-US2-F1 rework): ops whose riskClass resolves
+   *  to 'require' in policies.approvals (defaults: destructive,
+   *  credential_sensitive; everything else 'allow' — unattended) need a
+   *  per-execution user grant. Grants are stored on the session via
+   *  resume_workflow decision "approve <operation-id>" and are consumed
+   *  AFTER a successful execution (a failed run keeps its grant so the
+   *  retry ceremony works). Validation runs before ANY op of the batch
+   *  executes (fail before side effects). */
   private assertApprovals(
     session: WorkflowSession,
     ops: OperationConfig[],
