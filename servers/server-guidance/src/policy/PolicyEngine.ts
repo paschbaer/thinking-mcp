@@ -120,16 +120,20 @@ export class PolicyEngine {
     }
   }
 
-  /** Loads operation risk classes into the approval gate (REV-US2-F1,
-   *  scope A): workspace_write joins destructive/credential_sensitive —
-   *  deps ops and build/toolchain-sync write the workspace without being
-   *  destructive per se. */
-  requiresApproval(config: Pick<OperationConfig, "riskClass">): boolean {
-    return (
-      config.riskClass === "workspace_write" ||
-      config.riskClass === "destructive" ||
-      config.riskClass === "credential_sensitive"
-    );
+  /** FR-053 approval gate (REV-US2-F1 rework): the decision resolves from
+   *  the loaded policies.approvals map (entry ?? class default — see
+   *  APPROVAL_DEFAULTS in config.ts). Classes resolving to 'require' force
+   *  the interactive ceremony; 'allow' classes run unattended. */
+  requiresApproval(
+    config: Pick<OperationConfig, "riskClass">,
+    approvals?: Record<string, "allow" | "require">,
+  ): boolean {
+    const riskClass = config.riskClass;
+    if (!riskClass) return false; // unclassified ops are config-authoring trust
+    const decision = approvals?.[riskClass];
+    if (decision === "allow") return false;
+    if (decision === "require") return true;
+    return riskClass === "destructive" || riskClass === "credential_sensitive";
   }
 
   /**

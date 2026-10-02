@@ -22,7 +22,7 @@ Defined by `specs/002-guidance-workflow-server/spec.md`
 Coding agents lose long-lived behavioral rules: a large instructions file
 (`AGENTS.md`, `CLAUDE.md`) is read at session start, but by step twelve of a
 task the details are far outside the attention window — the agent still
-*knows* rule 47 exists, it just no longer *applies* it. Guidance attacks that
+_knows_ rule 47 exists, it just no longer _applies_ it. Guidance attacks that
 problem structurally instead of with longer files:
 
 - **Just-in-time rules.** The agent receives only the instruction and
@@ -51,14 +51,14 @@ problem structurally instead of with longer files:
   the gates surfaced four real bugs (an ESM crash, unresolved template
   placeholders, a missing environment contract, and an index-freshness gap).
 
-| | Static instructions file | Guidance |
-|---|---|---|
-| Rule delivery | all at once, at session start | just-in-time, per phase |
-| Rule adherence | fades with context distance | enforced per phase (`requiredActions`, review-checked) |
-| Verification | agent self-reporting | server-enforced gates; blocking |
-| Completeness | prose, easy to skip | schema-validated submissions |
-| State | in the model's context | persisted, restart-safe, auditable |
-| Improvement | manual file edits | automatic lesson capture (idempotent) |
+|                | Static instructions file      | Guidance                                               |
+| -------------- | ----------------------------- | ------------------------------------------------------ |
+| Rule delivery  | all at once, at session start | just-in-time, per phase                                |
+| Rule adherence | fades with context distance   | enforced per phase (`requiredActions`, review-checked) |
+| Verification   | agent self-reporting          | server-enforced gates; blocking                        |
+| Completeness   | prose, easy to skip           | schema-validated submissions                           |
+| State          | in the model's context        | persisted, restart-safe, auditable                     |
+| Improvement    | manual file edits             | automatic lesson capture (idempotent)                  |
 
 Static instruction files still do valuable work — general principles, repo
 conventions, tool availability — and Guidance is designed to complement
@@ -131,12 +131,12 @@ the shipped override as-is:
 
 Environment variables (HTTP):
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `PORT` | `3003` | HTTP port |
-| `GUIDANCE_BIND_HOST` | `127.0.0.1` | Bind address. **Loopback by default (fail-closed, FR-027).** Set `0.0.0.0` explicitly for container port-mapping |
-| `GUIDANCE_WORKSPACE_ROOT` | cwd | Workspace containing `.guidance/` |
-| `GUIDANCE_AUTH_TOKEN` | *(unset)* | If set, `/mcp` requires `Authorization: Bearer <token>` (401 otherwise). `/health` stays open |
+| Variable                  | Default     | Meaning                                                                                                          |
+| ------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| `PORT`                    | `3003`      | HTTP port                                                                                                        |
+| `GUIDANCE_BIND_HOST`      | `127.0.0.1` | Bind address. **Loopback by default (fail-closed, FR-027).** Set `0.0.0.0` explicitly for container port-mapping |
+| `GUIDANCE_WORKSPACE_ROOT` | cwd         | Workspace containing `.guidance/`                                                                                |
+| `GUIDANCE_AUTH_TOKEN`     | _(unset)_   | If set, `/mcp` requires `Authorization: Bearer <token>` (401 otherwise). `/health` stays open                    |
 
 ### New-system setup checklist (HTTP + multi-workspace)
 
@@ -189,6 +189,7 @@ From a bare machine to a running multi-workspace instance:
      with `--force`.
    - Never omit `--skip-skills`: a plain analyze rewrites `AGENTS.md`/
      `CLAUDE.md` (skill-template refresh) and dirties the tree.
+
 6. **Hardening (optional)**: set `GUIDANCE_AUTH_TOKEN` for bearer auth on
    `/mcp`; keep `GUIDANCE_BIND_HOST` at loopback unless the instance must
    be reachable from other hosts.
@@ -198,7 +199,7 @@ the drive enabled for file sharing; **host-installed `node_modules` must be
 Linux/ABI-compatible with the container** — install repo dependencies under
 WSL (Node 24 matches the image; Windows-native installs fail the boot
 node-deps warning and the gates). A git
-**worktree** checkout has a `.git` *file* instead of a directory, which
+**worktree** checkout has a `.git` _file_ instead of a directory, which
 breaks git-reading gates run from inside that worktree.
 
 ### Container route (FR-035 timeout fallback)
@@ -222,10 +223,16 @@ never touches the primary client for that server.
         "type": "http",
         "http": { "url": "http://host.docker.internal:4747/api/mcp" }
       },
-      "capabilities": { "allow": { "tools": ["*"], "resources": [], "prompts": [] } },
+      "capabilities": {
+        "allow": { "tools": ["*"], "resources": [], "prompts": [] }
+      },
       "connection": {
         "requestTimeoutSeconds": 300,
-        "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
+        "reconnect": {
+          "enabled": true,
+          "maximumAttempts": 2,
+          "delayMilliseconds": 1000
+        }
       },
       "containerRoute": {
         "url": "http://host.docker.internal:4747/api/mcp",
@@ -281,7 +288,10 @@ fallback (and on a wildcard server they are rejected outright):
     "required": false,
     "timeoutSeconds": 60,
     "riskClass": "read_only",
-    "validation": { "protocolRequestMustSucceed": true, "toolResultMustNotBeError": true },
+    "validation": {
+      "protocolRequestMustSucceed": true,
+      "toolResultMustNotBeError": true
+    },
     "output": { "retainRawResult": true }
   }
 }
@@ -369,11 +379,11 @@ openssl rand -hex 32
 **2. Configure the server** (`docker-compose.yml` or your runtime environment):
 
 ```yaml
-    environment:
-      - PORT=3003
-      - GUIDANCE_BIND_HOST=0.0.0.0
-      - GUIDANCE_WORKSPACE_ROOT=/workspaces
-      - GUIDANCE_AUTH_TOKEN=9f1c3b7e4a2d…   # ← your generated value
+environment:
+  - PORT=3003
+  - GUIDANCE_BIND_HOST=0.0.0.0
+  - GUIDANCE_WORKSPACE_ROOT=/workspaces
+  - GUIDANCE_AUTH_TOKEN=9f1c3b7e4a2d… # ← your generated value
 ```
 
 Environment changes require a container restart (`docker compose up -d`),
@@ -413,12 +423,12 @@ curl -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3003/mcp \
 
 Status codes on `/mcp`:
 
-| Status | Meaning |
-|---|---|
-| `401` | Token configured but missing/wrong (`Authorization` header must be exactly `Bearer <token>`) |
-| `405` | Token OK, but method not allowed (`GET`/`DELETE` in stateless mode) |
-| `406` | Missing `accept: application/json, text/event-stream` header |
-| `200` | Success |
+| Status | Meaning                                                                                      |
+| ------ | -------------------------------------------------------------------------------------------- |
+| `401`  | Token configured but missing/wrong (`Authorization` header must be exactly `Bearer <token>`) |
+| `405`  | Token OK, but method not allowed (`GET`/`DELETE` in stateless mode)                          |
+| `406`  | Missing `accept: application/json, text/event-stream` header                                 |
+| `200`  | Success                                                                                      |
 
 **Properties & limits:**
 
@@ -440,31 +450,24 @@ with options, rationale, and config references. The assistant is
 call. Flow (which tool when) — the full configuration reference follows in
 [Configuration](#configuration-guidance) below:
 
-| Step | Tool | Purpose |
-|---|---|---|
-| 1 | `setup_guidance_start` | Returns the question catalog (12 questions) and the first question with help text and options |
-| 2 | `setup_guidance_answer` `{answers}` | Takes the accumulated answers, validates them, and returns the next open question |
-| 3 | … repeat `setup_guidance_answer` | Until `done: true` — then `nextTool` points to `setup_guidance_generate` |
-| 4 | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload |
-| 5 | Agent writes the files | The server deliberately writes nothing — the agent places the files in the project root with its file tools |
-| 6 | Restart the server / new session | Config is snapshotted per session (`configurationVersion`) |
+| Step | Tool                                  | Purpose                                                                                                     |
+| ---- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 1    | `setup_guidance_start`                | Returns the question catalog (12 questions) and the first question with help text and options               |
+| 2    | `setup_guidance_answer` `{answers}`   | Takes the accumulated answers, validates them, and returns the next open question                           |
+| 3    | … repeat `setup_guidance_answer`      | Until `done: true` — then `nextTool` points to `setup_guidance_generate`                                    |
+| 4    | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload                             |
+| 5    | Agent writes the files                | The server deliberately writes nothing — the agent places the files in the project root with its file tools |
+| 6    | Restart the server / new session      | Config is snapshotted per session (`configurationVersion`)                                                  |
 
 Question catalog v2: `configSource` (**fresh / adopt** — see below),
 `projectName`, `transport` (stdio / http-docker — controls `localhost` vs.
 `host.docker.internal` URLs and the egress allowlist), `referencePath`
 (adopt only: `builtin` — the shipped baseline template, default — or a path
-`to the reference `.guidance/` directory), `profile`
-(plain / spec-kit — locked to the reference when adopting), `target`
-(**repo-config** / **registry-edit** — specs/014: repo-config generates
-the full repo file set without any `workspaces[]` block; registry-edit
-generates ONLY the instance registry `guidance.json` for
-`GUIDANCE_WORKSPACE_ROOT` — process truth is the repo, registry truth
-is the instance), `shell`
-(optional, agent-facing — placed in `workflow.json` `instructions.global`
-and injected into EVERY phase instruction), `workspaceRoot` and
-`extraWorkspaces` (optional multi-workspace registry — see below),
-`insight` and `gitnexus` (on/off — control the downstream entries and their
-gates) and the `gates` preset (`standard`: lint opt + test opt + build REQ ·
+`to the reference `.guidance/`directory),`profile`(plain / spec-kit — locked to the reference when adopting),`target`(**repo-config** / **registry-edit** — specs/014: repo-config generates
+the full repo file set without any`workspaces[]`block; registry-edit
+generates ONLY the instance registry`guidance.json`for`GUIDANCE_WORKSPACE_ROOT`— process truth is the repo, registry truth
+is the instance),`shell`(optional, agent-facing — placed in`workflow.json` `instructions.global`and injected into EVERY phase instruction),`workspaceRoot`and`extraWorkspaces`(optional multi-workspace registry — see below),`insight`and`gitnexus`(on/off — control the downstream entries and their
+gates) and the`gates` preset (`standard`: lint opt + test opt + build REQ ·
 `minimal`: build REQ only). Generation returns all six config files plus the
 seven submission schemas (from `examples/default-guidance/schemas`; if the
 directory is missing from the installation, the agent receives a copy hint
@@ -649,89 +652,89 @@ the guidance server so the target repo picks up the new wizard behavior):
 
 All registered `ERROR_CODES` (exact-surface snapshot, spec 002 FR-028 / R-010):
 
-| Code | Meaning |
-|---|---|
-| `configuration_not_found` | Configuration Not Found |
-| `configuration_invalid` | Configuration Invalid |
-| `workflow_not_found` | Workflow Not Found |
-| `session_not_found` | Session Not Found |
-| `session_locked` | Session Locked |
-| `workspace_not_registered` | Workspace Not Registered |
-| `workspace_process_config_missing` | Workspace Process Config Missing (specs/014 — registered workspace without its own `.guidance/guidance.json`; the former silent copy was removed) |
-| `invalid_active_phase` | Invalid Active Phase |
-| `invalid_transition` | Invalid Transition |
-| `submission_invalid` | Submission Invalid |
-| `required_field_missing` | Required Field Missing |
-| `required_hook_failed` | Required Hook Failed |
-| `hook_not_found` | Hook Not Found |
-| `hook_retry_not_allowed` | Hook Retry Not Allowed |
-| `hook_timed_out` | Hook Timed Out |
-| `command_not_found` | Command Not Found |
-| `working_directory_invalid` | Working Directory Invalid |
-| `workspace_boundary_violation` | Workspace Boundary Violation |
-| `state_persistence_failed` | State Persistence Failed |
-| `workflow_already_completed` | Workflow Already Completed |
-| `workflow_cancelled` | Workflow Cancelled |
-| `workflow_blocked` | Workflow Blocked |
-| `chain_activation_incomplete` | Chain Activation Incomplete |
-| `internal_error` | Internal Error |
-| `downstream_server_not_configured` | Downstream Server Not Configured |
-| `downstream_server_disabled` | Downstream Server Disabled |
-| `downstream_server_unavailable` | Downstream Server Unavailable |
-| `downstream_connection_failed` | Downstream Connection Failed |
-| `downstream_protocol_error` | Downstream Protocol Error |
-| `downstream_capability_missing` | Downstream Capability Missing |
-| `downstream_capability_not_allowed` | Downstream Capability Not Allowed |
-| `downstream_capability_changed` | Downstream Capability Changed |
-| `operation_not_configured` | Operation Not Configured |
-| `operation_not_allowed_in_phase` | Operation Not Allowed In Phase |
-| `operation_arguments_invalid` | Operation Arguments Invalid |
-| `operation_input_required` | Operation Input Required |
-| `operation_cancelled` | Operation Cancelled |
-| `operation_timed_out` | Operation Timed Out |
-| `operation_result_invalid` | Operation Result Invalid |
-| `operation_result_too_large` | Operation Result Too Large |
-| `operation_retry_not_allowed` | Operation Retry Not Allowed |
-| `operation_retry_limit_exceeded` | Operation Retry Limit Exceeded |
-| `authorization_required` | Authorization Required |
-| `authorization_failed` | Authorization Failed |
-| `user_approval_required` | User Approval Required |
-| `user_approval_declined` | User Approval Declined |
-| `data_egress_denied` | Data Egress Denied |
-| `fallback_unavailable` | Fallback Unavailable |
-| `nested_request_limit_exceeded` | Nested Request Limit Exceeded |
-| `agent_invocation_denied` | Agent Invocation Denied |
-| `operation_in_progress` | Operation In Progress |
-| `workspace_lock_unavailable` | Workspace Lock Unavailable |
-| `client_report_invalid` | Client Report Invalid |
-| `spec_kit_feature_in_use` | Spec Kit Feature In Use |
-| `spec_kit_not_enabled` | Spec Kit Not Enabled |
-| `spec_kit_feature_not_found` | Spec Kit Feature Not Found |
-| `spec_kit_feature_ambiguous` | Spec Kit Feature Ambiguous |
-| `spec_kit_feature_outside_workspace` | Spec Kit Feature Outside Workspace |
-| `spec_kit_artifact_missing` | Spec Kit Artifact Missing |
-| `spec_kit_artifact_unreadable` | Spec Kit Artifact Unreadable |
-| `spec_kit_artifact_empty` | Spec Kit Artifact Empty |
-| `spec_kit_artifact_invalid` | Spec Kit Artifact Invalid |
-| `spec_kit_required_section_missing` | Spec Kit Required Section Missing |
-| `spec_kit_task_id_missing` | Spec Kit Task Id Missing |
-| `spec_kit_duplicate_task_id` | Spec Kit Duplicate Task Id |
-| `spec_kit_unknown_dependency` | Spec Kit Unknown Dependency |
-| `spec_kit_dependency_cycle` | Spec Kit Dependency Cycle |
-| `spec_kit_snapshot_stale` | Spec Kit Snapshot Stale |
-| `spec_kit_reconciliation_required` | Spec Kit Reconciliation Required |
-| `spec_kit_task_not_found` | Spec Kit Task Not Found |
-| `spec_kit_task_not_ready` | Spec Kit Task Not Ready |
-| `spec_kit_task_not_released` | Spec Kit Task Not Released |
-| `spec_kit_task_already_active` | Spec Kit Task Already Active |
-| `spec_kit_task_dependency_unsatisfied` | Spec Kit Task Dependency Unsatisfied |
-| `spec_kit_task_review_required` | Spec Kit Task Review Required |
-| `spec_kit_task_verification_required` | Spec Kit Task Verification Required |
-| `spec_kit_plan_change_required` | Spec Kit Plan Change Required |
-| `spec_kit_plan_change_pending` | Spec Kit Plan Change Pending |
-| `spec_kit_traceability_incomplete` | Spec Kit Traceability Incomplete |
-| `spec_kit_acceptance_criterion_unverified` | Spec Kit Acceptance Criterion Unverified |
-| `spec_kit_completion_invariant_failed` | Spec Kit Completion Invariant Failed |
+| Code                                       | Meaning                                                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `configuration_not_found`                  | Configuration Not Found                                                                                                                           |
+| `configuration_invalid`                    | Configuration Invalid                                                                                                                             |
+| `workflow_not_found`                       | Workflow Not Found                                                                                                                                |
+| `session_not_found`                        | Session Not Found                                                                                                                                 |
+| `session_locked`                           | Session Locked                                                                                                                                    |
+| `workspace_not_registered`                 | Workspace Not Registered                                                                                                                          |
+| `workspace_process_config_missing`         | Workspace Process Config Missing (specs/014 — registered workspace without its own `.guidance/guidance.json`; the former silent copy was removed) |
+| `invalid_active_phase`                     | Invalid Active Phase                                                                                                                              |
+| `invalid_transition`                       | Invalid Transition                                                                                                                                |
+| `submission_invalid`                       | Submission Invalid                                                                                                                                |
+| `required_field_missing`                   | Required Field Missing                                                                                                                            |
+| `required_hook_failed`                     | Required Hook Failed                                                                                                                              |
+| `hook_not_found`                           | Hook Not Found                                                                                                                                    |
+| `hook_retry_not_allowed`                   | Hook Retry Not Allowed                                                                                                                            |
+| `hook_timed_out`                           | Hook Timed Out                                                                                                                                    |
+| `command_not_found`                        | Command Not Found                                                                                                                                 |
+| `working_directory_invalid`                | Working Directory Invalid                                                                                                                         |
+| `workspace_boundary_violation`             | Workspace Boundary Violation                                                                                                                      |
+| `state_persistence_failed`                 | State Persistence Failed                                                                                                                          |
+| `workflow_already_completed`               | Workflow Already Completed                                                                                                                        |
+| `workflow_cancelled`                       | Workflow Cancelled                                                                                                                                |
+| `workflow_blocked`                         | Workflow Blocked                                                                                                                                  |
+| `chain_activation_incomplete`              | Chain Activation Incomplete                                                                                                                       |
+| `internal_error`                           | Internal Error                                                                                                                                    |
+| `downstream_server_not_configured`         | Downstream Server Not Configured                                                                                                                  |
+| `downstream_server_disabled`               | Downstream Server Disabled                                                                                                                        |
+| `downstream_server_unavailable`            | Downstream Server Unavailable                                                                                                                     |
+| `downstream_connection_failed`             | Downstream Connection Failed                                                                                                                      |
+| `downstream_protocol_error`                | Downstream Protocol Error                                                                                                                         |
+| `downstream_capability_missing`            | Downstream Capability Missing                                                                                                                     |
+| `downstream_capability_not_allowed`        | Downstream Capability Not Allowed                                                                                                                 |
+| `downstream_capability_changed`            | Downstream Capability Changed                                                                                                                     |
+| `operation_not_configured`                 | Operation Not Configured                                                                                                                          |
+| `operation_not_allowed_in_phase`           | Operation Not Allowed In Phase                                                                                                                    |
+| `operation_arguments_invalid`              | Operation Arguments Invalid                                                                                                                       |
+| `operation_input_required`                 | Operation Input Required                                                                                                                          |
+| `operation_cancelled`                      | Operation Cancelled                                                                                                                               |
+| `operation_timed_out`                      | Operation Timed Out                                                                                                                               |
+| `operation_result_invalid`                 | Operation Result Invalid                                                                                                                          |
+| `operation_result_too_large`               | Operation Result Too Large                                                                                                                        |
+| `operation_retry_not_allowed`              | Operation Retry Not Allowed                                                                                                                       |
+| `operation_retry_limit_exceeded`           | Operation Retry Limit Exceeded                                                                                                                    |
+| `authorization_required`                   | Authorization Required                                                                                                                            |
+| `authorization_failed`                     | Authorization Failed                                                                                                                              |
+| `user_approval_required`                   | User Approval Required                                                                                                                            |
+| `user_approval_declined`                   | User Approval Declined                                                                                                                            |
+| `data_egress_denied`                       | Data Egress Denied                                                                                                                                |
+| `fallback_unavailable`                     | Fallback Unavailable                                                                                                                              |
+| `nested_request_limit_exceeded`            | Nested Request Limit Exceeded                                                                                                                     |
+| `agent_invocation_denied`                  | Agent Invocation Denied                                                                                                                           |
+| `operation_in_progress`                    | Operation In Progress                                                                                                                             |
+| `workspace_lock_unavailable`               | Workspace Lock Unavailable                                                                                                                        |
+| `client_report_invalid`                    | Client Report Invalid                                                                                                                             |
+| `spec_kit_feature_in_use`                  | Spec Kit Feature In Use                                                                                                                           |
+| `spec_kit_not_enabled`                     | Spec Kit Not Enabled                                                                                                                              |
+| `spec_kit_feature_not_found`               | Spec Kit Feature Not Found                                                                                                                        |
+| `spec_kit_feature_ambiguous`               | Spec Kit Feature Ambiguous                                                                                                                        |
+| `spec_kit_feature_outside_workspace`       | Spec Kit Feature Outside Workspace                                                                                                                |
+| `spec_kit_artifact_missing`                | Spec Kit Artifact Missing                                                                                                                         |
+| `spec_kit_artifact_unreadable`             | Spec Kit Artifact Unreadable                                                                                                                      |
+| `spec_kit_artifact_empty`                  | Spec Kit Artifact Empty                                                                                                                           |
+| `spec_kit_artifact_invalid`                | Spec Kit Artifact Invalid                                                                                                                         |
+| `spec_kit_required_section_missing`        | Spec Kit Required Section Missing                                                                                                                 |
+| `spec_kit_task_id_missing`                 | Spec Kit Task Id Missing                                                                                                                          |
+| `spec_kit_duplicate_task_id`               | Spec Kit Duplicate Task Id                                                                                                                        |
+| `spec_kit_unknown_dependency`              | Spec Kit Unknown Dependency                                                                                                                       |
+| `spec_kit_dependency_cycle`                | Spec Kit Dependency Cycle                                                                                                                         |
+| `spec_kit_snapshot_stale`                  | Spec Kit Snapshot Stale                                                                                                                           |
+| `spec_kit_reconciliation_required`         | Spec Kit Reconciliation Required                                                                                                                  |
+| `spec_kit_task_not_found`                  | Spec Kit Task Not Found                                                                                                                           |
+| `spec_kit_task_not_ready`                  | Spec Kit Task Not Ready                                                                                                                           |
+| `spec_kit_task_not_released`               | Spec Kit Task Not Released                                                                                                                        |
+| `spec_kit_task_already_active`             | Spec Kit Task Already Active                                                                                                                      |
+| `spec_kit_task_dependency_unsatisfied`     | Spec Kit Task Dependency Unsatisfied                                                                                                              |
+| `spec_kit_task_review_required`            | Spec Kit Task Review Required                                                                                                                     |
+| `spec_kit_task_verification_required`      | Spec Kit Task Verification Required                                                                                                               |
+| `spec_kit_plan_change_required`            | Spec Kit Plan Change Required                                                                                                                     |
+| `spec_kit_plan_change_pending`             | Spec Kit Plan Change Pending                                                                                                                      |
+| `spec_kit_traceability_incomplete`         | Spec Kit Traceability Incomplete                                                                                                                  |
+| `spec_kit_acceptance_criterion_unverified` | Spec Kit Acceptance Criterion Unverified                                                                                                          |
+| `spec_kit_completion_invariant_failed`     | Spec Kit Completion Invariant Failed                                                                                                              |
 
 ## Using Guidance inside an agent (chat)
 
@@ -774,7 +777,7 @@ always: **start → read guidance → do the work → submit → repeat**.
 2. **`get_current_guidance`** — re-reads the current phase instruction at any
    time (idempotent, read-only).
 3. **`submit_<phase>`** — submits the phase work; strict JSON-Schema validation;
-   on acceptance you get the *next* phase instruction plus the results of any
+   on acceptance you get the _next_ phase instruction plus the results of any
    lifecycle operations.
 4. **`report_blocker` / `resume_workflow`** — blocked sessions are paused until
    the user decides.
@@ -795,12 +798,12 @@ get_workflow_state { "sessionId": "…" }
 returns the current phase, the recorded submissions and the last operation
 outcomes — then pick the matching case:
 
-| Symptom | What actually happened | Correct next step |
-|---|---|---|
-| Phase gate operation failed (exit ≠ 0) | Session **stayed in the phase**; failed required operations are recorded | Fix the cause, then `retry_operation { "sessionId": "…" }` re-runs the failed required operations; the gate re-evaluates |
-| Session status `blocked` (via `report_blocker`, or a required `beforeEnter` failure at session/successor start) | Session is paused on the system state `blocked`; the previous phase is preserved | Get the user decision, then `resume_workflow { "sessionId": "…", "decision": "…" }` returns to the previous phase |
-| Client timeout on a submission or on `retry_operation`/`complete_workflow` | The orchestrator may **have executed** the operation anyway (state is persisted per mutation) | Do **not** blindly resubmit: check `get_workflow_state` first. Re-submitting the same phase payload is safe (requestId replay returns the recorded result instead of double-executing), but a changed payload may be rejected by the reuse policy |
-| Server or container restarted mid-session | Sessions persist in the workspace bind mount (`.guidance/state/`); `configurationVersion` is image-independent | Continue by `sessionId`: `get_workflow_state` / `get_current_guidance` return the exact position. A `.guidance/` config change, however, invalidates persisted sessions (fail-closed, specs/008 AC-5) |
+| Symptom                                                                                                         | What actually happened                                                                                         | Correct next step                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase gate operation failed (exit ≠ 0)                                                                          | Session **stayed in the phase**; failed required operations are recorded                                       | Fix the cause, then `retry_operation { "sessionId": "…" }` re-runs the failed required operations; the gate re-evaluates                                                                                                                          |
+| Session status `blocked` (via `report_blocker`, or a required `beforeEnter` failure at session/successor start) | Session is paused on the system state `blocked`; the previous phase is preserved                               | Get the user decision, then `resume_workflow { "sessionId": "…", "decision": "…" }` returns to the previous phase                                                                                                                                 |
+| Client timeout on a submission or on `retry_operation`/`complete_workflow`                                      | The orchestrator may **have executed** the operation anyway (state is persisted per mutation)                  | Do **not** blindly resubmit: check `get_workflow_state` first. Re-submitting the same phase payload is safe (requestId replay returns the recorded result instead of double-executing), but a changed payload may be rejected by the reuse policy |
+| Server or container restarted mid-session                                                                       | Sessions persist in the workspace bind mount (`.guidance/state/`); `configurationVersion` is image-independent | Continue by `sessionId`: `get_workflow_state` / `get_current_guidance` return the exact position. A `.guidance/` config change, however, invalidates persisted sessions (fail-closed, specs/008 AC-5)                                             |
 
 Re-submission semantics (requestId ledger): every phase submission carries a
 `requestId`. Replaying the **same** payload with the **same** `requestId`
@@ -821,7 +824,9 @@ the session in the phase.
 
 ```json
 {
-  "accepted": true, "sessionId": "session-…", "currentPhase": "understand",
+  "accepted": true,
+  "sessionId": "session-…",
+  "currentPhase": "understand",
   "guidance": {
     "title": "Understand the Request",
     "instruction": "Analyze the development request … Do not create an implementation plan yet.",
@@ -854,9 +859,15 @@ If a required lifecycle operation fails (e.g. the test gate), the session stays
 in its phase and records a blocker:
 
 ```json
-{ "accepted": false, "error": { "code": "required_hook_failed",
-  "message": "required lifecycle operations failed; remaining in phase" },
-  "currentPhase": "verify", "operations": [ { "id": "test", "status": "failed", "summary": "…" } ] }
+{
+  "accepted": false,
+  "error": {
+    "code": "required_hook_failed",
+    "message": "required lifecycle operations failed; remaining in phase"
+  },
+  "currentPhase": "verify",
+  "operations": [{ "id": "test", "status": "failed", "summary": "…" }]
+}
 ```
 
 The agent reports the failure to the user, fixes the code, re-submits. For
@@ -866,15 +877,27 @@ decisions the agent cannot make (risk-class approvals, ambiguous blockers):
 → session `blocked` → after the user decides:
 `resume_workflow { "sessionId": "…" }`.
 
-### FR-053 approval ceremony (REV-US2-F1, scope A)
+### FR-053 approval policy (REV-US2-F1 rework: config-based, unattended)
 
-Operations with `riskClass` `workspace_write`, `destructive` or
-`credential_sensitive` require **explicit user approval per execution** — on
-`run_operation` AND on lifecycle executions (phase gates, beforeEnter/afterExit,
-completion hooks). Without a grant the execution fails **before any side
-effect** with a recoverable `authorization_required` (audited as
-`operation_invocation_denied` / reason `approval_required`). The agent
-escalates:
+The approval decision resolves from **`policies.json` → `policies.approvals`**
+— the operator's trust decision lives in config, not in runtime clicks, so
+workflows run **unattended**. Defaults (absent `approvals` object):
+
+| riskClass                                        | default   | ceremony? |
+| ------------------------------------------------ | --------- | --------- |
+| `read_only`, `workspace_write`, `external_write` | `allow`   | no        |
+| `destructive`, `credential_sensitive`            | `require` | yes       |
+
+An explicit entry overrides the default per class:
+
+```jsonc
+// policies.json
+{ "version": 2, "approvals": { "workspace_write": "require" } }
+```
+
+Classes resolving to `require` fail **before any side effect** with a
+recoverable `authorization_required` (audited `operation_invocation_denied`),
+on `run_operation` AND on lifecycle executions. The agent escalates:
 
 ```
 report_blocker { "sessionId": "…", "category": "approval",
@@ -885,11 +908,13 @@ resume_workflow { "sessionId": "…", "decision": "approve <operation-id>" }
 → grant stored on the session (audit: approval_granted), session active again
 ```
 
-The grant is **consumed one-shot** at the next execution of that operation
-(audit: `approval_consumed`) — a repeated execution requires a fresh grant.
-`read_only` operations are unaffected. Note: approval enforcement is engine
-code — a running guidance container enforces the gate only after it runs the
-deployed build.
+The grant is consumed **after a successful execution** only (audit:
+`approval_consumed`) — a failed run keeps its grant, so the retry works
+without re-approval. Op-by-op hook lists validate the WHOLE list before any
+op executes (all-or-nothing). Unknown risk classes or values in
+`policies.approvals` fail the config load (`configuration_invalid`).
+Note: enforcement is engine code — a running guidance container enforces the
+gate only after it runs the deployed build.
 
 ### Platform note for the dependency operations
 
@@ -944,7 +969,7 @@ Chaining runs **multiple workflows back-to-back without user input**. The
 head workflow declares a chain manifest at `start_workflow`; when it
 completes, Guidance lazily creates the successor session and returns its
 `sessionId` in the completion response. Successors are created one step at a
-time — every session only decides about its *own* next step, so a chain
+time — every session only decides about its _own_ next step, so a chain
 cannot outlive its configuration.
 
 Enable it in `guidance.json` (default is **off**, fail-closed):
@@ -995,13 +1020,17 @@ reports `chain: [{ "status": "failed", "error": "chain_template_unresolved: …"
 // start_workflow — plain profile: fix-then-review pattern
 {
   "workspace": "thinking-mcp",
-    "request": "Add rate limiting to the API gateway",
+  "request": "Add rate limiting to the API gateway",
   "chain": {
     "steps": [
-      { "request": "Fix the failing tests reported by the verification run for: ${chain.parentRequest}. Completion summary: ${chain.completionSummary}" },
-      { "request": "Run a full regression review after the fix covering: ${chain.changedFiles}" }
-    ]
-  }
+      {
+        "request": "Fix the failing tests reported by the verification run for: ${chain.parentRequest}. Completion summary: ${chain.completionSummary}",
+      },
+      {
+        "request": "Run a full regression review after the fix covering: ${chain.changedFiles}",
+      },
+    ],
+  },
 }
 // complete_workflow (head)   → { "status": "completed", "nextSessionId": "session-…",
 //                               "chain": [{ "sessionId": "session-…", "request": "Fix the failing tests … for: Add rate limiting …", "status": "active" }] }
@@ -1023,21 +1052,21 @@ own verification pass.
 // start_workflow — spec-kit profile, one workflow per task
 {
   "workspace": "thinking-mcp",
-    "request": "Execute the rate-limiting feature task by task",
+  "request": "Execute the rate-limiting feature task by task",
   "chain": {
     "source": "spec_kit_tasks",
     "requestTemplate": "Execute task ${chain.taskId} (${chain.taskTitle}) of feature ${chain.featureId} exactly as specified in the imported artifacts",
     "featureId": "001-rate-limit",
-    "taskFilter": { "statuses": ["pending"] }
-  }
+    "taskFilter": { "statuses": ["pending"] },
+  },
 }
 ```
 
 Every Form-B successor carries a **task scope**
 (`chainTaskScope: { taskId, featureId }`). Guidance appends a scope annex to
-every phase instruction: *import the artifacts first
+every phase instruction: _import the artifacts first
 (`import_spec_kit_artifacts`), then start/submit/complete exactly this task;
-do not touch other tasks.* When no pending tasks remain, the chain ends
+do not touch other tasks._ When no pending tasks remain, the chain ends
 silently — that is the normal Form-B termination, not an error.
 
 ### Mixed manifests (steps + source)
@@ -1052,12 +1081,14 @@ The depth limit counts globally across both forms.
   "request": "Prepare and execute the rate-limiting feature",
   "chain": {
     "steps": [
-      { "request": "Prepare the workspace for: ${chain.parentRequest}. Completion summary: ${chain.completionSummary}" }
+      {
+        "request": "Prepare the workspace for: ${chain.parentRequest}. Completion summary: ${chain.completionSummary}",
+      },
     ],
     "source": "spec_kit_tasks",
     "requestTemplate": "Execute task ${chain.taskId} (${chain.taskTitle}) of feature ${chain.featureId}",
-    "featureId": "001-rate-limit"
-  }
+    "featureId": "001-rate-limit",
+  },
 }
 ```
 
@@ -1066,23 +1097,23 @@ In the `plain` profile a manifest containing `source` is rejected entirely
 
 ### Guardrails
 
-| Rule | Behavior |
-|---|---|
-| `chain.enabled: false` (default) | `start_workflow` with `chain` → `configuration_invalid` |
-| `maxChainDepth` (default 8) | successor creation refused beyond the depth limit → `chain_depth_exceeded` |
-| `maxStepsPerManifest` (default 16) | manifests whose explicit `steps` exceed the limit rejected |
-| Mixed manifest in plain profile | rejected entirely (`spec-kit` required for the `source` part — no silent degradation) |
-| Unresolved template variable | no successor created; predecessor stays `completed` |
-| Successor gate failure (FR-040) | successor starts `blocked`; predecessor stays `completed`; chain halts |
+| Rule                               | Behavior                                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------------------- |
+| `chain.enabled: false` (default)   | `start_workflow` with `chain` → `configuration_invalid`                               |
+| `maxChainDepth` (default 8)        | successor creation refused beyond the depth limit → `chain_depth_exceeded`            |
+| `maxStepsPerManifest` (default 16) | manifests whose explicit `steps` exceed the limit rejected                            |
+| Mixed manifest in plain profile    | rejected entirely (`spec-kit` required for the `source` part — no silent degradation) |
+| Unresolved template variable       | no successor created; predecessor stays `completed`                                   |
+| Successor gate failure (FR-040)    | successor starts `blocked`; predecessor stays `completed`; chain halts                |
 
 ### Runtime registry registration (specs/015 US1)
 
-| Rule | Behavior |
-|---|---|
-| `registryRegister.enabled: false` (default) | `registry_register` tool not exposed; engine calls fail closed with `configuration_invalid` (FR-1207) |
-| Enabled (profile `spec-kit`) | register/remove one root at runtime; full `WorkspaceRegistry.build` validation, atomic `guidance.json` write, `registry_changed` audit, new `configurationVersion` (FR-1201..1210) |
-| Session semantics on any config change | specs/015 addendum AC-13..17: `completed` survives; `active`/`blocked` rebind after successful re-validation (`session_rebound` audit); failed re-validation stays fail-closed |
-| User decision required | chain halts — chaining never bypasses `report_blocker` |
+| Rule                                        | Behavior                                                                                                                                                                           |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registryRegister.enabled: false` (default) | `registry_register` tool not exposed; engine calls fail closed with `configuration_invalid` (FR-1207)                                                                              |
+| Enabled (profile `spec-kit`)                | register/remove one root at runtime; full `WorkspaceRegistry.build` validation, atomic `guidance.json` write, `registry_changed` audit, new `configurationVersion` (FR-1201..1210) |
+| Session semantics on any config change      | specs/015 addendum AC-13..17: `completed` survives; `active`/`blocked` rebind after successful re-validation (`session_rebound` audit); failed re-validation stays fail-closed     |
+| User decision required                      | chain halts — chaining never bypasses `report_blocker`                                                                                                                             |
 
 Chained sessions are fully audited: `chain_successor_created`,
 `chain_failed` (with reason), plus the regular per-session event streams.
@@ -1115,23 +1146,23 @@ workflow; the chain ends silently when no pending tasks remain.
 ### Chaining vs. starting workflows individually
 
 Asking the agent to "start a Guidance workflow for task1, then task2, then
-task3" produces a similar *outcome* — several full workflows run back-to-back
+task3" produces a similar _outcome_ — several full workflows run back-to-back
 — but the two modes differ in who drives the sequence and what is guaranteed:
 
-| Aspect | Agent-side loop ("start a workflow each for …") | `chain` manifest |
-|---|---|---|
-| Driver | The agent in chat fires `start_workflow` per task | The server engine creates each successor on completion |
-| Context handover | Prompt text at the agent's discretion (whatever is still in context) | Typed, validated templates (`${chain.parentRequest}`, `${chain.completionSummary}`, `${chain.changedFiles}`, `${chain.taskId}`) — unresolved variables fail closed instead of producing a broken successor |
-| Sequencing guarantee | None: the agent *could* start task2 before task1 completes, or interleave tasks | Successor is created only inside `complete_workflow` after all completion gates passed — strict sequencing is engine semantics, not agent discipline |
-| Crash / session restart | The loop lives in the chat session: a restart or context compaction silently drops the remaining tasks | The chain persists server-side (rest chain copied into every successor): after any restart `get_workflow_state` shows the position, and task3's request already exists |
-| Failure semantics | Ad hoc per agent run (skip? abort? ask?) | Deterministic: a gate failure blocks the successor and halts the chain exactly there; the predecessor stays `completed`; everything audited |
-| Traceability | Three unrelated sessions in the state directory | `chainFrom`/`chainIndex` provenance, `chain_successor_created`/`chain_failed` audit events, `maxChainDepth` guard |
-| Runaway protection | Agent self-discipline only | `maxChainDepth` enforced by the engine |
-| Flexibility | ✅ Higher: the agent can re-plan, skip, parallelize, or vary on user input | Deliberately rigid: exactly the declared steps, no improvisation |
+| Aspect                  | Agent-side loop ("start a workflow each for …")                                                        | `chain` manifest                                                                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Driver                  | The agent in chat fires `start_workflow` per task                                                      | The server engine creates each successor on completion                                                                                                                                                     |
+| Context handover        | Prompt text at the agent's discretion (whatever is still in context)                                   | Typed, validated templates (`${chain.parentRequest}`, `${chain.completionSummary}`, `${chain.changedFiles}`, `${chain.taskId}`) — unresolved variables fail closed instead of producing a broken successor |
+| Sequencing guarantee    | None: the agent _could_ start task2 before task1 completes, or interleave tasks                        | Successor is created only inside `complete_workflow` after all completion gates passed — strict sequencing is engine semantics, not agent discipline                                                       |
+| Crash / session restart | The loop lives in the chat session: a restart or context compaction silently drops the remaining tasks | The chain persists server-side (rest chain copied into every successor): after any restart `get_workflow_state` shows the position, and task3's request already exists                                     |
+| Failure semantics       | Ad hoc per agent run (skip? abort? ask?)                                                               | Deterministic: a gate failure blocks the successor and halts the chain exactly there; the predecessor stays `completed`; everything audited                                                                |
+| Traceability            | Three unrelated sessions in the state directory                                                        | `chainFrom`/`chainIndex` provenance, `chain_successor_created`/`chain_failed` audit events, `maxChainDepth` guard                                                                                          |
+| Runaway protection      | Agent self-discipline only                                                                             | `maxChainDepth` enforced by the engine                                                                                                                                                                     |
+| Flexibility             | ✅ Higher: the agent can re-plan, skip, parallelize, or vary on user input                             | Deliberately rigid: exactly the declared steps, no improvisation                                                                                                                                           |
 
-**Rule of thumb:** an agent-side loop is fine when the tasks are *independent*
+**Rule of thumb:** an agent-side loop is fine when the tasks are _independent_
 ( no result flows from one into the next ), the list is short and ad hoc, or
-you want to intervene between runs. Use `chain` when task2 *depends on*
+you want to intervene between runs. Use `chain` when task2 _depends on_
 task1's result (e.g. "fix the failures from the verification run" — which
 needs `completionSummary` as structured data, not from memory), when the
 pipeline must survive session boundaries, or when a hard hold-semantics is
@@ -1163,7 +1194,7 @@ All configuration is JSON, version 2. Full contract:
   "version": 2,
   "profile": "plain",
   "project": { "name": "my-project" },
-  "workflow":  { "file": "workflow.json" },
+  "workflow": { "file": "workflow.json" },
   "responses": { "file": "responses.json" },
   "operations": { "file": "operations.json" },
   "downstreamServers": { "file": "downstream-servers.json" },
@@ -1182,15 +1213,21 @@ All configuration is JSON, version 2. Full contract:
 ```json
 {
   "version": 2,
-  "workflow": { "id": "standard-development", "initialPhase": "understand",
-                "terminalStates": ["completed", "cancelled"] },
+  "workflow": {
+    "id": "standard-development",
+    "initialPhase": "understand",
+    "terminalStates": ["completed", "cancelled"]
+  },
   "phases": {
     "verify": {
       "response": "verify",
       "submissionSchema": "schemas/verify.schema.json",
       "lifecycle": { "beforeExit": ["lint", "test", "build"] },
       "transitions": [
-        { "to": "review_and_fix_implementation", "reason": "verification_failed" },
+        {
+          "to": "review_and_fix_implementation",
+          "reason": "verification_failed"
+        },
         { "to": "complete", "when": "required_operations_succeeded" }
       ]
     }
@@ -1230,17 +1267,26 @@ phase (a required failure at session start starts the session `blocked`).
   "version": 2,
   "servers": {
     "gitnexus": {
-      "enabled": true, "required": true, "trustLevel": "trusted",
-      "transport": { "type": "stdio", "command": { "executable": "gitnexus", "args": ["mcp"] } },
+      "enabled": true,
+      "required": true,
+      "trustLevel": "trusted",
+      "transport": {
+        "type": "stdio",
+        "command": { "executable": "gitnexus", "args": ["mcp"] }
+      },
       "connection": { "requestTimeoutSeconds": 300 },
       "capabilities": { "allow": { "tools": ["analyze", "status"] } }
     },
     "insight": {
-      "enabled": true, "required": false, "trustLevel": "trusted",
+      "enabled": true,
+      "required": false,
+      "trustLevel": "trusted",
       "transport": {
         "type": "http",
-        "http": { "url": "http://host.docker.internal:3002/mcp",
-                  "headers": { "Authorization": "Bearer ${INSIGHT_AUTH_TOKEN}" } }
+        "http": {
+          "url": "http://host.docker.internal:3002/mcp",
+          "headers": { "Authorization": "Bearer ${INSIGHT_AUTH_TOKEN}" }
+        }
       },
       "connection": { "requestTimeoutSeconds": 120 },
       "capabilities": { "allow": { "tools": ["experience_search"] } }
@@ -1284,10 +1330,10 @@ workspace root generates the uv-based Python op set (`toolchain-sync`,
 Node workspaces get two healing operations in the shipped catalogs
 (scaffold template, config-assistant, `examples/default-guidance`):
 
-| Operation | Semantics |
-|---|---|
-| `deps-install` | composite `firstAvailable`: `npm ci` (clean semantics) with `npm install` fallback — the fallback runs whenever `npm ci` fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); note `npm ci` removes `node_modules` before failing, so a masked failure leaves `node_modules` deleted. The result's `data.via` label (`npm-ci-lockfile` / `npm-install-fallback`) records which strategy ran (audit note) |
-| `deps-reinstall` | deletes `node_modules` (lockfile preserved) and reinstalls in one step — workspace-scoped (runs in the workspace root, no path traversal); the remedy for `ERR_DLOPEN_FAILED` native-addon ABI mismatches (reinstall INSIDE the container for a Linux-native tree) |
+| Operation        | Semantics                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deps-install`   | composite `firstAvailable`: `npm ci` (clean semantics) with `npm install` fallback — the fallback runs whenever `npm ci` fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); note `npm ci` removes `node_modules` before failing, so a masked failure leaves `node_modules` deleted. The result's `data.via` label (`npm-ci-lockfile` / `npm-install-fallback`) records which strategy ran (audit note) |
+| `deps-reinstall` | deletes `node_modules` (lockfile preserved) and reinstalls in one step — workspace-scoped (runs in the workspace root, no path traversal); the remedy for `ERR_DLOPEN_FAILED` native-addon ABI mismatches (reinstall INSIDE the container for a Linux-native tree)                                                                                                                                                                        |
 
 Both are `riskClass: workspace_write`, `required: false`,
 `invocableByAgent: true` (FR-053 approval semantics per the policy engine),
@@ -1328,11 +1374,11 @@ lazily, server-side, from the workspace lockfile.
 
 Two ready-made profiles exist under `examples/`:
 
-| Profile | Language | Lockfile | Bootstrap op | Verification ops |
-|---|---|---|---|---|
-| `examples/python-guidance/` | Python | `uv.lock` | `uv sync --locked` | ruff · pytest · mypy |
-| `examples/rust-guidance/` | Rust | `Cargo.lock` | `cargo fetch --locked` | clippy · fmt · test · check |
-| `examples/csharp-guidance/` | C# | `packages.lock.json` | `dotnet restore --locked-mode` | format · build · test |
+| Profile                     | Language | Lockfile             | Bootstrap op                   | Verification ops            |
+| --------------------------- | -------- | -------------------- | ------------------------------ | --------------------------- |
+| `examples/python-guidance/` | Python   | `uv.lock`            | `uv sync --locked`             | ruff · pytest · mypy        |
+| `examples/rust-guidance/`   | Rust     | `Cargo.lock`         | `cargo fetch --locked`         | clippy · fmt · test · check |
+| `examples/csharp-guidance/` | C#       | `packages.lock.json` | `dotnet restore --locked-mode` | format · build · test       |
 
 Shared rules for **any** language:
 
@@ -1340,7 +1386,7 @@ Shared rules for **any** language:
    the pinned environment from the lockfile. Both `uv sync --locked` and
    `cargo fetch --locked` are fail-closed: a missing **or stale** lockfile
    fails the operation instead of installing anything (verified: `uv
-   --frozen` would install a stale lock silently).
+--frozen` would install a stale lock silently).
 2. **Verification ops** (`lint`/`test`/`check`, …): `process` operations
    that never mutate the lockfile (`uv run --locked …`, `cargo … --locked`).
    Caveat (Python only): on a missing/empty venv `uv run` still installs
@@ -1363,10 +1409,10 @@ build time:
 docker build --build-arg INSTALL_RUST=true --build-arg INSTALL_CSHARP=true .
 ```
 
-| Build ARG | Default | Installs (pinned via) |
-|---|---|---|
-| `INSTALL_RUST` | `false` | rustup + minimal stable toolchain (`RUST_VERSION`, default `1.90.0`) |
-| `INSTALL_CSHARP` | `false` | .NET SDK (`DOTNET_VERSION`, default `10.0`) |
+| Build ARG        | Default | Installs (pinned via)                                                |
+| ---------------- | ------- | -------------------------------------------------------------------- |
+| `INSTALL_RUST`   | `false` | rustup + minimal stable toolchain (`RUST_VERSION`, default `1.90.0`) |
+| `INSTALL_CSHARP` | `false` | .NET SDK (`DOTNET_VERSION`, default `10.0`)                          |
 
 If a verification op references `cargo`/`dotnet` in an image built
 without the corresponding toolchain, the process gate fails closed
@@ -1388,11 +1434,11 @@ without the corresponding toolchain, the process gate fails closed
    block planning; verification catches a broken environment later.
 3. **Verification ops** — three required operations, all non-mutating:
 
-   | Op | Command |
-   |---|---|
-   | `lint` | `uv run --locked ruff check .` |
-   | `test` | `uv run --locked pytest -q` |
-   | `check` | `uv run --locked mypy .` |
+   | Op      | Command                        |
+   | ------- | ------------------------------ |
+   | `lint`  | `uv run --locked ruff check .` |
+   | `test`  | `uv run --locked pytest -q`    |
+   | `check` | `uv run --locked mypy .`       |
 
 4. **Gating** — `workflow.json` lists `lint`, `test`, `check` as
    `beforeExit` of the `verify` phase and transitions to `complete` only on
@@ -1445,12 +1491,12 @@ invocation.
    (`--locked` everywhere so a stale lockfile fails instead of being
    silently updated):
 
-   | Op | Command |
-   |---|---|
-   | `lint` | `cargo clippy --locked -- -D warnings` |
-   | `fmt-check` | `cargo fmt --check` |
-   | `test` | `cargo test --locked` |
-   | `check` | `cargo check --locked` |
+   | Op          | Command                                |
+   | ----------- | -------------------------------------- |
+   | `lint`      | `cargo clippy --locked -- -D warnings` |
+   | `fmt-check` | `cargo fmt --check`                    |
+   | `test`      | `cargo test --locked`                  |
+   | `check`     | `cargo check --locked`                 |
 
 4. **Gating** — identical to Python: `lint`, `fmt-check`, `test`, `check`
    are `beforeExit` of the `verify` phase; failure bounces to
@@ -1495,11 +1541,11 @@ the Dockerfile), so nothing has to be installed per-workspace. NuGet
    (`--no-restore` so nothing is pulled outside the bootstrap op;
    `--verify-no-changes` so formatting is checked, not rewritten):
 
-   | Op | Command |
-   |---|---|
-   | `lint` | `dotnet format --verify-no-changes` |
-   | `check` | `dotnet build --no-restore` |
-   | `test` | `dotnet test --no-restore` |
+   | Op      | Command                             |
+   | ------- | ----------------------------------- |
+   | `lint`  | `dotnet format --verify-no-changes` |
+   | `check` | `dotnet build --no-restore`         |
+   | `test`  | `dotnet test --no-restore`          |
 
 4. **Gating** — identical to Python/Rust: `lint`, `check`, `test` are
    `beforeExit` of the `verify` phase; failure bounces to
@@ -1525,9 +1571,13 @@ the Dockerfile), so nothing has to be installed per-workspace. NuGet
 ```json
 {
   "version": 2,
-  "trustLevels": { "restricted": { "dataEgress": "validated_inputs_only" },
-                   "trusted": { "dataEgress": "project_data" } },
-  "redaction": { "patterns": ["\\bapi[_-]?key\\b", "\\btoken\\b", "\\bsecret\\b"] },
+  "trustLevels": {
+    "restricted": { "dataEgress": "validated_inputs_only" },
+    "trusted": { "dataEgress": "project_data" }
+  },
+  "redaction": {
+    "patterns": ["\\bapi[_-]?key\\b", "\\btoken\\b", "\\bsecret\\b"]
+  },
   "outputDefaults": { "returnToAgent": "summary_and_errors" }
 }
 ```
@@ -1542,7 +1592,10 @@ registered in addition to the workflow tools:
 {
   "profile": "spec-kit",
   "integrations": {
-    "specKit": { "enabled": true, "discovery": { "featureRoot": "specs", "strategy": "singleCandidate" } }
+    "specKit": {
+      "enabled": true,
+      "discovery": { "featureRoot": "specs", "strategy": "singleCandidate" }
+    }
   }
 }
 ```
@@ -1574,22 +1627,22 @@ flowchart TD
 
 Roles at a glance:
 
-| File | Role | Referenced by |
-|---|---|---|
-| `guidance.json` | Entry point: project identity, profile selection, file references, state, orchestration defaults, security switches | — (loaded first) |
-| `workflow.json` | The state machine: phases, transitions, lifecycle hooks, terminal states | `guidance.json` |
-| `responses.json` | What the agent is *told* to do in each phase (title, instruction, required actions) | `guidance.json`; phase keys must match `workflow.json` phase names |
-| `operations.json` | *What* runs and *how it is validated*: process/MCP operations used by lifecycle hooks and gates | `guidance.json`; operation IDs referenced from `workflow.json` |
-| `downstream-servers.json` | *Where* MCP operations run: transports, allowlists, timeouts, trust levels | `guidance.json`; `server` IDs referenced from `operations.json` |
-| `policies.json` | Security and validation policy: egress per trust level, submission validation strictness, redaction, output limits | `guidance.json`; trust level names referenced from `downstream-servers.json` |
-| `schemas/*.json` | Submission validation per phase | `workflow.json` (`submissionSchema` path per phase) |
+| File                      | Role                                                                                                                | Referenced by                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `guidance.json`           | Entry point: project identity, profile selection, file references, state, orchestration defaults, security switches | — (loaded first)                                                             |
+| `workflow.json`           | The state machine: phases, transitions, lifecycle hooks, terminal states                                            | `guidance.json`                                                              |
+| `responses.json`          | What the agent is _told_ to do in each phase (title, instruction, required actions)                                 | `guidance.json`; phase keys must match `workflow.json` phase names           |
+| `operations.json`         | _What_ runs and _how it is validated_: process/MCP operations used by lifecycle hooks and gates                     | `guidance.json`; operation IDs referenced from `workflow.json`               |
+| `downstream-servers.json` | _Where_ MCP operations run: transports, allowlists, timeouts, trust levels                                          | `guidance.json`; `server` IDs referenced from `operations.json`              |
+| `policies.json`           | Security and validation policy: egress per trust level, submission validation strictness, redaction, output limits  | `guidance.json`; trust level names referenced from `downstream-servers.json` |
+| `schemas/*.json`          | Submission validation per phase                                                                                     | `workflow.json` (`submissionSchema` path per phase)                          |
 
 > **Scaffold note:** missing `guidance.json` is scaffolded on first start
 > (see below) — a minimal valid default 7-phase configuration. Existing files
 > are never overwritten; invalid configuration always fails closed.
 >
 > **Where `.guidance/` belongs:** in the workspace of the project Guidance
-> orchestrates — *not* inside the server source directory
+> orchestrates — _not_ inside the server source directory
 > (`servers/server-guidance/`). That directory is server code only; its
 > `.guidance/` (if present, e.g. from a test run with cwd=server dir) is
 > git-ignored. In Docker, place it inside the served workspace root (see
@@ -1597,109 +1650,109 @@ Roles at a glance:
 
 ### `guidance.json` — attribute reference
 
-| Attribute | Type | Default | Meaning |
-|---|---|---|---|
-| `version` | number | — (**required**) | Config format version; must be `2` |
-| `profile` | `"plain"` \| `"spec-kit"` | derived | Tool surface selection. If omitted: `spec-kit` when `integrations.specKit` keys are present (FR-060), else `plain` |
-| `project.name` | string | — (**required**) | Project identity, used in responses/audit |
-| `workflow.file` | string | — | Path to `workflow.json` (relative to `.guidance/`) |
-| `responses.file` | string | — | Path to `responses.json` |
-| `operations.file` | string | — | Path to `operations.json` |
-| `downstreamServers.file` | string | — | Path to `downstream-servers.json` |
-| `policies.file` | string | — | Path to `policies.json` |
-| `state.directory` | string | `state` | State directory (sessions, audit, snapshots) |
-| `state.persistAfterEveryOperation` | boolean | — | Persist session state after each mutation (crash safety) |
-| `state.retainRawMcpResponses` | boolean | — | Keep raw downstream responses on disk (audit depth vs. disk usage) |
-| `orchestration.defaultTimeoutSeconds` | number | — | Default timeout for operations without own `timeoutSeconds` |
-| `orchestration.defaultRetryCount` | number | — | Default retry count for transient downstream failures |
-| `orchestration.maximumConcurrentOperations` | number | — | Concurrency cap for parallel operations |
-| `orchestration.failClosedForRequiredOperations` | boolean | — | Required operation failure ⇒ block (true) instead of continue-with-warning |
-| `security.allowAgentDefinedServers` | boolean | — | May the *agent* register new downstream servers at runtime (default: no) |
-| `security.allowAgentDefinedOperations` | boolean | — | May the agent define new operations at runtime |
-| `security.allowAgentProvidedCommands` | boolean | — | May the agent pass raw commands to process operations |
-| `security.restrictWorkingDirectory` | boolean | — | Pin process operations to the workspace root |
-| `security.redactSensitiveOutput` | boolean | — | Apply policy redaction patterns to agent-facing output |
-| `integrations.specKit` | object | — | Spec-Kit integration config; presence influences profile resolution (see below) |
+| Attribute                                       | Type                      | Default          | Meaning                                                                                                            |
+| ----------------------------------------------- | ------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `version`                                       | number                    | — (**required**) | Config format version; must be `2`                                                                                 |
+| `profile`                                       | `"plain"` \| `"spec-kit"` | derived          | Tool surface selection. If omitted: `spec-kit` when `integrations.specKit` keys are present (FR-060), else `plain` |
+| `project.name`                                  | string                    | — (**required**) | Project identity, used in responses/audit                                                                          |
+| `workflow.file`                                 | string                    | —                | Path to `workflow.json` (relative to `.guidance/`)                                                                 |
+| `responses.file`                                | string                    | —                | Path to `responses.json`                                                                                           |
+| `operations.file`                               | string                    | —                | Path to `operations.json`                                                                                          |
+| `downstreamServers.file`                        | string                    | —                | Path to `downstream-servers.json`                                                                                  |
+| `policies.file`                                 | string                    | —                | Path to `policies.json`                                                                                            |
+| `state.directory`                               | string                    | `state`          | State directory (sessions, audit, snapshots)                                                                       |
+| `state.persistAfterEveryOperation`              | boolean                   | —                | Persist session state after each mutation (crash safety)                                                           |
+| `state.retainRawMcpResponses`                   | boolean                   | —                | Keep raw downstream responses on disk (audit depth vs. disk usage)                                                 |
+| `orchestration.defaultTimeoutSeconds`           | number                    | —                | Default timeout for operations without own `timeoutSeconds`                                                        |
+| `orchestration.defaultRetryCount`               | number                    | —                | Default retry count for transient downstream failures                                                              |
+| `orchestration.maximumConcurrentOperations`     | number                    | —                | Concurrency cap for parallel operations                                                                            |
+| `orchestration.failClosedForRequiredOperations` | boolean                   | —                | Required operation failure ⇒ block (true) instead of continue-with-warning                                         |
+| `security.allowAgentDefinedServers`             | boolean                   | —                | May the _agent_ register new downstream servers at runtime (default: no)                                           |
+| `security.allowAgentDefinedOperations`          | boolean                   | —                | May the agent define new operations at runtime                                                                     |
+| `security.allowAgentProvidedCommands`           | boolean                   | —                | May the agent pass raw commands to process operations                                                              |
+| `security.restrictWorkingDirectory`             | boolean                   | —                | Pin process operations to the workspace root                                                                       |
+| `security.redactSensitiveOutput`                | boolean                   | —                | Apply policy redaction patterns to agent-facing output                                                             |
+| `integrations.specKit`                          | object                    | —                | Spec-Kit integration config; presence influences profile resolution (see below)                                    |
 
 ### `workflow.json` — attribute reference
 
-| Attribute | Type | Meaning |
-|---|---|---|
-| `workflow.id` | string | Workflow identifier (appears in sessions/audit) |
-| `workflow.initialPhase` | string | Phase a new session starts in |
-| `workflow.terminalStates` | string[] | Names of terminal states (`completed`, `cancelled`) |
-| `phases.<name>.response` | string | Key into `responses.json` for this phase's agent instruction |
-| `phases.<name>.submissionSchema` | string | Path to the phase's JSON-Schema (relative to `.guidance/`) |
-| `phases.<name>.transitions[]` | array | Possible transitions from this phase |
-| `transitions[].to` | string | Target phase |
-| `transitions[].when` | string | Success condition (`submission_valid`, `required_operations_succeeded`) — fires only on success |
-| `transitions[].reason` | string | Failure condition (`verification_failed`, `major_plan_revision_required`, …) — fires only on failure |
+| Attribute                               | Type          | Meaning                                                                                                             |
+| --------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `workflow.id`                           | string        | Workflow identifier (appears in sessions/audit)                                                                     |
+| `workflow.initialPhase`                 | string        | Phase a new session starts in                                                                                       |
+| `workflow.terminalStates`               | string[]      | Names of terminal states (`completed`, `cancelled`)                                                                 |
+| `phases.<name>.response`                | string        | Key into `responses.json` for this phase's agent instruction                                                        |
+| `phases.<name>.submissionSchema`        | string        | Path to the phase's JSON-Schema (relative to `.guidance/`)                                                          |
+| `phases.<name>.transitions[]`           | array         | Possible transitions from this phase                                                                                |
+| `transitions[].to`                      | string        | Target phase                                                                                                        |
+| `transitions[].when`                    | string        | Success condition (`submission_valid`, `required_operations_succeeded`) — fires only on success                     |
+| `transitions[].reason`                  | string        | Failure condition (`verification_failed`, `major_plan_revision_required`, …) — fires only on failure                |
 | `phases.<name>.lifecycle.beforeEnter[]` | operation IDs | Run before entering this phase; required failure blocks the transition (at session start: session starts `blocked`) |
-| `phases.<name>.lifecycle.beforeExit[]` | operation IDs | Run when leaving this phase; required failure keeps the session in the phase |
-| `phases.<name>.lifecycle.afterEnter[]` | operation IDs | Run after entering; failures are non-blocking and audited |
-| `phases.<name>.lifecycle.afterExit[]` | operation IDs | Run after leaving; failures are non-blocking and audited |
-| `states.<name>.terminal` | boolean | Marks a terminal state |
-| `states.<name>.system` | boolean | System states (`blocked`) are not directly transitionable |
+| `phases.<name>.lifecycle.beforeExit[]`  | operation IDs | Run when leaving this phase; required failure keeps the session in the phase                                        |
+| `phases.<name>.lifecycle.afterEnter[]`  | operation IDs | Run after entering; failures are non-blocking and audited                                                           |
+| `phases.<name>.lifecycle.afterExit[]`   | operation IDs | Run after leaving; failures are non-blocking and audited                                                            |
+| `states.<name>.terminal`                | boolean       | Marks a terminal state                                                                                              |
+| `states.<name>.system`                  | boolean       | System states (`blocked`) are not directly transitionable                                                           |
 
 ### `responses.json` — attribute reference
 
-| Attribute | Type | Meaning |
-|---|---|---|
-| `responses.<phaseKey>.title` | string | Short phase title shown to the agent |
-| `responses.<phaseKey>.instruction` | string | The full instruction for this phase (what the agent should do / not do) |
-| `responses.<phaseKey>.requiredActions` | string[] | Explicit action checklist the agent must perform in this phase |
+| Attribute                              | Type     | Meaning                                                                 |
+| -------------------------------------- | -------- | ----------------------------------------------------------------------- |
+| `responses.<phaseKey>.title`           | string   | Short phase title shown to the agent                                    |
+| `responses.<phaseKey>.instruction`     | string   | The full instruction for this phase (what the agent should do / not do) |
+| `responses.<phaseKey>.requiredActions` | string[] | Explicit action checklist the agent must perform in this phase          |
 
 Phase keys must match the phase names in `workflow.json`.
 
 ### `operations.json` — attribute reference
 
-| Attribute | Type | Meaning |
-|---|---|---|
-| `operations.<id>.description` | string | Human-readable description |
-| `operations.<id>.type` | `"process"` \| MCP types | `process` runs a local executable; MCP types call downstream servers |
-| `operations.<id>.executable` / `.args` | string / string[] | Command for `type: "process"` |
-| `operations.<id>.server` / `.capability` | string | For MCP operations: downstream server ID + tool name |
-| `operations.<id>.required` | boolean | Required operations gate transitions (`required_hook_failed` on failure); optional failures are warnings |
-| `operations.<id>.timeoutSeconds` | number | Per-operation timeout; on exceed the call fails as transport error (retried per policy) |
-| `operations.<id>.validation.exitCodeMustBeZero` | boolean | `process`: exit code 0 ⇒ succeeded |
-| `operations.<id>.output.returnToAgent` | string | Exposure mode: `summary_and_errors` (redacted default), `status_only`, `normalized`, `raw` — controls how much reaches the agent |
-| `operations.<id>.riskClass` / `.approved` | string / boolean | Risk-class approval gate: risky operations need explicit approval |
+| Attribute                                       | Type                     | Meaning                                                                                                                                                                                                     |
+| ----------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operations.<id>.description`                   | string                   | Human-readable description                                                                                                                                                                                  |
+| `operations.<id>.type`                          | `"process"` \| MCP types | `process` runs a local executable; MCP types call downstream servers                                                                                                                                        |
+| `operations.<id>.executable` / `.args`          | string / string[]        | Command for `type: "process"`                                                                                                                                                                               |
+| `operations.<id>.server` / `.capability`        | string                   | For MCP operations: downstream server ID + tool name                                                                                                                                                        |
+| `operations.<id>.required`                      | boolean                  | Required operations gate transitions (`required_hook_failed` on failure); optional failures are warnings                                                                                                    |
+| `operations.<id>.timeoutSeconds`                | number                   | Per-operation timeout; on exceed the call fails as transport error (retried per policy)                                                                                                                     |
+| `operations.<id>.validation.exitCodeMustBeZero` | boolean                  | `process`: exit code 0 ⇒ succeeded                                                                                                                                                                          |
+| `operations.<id>.output.returnToAgent`          | string                   | Exposure mode: `summary_and_errors` (redacted default), `status_only`, `normalized`, `raw` — controls how much reaches the agent                                                                            |
+| `operations.<id>.riskClass`                     | string                   | Risk-class approval gate: the decision resolves from `policies.approvals` (defaults: `destructive`/`credential_sensitive` → interactive approval ceremony, others → unattended; see FR-053 approval policy) |
 
 ### `downstream-servers.json` — attribute reference
 
-| Attribute | Type | Meaning |
-|---|---|---|
-| `servers.<id>.displayName` | string | Human-readable name |
-| `servers.<id>.enabled` | boolean | `false` = server is skipped entirely |
-| `servers.<id>.required` | boolean | Required servers must become ready at startup (fail otherwise) |
-| `servers.<id>.trustLevel` | string | One of `policies.trustLevels` — drives egress policy |
-| `servers.<id>.transport` | object | `type: "stdio"` + `command.executable/args/cwd`, **or** `type: "http"` + `http.url` + `http.headers` |
-| `servers.<id>.transport.http.headers.<NAME>` | string | HTTP request headers; `${ENV_VAR}` references are resolved at config load (unset variable ⇒ configuration error) |
-| `servers.<id>.connection.startupTimeoutSeconds` | number | Handshake timeout (positive finite; overrides the 10 s default per server) |
-| `servers.<id>.connection.requestTimeoutSeconds` | number | Per-request timeout (positive finite; enforced as transport failure) |
-| `servers.<id>.connection.reconnect` | object | `enabled`, `maximumAttempts` (positive integer, required for effect), `delayMilliseconds` (non-negative integer). On a transport failure guidance drops the dead client and re-runs the handshake up to `maximumAttempts` times (delay between attempts), retrying the call after each successful reconnect. Never retried: config errors (invalid timeouts) and request-timeout failures — a timed-out call already ran downstream and is not automatically replayed (retry semantics stay upstream, FR-035) |
-| `servers.<id>.containerRoute` | object | **FR-035 amendment (2026-09-28):** optional HTTP endpoint reachable from the guidance container (`url` + optional `headers`, same `${ENV_VAR}` resolution and egress-allowlist rules as `transport.http`). When a **read-only** operation call times out on the primary transport, guidance makes exactly **one** automatic attempt over this route before surfacing the failure (`workspace_write`/`external_write` calls are never auto-retried). Outcomes are counted per server in `get_metrics` → `containerRouteFallbacks` (in-memory counters; they reset on restart — operations/connections metrics replay from `metrics.jsonl`, fallback attempts intentionally do not). Generated configs predefine the route for `gitnexus` (`:4747/api/mcp`); the shipped Thinking-MCP sample additionally defines routes for `clearthought` and `insight`; the fallback applies to the MCP tool calls the engine makes against that server (REV-1, 2026-09-28) |
-| `servers.<id>.capabilities.allow.tools` | string[] | **Allowlist**: only these tools may be invoked on this server. The sole entry `"*"` is a **wildcard**: every tool of the server is invocable, regardless of name — newly added downstream tools are covered without a config change (routing itself is tool-name-agnostic; the automatic `containerRoute` timeout-fallback stays restricted to configured `read_only` operations). The wildcard applies to the **primary transport** as well as the fallback, and it applies only to the tool-name check: egress, dataEgress and approval gating stay per-call. Note: mixed lists like `["*", "tool"]` are rejected at config load (`configuration_invalid`) because their intent is ambiguous. **Fail-closed coupling (WC-1, 2026-09-29):** the wildcard is only accepted on servers whose **effective `trustLevel` is `trusted`** (an absent or unknown `trustLevel` defaults to `trusted`, same semantics as the runtime). A wildcard on a `restricted`/`untrusted` server is rejected at config load because tools without an `operations.json` entry run under `riskClass: undefined`, so the FR-053 approval gate could never fire for them. **Unconfigured-tool approval (WC-1-B, 2026-09-30):** invoking a tool that has no `operations.json` entry on a wildcard server fails with a recoverable `authorization_required` — unknown tools always require explicit approval until an operation entry assigns them a risk class. Configured tools are unaffected; to make a new tool callable without approval, add an operations.json entry with an appropriate `riskClass` |
-| `servers.<id>.capabilities.allow.resources` / `.prompts` | string[] | Same for resources/prompts |
-| `servers.<id>.environment` | object | Env for the child process (`inherit`, `variables.<NAME>.fromHost`) |
+| Attribute                                                | Type     | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `servers.<id>.displayName`                               | string   | Human-readable name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `servers.<id>.enabled`                                   | boolean  | `false` = server is skipped entirely                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `servers.<id>.required`                                  | boolean  | Required servers must become ready at startup (fail otherwise)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `servers.<id>.trustLevel`                                | string   | One of `policies.trustLevels` — drives egress policy                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `servers.<id>.transport`                                 | object   | `type: "stdio"` + `command.executable/args/cwd`, **or** `type: "http"` + `http.url` + `http.headers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `servers.<id>.transport.http.headers.<NAME>`             | string   | HTTP request headers; `${ENV_VAR}` references are resolved at config load (unset variable ⇒ configuration error)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `servers.<id>.connection.startupTimeoutSeconds`          | number   | Handshake timeout (positive finite; overrides the 10 s default per server)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `servers.<id>.connection.requestTimeoutSeconds`          | number   | Per-request timeout (positive finite; enforced as transport failure)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `servers.<id>.connection.reconnect`                      | object   | `enabled`, `maximumAttempts` (positive integer, required for effect), `delayMilliseconds` (non-negative integer). On a transport failure guidance drops the dead client and re-runs the handshake up to `maximumAttempts` times (delay between attempts), retrying the call after each successful reconnect. Never retried: config errors (invalid timeouts) and request-timeout failures — a timed-out call already ran downstream and is not automatically replayed (retry semantics stay upstream, FR-035)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `servers.<id>.containerRoute`                            | object   | **FR-035 amendment (2026-09-28):** optional HTTP endpoint reachable from the guidance container (`url` + optional `headers`, same `${ENV_VAR}` resolution and egress-allowlist rules as `transport.http`). When a **read-only** operation call times out on the primary transport, guidance makes exactly **one** automatic attempt over this route before surfacing the failure (`workspace_write`/`external_write` calls are never auto-retried). Outcomes are counted per server in `get_metrics` → `containerRouteFallbacks` (in-memory counters; they reset on restart — operations/connections metrics replay from `metrics.jsonl`, fallback attempts intentionally do not). Generated configs predefine the route for `gitnexus` (`:4747/api/mcp`); the shipped Thinking-MCP sample additionally defines routes for `clearthought` and `insight`; the fallback applies to the MCP tool calls the engine makes against that server (REV-1, 2026-09-28)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `servers.<id>.capabilities.allow.tools`                  | string[] | **Allowlist**: only these tools may be invoked on this server. The sole entry `"*"` is a **wildcard**: every tool of the server is invocable, regardless of name — newly added downstream tools are covered without a config change (routing itself is tool-name-agnostic; the automatic `containerRoute` timeout-fallback stays restricted to configured `read_only` operations). The wildcard applies to the **primary transport** as well as the fallback, and it applies only to the tool-name check: egress, dataEgress and approval gating stay per-call. Note: mixed lists like `["*", "tool"]` are rejected at config load (`configuration_invalid`) because their intent is ambiguous. **Fail-closed coupling (WC-1, 2026-09-29):** the wildcard is only accepted on servers whose **effective `trustLevel` is `trusted`** (an absent or unknown `trustLevel` defaults to `trusted`, same semantics as the runtime). A wildcard on a `restricted`/`untrusted` server is rejected at config load because tools without an `operations.json` entry run under `riskClass: undefined`, so the FR-053 approval gate could never fire for them. **Unconfigured-tool approval (WC-1-B, 2026-09-30):** invoking a tool that has no `operations.json` entry on a wildcard server fails with a recoverable `authorization_required` — unknown tools always require explicit approval until an operation entry assigns them a risk class. Configured tools are unaffected; to make a new tool callable without approval, add an operations.json entry with an appropriate `riskClass` |
+| `servers.<id>.capabilities.allow.resources` / `.prompts` | string[] | Same for resources/prompts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `servers.<id>.environment`                               | object   | Env for the child process (`inherit`, `variables.<NAME>.fromHost`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### `policies.json` — attribute reference
 
-| Attribute | Type | Meaning |
-|---|---|---|
-| `trustLevels.<name>.dataEgress` | string | `none` \| `validated_inputs_only` \| `project_data` \| `project_data_with_approval` — what data may flow to a server with this trust level |
-| `egress.httpHostAllowlist` | string[] | Hosts (`host` or `host:port`, exact match) that http-transport downstream servers may connect to. **Required (fail-closed)** as soon as any enabled server uses `transport.type: "http"` |
-| `validation.requireAcceptanceCriteria` | boolean | Understanding submissions must contain acceptance criteria |
-| `validation.requireUniqueTaskIds` | boolean | Plan task IDs must be unique |
-| `validation.rejectUnknownDependencies` | boolean | Task dependencies must reference known tasks |
-| `validation.rejectDependencyCycles` | boolean | Reject cycles in the task dependency graph |
-| `validation.rejectEmptyArtifacts` | boolean | Reject empty Spec-Kit artifacts at import |
-| `reviewFindings.blockingSeverities` | string[] | Review severities that block advancement (e.g. `high`, `critical`) |
-| `redaction.patterns` | string[] | Regex patterns redacted from agent-facing operation output |
-| `outputDefaults.returnToAgent` | string | Default exposure mode for operations without own setting |
-| `outputDefaults.maxExcerptBytes` | number | Max excerpt size returned to the agent |
-| `outputDefaults.maxArtifactBytes` | number | Max artifact size accepted at import |
-| `outputDefaults.maximumTasks` / `.maximumEntities` | number | Import size limits |
+| Attribute                                          | Type     | Meaning                                                                                                                                                                                  |
+| -------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trustLevels.<name>.dataEgress`                    | string   | `none` \| `validated_inputs_only` \| `project_data` \| `project_data_with_approval` — what data may flow to a server with this trust level                                               |
+| `egress.httpHostAllowlist`                         | string[] | Hosts (`host` or `host:port`, exact match) that http-transport downstream servers may connect to. **Required (fail-closed)** as soon as any enabled server uses `transport.type: "http"` |
+| `validation.requireAcceptanceCriteria`             | boolean  | Understanding submissions must contain acceptance criteria                                                                                                                               |
+| `validation.requireUniqueTaskIds`                  | boolean  | Plan task IDs must be unique                                                                                                                                                             |
+| `validation.rejectUnknownDependencies`             | boolean  | Task dependencies must reference known tasks                                                                                                                                             |
+| `validation.rejectDependencyCycles`                | boolean  | Reject cycles in the task dependency graph                                                                                                                                               |
+| `validation.rejectEmptyArtifacts`                  | boolean  | Reject empty Spec-Kit artifacts at import                                                                                                                                                |
+| `reviewFindings.blockingSeverities`                | string[] | Review severities that block advancement (e.g. `high`, `critical`)                                                                                                                       |
+| `redaction.patterns`                               | string[] | Regex patterns redacted from agent-facing operation output                                                                                                                               |
+| `outputDefaults.returnToAgent`                     | string   | Default exposure mode for operations without own setting                                                                                                                                 |
+| `outputDefaults.maxExcerptBytes`                   | number   | Max excerpt size returned to the agent                                                                                                                                                   |
+| `outputDefaults.maxArtifactBytes`                  | number   | Max artifact size accepted at import                                                                                                                                                     |
+| `outputDefaults.maximumTasks` / `.maximumEntities` | number   | Import size limits                                                                                                                                                                       |
 
 ### Best practice: configuration order
 
@@ -1763,15 +1816,15 @@ as a blueprint: copy it to your project root and adapt the operations.
 
 ### Config file map
 
-| File | Purpose (key settings in this sample) |
-|---|---|
-| `guidance.json` | Entry point: `project.name: "thinking-mcp"`, profile `spec-kit`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`) |
-| `workflow.json` | The state machine — see the phase walkthrough below |
-| `responses.json` | Per-phase agent instruction: title, instruction, `requiredActions` |
-| `operations.json` | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
-| `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`, specs/014) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight |
-| `policies.json` | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3000`, `:3002`, `:4747`), redaction patterns, review-blocking severities `high\|critical` |
-| `schemas/*.schema.json` | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission |
+| File                      | Purpose (key settings in this sample)                                                                                                                                                                                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `guidance.json`           | Entry point: `project.name: "thinking-mcp"`, profile `spec-kit`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`)                   |
+| `workflow.json`           | The state machine — see the phase walkthrough below                                                                                                                                                                                                                        |
+| `responses.json`          | Per-phase agent instruction: title, instruction, `requiredActions`                                                                                                                                                                                                         |
+| `operations.json`         | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
+| `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`, specs/014) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight                                         |
+| `policies.json`           | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3000`, `:3002`, `:4747`), redaction patterns, review-blocking severities `high\|critical`    |
+| `schemas/*.schema.json`   | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission                                                                                                                                                                                 |
 
 ### ⚠️ Important: workspace binding under HTTP/Docker
 
@@ -1835,68 +1888,68 @@ ends the run in the `cancelled` terminal state.
 
 #### 1. `understand` — analyze before proposing
 
-| Aspect | Detail | Config |
-|---|---|---|
-| Hook on enter | `query-project-insights` — Insight `experience_search` with the session request; optional, failures tolerated | `workflow.json` → `phases.understand.lifecycle.afterEnter` · `operations.json` → `query-project-insights` |
-| Instruction | Analyze before proposing; facts vs. assumptions; surface blocking questions; **no plan yet**. Uses Clear-Thought: at least one `sequential_thinking` pass, referenced in the submission | `responses.json` → `understand` |
-| Submission | `submit_understanding` — required: `summary`; optional: `assumptions`, `openQuestions`, `risks`, `acceptanceCriteria`, `affectedAreas`, `constraints` | `schemas/understand.schema.json` |
-| Transition | `submission_valid` → `plan` | `workflow.json` → `phases.understand.transitions` |
-| Clear-Thought duty | `sequential_thinking` pass is a `requiredAction` — the submission must reference its conclusions | `responses.json` → `understand.requiredActions` |
-| Shell setup | Run all terminal commands through `wsl.exe -e bash` (this repo's shell) — set up before analysis; hardcoded in the instruction because the server's strict `guidance.json` validation rejects unknown fields | `responses.json` → `understand.instruction` |
+| Aspect             | Detail                                                                                                                                                                                                       | Config                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Hook on enter      | `query-project-insights` — Insight `experience_search` with the session request; optional, failures tolerated                                                                                                | `workflow.json` → `phases.understand.lifecycle.afterEnter` · `operations.json` → `query-project-insights` |
+| Instruction        | Analyze before proposing; facts vs. assumptions; surface blocking questions; **no plan yet**. Uses Clear-Thought: at least one `sequential_thinking` pass, referenced in the submission                      | `responses.json` → `understand`                                                                           |
+| Submission         | `submit_understanding` — required: `summary`; optional: `assumptions`, `openQuestions`, `risks`, `acceptanceCriteria`, `affectedAreas`, `constraints`                                                        | `schemas/understand.schema.json`                                                                          |
+| Transition         | `submission_valid` → `plan`                                                                                                                                                                                  | `workflow.json` → `phases.understand.transitions`                                                         |
+| Clear-Thought duty | `sequential_thinking` pass is a `requiredAction` — the submission must reference its conclusions                                                                                                             | `responses.json` → `understand.requiredActions`                                                           |
+| Shell setup        | Run all terminal commands through `wsl.exe -e bash` (this repo's shell) — set up before analysis; hardcoded in the instruction because the server's strict `guidance.json` validation rejects unknown fields | `responses.json` → `understand.instruction`                                                               |
 
 #### 2. `plan` — concrete implementation plan
 
-| Aspect | Detail | Config |
-|---|---|---|
-| Instruction | Concrete plan with stable task IDs, affected files, dependencies, planned tests, verification; **no implementation yet**. Uses Clear-Thought: decompose/prioritize via `sequential_thinking` or `decision_framework` | `responses.json` → `plan` |
-| Submission | `submit_plan` — required: `tasks` (policy: unique IDs, known dependencies, no cycles); optional: `dependencies`, `publicApiChanges`, `configurationChanges`, `documentationChanges` | `schemas/plan.schema.json` · `policies.json` → `validation` |
-| Transition | `submission_valid` → `review_and_adjust_plan` | `workflow.json` → `phases.plan.transitions` |
-| Clear-Thought duty | `sequential_thinking`/`decision_framework` pass is a `requiredAction` — the plan submission must reference its results | `responses.json` → `plan.requiredActions` |
+| Aspect             | Detail                                                                                                                                                                                                               | Config                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Instruction        | Concrete plan with stable task IDs, affected files, dependencies, planned tests, verification; **no implementation yet**. Uses Clear-Thought: decompose/prioritize via `sequential_thinking` or `decision_framework` | `responses.json` → `plan`                                   |
+| Submission         | `submit_plan` — required: `tasks` (policy: unique IDs, known dependencies, no cycles); optional: `dependencies`, `publicApiChanges`, `configurationChanges`, `documentationChanges`                                  | `schemas/plan.schema.json` · `policies.json` → `validation` |
+| Transition         | `submission_valid` → `review_and_adjust_plan`                                                                                                                                                                        | `workflow.json` → `phases.plan.transitions`                 |
+| Clear-Thought duty | `sequential_thinking`/`decision_framework` pass is a `requiredAction` — the plan submission must reference its results                                                                                               | `responses.json` → `plan.requiredActions`                   |
 
 #### 3. `review_and_adjust_plan` — self-review of the plan
 
-| Aspect | Detail | Config |
-|---|---|---|
-| Instruction | Critical self-review (architecture, correctness, maintainability, testability, security, backward compatibility, performance, operations); submit the adjusted plan | `responses.json` → `review_and_adjust_plan` |
-| Submission | `submit_plan_review` — required: `findings`; optional: `adjustments`, `approvedPlan`, `remainingConcerns` | `schemas/review-plan.schema.json` |
-| Transitions | `major_plan_revision_required` → back to `plan` (loop); `submission_valid` → `implement` | `workflow.json` → `phases.review_and_adjust_plan.transitions` |
-| Clear-Thought duty | `assumption_xray`/`socratic_method`/`argument_map` stress-test pass is a `requiredAction` — the findings must reference its results | `responses.json` → `review_and_adjust_plan.requiredActions` |
+| Aspect             | Detail                                                                                                                                                              | Config                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Instruction        | Critical self-review (architecture, correctness, maintainability, testability, security, backward compatibility, performance, operations); submit the adjusted plan | `responses.json` → `review_and_adjust_plan`                   |
+| Submission         | `submit_plan_review` — required: `findings`; optional: `adjustments`, `approvedPlan`, `remainingConcerns`                                                           | `schemas/review-plan.schema.json`                             |
+| Transitions        | `major_plan_revision_required` → back to `plan` (loop); `submission_valid` → `implement`                                                                            | `workflow.json` → `phases.review_and_adjust_plan.transitions` |
+| Clear-Thought duty | `assumption_xray`/`socratic_method`/`argument_map` stress-test pass is a `requiredAction` — the findings must reference its results                                 | `responses.json` → `review_and_adjust_plan.requiredActions`   |
 
 #### 4. `implement` — execute the approved plan
 
-| Aspect | Detail | Config |
-|---|---|---|
-| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — as a plain branch in the main checkout, or as a worktree under the pool (registered via the instance registry, see **Branch workflow + worktree support** below) for parallel work. **Last step:** update `README.md` (always in English) and the memory-bank files | `responses.json` → `implement` |
-| Submission | `submit_implementation` — required: `implementedTasks`; optional: `changedFiles`, `createdFiles`, `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`, `unresolvedIssues` | `schemas/implement.schema.json` |
-| Transitions | `submission_valid` → `review_and_fix_implementation`; `significant_plan_deviation` → back to `plan` (deviations must be planned, not silently absorbed) | `workflow.json` → `phases.implement.transitions` |
+| Aspect      | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Config                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Instruction | Implement strictly along the approved task IDs, no unrelated changes; report every changed/created/deleted file and any deviation. **First step:** verify the current branch (`git status`), then create a feature branch (`feature/<meaningful-name>`) — as a plain branch in the main checkout, or as a worktree under the pool (registered via the instance registry, see **Branch workflow + worktree support** below) for parallel work. **Last step:** update `README.md` (always in English) and the memory-bank files | `responses.json` → `implement`                   |
+| Submission  | `submit_implementation` — required: `implementedTasks`; optional: `changedFiles`, `createdFiles`, `deletedFiles`, `testsAddedOrUpdated`, `commandsExecuted`, `deviations`, `unresolvedIssues`                                                                                                                                                                                                                                                                                                                                 | `schemas/implement.schema.json`                  |
+| Transitions | `submission_valid` → `review_and_fix_implementation`; `significant_plan_deviation` → back to `plan` (deviations must be planned, not silently absorbed)                                                                                                                                                                                                                                                                                                                                                                       | `workflow.json` → `phases.implement.transitions` |
 
 #### 5. `review_and_fix_implementation` — self-review of the code
 
-| Aspect | Detail | Config |
-|---|---|---|
-| Instruction | Self-review: correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, plan conformity — apply fixes before submitting | `responses.json` → `review_and_fix_implementation` |
-| Submission | `submit_implementation_review` — required: `findings`; optional: `filesChangedDuringReview`, `testsAddedOrUpdated`, `unresolvedFindings` | `schemas/review-implementation.schema.json` |
-| Transitions | `implementation_changes_required` → back to `implement`; `submission_valid` → `verify` — findings with severity `high`\|`critical` block (see `policies.json` → `reviewFindings.blockingSeverities`) | `workflow.json` → `phases.review_and_fix_implementation.transitions` |
-| Clear-Thought duty | `metacognitive_monitoring` final confidence check is a `requiredAction`; `debugging_approach` for non-trivial findings — results referenced in the findings | `responses.json` → `review_and_fix_implementation.requiredActions` |
+| Aspect             | Detail                                                                                                                                                                                               | Config                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Instruction        | Self-review: correctness, edge cases, error handling, security, maintainability, duplication, dead code, performance, compatibility, test coverage, plan conformity — apply fixes before submitting  | `responses.json` → `review_and_fix_implementation`                   |
+| Submission         | `submit_implementation_review` — required: `findings`; optional: `filesChangedDuringReview`, `testsAddedOrUpdated`, `unresolvedFindings`                                                             | `schemas/review-implementation.schema.json`                          |
+| Transitions        | `implementation_changes_required` → back to `implement`; `submission_valid` → `verify` — findings with severity `high`\|`critical` block (see `policies.json` → `reviewFindings.blockingSeverities`) | `workflow.json` → `phases.review_and_fix_implementation.transitions` |
+| Clear-Thought duty | `metacognitive_monitoring` final confidence check is a `requiredAction`; `debugging_approach` for non-trivial findings — results referenced in the findings                                          | `responses.json` → `review_and_fix_implementation.requiredActions`   |
 
 #### 6. `verify` — gates run server-side
 
-| Aspect | Detail | Config |
-|---|---|---|
-| Instruction | Guidance executes the configured verification operations; analyze failures and return to implementation review when code changes are needed; never claim success while a mandatory operation is failing | `responses.json` → `verify` |
-| Submission | `submit_verification` — required: `verificationSummary`; optional: `skippedChecks`, `acceptedCriteriaEvidence` | `schemas/verify.schema.json` |
+| Aspect                                 | Detail                                                                                                                                                                                                                        | Config                                                                                             |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Instruction                            | Guidance executes the configured verification operations; analyze failures and return to implementation review when code changes are needed; never claim success while a mandatory operation is failing                       | `responses.json` → `verify`                                                                        |
+| Submission                             | `submit_verification` — required: `verificationSummary`; optional: `skippedChecks`, `acceptedCriteriaEvidence`                                                                                                                | `schemas/verify.schema.json`                                                                       |
 | Gates on exit (`beforeExit`, blocking) | `lint` (prettier `--check`, optional), `test` (`npm test`, optional), `build` (`npm run build`, **required**) — child processes in the workspace; required failures keep the session in the phase (`retry_operation` re-runs) | `workflow.json` → `phases.verify.lifecycle.beforeExit` · `operations.json` → `lint`/`test`/`build` |
-| Transitions | `verification_failed` → back to `review_and_fix_implementation`; `required_operations_succeeded` → `complete` | `workflow.json` → `phases.verify.transitions` |
+| Transitions                            | `verification_failed` → back to `review_and_fix_implementation`; `required_operations_succeeded` → `complete`                                                                                                                 | `workflow.json` → `phases.verify.transitions`                                                      |
 
 #### 7. `complete` — final report under completion gates
 
-| Aspect | Detail | Config |
-|---|---|---|
-| Instruction | Final completion report — summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, next steps. **Before submitting:** (1) refresh the GitNexus index host-side (`gitnexus analyze --no-stats`, see AGENTS.md — the gate verifies availability, not freshness) and note it in the report; (2) write the session lessons file (contract below); (3) remaining-work impact review — update `memory-bank/remaining-work-plan.md` for follow-ups resolved, touched, or newly created by this run | `responses.json` → `complete` |
-| Submission | `complete_workflow` — required: `summary`; optional: `changedFiles`, `verificationSummary`, `knownLimitations`, `remainingRisks`, `deviations`, `deferredWork`, `nextSteps` | `schemas/complete.schema.json` |
+| Aspect                       | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Config                                                                                                                                           |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Instruction                  | Final completion report — summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, next steps. **Before submitting:** (1) refresh the GitNexus index host-side (`gitnexus analyze --no-stats`, see AGENTS.md — the gate verifies availability, not freshness) and note it in the report; (2) write the session lessons file (contract below); (3) remaining-work impact review — update `memory-bank/remaining-work-plan.md` for follow-ups resolved, touched, or newly created by this run | `responses.json` → `complete`                                                                                                                    |
+| Submission                   | `complete_workflow` — required: `summary`; optional: `changedFiles`, `verificationSummary`, `knownLimitations`, `remainingRisks`, `deviations`, `deferredWork`, `nextSteps`                                                                                                                                                                                                                                                                                                                                                                     | `schemas/complete.schema.json`                                                                                                                   |
 | Gates on exit (`beforeExit`) | `index-freshness` (**required**: `.gitnexus/meta.json` must match git HEAD — deterministic freshness check, no git binary needed; refresh host-side via `gitnexus analyze --no-stats`), `repository-analysis` (**required**, composite `firstAvailable`: MCP `check` against GitNexus HTTP, fallback local `gitnexus analyze --no-stats` CLI for stdio deployments — the HTTP server exposes no analyze tool) · `capture-session-lessons` (**required**, see contract below) — required failures block completion (`retry_operation` to re-run) | `workflow.json` → `phases.complete.lifecycle.beforeExit` · `operations.json` → `index-freshness`/`repository-analysis`/`capture-session-lessons` |
-| Transition | `required_operations_succeeded` → `completed` (terminal) | `workflow.json` → `phases.complete.transitions` |
-| Impact review | Remaining-work impact review is part of the instruction (step 3): the agent assesses how this run affects tracked follow-ups and updates the plan — deliberately an instruction duty, not a gate (plan adjustments are judgment, not deterministically checkable) | `responses.json` → `complete.instruction` · `memory-bank/remaining-work-plan.md` |
+| Transition                   | `required_operations_succeeded` → `completed` (terminal)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `workflow.json` → `phases.complete.transitions`                                                                                                  |
+| Impact review                | Remaining-work impact review is part of the instruction (step 3): the agent assesses how this run affects tracked follow-ups and updates the plan — deliberately an instruction duty, not a gate (plan adjustments are judgment, not deterministically checkable)                                                                                                                                                                                                                                                                               | `responses.json` → `complete.instruction` · `memory-bank/remaining-work-plan.md`                                                                 |
 
 **Session lessons contract (`capture-session-lessons`):** before calling
 `complete_workflow`, the agent reviews the session for recurring bugs, traps,
@@ -1963,13 +2016,13 @@ recorded) or ends the run via `cancel_workflow`.
     restart the container — then start sessions with that workspace name.
     Run `npm install` once inside the worktree (its `node_modules`
     is separate from the main checkout) or the build/test gates fail.
-  Commit policy for both: one commit per completed task on the feature
-  branch; after verification and review merge into `develop` (fast-forward,
-  rebase if needed) and delete the branch — **pushing stays manual** (user
-  decision). Related server follow-ups (tracked as GUID-5 family): a shell
-  option for process operations. The shell (`wsl.exe -e bash`) is defined in
-  the `understand` instruction — a `shell` field in `guidance.json` is
-  rejected by the server's strict config validation.
+    Commit policy for both: one commit per completed task on the feature
+    branch; after verification and review merge into `develop` (fast-forward,
+    rebase if needed) and delete the branch — **pushing stays manual** (user
+    decision). Related server follow-ups (tracked as GUID-5 family): a shell
+    option for process operations. The shell (`wsl.exe -e bash`) is defined in
+    the `understand` instruction — a `shell` field in `guidance.json` is
+    rejected by the server's strict config validation.
 - **Asking questions — channels per phase:** every non-`verify` phase
   instructs the agent to ask open questions in the chat **before** submitting
   and to reference them in the phase's schema field — `understand` →
@@ -1995,11 +2048,11 @@ helpers, insight capture, index gates — needs the companion servers of this
 repository. All downstream servers must be reachable from the Guidance
 container via `host.docker.internal` (see `downstream-servers.json`).
 
-| Server | Kind | Powers | Without it |
-|---|---|---|---|
-| Clear-Thought (`:3000/mcp`) | agent-side context server (not a downstream) | the Clear-Thought duties in all four reasoning phases (`understand`, `plan`, both reviews) | instructions cannot be fulfilled (instruction-enforced — technically tolerated, but the reasoning quality contract is broken) |
-| Insight (`:3002/mcp`) | downstream MCP, `required: false` | `query-project-insights` (entering `understand`) and `capture-session-lessons` (before `complete`) | insight query fails as a tolerated failure; the capture gate is **two-stage**: an empty lessons file succeeds without ever contacting Insight, while non-empty lessons make Insight a **hard dependency** (blocking failure, `complete` unreachable) |
-| GitNexus (`:4747/api/mcp`) | downstream MCP, `required: true` | `repository-analysis` gate before `complete` (see its composite fallback) | gate fails and blocks completion |
+| Server                      | Kind                                         | Powers                                                                                             | Without it                                                                                                                                                                                                                                           |
+| --------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clear-Thought (`:3000/mcp`) | agent-side context server (not a downstream) | the Clear-Thought duties in all four reasoning phases (`understand`, `plan`, both reviews)         | instructions cannot be fulfilled (instruction-enforced — technically tolerated, but the reasoning quality contract is broken)                                                                                                                        |
+| Insight (`:3002/mcp`)       | downstream MCP, `required: false`            | `query-project-insights` (entering `understand`) and `capture-session-lessons` (before `complete`) | insight query fails as a tolerated failure; the capture gate is **two-stage**: an empty lessons file succeeds without ever contacting Insight, while non-empty lessons make Insight a **hard dependency** (blocking failure, `complete` unreachable) |
+| GitNexus (`:4747/api/mcp`)  | downstream MCP, `required: true`             | `repository-analysis` gate before `complete` (see its composite fallback)                          | gate fails and blocks completion                                                                                                                                                                                                                     |
 
 Config locations: transport and capabilities in `downstream-servers.json`, gate wiring in `operations.json` and `workflow.json`, agent duties in `responses.json`.
 
@@ -2047,10 +2100,10 @@ a registered root exactly) and walks understand → … → complete; the
 There are exactly two deployment modes and two setup styles — pick the cell
 you need:
 
-| | **Manual** (you edit files) | **Assistant** (agent drives the wizard) |
-|---|---|---|
-| **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`) | Path 1 | Path 2 |
-| **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`) | Path 3 | Path 4 |
+|                                               | **Manual** (you edit files) | **Assistant** (agent drives the wizard) |
+| --------------------------------------------- | --------------------------- | --------------------------------------- |
+| **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`) | Path 1                      | Path 2                                  |
+| **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`)    | Path 3                      | Path 4                                  |
 
 Config truth in both modes: **process config (workflow/operations/responses/
 schemas/policies) belongs to the repo** (`.guidance/` inside the repo);
@@ -2215,64 +2268,64 @@ details.
 
 ### Workflow tools (19 + `registry_register`, specs/015)
 
-| Tool | Parameters | Purpose |
-|---|---|---|
-| `start_workflow` | `workspace` (registered name, preferred), `workspaceRoot` (deprecated: realpath-must-match a registered root), `request`, `workflowId?`, `metadata?` | Starts a session, runs initial-phase `beforeEnter` operations (a required failure starts the session `blocked`) and returns the initial phase instruction. `workspace`/`workspaceRoot` must resolve to a registered workspace (`workspace_not_registered` otherwise; specs/014 composition v2) |
-| `get_current_guidance` | `sessionId` | Read-only: title, instruction and required actions of the current phase (from `responses.json`). Call after every transition |
-| `submit_understanding` | `sessionId`, `requestId?`, `summary`, `assumptions?`, `acceptanceCriteria?` | Submits the *understand* phase: request analysis, assumptions, measurable acceptance criteria. **RID-1:** replaying an already-registered `requestId` returns the cached result annotated with `replayed: true` + `duplicateOf` + `warning` (no phase advance); a replay with a different payload is flagged `payloadMismatch: true` (policy `submission.requestIdReuse: "warn"`, default) or rejected with `requestId_reuse_payload_mismatch` (`"reject-mismatch"`) |
-| `submit_plan` | `sessionId`, `requestId?`, `tasks` | Submits the implementation plan: stable task IDs, dependencies, affected files, planned tests |
-| `submit_plan_review` | `sessionId`, `requestId?`, `findings?`, `approvedPlan?` | Plan review; blocking findings (per policy severities) loop back to `plan`, approval advances to `implement` |
-| `submit_implementation` | `sessionId`, `requestId?`, `implementedTasks`, `changedFiles` | Implementation evidence: which tasks were implemented and which files changed |
-| `submit_implementation_review` | `sessionId`, `requestId?`, `findings?`, `filesChangedDuringReview?` | Code-review results; `implementation_changes_required` loops back to `implement` |
-| `submit_verification` | `sessionId`, `requestId?`, `verificationSummary` | Verification report; the phase's `beforeExit` gates (lint/test/build) run on transition |
-| `complete_workflow` | `sessionId`, `requestId?`, `summary` | Final report; runs required completion operations (e.g. repository analysis). Success moves the session to the terminal state |
-| `get_workflow_state` | `sessionId`, `includeHistory?` | Read-only: full persisted session state (phases, downstream operation states, blockers). Reconciles stale `running` operations to `unknown` under a lock |
-| `report_blocker` | `sessionId`, `category`, `description`, `requiresUserDecision?`, `options?` | Reports a blocker the agent cannot resolve; the session enters `blocked` until `resume_workflow` |
-| `resume_workflow` | `sessionId`, `decision`, `notes?` | Ends `blocked` and returns the session to its previous phase with the user decision recorded |
-| `cancel_workflow` | `sessionId` | Graceful cancellation (FR-057): no new operations run, state moves to the `cancelled` terminal state |
-| `get_orchestration_status` | `sessionId` | Read-only: status of the operations of the active phase (running / succeeded / failed / timed_out) |
-| `list_configured_operations` | — | Read-only: all operations defined in `operations.json` (no session needed) |
-| `retry_operation` | `sessionId` | Re-runs failed **required** operations of the current phase (transient downstream failures) |
-| `get_downstream_status` | — | Read-only: connection health of all configured downstream servers |
-| `run_operation` | `sessionId`, `operationId`, `arguments?` | Runs a configured operation on demand (only operations with `invocableByAgent: true`). The optional `arguments` record is deep-merged over the operation's resolved args for `mcpTool` ops (agent keys win per-key; `argumentsLocked` ops reject overrides; process/composite ops ignore them with a warning) |
-| `call_downstream` | `sessionId`, `serverId`, `toolName`, `args` | **CT-ARGS-1:** transparent passthrough to a configured downstream tool — runs through the same fail-closed gates as operations (allowlist, wildcard rejection, egress, capability pins, container-route fallback for read-only). Args are NOT schema-validated by Guidance (the downstream tool validates its own input); downstream content is redacted before exposure. Not registered in remote mode (fail-closed) |
-| `get_metrics` | — | Read-only: aggregated metrics (operation counters, runtimes, connection health) |
-| `registry_register` | `name`, `root`, `projectName?`, `remove?` | **specs/015 US1 (FR-1201..1210), only when profile is `spec-kit` AND `registryRegister.enabled: true` (default OFF).** Registers/removes one workspace root at runtime through the same fail-closed `WorkspaceRegistry.build` validation (invalid input → no change), persists `workspaces[]` atomically in `guidance.json`, appends a `registry_changed` audit event and produces a new `configurationVersion` (existing sessions follow the AC-5 rebind semantics — see the specs/015 addendum AC-13..17) |
+| Tool                           | Parameters                                                                                                                                           | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start_workflow`               | `workspace` (registered name, preferred), `workspaceRoot` (deprecated: realpath-must-match a registered root), `request`, `workflowId?`, `metadata?` | Starts a session, runs initial-phase `beforeEnter` operations (a required failure starts the session `blocked`) and returns the initial phase instruction. `workspace`/`workspaceRoot` must resolve to a registered workspace (`workspace_not_registered` otherwise; specs/014 composition v2)                                                                                                                                                                                                              |
+| `get_current_guidance`         | `sessionId`                                                                                                                                          | Read-only: title, instruction and required actions of the current phase (from `responses.json`). Call after every transition                                                                                                                                                                                                                                                                                                                                                                                |
+| `submit_understanding`         | `sessionId`, `requestId?`, `summary`, `assumptions?`, `acceptanceCriteria?`                                                                          | Submits the _understand_ phase: request analysis, assumptions, measurable acceptance criteria. **RID-1:** replaying an already-registered `requestId` returns the cached result annotated with `replayed: true` + `duplicateOf` + `warning` (no phase advance); a replay with a different payload is flagged `payloadMismatch: true` (policy `submission.requestIdReuse: "warn"`, default) or rejected with `requestId_reuse_payload_mismatch` (`"reject-mismatch"`)                                        |
+| `submit_plan`                  | `sessionId`, `requestId?`, `tasks`                                                                                                                   | Submits the implementation plan: stable task IDs, dependencies, affected files, planned tests                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `submit_plan_review`           | `sessionId`, `requestId?`, `findings?`, `approvedPlan?`                                                                                              | Plan review; blocking findings (per policy severities) loop back to `plan`, approval advances to `implement`                                                                                                                                                                                                                                                                                                                                                                                                |
+| `submit_implementation`        | `sessionId`, `requestId?`, `implementedTasks`, `changedFiles`                                                                                        | Implementation evidence: which tasks were implemented and which files changed                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `submit_implementation_review` | `sessionId`, `requestId?`, `findings?`, `filesChangedDuringReview?`                                                                                  | Code-review results; `implementation_changes_required` loops back to `implement`                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `submit_verification`          | `sessionId`, `requestId?`, `verificationSummary`                                                                                                     | Verification report; the phase's `beforeExit` gates (lint/test/build) run on transition                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `complete_workflow`            | `sessionId`, `requestId?`, `summary`                                                                                                                 | Final report; runs required completion operations (e.g. repository analysis). Success moves the session to the terminal state                                                                                                                                                                                                                                                                                                                                                                               |
+| `get_workflow_state`           | `sessionId`, `includeHistory?`                                                                                                                       | Read-only: full persisted session state (phases, downstream operation states, blockers). Reconciles stale `running` operations to `unknown` under a lock                                                                                                                                                                                                                                                                                                                                                    |
+| `report_blocker`               | `sessionId`, `category`, `description`, `requiresUserDecision?`, `options?`                                                                          | Reports a blocker the agent cannot resolve; the session enters `blocked` until `resume_workflow`                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `resume_workflow`              | `sessionId`, `decision`, `notes?`                                                                                                                    | Ends `blocked` and returns the session to its previous phase with the user decision recorded                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `cancel_workflow`              | `sessionId`                                                                                                                                          | Graceful cancellation (FR-057): no new operations run, state moves to the `cancelled` terminal state                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `get_orchestration_status`     | `sessionId`                                                                                                                                          | Read-only: status of the operations of the active phase (running / succeeded / failed / timed_out)                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `list_configured_operations`   | —                                                                                                                                                    | Read-only: all operations defined in `operations.json` (no session needed)                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `retry_operation`              | `sessionId`                                                                                                                                          | Re-runs failed **required** operations of the current phase (transient downstream failures)                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `get_downstream_status`        | —                                                                                                                                                    | Read-only: connection health of all configured downstream servers                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `run_operation`                | `sessionId`, `operationId`, `arguments?`                                                                                                             | Runs a configured operation on demand (only operations with `invocableByAgent: true`). The optional `arguments` record is deep-merged over the operation's resolved args for `mcpTool` ops (agent keys win per-key; `argumentsLocked` ops reject overrides; process/composite ops ignore them with a warning)                                                                                                                                                                                               |
+| `call_downstream`              | `sessionId`, `serverId`, `toolName`, `args`                                                                                                          | **CT-ARGS-1:** transparent passthrough to a configured downstream tool — runs through the same fail-closed gates as operations (allowlist, wildcard rejection, egress, capability pins, container-route fallback for read-only). Args are NOT schema-validated by Guidance (the downstream tool validates its own input); downstream content is redacted before exposure. Not registered in remote mode (fail-closed)                                                                                       |
+| `get_metrics`                  | —                                                                                                                                                    | Read-only: aggregated metrics (operation counters, runtimes, connection health)                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `registry_register`            | `name`, `root`, `projectName?`, `remove?`                                                                                                            | **specs/015 US1 (FR-1201..1210), only when profile is `spec-kit` AND `registryRegister.enabled: true` (default OFF).** Registers/removes one workspace root at runtime through the same fail-closed `WorkspaceRegistry.build` validation (invalid input → no change), persists `workspaces[]` atomically in `guidance.json`, appends a `registry_changed` audit event and produces a new `configurationVersion` (existing sessions follow the AC-5 rebind semantics — see the specs/015 addendum AC-13..17) |
 
 ### Configuration assistant tools (3)
 
 Stateless wizard for designing a `.guidance/` configuration — see
 [Configuration assistant](#configuration-assistant) for the full flow.
 
-| Tool | Parameters | Purpose |
-|---|---|---|
-| `setup_guidance_start` | — | Returns the question catalog and the first question (with help text and options) |
-| `setup_guidance_answer` | `answers` | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate` |
-| `setup_guidance_generate` | `answers` | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
+| Tool                      | Parameters | Purpose                                                                                                                               |
+| ------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `setup_guidance_start`    | —          | Returns the question catalog and the first question (with help text and options)                                                      |
+| `setup_guidance_answer`   | `answers`  | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate`        |
+| `setup_guidance_generate` | `answers`  | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
 ### Spec-Kit tools (16, profile `spec-kit` only)
 
 All tools operate on the Spec-Kit state of the session (created by
 `import_spec_kit_artifacts` and persisted per session).
 
-| Tool | Parameters | Purpose |
-|---|---|---|
-| `discover_spec_kit_feature` | `sessionId`, `featureId?` | Locates the feature directory under the configured `featureRoot` (strategy-aware: explicit ID, single candidate, …). Workspace-boundary checked |
-| `import_spec_kit_artifacts` | `sessionId`, `featureId?` | Imports spec.md / plan.md / tasks.md (+ optional research, data-model, contracts, checklists), validates structure (unique task IDs, dependency graph, cycles) and creates an **immutable hash-pinned snapshot** |
-| `get_spec_kit_status` | `sessionId` | Read-only: feature, active snapshot, active batch, validation findings, task-status counts, open plan changes |
-| `get_next_task` | `sessionId` | Read-only: tasks that are release-ready (dependencies satisfied) and the recommended next task |
-| `release_batch` | `sessionId`, `mode?`, `batchId?` | Releases the next ready tasks as a batch (`single`\|`batch` (default, max 3)\|`allReady`\|`phaseGroup`); prerequisite for `start_task` |
-| `start_task` | `sessionId`, `batchId?`, `taskIds[]` | Moves tasks into `in_progress` within a batch (batch release semantics, defaults to the active batch) |
-| `submit_task_implementation` | `sessionId`, `batchId?`, `evidence[]` | Per-task evidence: summary, changed files, tests added/updated, deviations, unresolved issues. Checkboxes in tasks.md are hints — only this evidence counts |
-| `submit_task_review` | `sessionId`, `batchId?`, `findings[]` | Review findings per task (`severity`, `fixRequired`, `fixApplied`); blocking severities gate completion |
-| `complete_task` | `sessionId`, `taskId` | Marks a task completed — only after implementation + review + successful verification and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing |
-| `verify_task` | `sessionId`, `batchId?`, `taskId`, `succeeded?`, `executions?` | Writes `task.verification` (write path fix: was read-only, which made `complete_task` unreachable) |
-| `propose_plan_change` | `sessionId`, `changeType`, `reason`, `affectedTasks`, `impact` | Proposes a plan deviation; deterministic `minor`/`major` classification from the change type and impact flags; major changes require artifact update + approval before completion |
-| `approve_plan_change` | `sessionId`, `changeId`, `decision` | Releases or rejects a plan change (terminal decision) |
-| `apply_plan_change` | `sessionId`, `changeId` | Marks a released plan change as applied |
-| `refresh_spec_kit_artifacts` | `sessionId` | Re-imports the artifacts and activates a fresh snapshot (for approved plan changes / external edits) |
-| `get_traceability_report` | `sessionId` | Read-only: acceptance criteria ↔ task coverage |
-| `validate_spec_kit_completion` | `sessionId`, `snapshotCurrent`, `requiredVerificationSucceeded`, `completionOpsSucceeded` | Evaluates the completion invariants (no uncompleted tasks, no open plan changes, criteria coverage, verification) and returns violations |
+| Tool                           | Parameters                                                                                | Purpose                                                                                                                                                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `discover_spec_kit_feature`    | `sessionId`, `featureId?`                                                                 | Locates the feature directory under the configured `featureRoot` (strategy-aware: explicit ID, single candidate, …). Workspace-boundary checked                                                                  |
+| `import_spec_kit_artifacts`    | `sessionId`, `featureId?`                                                                 | Imports spec.md / plan.md / tasks.md (+ optional research, data-model, contracts, checklists), validates structure (unique task IDs, dependency graph, cycles) and creates an **immutable hash-pinned snapshot** |
+| `get_spec_kit_status`          | `sessionId`                                                                               | Read-only: feature, active snapshot, active batch, validation findings, task-status counts, open plan changes                                                                                                    |
+| `get_next_task`                | `sessionId`                                                                               | Read-only: tasks that are release-ready (dependencies satisfied) and the recommended next task                                                                                                                   |
+| `release_batch`                | `sessionId`, `mode?`, `batchId?`                                                          | Releases the next ready tasks as a batch (`single`\|`batch` (default, max 3)\|`allReady`\|`phaseGroup`); prerequisite for `start_task`                                                                           |
+| `start_task`                   | `sessionId`, `batchId?`, `taskIds[]`                                                      | Moves tasks into `in_progress` within a batch (batch release semantics, defaults to the active batch)                                                                                                            |
+| `submit_task_implementation`   | `sessionId`, `batchId?`, `evidence[]`                                                     | Per-task evidence: summary, changed files, tests added/updated, deviations, unresolved issues. Checkboxes in tasks.md are hints — only this evidence counts                                                      |
+| `submit_task_review`           | `sessionId`, `batchId?`, `findings[]`                                                     | Review findings per task (`severity`, `fixRequired`, `fixApplied`); blocking severities gate completion                                                                                                          |
+| `complete_task`                | `sessionId`, `taskId`                                                                     | Marks a task completed — only after implementation + review + successful verification and satisfied dependencies; otherwise `spec_kit_task_*` errors explain what is missing                                     |
+| `verify_task`                  | `sessionId`, `batchId?`, `taskId`, `succeeded?`, `executions?`                            | Writes `task.verification` (write path fix: was read-only, which made `complete_task` unreachable)                                                                                                               |
+| `propose_plan_change`          | `sessionId`, `changeType`, `reason`, `affectedTasks`, `impact`                            | Proposes a plan deviation; deterministic `minor`/`major` classification from the change type and impact flags; major changes require artifact update + approval before completion                                |
+| `approve_plan_change`          | `sessionId`, `changeId`, `decision`                                                       | Releases or rejects a plan change (terminal decision)                                                                                                                                                            |
+| `apply_plan_change`            | `sessionId`, `changeId`                                                                   | Marks a released plan change as applied                                                                                                                                                                          |
+| `refresh_spec_kit_artifacts`   | `sessionId`                                                                               | Re-imports the artifacts and activates a fresh snapshot (for approved plan changes / external edits)                                                                                                             |
+| `get_traceability_report`      | `sessionId`                                                                               | Read-only: acceptance criteria ↔ task coverage                                                                                                                                                                   |
+| `validate_spec_kit_completion` | `sessionId`, `snapshotCurrent`, `requiredVerificationSucceeded`, `completionOpsSucceeded` | Evaluates the completion invariants (no uncompleted tasks, no open plan changes, criteria coverage, verification) and returns violations                                                                         |
 
 ## Build & test
 
@@ -2289,7 +2342,6 @@ npm run typecheck
 - Contracts: [`specs/002-guidance-workflow-server/contracts/`](../../specs/002-guidance-workflow-server/contracts/)
 - Example configuration: [`examples/default-guidance/`](./examples/default-guidance/)
 
-
 ## Multi-Workspace Operation (specs/008, composition v2 per specs/014)
 
 One guidance instance can serve multiple registered repositories.
@@ -2299,11 +2351,11 @@ One guidance instance can serve multiple registered repositories.
 Two deployment modes; in both, the instance config and the repo configs own
 DIFFERENT concerns — they never compete:
 
-| | **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`) | **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`) |
-|---|---|---|
-| Instance `.guidance/` (under `GUIDANCE_WORKSPACE_ROOT`) | **Registry only** (`workspaces[]` in `guidance.json`) — nothing else | registry sits in the container; sessions are created per `init_session` |
-| Process config (workflow/operations/responses/schemas/policies) | **repo-level**, in each registered root's own `.guidance/` | uploaded per session |
-| Adding a scope | edit the registry file manually, or the config assistant (target `registry-edit` — the agent edits the file on your behalf) | `init_session` manually, or the assistant prompts the agent to call it |
+|                                                                 | **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`)                                                                               | **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`)                              |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Instance `.guidance/` (under `GUIDANCE_WORKSPACE_ROOT`)         | **Registry only** (`workspaces[]` in `guidance.json`) — nothing else                                                        | registry sits in the container; sessions are created per `init_session` |
+| Process config (workflow/operations/responses/schemas/policies) | **repo-level**, in each registered root's own `.guidance/`                                                                  | uploaded per session                                                    |
+| Adding a scope                                                  | edit the registry file manually, or the config assistant (target `registry-edit` — the agent edits the file on your behalf) | `init_session` manually, or the assistant prompts the agent to call it  |
 
 Normative truth statement: **process-config truth = the registered repo;
 registry truth = the serving instance; any other `.guidance/` copy is
@@ -2335,7 +2387,11 @@ Register workspaces in `guidance.json`:
   "version": 2,
   "project": { "name": "guidance" },
   "workspaces": [
-    { "name": "thinking-mcp", "root": "/workspaces/Thinking-MCP", "projectName": "Thinking-MCP" },
+    {
+      "name": "thinking-mcp",
+      "root": "/workspaces/Thinking-MCP",
+      "projectName": "Thinking-MCP"
+    },
     { "name": "niyama", "root": "/workspaces/Niyama", "projectName": "Niyama" }
   ]
 }
@@ -2357,7 +2413,7 @@ to the compose file in `servers/server-guidance/`):
 
 ```yaml
 volumes:
-  - ../../../:/workspaces    # repos pool = served workspace root
+  - ../../../:/workspaces # repos pool = served workspace root
 ```
 
 The pool contains every served repo, including this checkout itself

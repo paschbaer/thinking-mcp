@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
-import { SessionRepository } from "../../src/state/SessionRepository.js";
 
 let ws: string;
 let engine: WorkflowEngine;
@@ -37,15 +36,6 @@ const started = async () => {
     workspaceRoot: ws,
     request: "test request",
   });
-  // FR-053: pre-grant the fixture's gated ops (build, repository-analysis);
-  // the approval gate itself is covered in approval-gate.test.ts.
-  new SessionRepository(join(ws, "state", "sessions")).update(
-    res.sessionId,
-    (s) => {
-      s.approvedOperations ??= [];
-      s.approvedOperations.push("build", "repository-analysis");
-    },
-  );
   return res;
 };
 

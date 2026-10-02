@@ -12,7 +12,6 @@ import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
 import { OperationEngine } from "../../src/orchestration/OperationEngine.js";
-import { SessionRepository } from "../../src/state/SessionRepository.js";
 
 let ws: string;
 let stateDir: string;
@@ -79,12 +78,6 @@ async function walkToComplete(
   engine: WorkflowEngine,
   sessionId: string,
 ): Promise<Record<string, unknown>> {
-  // FR-053: pre-grant the fixture's gated ops; the gate is covered in
-  // approval-gate.test.ts.
-  new SessionRepository(join(stateDir, "sessions")).update(sessionId, (s) => {
-    s.approvedOperations ??= [];
-    s.approvedOperations.push("build", "repository-analysis");
-  });
   await engine.submit(sessionId, "understand", {
     summary: "s",
     acceptanceCriteria: ["a"],
