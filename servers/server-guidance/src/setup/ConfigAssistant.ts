@@ -230,7 +230,42 @@ export function nextQuestion(answers: SetupAnswers): SetupQuestion | null {
   return null;
 }
 
-export function catalogOverview(answers: SetupAnswers): {
+/**
+ * Start-phase options: the agent derives the workspace name before starting
+ * (WIZ-2/WIZ-4, user decision 2026-10-03) and passes it as a hint so the
+ * workspaceRoot question can carry a composed default. Variant (ii): no
+ * plausibility logic — set the default only when BOTH the environment
+ * (GUIDANCE_WORKSPACE_ROOT) and the hint are present, otherwise unchanged.
+ */
+export interface CatalogOptions {
+  workspaceNameHint?: string;
+}
+
+/**
+ * Compose the workspaceRoot default (WIZ-4): GUIDANCE_WORKSPACE_ROOT + "/" +
+ * hint. Returns undefined when either input is missing/blank. Trailing
+ * slashes on the env value are trimmed to avoid double separators.
+ */
+export function workspaceRootDefault(hint?: string): string | undefined {
+  const root = process.env.GUIDANCE_WORKSPACE_ROOT?.trim().replace(/\/+$/, "");
+  const name = hint?.trim();
+  if (!root || !name) return undefined;
+  return `${root}/${name}`;
+}
+
+/** Immutable per-call catalog copy with runtime defaults applied (WIZ-4). */
+function catalogWithOptions(options: CatalogOptions): SetupQuestion[] {
+  const def = workspaceRootDefault(options.workspaceNameHint);
+  if (def === undefined) return QUESTIONS;
+  return QUESTIONS.map((q) =>
+    q.id === "workspaceRoot" ? { ...q, default: def } : q,
+  );
+}
+
+export function catalogOverview(
+  answers: SetupAnswers,
+  options: CatalogOptions = {},
+): {
   done: boolean;
   nextQuestion: SetupQuestion | null;
   questions: SetupQuestion[];
@@ -238,10 +273,13 @@ export function catalogOverview(answers: SetupAnswers): {
   nextTool: string;
 } {
   const next = nextQuestion(answers);
+  const questions = catalogWithOptions(options);
+  const current =
+    next === null ? null : (questions.find((q) => q.id === next.id) ?? null);
   return {
     done: next === null,
-    nextQuestion: next,
-    questions: QUESTIONS,
+    nextQuestion: current,
+    questions,
     received: answers,
     nextTool:
       next === null ? "setup_guidance_generate" : "setup_guidance_answer",

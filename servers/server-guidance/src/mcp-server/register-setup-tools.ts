@@ -42,8 +42,16 @@ export function registerSetupTools(server: McpServer): void {
   server.tool(
     "setup_guidance_start",
     "Startet den Konfigurations-Assistenten: Frage-Katalog + erste Frage",
-    {},
-    () => toJson(catalogOverview({})),
+    {
+      workspaceNameHint: z
+        .string()
+        .optional()
+        .describe(
+          "Workspace/project name the agent derived from the repo (WIZ-2/WIZ-4) — used to compose the workspaceRoot question default",
+        ),
+    },
+    ({ workspaceNameHint }) =>
+      toJson(catalogOverview({}, { workspaceNameHint })),
   );
   server.tool(
     "setup_guidance_answer",

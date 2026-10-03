@@ -1,0 +1,133 @@
+/**
+ * WIZ-4 contract tests: setup_guidance_start accepts an optional
+ * workspaceNameHint and the workspaceRoot question carries the composed
+ * default GUIDANCE_WORKSPACE_ROOT + "/" + hint (variant ii — only when BOTH
+ * are present, no plausibility logic).
+ */
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { createGuidanceServer } from "../../src/mcp-server/GuidanceServer.js";
+import { registerSetupTools } from "../../src/mcp-server/register-setup-tools.js";
+import {
+  catalogOverview,
+  workspaceRootDefault,
+  type SetupQuestion,
+} from "../../src/setup/ConfigAssistant.js";
+
+const ENV_KEY = "GUIDANCE_WORKSPACE_ROOT";
+let savedEnv: string | undefined;
+
+beforeEach(() => {
+  savedEnv = process.env[ENV_KEY];
+});
+
+afterEach(() => {
+  if (savedEnv === undefined) delete process.env[ENV_KEY];
+  else process.env[ENV_KEY] = savedEnv;
+});
+
+// "no suggestion" = falsy default: the workspaceRoot catalog question ships
+// with default "" (empty string), so absence is the empty string, not undefined.
+function workspaceRootQuestion(
+  questions: SetupQuestion[],
+): SetupQuestion | undefined {
+  return questions.find((q) => q.id === "workspaceRoot");
+}
+
+describe("WIZ-4 workspaceRootDefault", () => {
+  it("composes env + hint and trims trailing slashes on the env value", () => {
+    process.env[ENV_KEY] = "/workspaces/";
+    expect(workspaceRootDefault("thinking-mcp")).toBe(
+      "/workspaces/thinking-mcp",
+    );
+  });
+
+  it("returns undefined when the env variable is missing", () => {
+    delete process.env[ENV_KEY];
+    expect(workspaceRootDefault("thinking-mcp")).toBeUndefined();
+  });
+
+  it("returns undefined when the env value is blank", () => {
+    process.env[ENV_KEY] = "   ";
+    expect(workspaceRootDefault("thinking-mcp")).toBeUndefined();
+  });
+
+  it("returns undefined when the hint is missing or blank", () => {
+    process.env[ENV_KEY] = "/workspaces";
+    expect(workspaceRootDefault(undefined)).toBeUndefined();
+    expect(workspaceRootDefault("   ")).toBeUndefined();
+  });
+});
+
+describe("WIZ-4 catalogOverview default injection", () => {
+  it("injects the composed default into the workspaceRoot question when env+hint are present", () => {
+    process.env[ENV_KEY] = "/workspaces";
+    const out = catalogOverview({}, { workspaceNameHint: "thinking-mcp" });
+    const q = workspaceRootQuestion(out.questions);
+    expect(q?.default).toBe("/workspaces/thinking-mcp");
+    expect(out.nextQuestion?.id).toBe("configSource");
+    // the next question surfaced to the agent is the same catalog copy and
+    // therefore carries the default too
+    expect(out.nextQuestion?.id).toBe("configSource");
+  });
+
+  it("leaves the catalog unchanged when the env variable is missing", () => {
+    delete process.env[ENV_KEY];
+    const out = catalogOverview({}, { workspaceNameHint: "thinking-mcp" });
+    expect(workspaceRootQuestion(out.questions)?.default).toBeFalsy();
+  });
+
+  it("leaves the catalog unchanged when the hint is missing", () => {
+    process.env[ENV_KEY] = "/workspaces";
+    const out = catalogOverview({});
+    expect(workspaceRootQuestion(out.questions)?.default).toBeFalsy();
+  });
+
+  it("does not mutate the shared QUESTIONS catalog across calls", () => {
+    process.env[ENV_KEY] = "/workspaces";
+    catalogOverview({}, { workspaceNameHint: "thinking-mcp" });
+    delete process.env[ENV_KEY];
+    const after = catalogOverview({});
+    expect(workspaceRootQuestion(after.questions)?.default).toBeFalsy();
+  });
+});
+
+describe("WIZ-4 setup_guidance_start MCP tool", () => {
+  async function callStart(args: Record<string, unknown>) {
+    const server = createGuidanceServer();
+    registerSetupTools(server);
+    const pair = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "test", version: "1" });
+    await Promise.all([server.connect(pair[0]), client.connect(pair[1])]);
+    try {
+      const res = await client.callTool({
+        name: "setup_guidance_start",
+        arguments: args,
+      });
+      const content = res.content as Array<{ type: string; text: string }>;
+      return JSON.parse(content[0]!.text) as {
+        questions: SetupQuestion[];
+        nextQuestion: { id: string } | null;
+      };
+    } finally {
+      await client.close();
+    }
+  }
+
+  it("returns the composed default when called with workspaceNameHint", async () => {
+    process.env[ENV_KEY] = "/workspaces";
+    const out = await callStart({ workspaceNameHint: "zed" });
+    expect(workspaceRootQuestion(out.questions)?.default).toBe(
+      "/workspaces/zed",
+    );
+  });
+
+  it("remains backward compatible when called without arguments", async () => {
+    delete process.env[ENV_KEY];
+    const out = await callStart({});
+    expect(out.nextQuestion?.id).toBe("configSource");
+    const q = workspaceRootQuestion(out.questions);
+    expect(q?.default).toBeFalsy();
+  });
+});

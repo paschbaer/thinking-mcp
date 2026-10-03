@@ -472,6 +472,18 @@ seven submission schemas (from `examples/default-guidance/schemas`; if the
 directory is missing from the installation, the agent receives a copy hint
 instead of an error).
 
+**`workspaceRoot` default (WIZ-4):** `setup_guidance_start` accepts an
+optional `workspaceNameHint` parameter — the workspace/project name the
+agent derives from the repo (package manifest `name` field, otherwise the
+repo directory name). When BOTH the hint and the server environment
+variable `GUIDANCE_WORKSPACE_ROOT` are present, the `workspaceRoot`
+question carries the composed default `<GUIDANCE_WORKSPACE_ROOT>/<hint>`
+(e.g. `/workspaces/thinking-mcp`). This is a suggestion only — no
+plausibility logic is applied; the operator confirms or overrides the
+value, and path existence is validated later in the setup flow, not here.
+When either input is missing, the question carries no default and the
+behavior is unchanged.
+
 **Multi-workspace registration:** which answers apply depends on
 the `target` question:
 
@@ -2334,7 +2346,7 @@ Stateless wizard for designing a `.guidance/` configuration — see
 
 | Tool                      | Parameters | Purpose                                                                                                                               |
 | ------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `setup_guidance_start`    | —          | Returns the question catalog and the first question (with help text and options)                                                      |
+| `setup_guidance_start`    | `workspaceNameHint?` | Returns the question catalog and the first question; the hint composes the `workspaceRoot` question default (WIZ-4)      |
 | `setup_guidance_answer`   | `answers`  | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate`        |
 | `setup_guidance_generate` | `answers`  | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
