@@ -1216,3 +1216,9 @@
 
 - Nutzer-Entscheidung: Das Fehlen eines Re-Review-Zyklus für Fixes in der Completion-Phase ist ein Problem. Final-Review-Gate blockt offene HIGH/CRITICAL (kein Status-Fix → kein Abschluss), aber es gibt keinen Reason-Transition von `complete` zurück — Fixes laufen ohne erneute Review-Phase, Integrität hängt nur an der Gate-Strenge (FR-122 + recomputed openHighCritical).
 - Getrackt in memory-bank/remaining-work-plan.md (FINAL-REVIEW-RELOOP): proposed design = Reason-Transition final_review_changes_required → implement, angetrieben durch dieselbe blockingSeverities-Evaluation wie das Review-Gate (Feature 6b5fb3b); Vollzyklus implement → review → verify → complete für die Fixes. Trigger: nächster Scope an Completion-Phase/State-Machine/Gate-Semantik.
+
+## 2026-10-03 (YARN-LOCK-TRAP Guard, feature/yarn-lock-guard, session-22f8339b)
+
+- Implementiert: pre-commit/pre-push Guard `scripts/check-yarn-lock.sh` (POSIX sh, kein Node-Dependency) via versioniertes `.githooks/` + `core.hooksPath` (auf diesem Checkout aktiviert). Blockt: Yarn-v1-Lockfile, nicht erkennbares Format (positiv/negativ-Erkennung: v1-Header ODER fehlende Berry-Marker `__metadata:`/Generator-Header — aus assumption_xray-Falsifikation gehärtet), Staged-Deletion, geprunten Root-Baum (frisch-clone-sicher).
+- Tests: `sh scripts/test-yarn-lock-guard.sh` — 7/7 grün. Docs: AGENTS.md WF-3 erweitert (Backup AGENTS.md.bak vor Edit), README-Abschnitt "Repository guards". Tracking YARN-LOCK-TRAP aufgelöst (fixed with coverage).
+- Lessons: Test-Harness-CWD-Falle (Guard lief im falschen Verzeichnis → expect_in-Fix) und CRLF-Falle (write_file schreibt CRLF, sh braucht LF → sed vor Commit).

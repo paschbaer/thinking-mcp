@@ -1,0 +1,3 @@
+#!/bin/sh
+# Pre-commit guard: yarn.lock format + root tree integrity.
+exec "$(git rev-parse --show-toplevel)/scripts/check-yarn-lock.sh"
