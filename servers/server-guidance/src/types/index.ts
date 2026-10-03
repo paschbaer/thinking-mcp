@@ -176,6 +176,10 @@ export interface WorkflowSession {
    *  via resume_workflow decision "approve <operation-id>"; one entry is
    *  consumed per gated execution. */
   approvedOperations?: string[];
+  /** Severity gate (reviewFindings.blockingSeverities): per-phase count of
+   *  gate-triggered loop-backs, surfaced in phase guidance (Option A —
+   *  counter only, no hard cap). */
+  reviewGateLoops?: Record<string, number>;
   downstream: {
     servers: Record<
       string,
