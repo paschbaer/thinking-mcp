@@ -1222,3 +1222,9 @@
 - Implementiert: pre-commit/pre-push Guard `scripts/check-yarn-lock.sh` (POSIX sh, kein Node-Dependency) via versioniertes `.githooks/` + `core.hooksPath` (auf diesem Checkout aktiviert). Blockt: Yarn-v1-Lockfile, nicht erkennbares Format (positiv/negativ-Erkennung: v1-Header ODER fehlende Berry-Marker `__metadata:`/Generator-Header — aus assumption_xray-Falsifikation gehärtet), Staged-Deletion, geprunten Root-Baum (frisch-clone-sicher).
 - Tests: `sh scripts/test-yarn-lock-guard.sh` — 7/7 grün. Docs: AGENTS.md WF-3 erweitert (Backup AGENTS.md.bak vor Edit), README-Abschnitt "Repository guards". Tracking YARN-LOCK-TRAP aufgelöst (fixed with coverage).
 - Lessons: Test-Harness-CWD-Falle (Guard lief im falschen Verzeichnis → expect_in-Fix) und CRLF-Falle (write_file schreibt CRLF, sh braucht LF → sed vor Commit).
+
+## 2026-10-03 (Abend): YARN-LOCK-GUARD Review-Runde — H-1-Bypass + Fail-Closed behoben
+
+- Independent Review (session-227c65a1) meldete 1 HIGH + 3 MEDIUM + 2 LOW. Alle behoben:
+  H-1 (git add -N + commit -a Bypass am Index vorbei) → Guard prüft zusätzlich Working-Tree-yarn.lock; M-1 (git-diff-Fehler fail-open) → fail-closed mit Block-Meldung; M-2 (Subdir-Invocation prüfte falsche Datei) → cd toplevel am Script-Anfang; M-3 (Pre-push-Hook sinnlos: Index zur Push-Zeit leer) → Guard prüft jetzt HEAD:yarn.lock (Push-Tip), fängt --no-verify/Hookless-Commits; L-1 (fehlende Exec-Bits im Index) → chmod +x committed; L-2 (Test-Harness vacuous) → Setup-Abbruch bei Fixture-Fehler + 4 neue Fälle (worktree-v1, subdir, index-failure, committed-tip).
+- Tests: 11/11 grün (vorher 7/7). Docs (AGENTS.md/README/pre-push-Kommentar) auf die echte Push-Prüfung korrigiert.

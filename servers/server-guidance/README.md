@@ -2474,13 +2474,12 @@ source of truth. npm ignores `yarn.lock` and can — triggered from the root
 OR from any member directory (npm walks up to the root) — rewrite the
 lockfile into Yarn-v1 format or prune the yarn-installed root `node_modules`.
 A pre-commit/pre-push guard (`scripts/check-yarn-lock.sh`) blocks commits and
-pushes when:
-
-- the staged `yarn.lock` is in Yarn-v1 format (`# yarn lockfile v1`) or not
-  recognizable as a Yarn-Berry lockfile,
-- `yarn.lock` is staged for deletion, or
-- the root `node_modules` looks pruned (`node_modules/.bin/tsc` missing while
-  the directory exists — fresh clones without `node_modules` are exempt).
+pushes when the yarn.lock is in Yarn-v1 format or not recognizable as a
+Yarn-Berry lockfile (checked in the index, the working tree, and — at push
+time — the committed tip, so `--no-verify` or hook-less clones are still
+caught), when `yarn.lock` is staged for deletion, or when the root
+`node_modules` looks pruned (`node_modules/.bin/tsc` missing while the
+directory exists — fresh clones without `node_modules` are exempt).
 
 Remediation is always: `git checkout -- yarn.lock && corepack yarn install`.
 

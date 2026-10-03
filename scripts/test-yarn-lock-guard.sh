@@ -33,9 +33,9 @@ V1='# yarn lockfile v1
 '
 # note: intentional v1 fixture (guard must reject this exact header)
 
-new_repo() { # new_repo -> prints repo dir; berry lockfile committed
+new_repo() { # new_repo -> prints repo dir; berry lockfile committed; aborts on setup failure
 	dir=$(mktemp -d)
-	(
+	if ! (
 		cd "$dir" &&
 			git init -q . &&
 			git config user.email t@t &&
@@ -43,7 +43,10 @@ new_repo() { # new_repo -> prints repo dir; berry lockfile committed
 			printf '%s\n' "$BERRY" > yarn.lock &&
 			git add yarn.lock &&
 			git commit -qm init
-	) >/dev/null 2>&1
+	) >/dev/null 2>&1; then
+		printf 'FATAL: fixture setup failed in %s\n' "$dir" >&2
+		exit 2
+	fi
 	printf '%s' "$dir"
 }
 
@@ -103,6 +106,43 @@ r=$(new_repo)
 ) >/dev/null 2>&1
 test ! -d "$r/node_modules" || rm -rf "$r/node_modules"
 expect_in "$r" "fresh-clone-skip" 0 sh "$GUARD"
+rm -rf "$r"
+
+# --- case 7: v1 in the WORKING TREE (unstaged) blocks -----------------------
+# Covers the `git add -N` + `git commit -a` bypass path that no index-based
+# check can see.
+r=$(new_repo)
+(cd "$r" && printf '%s\n' "$V1" > yarn.lock) >/dev/null 2>&1
+expect_in "$r" "worktree-v1-unstaged-block" 1 sh "$GUARD"
+rm -rf "$r"
+
+# --- case 8: invocation from a subdirectory validates the root --------------
+r=$(new_repo)
+(
+	cd "$r" &&
+		mkdir -p servers/sub &&
+		printf '%s\n' "$V1" > yarn.lock &&
+		git add yarn.lock
+) >/dev/null 2>&1
+expect_in "$r/servers/sub" "subdir-invocation-block" 1 sh "$GUARD"
+rm -rf "$r"
+
+# --- case 9: unreadable git index fails CLOSED ------------------------------
+r=$(new_repo)
+expect_in "$r" "index-read-failure-block" 1 env GIT_INDEX_FILE=/nonexistent sh "$GUARD"
+rm -rf "$r"
+
+# --- case 10: committed v1 tip blocks (pre-push semantics) ------------------
+# Simulates a drift commit made with --no-verify; the guard must reject the
+# tip being pushed (HEAD:yarn.lock format check).
+r=$(new_repo)
+(
+	cd "$r" &&
+		printf '%s\n' "$V1" > yarn.lock &&
+		git add yarn.lock &&
+		git commit -qm trap --no-verify
+) >/dev/null 2>&1
+expect_in "$r" "committed-tip-block" 1 sh "$GUARD"
 rm -rf "$r"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
