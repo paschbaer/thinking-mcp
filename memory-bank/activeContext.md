@@ -1228,3 +1228,8 @@
 - Independent Review (session-227c65a1) meldete 1 HIGH + 3 MEDIUM + 2 LOW. Alle behoben:
   H-1 (git add -N + commit -a Bypass am Index vorbei) → Guard prüft zusätzlich Working-Tree-yarn.lock; M-1 (git-diff-Fehler fail-open) → fail-closed mit Block-Meldung; M-2 (Subdir-Invocation prüfte falsche Datei) → cd toplevel am Script-Anfang; M-3 (Pre-push-Hook sinnlos: Index zur Push-Zeit leer) → Guard prüft jetzt HEAD:yarn.lock (Push-Tip), fängt --no-verify/Hookless-Commits; L-1 (fehlende Exec-Bits im Index) → chmod +x committed; L-2 (Test-Harness vacuous) → Setup-Abbruch bei Fixture-Fehler + 4 neue Fälle (worktree-v1, subdir, index-failure, committed-tip).
 - Tests: 11/11 grün (vorher 7/7). Docs (AGENTS.md/README/pre-push-Kommentar) auf die echte Push-Prüfung korrigiert.
+
+## 2026-10-03 (Abend): Spec-Kit-Pool-Modus-Wiring-Lücke entdeckt (specs/008 T6-Diskrepanz)
+
+- **Finding (HIGH, Verhalten):** `discover_spec_kit_feature` schlägt im HTTP-Pool-Modus mit `spec_kit_feature_not_found: feature root missing: specs` fehl, obwohl `/workspaces/Thinking-MCP/specs` existiert (16 Features). Root Cause (verifiziert gegen laufenden Container + Quellcode): `registerSpecKitTools` in `servers/server-guidance/src/server.ts` (HTTP-Einstieg, ~L101-113) übergibt KEIN `getSessionWorkspace`; der stdio-Einstieg `src/index.ts` (L43-49) hat es korrekt. Folge: `SpecKitEngineResolver.resolve()` fällt auf Pool-Root `/workspaces` statt Session-Root `/workspaces/Thinking-MCP` zurück (`register-spec-kit-tools.ts` L138-144). specs/008 T6 ist in tasks.md als [x] markiert, aber nur im stdio-Modus umgesetzt — T6-Diskrepanz.
+- **Status:** getrackt als SKP-1 in `remaining-work-plan.md`; Umsetzung läuft als Guidance-Workflow (Feature-Branch, Contract-Test für HTTP-Einstieg inklusive).

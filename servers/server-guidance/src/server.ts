@@ -103,6 +103,18 @@ export function createConfiguredServer(
       stateDir: opts.stateDir,
       configVersion: composed.configVersion,
       specKitConfig: toEngineSpecKitConfig(composed.specKit),
+      // specs/008 T6 (SKP-1): session-specific workspace root — mirror the
+      // stdio wiring in index.ts. composeApplication creates the engine once
+      // and registry_register recomposes engine.config IN PLACE, so reading
+      // composed.engine at call time stays live. Unknown/dead session ids
+      // fall back to the pool root (documented resolver behavior).
+      getSessionWorkspace: (sid) => {
+        try {
+          return composed.engine.getSession(sid).workspaceRoot;
+        } catch {
+          return undefined;
+        }
+      },
       audit: (event) =>
         audit.append({
           sessionId: event.sessionId,

@@ -27,6 +27,12 @@
   FR-802
 - [x] T6 `SpecKitEngine`-Root-Check gegen Session-Workspace;
   `spec_kit_feature_outside_workspace` beibehalten, Scoping anpassen.
+  (SKP-1 note, 2026-10-03: T6 was originally implemented STDIO-only —
+  src/index.ts wired `getSessionWorkspace`, the HTTP pool entry in
+  src/server.ts did not, so pool-mode discovery fell back to the pool root.
+  Completed by feature/speckit-pool-mode-wiring: server.ts now passes
+  `getSessionWorkspace`; contract coverage in
+  tests/contract/speckit-pool-mode.test.ts.)
 - [x] T7 Security-Regressionstests: fremder Pfad/Namen abgelehnt;
   Pfad-Traversal (`../../etc`), Windows-Case, Symlink-Aliase,
   Name/Pfad-Verwechslung (AC-2-Matrix).
