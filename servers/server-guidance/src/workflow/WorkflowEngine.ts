@@ -51,6 +51,7 @@ import {
   TemplateError,
   resolveTemplate,
 } from "../orchestration/template-resolver.js";
+import { evaluateReviewFindings } from "./review-findings.js";
 
 /** Shared with the config validator (WC-1): one normalization semantics. */
 import { toTrustLevel } from "../trust-level.js";
@@ -2605,11 +2606,21 @@ export class WorkflowEngine {
       }
     }
 
+    // Severity gate: open blocking review findings force the reason-transition
+    // (review_and_fix_implementation → implement, review_and_adjust_plan → plan)
+    // instead of advancing on submission_valid. Deterministic on payload+policy;
+    // evaluated only when ops succeeded (failing verifications loop via
+    // verification_failed, FR-040).
+    const gateReason = opsSucceeded
+      ? this.reviewGateReason(sessionId, session, phaseDef, payload)
+      : null;
+
     // Transition selection: success path ignores reason-only alternatives.
     const target = this.selectTransition(
       phaseDef?.transitions ?? [],
       opsSucceeded,
       opsSucceeded ? undefined : "verification_failed",
+      gateReason,
     );
     if (!target) {
       this.audit.append({
@@ -3438,13 +3449,78 @@ export class WorkflowEngine {
     });
   }
 
+  /** policies.reviewFindings.blockingSeverities — empty/absent disables the
+   *  gate (lenient default, keeps minimal-policy configs working). */
+  private blockingSeverities(): string[] {
+    const raw = (
+      this.config.policies as
+        { reviewFindings?: { blockingSeverities?: unknown } } | undefined
+    )?.reviewFindings?.blockingSeverities;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((s): s is string => typeof s === "string");
+  }
+
+  /** Severity gate (reviewFindings.blockingSeverities): when the phase has a
+   *  reason-transition, ops succeeded and the submission carries open
+   *  blocking findings, return that transition's reason so selectTransition
+   *  loops back instead of advancing. Evaluated only on the ops-success path
+   *  (a failing verification wins via verification_failed) and persists the
+   *  loop counter immediately so audit and session state stay consistent.
+   *  Phase identity is deliberately indirect (any phase with a
+   *  reason-transition whose valid payload carries findings): custom
+   *  workflows can gate additional review-style phases. */
+  private reviewGateReason(
+    sessionId: string,
+    session: WorkflowSession,
+    phaseDef:
+      | { transitions?: { to: string; when?: string; reason?: string }[] }
+      | undefined,
+    payload: Record<string, unknown>,
+  ): string | null {
+    const severities = this.blockingSeverities();
+    if (severities.length === 0) return null;
+    const reasonTransition = (phaseDef?.transitions ?? []).find(
+      (t) => typeof t.reason === "string",
+    );
+    if (!reasonTransition?.reason) return null;
+    const findings = (payload as { findings?: unknown }).findings;
+    if (!Array.isArray(findings) || findings.length === 0) return null;
+    const evaluation = evaluateReviewFindings(findings, severities);
+    if (!evaluation.blocked) return null;
+    const loops = (session.reviewGateLoops ??= {});
+    const loopCount = (loops[session.currentPhase] ?? 0) + 1;
+    loops[session.currentPhase] = loopCount;
+    // Persist immediately: the counter must stay consistent with the audit
+    // event even when the subsequent transition fails (beforeEnter hook or
+    // misconfigured phase) and the submit returns early.
+    this.sessions.update(sessionId, (s) => {
+      s.reviewGateLoops = { ...loops };
+    });
+    this.audit.append({
+      sessionId,
+      eventType: "review_findings_gate_triggered",
+      phase: session.currentPhase,
+      data: {
+        openBlockingCount: evaluation.openBlocking.length,
+        totalFindings: evaluation.totalFindings,
+        loopCount,
+      },
+    });
+    return reasonTransition.reason;
+  }
+
   private selectTransition(
     transitions: { to: string; when?: string; reason?: string }[],
     opsSucceeded: boolean,
     failureReason?: string,
+    gateReason?: string | null,
   ): string | null {
     if (!opsSucceeded && failureReason) {
       return transitions.find((t) => t.reason === failureReason)?.to ?? null;
+    }
+    if (gateReason) {
+      const gated = transitions.find((t) => t.reason === gateReason)?.to;
+      if (gated) return gated;
     }
     for (const t of transitions) {
       if (t.when === "submission_valid") return t.to;
@@ -3539,9 +3615,26 @@ export class WorkflowEngine {
       session.chainSpec.steps.length > 0
         ? " CHAIN HEAD SCOPE: this session is the chain head; successors will run chain.steps[0..] in order. Do NOT implement any steps[] scope under this head session — keep the head request as its own scope (or run it as a verification-only cycle), otherwise the first successor duplicates the work."
         : "";
+    // Severity gate loop counter (Option A): surface gate-triggered loop-backs
+    // so the agent sees the repetition; no hard cap by design. The counter is
+    // per review phase, but the note is shown on every phase while loops exist
+    // (the loop lands the session in implement/plan, where the agent must act).
+    // The completion final-review gate still requires high/critical findings
+    // to be status "fixed" — tracked/accepted pass the loop gate but block
+    // completion (deliberate divergence, see review-findings.ts).
+    const gateLoopEntries = Object.entries(session.reviewGateLoops ?? {});
+    const gateLoopTotal = gateLoopEntries.reduce((n, [, v]) => n + v, 0);
+    const gateSeverities = this.blockingSeverities();
+    const severityLabel =
+      gateSeverities.length > 0 ? gateSeverities.join("/") : "high/critical";
+    const gateNote =
+      gateLoopTotal > 0
+        ? ` SEVERITY GATE LOOP: the severity gate has looped this workflow ${gateLoopTotal} time(s) (${gateLoopEntries.map(([p, n]) => `${p}: ${n}`).join(", ")}) — open ${severityLabel} findings keep sending the workflow back; fix every blocking finding or classify it (status tracked/accepted) and record the follow-up — note the completion final-review gate still requires ${severityLabel} findings to be status fixed.`
+        : "";
     return {
       title: configured?.title ?? key,
-      instruction: (configured?.instruction ?? "") + scope + headScope,
+      instruction:
+        (configured?.instruction ?? "") + scope + headScope + gateNote,
       requiredActions: configured?.requiredActions ?? [],
     };
   }

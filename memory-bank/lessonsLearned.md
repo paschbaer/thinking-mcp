@@ -633,3 +633,8 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Root cause:** L116 hardcoded `topId = defs[defs.length - 1].id`; top_event was only echoed into the response, never used. Existing tests passed because their TOP gate happened to be last.
 - **Preventive measure:** never derive semantics from array position when an explicit selector parameter exists; resolve selectors first (id, then unique name), use position only as a documented last-resort fallback. Parameter-echo without use is a smell — grep handlers for parameters that are echoed but never read.
 - **Meta-lesson:** assumption_xray marker detection is English-only (the no_marker note now says so); its confidence 0 on a valid claim means "no English markers found", not "no assumptions exist".
+
+## Avoid These Mistakes (2026-10-03 — yarn.lock drift via server-level npx/npm)
+- **Issue:** Running `npm ci` / `npx vitest` inside `servers/server-guidance` (workspace member) rewrote the ROOT `yarn.lock` from Yarn-4 Berry format to a Yarn-v1 lockfile (458→41 keys, root workspace entry removed) — caught by independent review as CRITICAL (AGENTS.md WF-3).
+- **Root cause:** npm does not read `yarn.lock`; a tool invocation that resolves dependencies above the member package walks into the yarn-managed root and drifts it.
+- **Prevention:** In this repo, run member-server npm scripts only AFTER checking `git status` shows no lockfile change; after ANY npm/npx invocation, verify `git diff --stat yarn.lock` is empty before continuing. If drifted: `git checkout -- yarn.lock` and rerun the step via Corepack yarn. Consider adding a pre-commit lockfile-format check.

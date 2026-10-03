@@ -57,9 +57,9 @@ function schemaFor(phase: PhaseName): string {
   const extras: Record<string, string> = {
     understand: `,\n    "assumptions": { "type": "array", "items": { "type": "string" } },\n    "acceptanceCriteria": { "type": "array", "items": { "type": "string" } }`,
     plan: `,\n    "tasks": { "type": "array", "items": { "type": "object", "additionalProperties": true } }`,
-    review_plan: `,\n    "approvedPlan": { "type": "object", "additionalProperties": true },\n    "findings": { "type": "array", "items": { "type": "object", "additionalProperties": true } }`,
+    review_plan: `,\n    "approvedPlan": { "type": "object", "additionalProperties": true },\n    "findings": { "type": "array", "items": { "type": "object", "additionalProperties": true, "required": ["severity"], "properties": { "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] }, "status": { "type": "string", "enum": ["fixed", "tracked", "accepted"] } } } }`,
     implement: `,\n    "implementedTasks": { "type": "array", "items": { "type": "string" } },\n    "changedFiles": { "type": "array", "items": { "type": "string" } }`,
-    review_implementation: `,\n    "findings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },\n    "filesChangedDuringReview": { "type": "array", "items": { "type": "string" } }`,
+    review_implementation: `,\n    "findings": { "type": "array", "items": { "type": "object", "additionalProperties": true, "required": ["severity"], "properties": { "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] }, "status": { "type": "string", "enum": ["fixed", "tracked", "accepted"] } } } },\n    "filesChangedDuringReview": { "type": "array", "items": { "type": "string" } }`,
     verify: `,\n    "verificationSummary": { "type": "array", "items": { "type": "string" } }`,
     complete: `,\n    "changedFiles": { "type": "array", "items": { "type": "string" } },\n    "verificationSummary": { "type": "array", "items": { "type": "string" } }`,
   };

@@ -2033,6 +2033,21 @@ ends the run in the `cancelled` terminal state.
 | Transitions        | `implementation_changes_required` → back to `implement`; `submission_valid` → `verify` — findings with severity `high`\|`critical` block (see `policies.json` → `reviewFindings.blockingSeverities`) | `workflow.json` → `phases.review_and_fix_implementation.transitions` |
 | Clear-Thought duty | `metacognitive_monitoring` final confidence check is a `requiredAction`; `debugging_approach` for non-trivial findings — results referenced in the findings                                          | `responses.json` → `review_and_fix_implementation.requiredActions`   |
 
+Severity gate semantics (both review phases, driven by `policies.json` →
+`reviewFindings.blockingSeverities`): every finding carries a `severity`
+(`critical`\|`high`\|`medium`\|`low`\|`info` — required by the submission
+schemas) and an optional `status`. A finding is **open** when its severity is
+in `blockingSeverities` and its `status` is not `fixed`/`tracked`/`accepted`;
+an open blocking finding loops the session back to `implement` (resp. `plan`)
+via the phase's reason-transition instead of advancing. Note the deliberate
+divergence from the completion final-review gate: a `tracked`/`accepted`
+finding passes the loop gate (the follow-up is recorded) but the completion
+gate still requires high/critical findings to be `status: "fixed"` before the
+workflow can complete. Each gate-triggered loop is audited
+(`review_findings_gate_triggered`) and counted per phase; the phase guidance
+surfaces the loop count so repeated loops stay visible (no hard cap).
+Without the policy the gate is disabled (lenient default).
+
 #### 6. `verify` — gates run server-side
 
 | Aspect                                 | Detail                                                                                                                                                                                                                        | Config                                                                                             |
