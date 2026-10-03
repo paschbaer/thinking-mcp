@@ -11,6 +11,7 @@
 - Ask for approval before deleting files you haven't created yourself.
 - Keep strategy logic isolated by module responsibility (scanner/signal/risk/execution).
 - Keep console output readable;
+- **Root dependency management is yarn-based** (`packageManager: yarn@4.6.0`, `yarn.lock` is the source of truth): run root installs ONLY with `yarn install` (Corepack). NEVER run `npm install` at the repo root — npm ignores yarn.lock and provably drifts it (WF-3). `npm` is for workspace-level operations (per-server `package-lock.json`, Docker, deps-install op) and `npm run` scripts only. Never commit a root `package-lock.json` (already gitignored). Any diff to `yarn.lock` in a feature branch is a review warning signal.
 
 ## Review Evidence Protocol
 - Never dismiss a HIGH or CRITICAL review finding without first verifying it against the current source and a reproducible check.

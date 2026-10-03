@@ -16,6 +16,15 @@ Monorepo of "thinking"-focused MCP (Model Context Protocol) servers, extracted f
 
 ## Quick Start
 
+> **Package management:** the repo root is yarn-managed (`packageManager:
+> yarn@4.6.0`, `yarn.lock` is the source of truth). Run root installs only
+> with `yarn install` (Corepack) — never `npm install` at the root (it drifts
+> `yarn.lock`; a `yarn.lock` diff in a feature branch is a review warning
+> signal). `npm` is for workspace-level work only: each server under
+> `servers/*` has its own `package-lock.json` (Docker, deps-install op), and
+> `npm run <script>` works against yarn-installed `node_modules`
+> (`nodeLinker: node-modules`). A root `package-lock.json` is gitignored.
+
 No checkout needed — MCP clients run the servers directly via npx:
 
 ```json
