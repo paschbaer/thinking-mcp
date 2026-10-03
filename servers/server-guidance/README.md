@@ -8,7 +8,7 @@ repository — the server is a dumb, strict executor.
 
 Dual-role:
 
-- **MCP server** toward your coding agent (17 workflow tools + 12 Spec-Kit tools)
+- **MCP server** toward your coding agent (20 workflow tools + 16 Spec-Kit tools, WIZ-3: all registered unconditionally)
 - **MCP client** toward configured downstream servers (GitNexus, Insight, …)
   for workflow-critical operations (lint/test/build gates, insight storage, …)
 
@@ -451,7 +451,7 @@ call. Flow (which tool when) — the full configuration reference follows in
 
 | Step | Tool                                  | Purpose                                                                                                     |
 | ---- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1    | `setup_guidance_start`                | Returns the question catalog (12 questions) and the first question with help text and options               |
+| 1    | `setup_guidance_start`                | Returns the question catalog (10 questions) and the first question with help text and options               |
 | 2    | `setup_guidance_answer` `{answers}`   | Takes the accumulated answers, validates them, and returns the next open question                           |
 | 3    | … repeat `setup_guidance_answer`      | Until `done: true` — then `nextTool` points to `setup_guidance_generate`                                    |
 | 4    | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload                             |

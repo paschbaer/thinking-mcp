@@ -90,7 +90,7 @@ if (assistantSrc === null) {
   console.error(`docs drift: missing/unreadable source file ${assistantPath}`);
   process.exit(1);
 }
-const questionIds = [...assistantSrc.matchAll(/^\s{4}id: "([a-z_0-9]+)",$/gm)].map((m) => m[1]);
+const questionIds = [...assistantSrc.matchAll(/^\s{4}id: "([a-zA-Z_0-9]+)",$/gm)].map((m) => m[1]);
 // Spec FR-951.2: scoped to the README assistant chapter, not the whole file.
 const chapterMatch = readme.match(/^## Configuration assistant[\s\S]*?(?=^## )/m);
 const assistantChapter = chapterMatch ? chapterMatch[0] : "";
