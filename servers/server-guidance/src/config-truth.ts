@@ -147,7 +147,7 @@ export function warnDormantGuidanceConfigs(
     }
     if (registered.has(real)) continue;
     out(
-      `[guidance] warning: dormant .guidance at ${dir} (not registered in workspaces[]) — sessions cannot start for it. Register it in ${config.configDir}/guidance.json (or via the config assistant, target registry-edit) or remove the directory.`,
+      `[guidance] warning: dormant .guidance at ${dir} (not registered in workspaces[]) — sessions cannot start for it. Register it in ${config.configDir}/guidance.json (or run the config assistant in that repo — it emits a workspaces[] merge snippet) or remove the directory.`,
     );
   }
 }

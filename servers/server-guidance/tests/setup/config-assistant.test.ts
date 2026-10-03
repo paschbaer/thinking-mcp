@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   catalogOverview,
   generateFiles,
   nextQuestion,
 } from "../../src/setup/ConfigAssistant.js";
+
+// WIZ-1: the former target modes are merged — one run produces the repo
+// process config AND (opt-in via registerWorkspace) a workspaces[] merge
+// snippet in notes[]. Root existence is validated BEFORE emission (the agent
+// must be able to access the path later), so the tests register a real
+// temp dir as the repo root.
+const REAL_DIR = mkdtempSync(join(tmpdir(), "wiz1-root-"));
 
 const FULL_ANSWERS = {
   configSource: "fresh",
@@ -14,6 +24,7 @@ const FULL_ANSWERS = {
   insight: "yes",
   gitnexus: "yes",
   gates: "standard",
+  registerWorkspace: "no",
 };
 
 describe("configuration assistant (stateless wizard)", () => {
@@ -22,7 +33,7 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(overview.done).toBe(false);
     expect(overview.nextQuestion?.id).toBe("configSource");
     expect(overview.nextTool).toBe("setup_guidance_answer");
-    expect(overview.questions.length).toBe(12);
+    expect(overview.questions.length).toBe(11);
   });
 
   it("advances question by question and reports done when complete", () => {
@@ -48,8 +59,9 @@ describe("configuration assistant (stateless wizard)", () => {
       transport: "stdio",
       profile: "plain",
     });
-    // shell is optional and unanswered → not blocking; insight is the next required one
-    expect(q?.id).toBe("insight");
+    // shell/workspaceRoot are optional and unanswered → not blocking;
+    // registerWorkspace (required, WIZ-1) is the next one before insight
+    expect(q?.id).toBe("registerWorkspace");
   });
 
   it("generate requires the mandatory answers", () => {
@@ -115,6 +127,7 @@ describe("configuration assistant (stateless wizard)", () => {
       insight: "no",
       gitnexus: "no",
       gates: "minimal",
+      registerWorkspace: "no",
     });
     const byPath: Record<string, string> = Object.fromEntries(
       files.map((f) => [f.path, f.content]),
@@ -133,7 +146,7 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(Object.keys(downstream.servers)).toEqual(["clearthought"]);
   });
 
-  it("specs/014: repo-config without workspace answers emits no workspaces[] block (process truth = repo)", () => {
+  it("WIZ-1: repo config never carries the workspaces[] registry (process truth = repo)", () => {
     const { files } = generateFiles(FULL_ANSWERS);
     const guidance = JSON.parse(
       Object.fromEntries(files.map((f) => [f.path, f.content]))[
@@ -143,112 +156,103 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(guidance.workspaces).toBeUndefined();
   });
 
-  it("specs/014 AC-8: repo-config rejects workspaceRoot/extraWorkspaces (registry is the instance's concern)", () => {
-    expect(() =>
-      generateFiles({ ...FULL_ANSWERS, workspaceRoot: "/workspace" }),
-    ).toThrowError(/only apply to target "registry-edit"/);
-    expect(() =>
-      generateFiles({ ...FULL_ANSWERS, extraWorkspaces: "zed=/workspace-zed" }),
-    ).toThrowError(/only apply to target "registry-edit"/);
+  it("WIZ-1: registerWorkspace is a mandatory wizard answer (absent → incomplete)", () => {
+    const { registerWorkspace: _omitted, ...without } = FULL_ANSWERS;
+    expect(() => generateFiles(without)).toThrowError(
+      /missing: registerWorkspace/,
+    );
   });
 
-  it("specs/014 AC-6: registry-edit emits ONLY a minimal registry guidance.json", () => {
+  it("WIZ-1: registerWorkspace=yes emits the workspaces[] merge snippet in notes (not as a file)", () => {
     const { files, notes } = generateFiles({
       ...FULL_ANSWERS,
-      target: "registry-edit",
-      workspaceRoot: "/workspaces",
+      registerWorkspace: "yes",
+      workspaceRoot: REAL_DIR,
     });
     const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
-    // exactly one file — no repo-level process config in registry-edit
-    expect(Object.keys(byPath)).toEqual(["guidance.json"]);
+    // the registry is NOT written as a file — it is a merge snippet
+    expect(byPath["guidance.json"]).toBeDefined();
     const guidance = JSON.parse(byPath["guidance.json"]!);
-    expect(guidance.workspaces).toEqual([
-      { name: "default", root: "/workspaces", projectName: "my-project" },
-    ]);
-    expect(guidance.workflow).toBeUndefined();
-    expect(guidance.operations).toBeUndefined();
-    // REV-RRDO-2: runtime registration is emitted ON by default (FR-1207)
-    expect(guidance.registryRegister).toEqual({ enabled: true });
-    expect(notes.some((n) => n.includes("registry-edit"))).toBe(true);
-    // workspace mode hint present (GUIDANCE_REMOTE_MODE unset)
-    expect(notes.some((n) => n.includes("Workspace mode"))).toBe(true);
+    expect(guidance.workspaces).toBeUndefined();
+
+    const snippet = notes.find((n) =>
+      n.includes("WIZ-1 workspace registration"),
+    )!;
+    expect(snippet).toContain(`"name": "my-project"`);
+    expect(snippet).toContain(`"root": "${REAL_DIR}"`);
+    expect(snippet).toContain(`"projectName": "my-project"`);
+    expect(snippet).toContain("workspaces");
+    // decision 4: initial-creation branch is spelled out
+    expect(notes.some((n) => n.includes("does not exist yet, CREATE it"))).toBe(
+      true,
+    );
+    // decision: the name derives from projectName with confirmation duty
+    expect(notes.some((n) => n.includes("CONFIRMS/OVERRIDES"))).toBe(true);
   });
 
-  it("specs/014 AC-6: registry-edit parses extraWorkspaces after the default entry", () => {
-    const { files } = generateFiles({
-      ...FULL_ANSWERS,
-      target: "registry-edit",
-      workspaceRoot: "/workspaces",
-      extraWorkspaces: "zed=/workspaces/zed; niyama=/workspaces/niyama",
-    });
-    const guidance = JSON.parse(
-      Object.fromEntries(files.map((f) => [f.path, f.content]))[
-        "guidance.json"
-      ]!,
-    );
-    expect(guidance.workspaces).toEqual([
-      { name: "default", root: "/workspaces", projectName: "my-project" },
-      { name: "zed", root: "/workspaces/zed", projectName: "zed" },
-      { name: "niyama", root: "/workspaces/niyama", projectName: "niyama" },
-    ]);
-  });
-
-  it("WW-3: extraWorkspaces boundary cases — '=' inside the root and whitespace-only answers", () => {
-    // (a) indexOf splitting: everything after the FIRST '=' is the root, so
-    // roots containing '=' characters survive intact.
-    const withEq = generateFiles({
-      ...FULL_ANSWERS,
-      target: "registry-edit",
-      workspaceRoot: "/workspaces",
-      extraWorkspaces: "zed=/w/zed=path=mit=gleichheitszeichen",
-    });
-    const guidanceEq = JSON.parse(
-      Object.fromEntries(withEq.files.map((f) => [f.path, f.content]))[
-        "guidance.json"
-      ]!,
-    );
-    expect(guidanceEq.workspaces).toEqual([
-      { name: "default", root: "/workspaces", projectName: "my-project" },
-      {
-        name: "zed",
-        root: "/w/zed=path=mit=gleichheitszeichen",
-        projectName: "zed",
-      },
-    ]);
-
-    // (b) whitespace-only answers are equivalent to omitted: only the
-    // default entry lands in the registry.
-    const whitespaceOnly = generateFiles({
-      ...FULL_ANSWERS,
-      target: "registry-edit",
-      workspaceRoot: "/workspaces",
-      extraWorkspaces: " ; ",
-    });
-    const guidanceWs = JSON.parse(
-      Object.fromEntries(whitespaceOnly.files.map((f) => [f.path, f.content]))[
-        "guidance.json"
-      ]!,
-    );
-    expect(guidanceWs.workspaces).toEqual([
-      { name: "default", root: "/workspaces", projectName: "my-project" },
-    ]);
-  });
-
-  it("specs/014: registry-edit without workspaceRoot is rejected", () => {
+  it("WIZ-1: registerWorkspace=yes without workspaceRoot is rejected", () => {
     expect(() =>
-      generateFiles({ ...FULL_ANSWERS, target: "registry-edit" }),
-    ).toThrowError(/registry-edit requires workspaceRoot/);
+      generateFiles({ ...FULL_ANSWERS, registerWorkspace: "yes" }),
+    ).toThrowError(/registerWorkspace=yes requires workspaceRoot/);
   });
 
-  it("WW-2: registry-edit rejects a RELATIVE workspaceRoot at generation time", () => {
+  it("WIZ-1: registerWorkspace rejects a RELATIVE workspaceRoot at generation time", () => {
     expect(() =>
       generateFiles({
         ...FULL_ANSWERS,
-        target: "registry-edit",
-        workspaceRoot: "workspaces",
-        extraWorkspaces: "",
+        registerWorkspace: "yes",
+        workspaceRoot: "workspaces/my-project",
       }),
-    ).toThrowError(/must be an absolute path: workspaces/);
+    ).toThrowError(/must be an absolute path/);
+  });
+
+  it("WIZ-1 decision 3: a NON-EXISTENT workspaceRoot fails closed BEFORE emission", () => {
+    expect(() =>
+      generateFiles({
+        ...FULL_ANSWERS,
+        registerWorkspace: "yes",
+        workspaceRoot: "/definitely/not/mounted/wiz1",
+      }),
+    ).toThrowError(/does not exist.*verify the mount\/path/s);
+  });
+
+  it("WIZ-1: the projectName doubles as the registry name — pattern + reserved enforced", () => {
+    expect(() =>
+      generateFiles({
+        ...FULL_ANSWERS,
+        registerWorkspace: "yes",
+        workspaceRoot: REAL_DIR,
+        projectName: "My Project",
+      }),
+    ).toThrowError(/used as the registry workspace name/);
+    expect(() =>
+      generateFiles({
+        ...FULL_ANSWERS,
+        registerWorkspace: "yes",
+        workspaceRoot: REAL_DIR,
+        projectName: "default",
+      }),
+    ).toThrowError(/used as the registry workspace name/);
+  });
+
+  it("WIZ-1 decision 2: remote mode replaces the registry step with an init_session hint (no throw)", () => {
+    process.env.GUIDANCE_REMOTE_MODE = "1";
+    try {
+      const { files, notes } = generateFiles({
+        ...FULL_ANSWERS,
+        registerWorkspace: "yes",
+        workspaceRoot: REAL_DIR,
+      });
+      // the repo config is still emitted in full
+      expect(files.some((f) => f.path === "workflow.json")).toBe(true);
+      expect(notes.some((n) => n.includes("Remote mode"))).toBe(true);
+      expect(notes.some((n) => n.includes("init_session"))).toBe(true);
+      expect(
+        notes.some((n) => n.includes("WIZ-1 workspace registration")),
+      ).toBe(false);
+    } finally {
+      delete process.env.GUIDANCE_REMOTE_MODE;
+    }
   });
 
   it("specs/014 AC-7: remote mode hint appears when GUIDANCE_REMOTE_MODE=1 (repo-config → init_session)", () => {
@@ -261,48 +265,6 @@ describe("configuration assistant (stateless wizard)", () => {
       expect(notes.some((n) => n.includes("init_session"))).toBe(true);
     } finally {
       delete process.env.GUIDANCE_REMOTE_MODE;
-    }
-  });
-
-  it("specs/014: registry-edit is rejected in remote mode (registry lives per session)", () => {
-    process.env.GUIDANCE_REMOTE_MODE = "1";
-    try {
-      expect(() =>
-        generateFiles({
-          ...FULL_ANSWERS,
-          target: "registry-edit",
-          workspaceRoot: "/workspaces",
-        }),
-      ).toThrowError(/not applicable in remote mode.*init_session/s);
-    } finally {
-      delete process.env.GUIDANCE_REMOTE_MODE;
-    }
-  });
-
-  it("specs/014: invalid extraWorkspaces answers fail closed at generation time (registry-edit)", () => {
-    const base = {
-      ...FULL_ANSWERS,
-      target: "registry-edit",
-      workspaceRoot: "/workspaces",
-    };
-    const cases: Array<[string, RegExp]> = [
-      ["Zed=/workspaces-zed", /invalid name/],
-      ["zed=workspaces-zed", /must be an absolute path/],
-      ["default=/workspaces-zed", /invalid name/],
-      ["zed=/a;zed=/b", /duplicate name/],
-      ["zed=/a;niyama=/a", /duplicate root/],
-      // WW-1: an extra root duplicating the default workspaceRoot fails at
-      // generation time (not first at container load), also when only
-      // resolve-normalization (trailing separator) makes them equal.
-      ["zed=/workspaces", /duplicate root/],
-      ["zed=/workspaces/", /duplicate root/],
-      ["zed", /invalid name/],
-    ];
-    for (const [value, pattern] of cases) {
-      expect(
-        () => generateFiles({ ...base, extraWorkspaces: value }),
-        `case: ${value}`,
-      ).toThrowError(pattern);
     }
   });
 });
