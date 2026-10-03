@@ -1404,3 +1404,9 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 - [REV-WIZ1-2/3, REV-WIZ3-3, REV-WIZ3-5] LOW/INFO | Wie im Review getrackt (Pool-Namen-Coverage, boolean-Answers-Lockerheit, vestigial if-throw, Form-B-Child-Engine-Brücke PRE-EXISTING CHN-4-Familie). | Trigger: je nächster Touch. | Accepted with rationale.
 
 **Offen:** Merge des Branch nach develop (Review freigegeben, 0 HIGH/CRITICAL); Push; Container-Rebuild für die neue Tool-Oberfläche (40 Tools); WF-1..WF-6 (s.o.) bleiben als Infrastruktur-Follow-ups stehen.
+
+## 2026-10-03 (fault_tree top-gate fix — feature/fix-fault-tree-top-gate, session-a9c2d5b6)
+
+- [FT-AXRAY-DE] LOW | assumption_xray supports German markers (alle, jeder/jede, immer, mindestens, höchstens, wird … müssen) as pattern additions in HEURISTICS or a language layer; note-fix (English-only disclosure) is done in this branch. | Trigger: next touch of assumption-xray.ts HEURISTICS or any i18n request for assumption_xray. | Action required (optional enhancement).
+- [FT-CHAIN-DUP] LOW | Chain session-a9c2d5b6 has successors configured for chain.steps[0..] (analyze/implement/verify) while the head session already implemented the full fix — successors would duplicate the work. | Trigger: when the chain advances past the head session. | Action required: skip the successors or reclassify them as verification-only before advancing.
+- [FT-COMMIT] GELÖST | feature/fix-fault-tree-top-gate committed on the feature branch (push/merge still awaiting user approval).

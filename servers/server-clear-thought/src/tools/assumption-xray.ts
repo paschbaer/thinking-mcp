@@ -131,7 +131,7 @@ export function registerAssumptionXray(
                 ...(mode === "no_marker"
                   ? {
                       probing_questions,
-                      note: "No strong assumption markers (quantifiers, causality, necessity, comparatives) found. Use the probing questions to dig manually.",
+                      note: "No strong assumption markers (quantifiers, causality, necessity, comparatives) found. Marker detection is English-only — a non-English claim can contain assumptions without matching markers. Use the probing questions to dig manually.",
                     }
                   : {}),
                 nextSteps: assumptions.length

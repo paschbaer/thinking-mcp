@@ -1198,3 +1198,9 @@
 - Stufe 1 bereits vorhanden (CHAIN-Replay-Guard, startWorkflow: request === steps[0].request → configuration_invalid fail-closed; Tests in retry-finalize.test.ts) — verifiziert statt neu implementiert.
 - Neu: CHAIN HEAD SCOPE-Annex in guidanceFor für chained Heads (chainFrom === null + steps): warnt den Head-Agenten, keine steps[]-Scopes unter der Head-Session zu implementieren (Disziplin-Form der Falle); Successoren/Form-B/Non-Chained tragen den Annex nicht. 4 neue Tests, 8/8 grün.
 - Templates bewusst unverändert (conditional engine-side statt statischem Template-Satz — Annahme im Plan-Review dokumentiert).
+
+## 2026-10-03 (fault_tree top-gate fix, feature/fix-fault-tree-top-gate, session-a9c2d5b6)
+
+- Implementiert: fault_tree Top-Gate-Resolution aus top_event (id → unique name → unique unreferenced non-basic Gate → Legacy-Last-Element-Fallback); top_gate_type-Flag für Basic-Tops; assumption_xray no_marker-Note mit English-only-Hinweis; 16 neue Regressionstests (3 Report-Vektoren über mehrere Array-Reihenfolgen).
+- Verifikation: 178/178 Suite, Typecheck clean, Prettier/Build-Gates grün, GitNexus-Reindex. Independent Review (Sub-Agent): approve, 0 HIGH/CRITICAL; 2 MEDIUM + 2 LOW in-Review behoben (ID-Precedence vor Namens-Ambiguität, Multi-Top-Fallback gepinnt, Basic-by-Name-Test).
+- Offen (getrackt im remaining-work-plan): FT-AXRAY-DE (deutsche Marker), FT-CHAIN-DUP (Successoren-Duplikationsrisiko), Merge/Push nach Nutzer-Freigabe.

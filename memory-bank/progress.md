@@ -804,3 +804,13 @@ für Umsetzungs-Planning.
 - **What works:** Duplicate-guard (Stufe 1) verifiziert (bereits auf develop); neuer CHAIN HEAD SCOPE-Annex engine-seitig für chained Heads + 4 Regressionstests; README-Abschnitt "Head-session scope rules".
 - **What's left:** Merge von feature/wf-followups (enthält jetzt WF-Follow-ups + diese Härtung); Push; optionaler Container-Rebuild.
 - **Current State:** WF-6-Falle konstruktiv abgesichert (Fail-closed gegen Request-Duplikation, Guidance-Annex gegen die Disziplin-Form).
+
+## 2026-10-03 (Abschluss): wf-followups gemerged, gepusht, redeployed
+- **What works:** feature/wf-followups (6 Commits 1826bb7..d82b7a8: WF-1/2/4/5/6 + Template-Sync + Chain-Head-Scope-Härtung) via Fast-Forward nach develop gemerged, Branch gelöscht, pushed (origin/develop == d82b7a8), Guidance-Container neu gebaut und neu gestartet (healthy, 3 Workspaces reachable).
+- **What's left:** keine offenen Aktionen; getrackte LOW-Reste bleiben im remaining-work-plan (steps:[]-Manifest-Hygiene optional, REV-FINAL-F3/F4/F5, NIYAMA-REG u.a. je Trigger).
+- **Current State:** develop == origin/develop == d82b7a8; Container läuft mit neuer Engine (CHAIN HEAD SCOPE-Annex) und aktualisierten Templates; GitNexus-Index frisch auf diesem Stand.
+
+## 2026-10-03 (fault_tree top-gate fix, feature/fix-fault-tree-top-gate, session-a9c2d5b6)
+- **What works:** fault_tree now resolves the top gate from top_event (id match, then unique name match, then the unique unreferenced non-basic gate; last-element only as last-resort fallback so cycle detection and legacy edge cases stay intact). A basic event resolved as top is flagged via the new optional field top_gate_type: "basic" instead of being silently reported. assumption_xray no_marker note now states marker detection is English-only. Regression tests for the three report vectors over multiple array orderings (nested 0.01099/G1, flat 0.07831, basic-as-last). Full suite 175/175, typecheck clean, GitNexus reindexed.
+- **What's left:** Commit/merge of feature/fix-fault-tree-top-gate after user approval; German marker support in assumption_xray tracked as follow-up; chain successors (steps[0..]) risk duplicating this head scope — decide to skip or let them run verification-only.
+- **Current State:** fix implemented and verified on feature branch, not yet committed.
