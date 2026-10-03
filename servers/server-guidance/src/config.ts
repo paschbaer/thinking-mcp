@@ -14,8 +14,6 @@ import type { RawWorkspaceEntry } from "./workspace-registry.js";
 import { WorkspaceRegistry } from "./workspace-registry.js";
 import { toTrustLevel } from "./trust-level.js";
 
-export type ProfileId = "plain" | "spec-kit";
-
 export interface GuidanceMainConfig {
   version: number;
   /** WIZ-3: legacy field — tolerated on load (schema `profile: true`), never

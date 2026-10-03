@@ -3,8 +3,6 @@
 export type PhaseId = string;
 export type SessionStatus =
   "active" | "activating" | "blocked" | "completed" | "cancelled";
-export type ProfileId = "plain" | "spec-kit";
-
 export type OperationType =
   | "process"
   | "mcpTool"
