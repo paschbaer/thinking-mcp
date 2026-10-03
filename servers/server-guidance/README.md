@@ -8,7 +8,7 @@ repository — the server is a dumb, strict executor.
 
 Dual-role:
 
-- **MCP server** toward your coding agent (20 workflow tools + 16 Spec-Kit tools, WIZ-3: all registered unconditionally)
+- **MCP server** toward your coding agent (20 workflow tools + 16 Spec-Kit tools, all registered unconditionally)
 - **MCP client** toward configured downstream servers (GitNexus, Insight, …)
   for workflow-critical operations (lint/test/build gates, insight storage, …)
 
@@ -85,7 +85,7 @@ review-checked — Guidance can only gate deterministic, observable checks.
 - **Robustness**: idempotent state changes (requestId ledger), crash recovery
   (running → unknown reconcile), graceful cancellation, append-only audit
   history with redaction, blocked-session semantics with blocker records.
-- **Spec-Kit integration** (WIZ-3: always available): discover/import Spec-Kit artifacts
+- **Spec-Kit integration** (always available): discover/import Spec-Kit artifacts
   (spec.md, plan.md, tasks.md), dependency-aware task batches, evidence-gated
   task completion (checkboxes are hints, never proof), plan-change
   classification, traceability report, completion invariants. Sessions on
@@ -459,17 +459,17 @@ call. Flow (which tool when) — the full configuration reference follows in
 | 6    | Restart the server / new session      | Config is snapshotted per session (`configurationVersion`)                                                  |
 
 Question catalog: `configSource` (**fresh / adopt** — see below),
-`projectName` (auto-suggested from the `workspaceNameHint` — WIZ-2),
+`projectName` (auto-suggested from the `workspaceNameHint`),
 `transport` (stdio / http-docker — controls `localhost` vs.
 `host.docker.internal` URLs and the egress allowlist), `referencePath`
 (adopt only: `builtin` — the shipped baseline template — or a path to the
 reference `.guidance/` directory), `shell`
 (optional, agent-facing — placed in `workflow.json` `instructions.global`
-and injected into EVERY phase instruction), `workspaceRoot` (WIZ-1: the
+and injected into EVERY phase instruction), `workspaceRoot` (the
 absolute container path where THIS repo is mounted, e.g.
 `/workspaces/Thinking-MCP` — auto-suggested from
-`GUIDANCE_WORKSPACE_ROOT` + the name hint, WIZ-4), `registerWorkspace`
-(WIZ-1: yes/no — emits a `workspaces[]` merge snippet, see below),
+`GUIDANCE_WORKSPACE_ROOT` + the name hint), `registerWorkspace`
+(yes/no — emits a `workspaces[]` merge snippet, see below),
 `insight` and `gitnexus` (on/off — control the downstream entries and
 their gates) and the `gates` preset (`standard`: lint opt + test opt +
 build REQ · `minimal`: build REQ only). Generation returns all six config
@@ -477,7 +477,7 @@ files plus the seven submission schemas (from
 `examples/default-guidance/schemas`; if the directory is missing from the
 installation, the agent receives a copy hint instead of an error).
 
-**`projectName` default (WIZ-2):** the same `workspaceNameHint` parameter
+**`projectName` default:** the same `workspaceNameHint` parameter
 also seeds the `projectName` question. The server normalizes the hint to a
 kebab-case name (strips a leading npm scope — `@scope/pkg` becomes `pkg`,
 lowercases, maps whitespace/underscores/dots to single dashes, collapses
@@ -489,7 +489,7 @@ answer `projectName` on the operator's behalf — present the suggestion,
 let the operator confirm or override. When the hint is missing or
 cannot be normalized, the question carries no default.
 
-**`workspaceRoot` default (WIZ-4):** `setup_guidance_start` accepts an
+**`workspaceRoot` default:** `setup_guidance_start` accepts an
 optional `workspaceNameHint` parameter — the workspace/project name the
 agent derives from the repo (package manifest `name` field, otherwise the
 repo directory name). When BOTH the hint and the server environment
@@ -501,7 +501,7 @@ value, and path existence is validated later in the setup flow, not here.
 When either input is missing, the question carries no default and the
 behavior is unchanged.
 
-**Workspace registration (WIZ-1, merged target modes):** with
+**Workspace registration (merged target modes):** with
 `registerWorkspace: yes` one assistant run produces BOTH the repo process
 config AND a `workspaces[]` merge snippet in the payload notes:
 `{ name, root, projectName }`. `name` derives from `projectName` (which
@@ -1116,7 +1116,7 @@ The depth limit counts globally across both forms.
 }
 ```
 
-A manifest containing `source` no longer requires any profile (WIZ-3):
+A manifest containing `source` no longer requires any profile:
 both chain forms are available whenever `chain.enabled` is true — the form
 follows the manifest.
 
@@ -1640,9 +1640,9 @@ the Dockerfile), so nothing has to be installed per-workspace. NuGet
 }
 ```
 
-### Spec-Kit integration (WIZ-3: always registered)
+### Spec-Kit integration (always registered)
 
-Since WIZ-3 the 16 Spec-Kit tools are registered on EVERY instance — no
+The 16 Spec-Kit tools are registered on EVERY instance — no
 profile switch. Tune the discovery behavior via `integrations.specKit` in
 `guidance.json` (or `.guidance/profiles/spec-kit.json`, deep-merged when
 present):
@@ -1711,29 +1711,29 @@ Roles at a glance:
 
 ### `guidance.json` — attribute reference
 
-| Attribute                                       | Type          | Default          | Meaning                                                                                                 |
-| ----------------------------------------------- | ------------- | ---------------- | ------------------------------------------------------------------------------------------------------- |
-| `version`                                       | number        | — (**required**) | Config format version; must be `2`                                                                      |
-| `profile`                                       | legacy string | — (ignored)      | **Removed (WIZ-3)** — tolerated on load for old configs, never read. All tools register unconditionally |
-| `project.name`                                  | string        | — (**required**) | Project identity, used in responses/audit                                                               |
-| `workflow.file`                                 | string        | —                | Path to `workflow.json` (relative to `.guidance/`)                                                      |
-| `responses.file`                                | string        | —                | Path to `responses.json`                                                                                |
-| `operations.file`                               | string        | —                | Path to `operations.json`                                                                               |
-| `downstreamServers.file`                        | string        | —                | Path to `downstream-servers.json`                                                                       |
-| `policies.file`                                 | string        | —                | Path to `policies.json`                                                                                 |
-| `state.directory`                               | string        | `state`          | State directory (sessions, audit, snapshots)                                                            |
-| `state.persistAfterEveryOperation`              | boolean       | —                | Persist session state after each mutation (crash safety)                                                |
-| `state.retainRawMcpResponses`                   | boolean       | —                | Keep raw downstream responses on disk (audit depth vs. disk usage)                                      |
-| `orchestration.defaultTimeoutSeconds`           | number        | —                | Default timeout for operations without own `timeoutSeconds`                                             |
-| `orchestration.defaultRetryCount`               | number        | —                | Default retry count for transient downstream failures                                                   |
-| `orchestration.maximumConcurrentOperations`     | number        | —                | Concurrency cap for parallel operations                                                                 |
-| `orchestration.failClosedForRequiredOperations` | boolean       | —                | Required operation failure ⇒ block (true) instead of continue-with-warning                              |
-| `security.allowAgentDefinedServers`             | boolean       | —                | May the _agent_ register new downstream servers at runtime (default: no)                                |
-| `security.allowAgentDefinedOperations`          | boolean       | —                | May the agent define new operations at runtime                                                          |
-| `security.allowAgentProvidedCommands`           | boolean       | —                | May the agent pass raw commands to process operations                                                   |
-| `security.restrictWorkingDirectory`             | boolean       | —                | Pin process operations to the workspace root                                                            |
-| `security.redactSensitiveOutput`                | boolean       | —                | Apply policy redaction patterns to agent-facing output                                                  |
-| `integrations.specKit`                          | object        | —                | Spec-Kit integration config (discovery/artifacts tuning); tools register regardless (WIZ-3)             |
+| Attribute                                       | Type          | Default          | Meaning                                                                                         |
+| ----------------------------------------------- | ------------- | ---------------- | ----------------------------------------------------------------------------------------------- |
+| `version`                                       | number        | — (**required**) | Config format version; must be `2`                                                              |
+| `profile`                                       | legacy string | — (ignored)      | **Removed** — tolerated on load for old configs, never read. All tools register unconditionally |
+| `project.name`                                  | string        | — (**required**) | Project identity, used in responses/audit                                                       |
+| `workflow.file`                                 | string        | —                | Path to `workflow.json` (relative to `.guidance/`)                                              |
+| `responses.file`                                | string        | —                | Path to `responses.json`                                                                        |
+| `operations.file`                               | string        | —                | Path to `operations.json`                                                                       |
+| `downstreamServers.file`                        | string        | —                | Path to `downstream-servers.json`                                                               |
+| `policies.file`                                 | string        | —                | Path to `policies.json`                                                                         |
+| `state.directory`                               | string        | `state`          | State directory (sessions, audit, snapshots)                                                    |
+| `state.persistAfterEveryOperation`              | boolean       | —                | Persist session state after each mutation (crash safety)                                        |
+| `state.retainRawMcpResponses`                   | boolean       | —                | Keep raw downstream responses on disk (audit depth vs. disk usage)                              |
+| `orchestration.defaultTimeoutSeconds`           | number        | —                | Default timeout for operations without own `timeoutSeconds`                                     |
+| `orchestration.defaultRetryCount`               | number        | —                | Default retry count for transient downstream failures                                           |
+| `orchestration.maximumConcurrentOperations`     | number        | —                | Concurrency cap for parallel operations                                                         |
+| `orchestration.failClosedForRequiredOperations` | boolean       | —                | Required operation failure ⇒ block (true) instead of continue-with-warning                      |
+| `security.allowAgentDefinedServers`             | boolean       | —                | May the _agent_ register new downstream servers at runtime (default: no)                        |
+| `security.allowAgentDefinedOperations`          | boolean       | —                | May the agent define new operations at runtime                                                  |
+| `security.allowAgentProvidedCommands`           | boolean       | —                | May the agent pass raw commands to process operations                                           |
+| `security.restrictWorkingDirectory`             | boolean       | —                | Pin process operations to the workspace root                                                    |
+| `security.redactSensitiveOutput`                | boolean       | —                | Apply policy redaction patterns to agent-facing output                                          |
+| `integrations.specKit`                          | object        | —                | Spec-Kit integration config (discovery/artifacts tuning); tools register regardless             |
 
 ### `workflow.json` — attribute reference
 
@@ -2226,7 +2226,7 @@ start_workflow { "workspace": "zed", "request": "..." }
 
 ### Path 2 — Workspace-Mode, assistant
 
-Since WIZ-1 the wizard is ONE run per repo: it produces the repo process
+The wizard is ONE run per repo: it produces the repo process
 config AND (opt-in `registerWorkspace: yes`) a `workspaces[]` merge snippet
 that the agent applies to the instance registry on your behalf. Give your
 agent ONE prompt per repo:
@@ -2375,11 +2375,11 @@ Stateless wizard for designing a `.guidance/` configuration — see
 
 | Tool                      | Parameters           | Purpose                                                                                                                               |
 | ------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `setup_guidance_start`    | `workspaceNameHint?` | Returns the question catalog and the first question; the hint composes the `workspaceRoot` question default (WIZ-4)                   |
+| `setup_guidance_start`    | `workspaceNameHint?` | Returns the question catalog and the first question; the hint composes the `workspaceRoot` question default                           |
 | `setup_guidance_answer`   | `answers`            | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate`        |
 | `setup_guidance_generate` | `answers`            | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
-### Spec-Kit tools (16 — registered on every instance since WIZ-3)
+### Spec-Kit tools (16 — registered on every instance)
 
 All tools operate on the Spec-Kit state of the session (created by
 `import_spec_kit_artifacts` and persisted per session).
