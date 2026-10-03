@@ -1711,29 +1711,29 @@ Roles at a glance:
 
 ### `guidance.json` — attribute reference
 
-| Attribute                                       | Type                      | Default          | Meaning                                                                                                    |
-| ----------------------------------------------- | ------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| `version`                                       | number                    | — (**required**) | Config format version; must be `2`                                                                         |
-| `profile`                                       | `"plain"` \| `"spec-kit"` | derived          | Tool surface selection. If omitted: `spec-kit` when `integrations.specKit` keys are present , else `plain` |
-| `project.name`                                  | string                    | — (**required**) | Project identity, used in responses/audit                                                                  |
-| `workflow.file`                                 | string                    | —                | Path to `workflow.json` (relative to `.guidance/`)                                                         |
-| `responses.file`                                | string                    | —                | Path to `responses.json`                                                                                   |
-| `operations.file`                               | string                    | —                | Path to `operations.json`                                                                                  |
-| `downstreamServers.file`                        | string                    | —                | Path to `downstream-servers.json`                                                                          |
-| `policies.file`                                 | string                    | —                | Path to `policies.json`                                                                                    |
-| `state.directory`                               | string                    | `state`          | State directory (sessions, audit, snapshots)                                                               |
-| `state.persistAfterEveryOperation`              | boolean                   | —                | Persist session state after each mutation (crash safety)                                                   |
-| `state.retainRawMcpResponses`                   | boolean                   | —                | Keep raw downstream responses on disk (audit depth vs. disk usage)                                         |
-| `orchestration.defaultTimeoutSeconds`           | number                    | —                | Default timeout for operations without own `timeoutSeconds`                                                |
-| `orchestration.defaultRetryCount`               | number                    | —                | Default retry count for transient downstream failures                                                      |
-| `orchestration.maximumConcurrentOperations`     | number                    | —                | Concurrency cap for parallel operations                                                                    |
-| `orchestration.failClosedForRequiredOperations` | boolean                   | —                | Required operation failure ⇒ block (true) instead of continue-with-warning                                 |
-| `security.allowAgentDefinedServers`             | boolean                   | —                | May the _agent_ register new downstream servers at runtime (default: no)                                   |
-| `security.allowAgentDefinedOperations`          | boolean                   | —                | May the agent define new operations at runtime                                                             |
-| `security.allowAgentProvidedCommands`           | boolean                   | —                | May the agent pass raw commands to process operations                                                      |
-| `security.restrictWorkingDirectory`             | boolean                   | —                | Pin process operations to the workspace root                                                               |
-| `security.redactSensitiveOutput`                | boolean                   | —                | Apply policy redaction patterns to agent-facing output                                                     |
-| `integrations.specKit`                          | object                    | —                | Spec-Kit integration config; presence influences profile resolution (see below)                            |
+| Attribute                                       | Type          | Default          | Meaning                                                                                                 |
+| ----------------------------------------------- | ------------- | ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `version`                                       | number        | — (**required**) | Config format version; must be `2`                                                                      |
+| `profile`                                       | legacy string | — (ignored)      | **Removed (WIZ-3)** — tolerated on load for old configs, never read. All tools register unconditionally |
+| `project.name`                                  | string        | — (**required**) | Project identity, used in responses/audit                                                               |
+| `workflow.file`                                 | string        | —                | Path to `workflow.json` (relative to `.guidance/`)                                                      |
+| `responses.file`                                | string        | —                | Path to `responses.json`                                                                                |
+| `operations.file`                               | string        | —                | Path to `operations.json`                                                                               |
+| `downstreamServers.file`                        | string        | —                | Path to `downstream-servers.json`                                                                       |
+| `policies.file`                                 | string        | —                | Path to `policies.json`                                                                                 |
+| `state.directory`                               | string        | `state`          | State directory (sessions, audit, snapshots)                                                            |
+| `state.persistAfterEveryOperation`              | boolean       | —                | Persist session state after each mutation (crash safety)                                                |
+| `state.retainRawMcpResponses`                   | boolean       | —                | Keep raw downstream responses on disk (audit depth vs. disk usage)                                      |
+| `orchestration.defaultTimeoutSeconds`           | number        | —                | Default timeout for operations without own `timeoutSeconds`                                             |
+| `orchestration.defaultRetryCount`               | number        | —                | Default retry count for transient downstream failures                                                   |
+| `orchestration.maximumConcurrentOperations`     | number        | —                | Concurrency cap for parallel operations                                                                 |
+| `orchestration.failClosedForRequiredOperations` | boolean       | —                | Required operation failure ⇒ block (true) instead of continue-with-warning                              |
+| `security.allowAgentDefinedServers`             | boolean       | —                | May the _agent_ register new downstream servers at runtime (default: no)                                |
+| `security.allowAgentDefinedOperations`          | boolean       | —                | May the agent define new operations at runtime                                                          |
+| `security.allowAgentProvidedCommands`           | boolean       | —                | May the agent pass raw commands to process operations                                                   |
+| `security.restrictWorkingDirectory`             | boolean       | —                | Pin process operations to the workspace root                                                            |
+| `security.redactSensitiveOutput`                | boolean       | —                | Apply policy redaction patterns to agent-facing output                                                  |
+| `integrations.specKit`                          | object        | —                | Spec-Kit integration config (discovery/artifacts tuning); tools register regardless (WIZ-3)             |
 
 ### `workflow.json` — attribute reference
 
@@ -1850,7 +1850,7 @@ flowchart LR
    reference operation IDs from step 3 and schema paths from step 4 — the
    engine throws `operation_not_configured` otherwise (non-recoverable).
 7. **`guidance.json` last.** It is trivial once everything exists: set project
-   name, profile and the five file references.
+   name and the five file references.
 
 **Working rules:**
 
