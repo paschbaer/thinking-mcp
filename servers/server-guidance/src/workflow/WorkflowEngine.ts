@@ -273,7 +273,6 @@ export class WorkflowEngine {
       // carries its own full process config (<root>/.guidance).
       this.definition = {
         workflowId: "registry-only",
-        profile: this.config.profile,
         initialPhase: "understand",
         terminalStates: ["completed", "cancelled"],
         phases: {},
@@ -308,7 +307,6 @@ export class WorkflowEngine {
       };
       this.definition = {
         workflowId: file.workflow.id,
-        profile: this.config.profile,
         initialPhase: file.workflow.initialPhase,
         terminalStates: file.workflow.terminalStates ?? [
           "completed",
@@ -1863,7 +1861,6 @@ export class WorkflowEngine {
     const session: WorkflowSession = {
       sessionId,
       workflowId: input.workflowId ?? this.definition.workflowId,
-      profile: this.config.profile,
       configurationVersion: this.config.configVersion,
       configDir: this.config.configDir,
       workspaceRoot: input.workspaceRoot!,
@@ -1921,8 +1918,9 @@ export class WorkflowEngine {
       );
     }
     // Amendment 002 v1.1 (CHN-3): mixed manifest — steps and source are both
-    // optional but at least one must be present; Form B parts stay gated to
-    // the spec-kit profile.
+    // optional but at least one must be present. WIZ-3: Form B (source) is no
+    // longer profile-gated — both chain forms are available whenever
+    // chain.enabled is true; the form follows the manifest.
     const c = chain as {
       steps?: unknown;
       source?: unknown;
@@ -1941,13 +1939,6 @@ export class WorkflowEngine {
     }
     const spec: NonNullable<WorkflowSession["chainSpec"]> = {};
     if (hasSource) {
-      if (this.config.profile !== "spec-kit") {
-        throw new GuidanceError(
-          "configuration_invalid",
-          'chain.source "spec_kit_tasks" requires the spec-kit profile',
-          { recoverable: true },
-        );
-      }
       if (
         typeof c.requestTemplate !== "string" ||
         c.requestTemplate.length === 0
@@ -3092,7 +3083,6 @@ export class WorkflowEngine {
     const successor: WorkflowSession = {
       sessionId: `session-${randomUUID()}`,
       workflowId: step.workflowId ?? session.workflowId,
-      profile: session.profile,
       configurationVersion: session.configurationVersion,
       configDir: session.configDir,
       workspaceRoot: session.workspaceRoot,

@@ -695,7 +695,7 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
     expect(cat.nextTool).toBe("setup_guidance_generate");
   });
 
-  it("fresh mode still asks the derived questions", () => {
+  it("fresh mode still asks the derived questions (WIZ-3: profile is gone — insight is next)", () => {
     const fresh = {
       configSource: "fresh",
       registerWorkspace: "no",
@@ -703,7 +703,7 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
       transport: "stdio",
     };
     const next = nextQuestion(fresh as never);
-    expect(next?.id).toBe("profile");
+    expect(next?.id).toBe("insight");
   });
 
   it("clearthought is predefined in generated downstream-servers (fresh + adopt)", () => {

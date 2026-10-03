@@ -65,7 +65,6 @@ export interface HttpAppOptions {
 
 interface ComposedApp {
   tools: import("./mcp-server/ToolHandlers.js").WorkflowTools;
-  profile: string;
   configVersion: string;
   specKit?: import("./config.js").SpecKitConfig;
   /** Live engine accessor — config (and the workspace registry) is
@@ -90,12 +89,14 @@ export function createConfiguredServer(
     () => composed.engine.config.workspaces,
   );
   registerSetupTools(server);
-  if (composed.profile === "spec-kit") {
-    if (!composed.specKit) {
-      throw new GuidanceHttpError(
-        "profile spec-kit requires specKit integration config",
-      );
-    }
+  // WIZ-3: Spec-Kit-Tools register UNCONDITIONALLY (profile gate gone;
+  // specKit config is always built by loadConfig).
+  if (!composed.specKit) {
+    throw new GuidanceHttpError(
+      "specKit integration config missing (loadConfig must always build it)",
+    );
+  }
+  {
     const audit = new AuditRepository(join(opts.stateDir, "history"));
     registerSpecKitTools(server, {
       workspaceRoot: opts.workspaceRoot,
@@ -146,7 +147,6 @@ export function createHttpApp(opts: HttpAppOptions) {
   const composedView: ComposedApp | undefined = composed
     ? {
         tools: composed.tools,
-        profile: composed.config.profile,
         configVersion: composed.config.configVersion,
         specKit: composed.config.specKit,
         engine: composed.engine,

@@ -26,13 +26,14 @@ async function main(): Promise<void> {
     () => app.engine.config.workspaces,
   );
   registerSetupTools(server);
-  // Option C (Review Finding 7): Spec-Kit-Tools nur bei Profil "spec-kit".
-  if (app.config.profile === "spec-kit") {
-    if (!app.config.specKit) {
-      throw new Error(
-        "configuration_invalid: profile spec-kit requires specKit integration config",
-      );
-    }
+  // WIZ-3: Spec-Kit-Tools register UNCONDITIONALLY (the profile gate is gone;
+  // specKit config is always built by loadConfig).
+  if (!app.config.specKit) {
+    throw new Error(
+      "configuration_invalid: specKit integration config missing (loadConfig must always build it)",
+    );
+  }
+  {
     const audit = new AuditRepository(join(app.stateDir, "history"));
     registerSpecKitTools(server, {
       workspaceRoot,
@@ -58,7 +59,7 @@ async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   process.stderr.write(
-    `[${GUIDANCE_SERVER_NAME}] v${SERVER_VERSION} ready (stdio, profile: ${app.config.profile})\n`,
+    `[${GUIDANCE_SERVER_NAME}] v${SERVER_VERSION} ready (stdio)\n`,
   );
 }
 

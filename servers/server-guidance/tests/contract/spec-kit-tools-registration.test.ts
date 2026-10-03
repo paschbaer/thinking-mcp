@@ -30,7 +30,7 @@ let ws: string;
 let server: ReturnType<typeof createGuidanceServer>;
 let client: Client;
 
-function setupWorkspace(profile: "plain" | "spec-kit"): {
+function setupWorkspace(): {
   cfgDir: string;
   stateDir: string;
 } {
@@ -51,15 +51,14 @@ function setupWorkspace(profile: "plain" | "spec-kit"): {
   const guidance = JSON.parse(
     readFileSync(join(fixture, "guidance.json"), "utf-8"),
   ) as Record<string, unknown>;
-  guidance.profile = profile;
-  if (profile === "spec-kit") {
-    guidance.integrations = {
-      specKit: {
-        enabled: true,
-        discovery: { featureRoot: "specs", strategy: "singleCandidate" },
-      },
-    };
-  }
+  // WIZ-3: no profile field — spec-kit tools register unconditionally;
+  // integrations.specKit only tunes the discovery behavior.
+  guidance.integrations = {
+    specKit: {
+      enabled: true,
+      discovery: { featureRoot: "specs", strategy: "singleCandidate" },
+    },
+  };
   writeFileSync(
     join(cfgDir, "guidance.json"),
     JSON.stringify(guidance, null, 2),
@@ -86,20 +85,19 @@ function setupWorkspace(profile: "plain" | "spec-kit"): {
   return { cfgDir, stateDir: join(ws, "state") };
 }
 
-async function start(profile: "plain" | "spec-kit"): Promise<void> {
-  const { cfgDir, stateDir } = setupWorkspace(profile);
+async function start(): Promise<void> {
+  const { cfgDir, stateDir } = setupWorkspace();
   const app = composeApplication(ws, cfgDir, stateDir);
   server = createGuidanceServer();
   registerWorkflowTools(server, app.tools, ws, () => app.config.workspaces);
-  if (profile === "spec-kit") {
-    registerSpecKitTools(server, {
-      workspaceRoot: ws,
-      stateDir,
-      configVersion: app.config.configVersion,
-      specKitConfig: toEngineSpecKitConfig(app.config.specKit!),
-      audit: () => {},
-    });
-  }
+  // WIZ-3: unconditional registration mirrors the production wiring.
+  registerSpecKitTools(server, {
+    workspaceRoot: ws,
+    stateDir,
+    configVersion: app.config.configVersion,
+    specKitConfig: toEngineSpecKitConfig(app.config.specKit!),
+    audit: () => {},
+  });
   const pair = InMemoryTransport.createLinkedPair();
   await Promise.all([
     server.connect(pair[0]),
@@ -134,15 +132,15 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
     ).toThrowError(GuidanceError);
   });
 
-  it("plain profile: keine Spec-Kit-Tools (R17)", async () => {
-    await start("plain");
+  it("WIZ-3: Spec-Kit-Tools sind IMMER Teil der Oberfläche (kein Profil mehr)", async () => {
+    await start();
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    for (const n of SPEC_KIT_TOOL_NAMES) expect(names).not.toContain(n);
+    for (const n of SPEC_KIT_TOOL_NAMES) expect(names).toContain(n);
   });
 
-  it("spec-kit profile: exakt Workflow- + Spec-Kit-Oberfläche (keine Duplikate, nichts fehlt)", async () => {
-    await start("spec-kit");
+  it("WIZ-3: exakt Workflow- + Spec-Kit-Oberfläche (keine Duplikate, nichts fehlt)", async () => {
+    await start();
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     const expected = [
@@ -150,15 +148,14 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
       "registry_register",
       ...SPEC_KIT_TOOL_NAMES,
     ].sort();
-    // registry_register is flag-gated (default ON) and profile-independent —
-    // part of the default surface in both profiles.
+    // registry_register is flag-gated (default ON) — part of the default surface.
     // Exakte Mengengleichheit: fängt fehlende UND doppelt registrierte Tools.
     expect(names).toEqual(expected);
     expect(new Set(names).size).toBe(names.length);
   });
 
   it("discover → import → get_next_task Round-Trip über das Protokoll", async () => {
-    await start("spec-kit");
+    await start();
     const disc = textOf(
       await client.callTool({
         name: "discover_spec_kit_feature",
@@ -191,7 +188,7 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
   });
 
   it("release_batch → start_task Lifecycle (Regression: Release-Tool-Lücke — releaseBatch war nicht exponiert)", async () => {
-    await start("spec-kit");
+    await start();
     await client.callTool({
       name: "import_spec_kit_artifacts",
       arguments: { sessionId: "s4" },
@@ -269,7 +266,7 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
   });
 
   it("withState-Tools liefern ein nicht-leeres Payload (Regression: fehlendes await)", async () => {
-    await start("spec-kit");
+    await start();
     await client.callTool({
       name: "import_spec_kit_artifacts",
       arguments: { sessionId: "s2" },
@@ -307,7 +304,7 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
   });
 
   it("Traversal-SessionId wird abgewiesen (Path Safety Regression)", async () => {
-    await start("spec-kit");
+    await start();
     const res = await client.callTool({
       name: "get_spec_kit_status",
       arguments: { sessionId: "../../escaped" },
@@ -320,7 +317,7 @@ describe("Spec-Kit tool registration (Review Finding 7, Option C)", () => {
   });
 
   it("get_spec_kit_status vor dem Import liefert strukturierten Fehler (kein Crash)", async () => {
-    await start("spec-kit");
+    await start();
     const res = await client.callTool({
       name: "get_spec_kit_status",
       arguments: { sessionId: "ghost" },

@@ -92,37 +92,35 @@ export function composeApplication(
   });
   // Amendment 002 (FR-117 State-Brücke): pending spec-kit tasks in tasks.md
   // order — inserted here so WorkflowEngine stays free of spec-kit imports.
-  // Missing state file (head never imported artifacts) ⇒ [] ⇒ silent chain end.
-  const specKitTasks =
-    config.profile === "spec-kit"
-      ? (sessionId: string): PendingSpecKitTask[] => {
-          try {
-            const state = new SpecKitStateStore(stateDir).load(
-              sessionId,
-            ) as SpecKitState;
-            return Object.values(state.tasks).map((t) => ({
-              id: t.taskId,
-              title: t.title,
-              featureId: state.featureId,
-              status: t.status,
-            }));
-          } catch (err) {
-            // CHN-4: a broken bridge must be diagnosable — empty list keeps
-            // the FR-117 silent chain end. A missing state file is the
-            // documented normal case (review F-2): stay silent for it and
-            // only warn on unexpected errors.
-            if (
-              !(err instanceof GuidanceError) ||
-              err.code !== "spec_kit_artifact_missing"
-            ) {
-              process.stderr.write(
-                `[guidance] warning: specKitTasks bridge failed for ${sessionId}: ${String(err)}\n`,
-              );
-            }
-            return [];
-          }
-        }
-      : undefined;
+  // WIZ-3: wired UNCONDITIONALLY (no profile gate). Missing state file (head
+  // never imported artifacts) ⇒ [] ⇒ silent chain end.
+  const specKitTasks = (sessionId: string): PendingSpecKitTask[] => {
+    try {
+      const state = new SpecKitStateStore(stateDir).load(
+        sessionId,
+      ) as SpecKitState;
+      return Object.values(state.tasks).map((t) => ({
+        id: t.taskId,
+        title: t.title,
+        featureId: state.featureId,
+        status: t.status,
+      }));
+    } catch (err) {
+      // CHN-4: a broken bridge must be diagnosable — empty list keeps
+      // the FR-117 silent chain end. A missing state file is the
+      // documented normal case (review F-2): stay silent for it and
+      // only warn on unexpected errors.
+      if (
+        !(err instanceof GuidanceError) ||
+        err.code !== "spec_kit_artifact_missing"
+      ) {
+        process.stderr.write(
+          `[guidance] warning: specKitTasks bridge failed for ${sessionId}: ${String(err)}\n`,
+        );
+      }
+      return [];
+    }
+  };
   const engine = new WorkflowEngine({
     config,
     stateDir,

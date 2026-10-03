@@ -138,7 +138,6 @@ export function scaffoldIfMissing(
     JSON.stringify(
       {
         version: 2,
-        profile: "plain",
         project: { name: project },
         // specs/008 FR-801/FR-806: the initial configuration carries the
         // workspace path explicitly, so the registry is visible (and

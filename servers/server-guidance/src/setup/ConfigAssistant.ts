@@ -38,7 +38,7 @@ const QUESTIONS: SetupQuestion[] = [
   {
     id: "configSource",
     question: "Adopt the proven reference configuration or create a fresh one?",
-    help: "adopt = workflow/policies/schemas are taken from the reference config (profile locked to the reference); generic operations are regenerated from your answers below. fresh = everything is generated from your answers only.",
+    help: "adopt = workflow/policies/schemas are taken from the reference config; generic operations are regenerated from your answers below. fresh = everything is generated from your answers only.",
     options: ["fresh", "adopt"],
     required: true,
     default: "fresh",
@@ -61,16 +61,8 @@ const QUESTIONS: SetupQuestion[] = [
     id: "referencePath",
     question:
       "Adopt: path to the reference .guidance/ directory (container path, e.g. /workspace/.guidance)?",
-    help: "Required when configSource=adopt. Set to 'builtin' (or leave empty) to use the template shipped with the guidance package (examples/default-guidance, override via GUIDANCE_BUILTIN_TEMPLATE_DIR). Otherwise: container path to the reference .guidance/ directory (e.g. /workspace/.guidance). Validated fail-closed (all files present + parseable). Adopt locks profile/insight/gitnexus/gates to the reference. Note: builtin is the generic baseline, not the Thinking-MCP reference.",
+    help: "Required when configSource=adopt. Set to 'builtin' (or leave empty) to use the template shipped with the guidance package (examples/default-guidance, override via GUIDANCE_BUILTIN_TEMPLATE_DIR). Otherwise: container path to the reference .guidance/ directory (e.g. /workspace/.guidance). Validated fail-closed (all files present + parseable). Adopt locks insight/gitnexus/gates to the reference. Note: builtin is the generic baseline, not the Thinking-MCP reference.",
     required: false,
-  },
-  {
-    id: "profile",
-    question: "Which profile: plain or spec-kit?",
-    help: "plain = standard development flow. spec-kit additionally registers the 12 Spec-Kit tools (the wizard does not interview for spec-kit specifics in v1).",
-    options: ["plain", "spec-kit"],
-    required: true,
-    default: "plain",
   },
   {
     id: "shell",
@@ -129,7 +121,7 @@ const QUESTIONS: SetupQuestion[] = [
 // FR-908/FR-901: in adopt mode these answers are derived from the reference
 // configuration (profile/insight/gitnexus/gates) and are NOT required — and
 // the wizard must not ASK them (they would be overwritten by generateFiles).
-const DERIVED_IN_ADOPT = new Set(["profile", "insight", "gitnexus", "gates"]);
+const DERIVED_IN_ADOPT = new Set(["insight", "gitnexus", "gates"]);
 
 function isAnswered(q: SetupQuestion, answers: SetupAnswers): boolean {
   const v = answers[q.id];
@@ -341,7 +333,6 @@ function buildWorkflow(
     version: 2,
     workflow: {
       id: "standard-development",
-      profile: "plain",
       initialPhase: "understand",
       terminalStates: ["completed", "cancelled"],
     },
@@ -780,7 +771,9 @@ export function generateFiles(answers: SetupAnswers): {
     String(answers.referencePath).trim() !== ""
       ? String(answers.referencePath).trim()
       : undefined;
-  let profile = String(answers.profile ?? "plain");
+  // WIZ-3: the profile answer is GONE — spec-kit integrations are configured
+  // via integrations.specKit / profiles-spec-kit.json when a repo needs one;
+  // all tools register on every instance.
   const shell = String(answers.shell ?? "").trim();
   let insight = answers.insight === "yes" || answers.insight === true;
   let gitnexus = answers.gitnexus === "yes" || answers.gitnexus === true;
@@ -874,8 +867,7 @@ export function generateFiles(answers: SetupAnswers): {
     const refGuidance = JSON.parse(
       readFileSync(join(resolvedReference, "guidance.json"), "utf8"),
     ) as Record<string, unknown>;
-    profile =
-      typeof refGuidance.profile === "string" ? refGuidance.profile : "plain";
+    void refGuidance; // legacy `profile` field is tolerated and ignored (WIZ-3)
     const refOps = JSON.parse(
       readFileSync(join(resolvedReference, "operations.json"), "utf8"),
     ) as { operations?: Record<string, Record<string, unknown>> };
@@ -1113,15 +1105,9 @@ export function generateFiles(answers: SetupAnswers): {
       content: policiesOverride ?? buildPolicies(transport),
     },
   ];
-  if (profile === "spec-kit") {
-    files.push({
-      path: "profiles/spec-kit.json",
-      content: JSON.stringify({ profile: "spec-kit" }, null, 2) + "\n",
-    });
-    notes.push(
-      "spec-kit profile: copy the integrations block and spec-kit-specific questions from examples/default-guidance/profiles — the wizard does not interview for spec-kit specifics in v1.",
-    );
-  }
+  // WIZ-3: the former spec-kit profile file emission is gone — integrations
+  // live in guidance.json (integrations.specKit) or profiles/spec-kit.json
+  // when a repo opts into deeper spec-kit configuration.
   // F-01 (specs/011 final review): route through resolveBuiltinReferencePath()
   // so GUIDANCE_BUILTIN_TEMPLATE_DIR also governs embedded schemas — not just
   // the adopt reference.

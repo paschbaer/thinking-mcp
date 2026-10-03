@@ -85,11 +85,11 @@ review-checked — Guidance can only gate deterministic, observable checks.
 - **Robustness**: idempotent state changes (requestId ledger), crash recovery
   (running → unknown reconcile), graceful cancellation, append-only audit
   history with redaction, blocked-session semantics with blocker records.
-- **Spec-Kit profile** (optional): discover/import Spec-Kit artifacts
+- **Spec-Kit integration** (WIZ-3: always available): discover/import Spec-Kit artifacts
   (spec.md, plan.md, tasks.md), dependency-aware task batches, evidence-gated
   task completion (checkboxes are hints, never proof), plan-change
   classification, traceability report, completion invariants. Sessions on
-  this profile work without imported artifacts too: the spec-kit task tools
+  workflows work without imported artifacts too: the spec-kit task tools
   require `import_spec_kit_artifacts` first, but the workflow can equally be
   driven via plan-level submissions (`submit_plan`/`submit_implementation`/
   `submit_verification`), which need no spec-kit state.
@@ -463,7 +463,7 @@ Question catalog: `configSource` (**fresh / adopt** — see below),
 `transport` (stdio / http-docker — controls `localhost` vs.
 `host.docker.internal` URLs and the egress allowlist), `referencePath`
 (adopt only: `builtin` — the shipped baseline template — or a path to the
-reference `.guidance/` directory), `profile` (plain / spec-kit), `shell`
+reference `.guidance/` directory), `shell`
 (optional, agent-facing — placed in `workflow.json` `instructions.global`
 and injected into EVERY phase instruction), `workspaceRoot` (WIZ-1: the
 absolute container path where THIS repo is mounted, e.g.
@@ -595,7 +595,7 @@ container-only deployments without any mounted reference):
 > `configSource` with `adopt` and leave `referencePath` empty (or set it to
 > `builtin`). Then ask me the remaining questions one at a time and WAIT for
 > my answer before continuing — do not answer on my behalf and do not assume
-> defaults (profile/insight/gitnexus/gates are derived from the template and
+> defaults (insight/gitnexus/gates are derived from the template and
 > will not be asked). Once complete, generate the files and write them to
 > the project root. Then add `.guidance/state/` to the `.gitignore` and
 > remind me to run `gitnexus analyze --no-stats` here.
@@ -609,7 +609,7 @@ reference):
 > `configSource` with `adopt`, use `/workspaces/Thinking-MCP/.guidance/` as
 > the reference path. Then ask me the remaining questions one at a time and WAIT
 > for my answer before continuing — do not answer on my behalf and do not
-> assume defaults (profile/insight/gitnexus/gates are derived from the
+> assume defaults (insight/gitnexus/gates are derived from the
 > reference and will not be asked). Once complete, generate the files and
 > write them to this project's root. Then add `.guidance/state/` to the
 > `.gitignore` and remind me to run `gitnexus analyze --no-stats` here.
@@ -622,7 +622,7 @@ the guidance server so the target repo picks up the new wizard behavior):
 > `adopt` and leave `referencePath` empty (or set it to `builtin`). Then ask
 > me the remaining questions one at a time and wait for my answer before
 > continuing — do not answer on my behalf and do not assume defaults
-> (profile/insight/gitnexus/gates are derived from the template and will not
+> (insight/gitnexus/gates are derived from the template and will not
 > be asked). Once complete, generate the files and write them to the project
 > root. Then add `.guidance/state/` to the `.gitignore` and remind me to run
 > `gitnexus analyze --no-stats` here.
@@ -841,7 +841,7 @@ Operations can tune their failure behavior in `operations.json` via the
 is how non-blocking gates (`required: false`) report failures without keeping
 the session in the phase.
 
-### Example: one full pass (plain profile)
+### Example: one full pass
 
 **Agent:** `start_workflow { "workspaceRoot": "/repo", "request": "Add rate limiting to the API" }`
 
@@ -951,9 +951,10 @@ Profile change: the python-guidance profile no longer auto-runs
 could not even start without a grant). The agent invokes `toolchain-sync`
 explicitly via `run_operation` instead (the E2E suite models this flow).
 
-### Example: Spec-Kit profile
+### Example: Spec-Kit feature orchestration
 
-With `profile: "spec-kit"` the agent orchestrates an existing feature folder:
+With the Spec-Kit integration configured (`integrations.specKit`) the agent
+orchestrates an existing feature folder:
 
 ```
 discover_spec_kit_feature { "sessionId": "…" }            → { "featureId": "001-rate-limit", "directory": "…" }
@@ -1001,7 +1002,7 @@ Enable it in `guidance.json` (default is **off**, fail-closed):
 { "chain": { "enabled": true, "maxChainDepth": 8, "maxStepsPerManifest": 16 } }
 ```
 
-### Client loop (both profiles)
+### Client loop
 
 ```
 start_workflow   { "request": "A", "chain": { … } }
@@ -1030,7 +1031,7 @@ phase, `workflow_completed` audit, `completedAt`) and still creates/activates
 the chain successor from the retained report — the session no longer wedges
 in `active`/`completed`.
 
-### Form A — explicit steps (plain and spec-kit profiles)
+### Form A — explicit steps
 
 Each step declares its own request text. Templates pull context from the
 finished predecessor: `${chain.parentRequest}`, `${chain.completionSummary}`
@@ -1040,7 +1041,7 @@ successor is created, the predecessor stays `completed`, and the response
 reports `chain: [{ "status": "failed", "error": "chain_template_unresolved: …" }]`.
 
 ```jsonc
-// start_workflow — plain profile: fix-then-review pattern
+// start_workflow — fix-then-review pattern
 {
   "workspace": "thinking-mcp",
   "request": "Add rate limiting to the API gateway",
@@ -1061,7 +1062,7 @@ reports `chain: [{ "status": "failed", "error": "chain_template_unresolved: …"
 // complete_workflow (step 2) → no nextSessionId — chain ended
 ```
 
-### Form B — task-derived chain (`"source": "spec_kit_tasks"`, spec-kit only)
+### Form B — task-derived chain (`"source": "spec_kit_tasks"`)
 
 Instead of declaring steps, let Guidance derive them from the feature's
 task list (`speckit.tasks`). The task list is already dependency-ordered —
@@ -1072,7 +1073,7 @@ Use task batches for small tasks; use Form B when every task deserves its
 own verification pass.
 
 ```jsonc
-// start_workflow — spec-kit profile, one workflow per task
+// start_workflow — one workflow per task
 {
   "workspace": "thinking-mcp",
   "request": "Execute the rate-limiting feature task by task",
@@ -1099,7 +1100,7 @@ the chain falls through to task derivation. At least one of both is required.
 The depth limit counts globally across both forms.
 
 ```jsonc
-// spec-kit profile: one prep workflow, then one workflow per pending task
+// one prep workflow, then one workflow per pending task
 {
   "request": "Prepare and execute the rate-limiting feature",
   "chain": {
@@ -1115,25 +1116,26 @@ The depth limit counts globally across both forms.
 }
 ```
 
-In the `plain` profile a manifest containing `source` is rejected entirely
-(no silent degradation to Form-A-only).
+A manifest containing `source` no longer requires any profile (WIZ-3):
+both chain forms are available whenever `chain.enabled` is true — the form
+follows the manifest.
 
 ### Guardrails
 
-| Rule                               | Behavior                                                                              |
-| ---------------------------------- | ------------------------------------------------------------------------------------- |
-| `chain.enabled: false` (default)   | `start_workflow` with `chain` → `configuration_invalid`                               |
-| `maxChainDepth` (default 8)        | successor creation refused beyond the depth limit → `chain_depth_exceeded`            |
-| `maxStepsPerManifest` (default 16) | manifests whose explicit `steps` exceed the limit rejected                            |
-| Mixed manifest in plain profile    | rejected entirely (`spec-kit` required for the `source` part — no silent degradation) |
-| Unresolved template variable       | no successor created; predecessor stays `completed`                                   |
-| Successor gate failure             | successor starts `blocked`; predecessor stays `completed`; chain halts                |
+| Rule                               | Behavior                                                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------- |
+| `chain.enabled: false` (default)   | `start_workflow` with `chain` → `configuration_invalid`                             |
+| `maxChainDepth` (default 8)        | successor creation refused beyond the depth limit → `chain_depth_exceeded`          |
+| `maxStepsPerManifest` (default 16) | manifests whose explicit `steps` exceed the limit rejected                          |
+| Mixed manifest                     | accepted (Amendment 002 v1.1): explicit `steps` run first, then task-derived Form B |
+| Unresolved template variable       | no successor created; predecessor stays `completed`                                 |
+| Successor gate failure             | successor starts `blocked`; predecessor stays `completed`; chain halts              |
 
 ### Runtime registry registration
 
 Workspace registration is an **instance-level, one-time infrastructure concern**
-and is therefore **profile-independent**: which workflow type a session runs is
-decided per `start_workflow` call, not by the profile the repo was registered
+is therefore **instance-level**: which workflow type a session runs is
+decided per `start_workflow` call, not by any registration attribute
 under. The `registry_register` tool is gated by the config flag only.
 
 | Rule                                        | Behavior                                                                                                                                                           |
@@ -1141,7 +1143,7 @@ under. The `registry_register` tool is gated by the config flag only.
 | `registryRegister.enabled` (default `true`) | register/remove one root at runtime; full `WorkspaceRegistry.build` validation, atomic `guidance.json` write, `registry_changed` audit, new `configurationVersion` |
 | `registryRegister.enabled: false` (opt-out) | `registry_register` tool not exposed; engine calls fail closed with `configuration_invalid`                                                                        |
 | `preFlight.enabled` (default `true`)        | automatic `deps-install` pre-flight before gates when `node_modules` is missing/stale (see "Automatic dependency pre-flight"); opt-out via `false`                 |
-| Profile                                     | none — available in every profile (`plain` and `spec-kit`); only the instance engine may mutate the registry                                                       |
+| Registration                                | none — available on every instance; only the instance engine may mutate the registry                                                                               |
 | Session semantics on any config change      | `completed` survives; `active`/`blocked` rebind after successful re-validation (`session_rebound` audit); failed re-validation stays fail-closed                   |
 | User decision required                      | chain halts — chaining never bypasses `report_blocker`                                                                                                             |
 
@@ -1207,7 +1209,7 @@ the shipped runnable example set: [`examples/default-guidance/`](./examples/defa
 
 ```
 .guidance/
-├── guidance.json            # project, profile, file references, orchestration, security
+├── guidance.json            # project, file references, orchestration, security
 ├── workflow.json            # phases, transitions, lifecycle hooks, states
 ├── responses.json           # per-phase agent instructions (title/instruction/requiredActions)
 ├── operations.json          # downstream operation definitions (type, command, validation)
@@ -1221,7 +1223,6 @@ the shipped runnable example set: [`examples/default-guidance/`](./examples/defa
 ```json
 {
   "version": 2,
-  "profile": "plain",
   "project": { "name": "my-project" },
   "workflow": { "file": "workflow.json" },
   "responses": { "file": "responses.json" },
@@ -1639,15 +1640,15 @@ the Dockerfile), so nothing has to be installed per-workspace. NuGet
 }
 ```
 
-### Spec-Kit profile
+### Spec-Kit integration (WIZ-3: always registered)
 
-Set `"profile": "spec-kit"` plus `integrations.specKit` in `guidance.json`
-(or provide `.guidance/profiles/spec-kit.json`) and the 12 Spec-Kit tools are
-registered in addition to the workflow tools:
+Since WIZ-3 the 16 Spec-Kit tools are registered on EVERY instance — no
+profile switch. Tune the discovery behavior via `integrations.specKit` in
+`guidance.json` (or `.guidance/profiles/spec-kit.json`, deep-merged when
+present):
 
 ```json
 {
-  "profile": "spec-kit",
   "integrations": {
     "specKit": {
       "enabled": true,
@@ -1656,6 +1657,9 @@ registered in addition to the workflow tools:
   }
 }
 ```
+
+Legacy `"profile": "plain" | "spec-kit"` fields in existing guidance.json
+files are tolerated and ignored.
 
 ## Configuration in depth
 
@@ -1679,20 +1683,20 @@ flowchart TD
     P -.->|trustLevel &<br/>egress policy| D
     W -->|submissionSchema path| S["schemas/*.json"]
     S -.->|validate submissions| R
-    G -->|profile: spec-kit| SK["profiles/spec-kit.json<br/>(optional, deep-merged)"]
+    G -.->|legacy profile field<br/>tolerated + ignored| SK["profiles/spec-kit.json<br/>(optional, deep-merged)"]
 ```
 
 Roles at a glance:
 
-| File                      | Role                                                                                                                | Referenced by                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `guidance.json`           | Entry point: project identity, profile selection, file references, state, orchestration defaults, security switches | — (loaded first)                                                             |
-| `workflow.json`           | The state machine: phases, transitions, lifecycle hooks, terminal states                                            | `guidance.json`                                                              |
-| `responses.json`          | What the agent is _told_ to do in each phase (title, instruction, required actions)                                 | `guidance.json`; phase keys must match `workflow.json` phase names           |
-| `operations.json`         | _What_ runs and _how it is validated_: process/MCP operations used by lifecycle hooks and gates                     | `guidance.json`; operation IDs referenced from `workflow.json`               |
-| `downstream-servers.json` | _Where_ MCP operations run: transports, allowlists, timeouts, trust levels                                          | `guidance.json`; `server` IDs referenced from `operations.json`              |
-| `policies.json`           | Security and validation policy: egress per trust level, submission validation strictness, redaction, output limits  | `guidance.json`; trust level names referenced from `downstream-servers.json` |
-| `schemas/*.json`          | Submission validation per phase                                                                                     | `workflow.json` (`submissionSchema` path per phase)                          |
+| File                      | Role                                                                                                                                | Referenced by                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `guidance.json`           | Entry point: project identity, file references, state, orchestration defaults, security switches (legacy `profile` field tolerated) | — (loaded first)                                                             |
+| `workflow.json`           | The state machine: phases, transitions, lifecycle hooks, terminal states                                                            | `guidance.json`                                                              |
+| `responses.json`          | What the agent is _told_ to do in each phase (title, instruction, required actions)                                                 | `guidance.json`; phase keys must match `workflow.json` phase names           |
+| `operations.json`         | _What_ runs and _how it is validated_: process/MCP operations used by lifecycle hooks and gates                                     | `guidance.json`; operation IDs referenced from `workflow.json`               |
+| `downstream-servers.json` | _Where_ MCP operations run: transports, allowlists, timeouts, trust levels                                                          | `guidance.json`; `server` IDs referenced from `operations.json`              |
+| `policies.json`           | Security and validation policy: egress per trust level, submission validation strictness, redaction, output limits                  | `guidance.json`; trust level names referenced from `downstream-servers.json` |
+| `schemas/*.json`          | Submission validation per phase                                                                                                     | `workflow.json` (`submissionSchema` path per phase)                          |
 
 > **Scaffold note:** missing `guidance.json` is scaffolded on first start
 > (see below) — a minimal valid default 7-phase configuration. Existing files
@@ -2375,7 +2379,7 @@ Stateless wizard for designing a `.guidance/` configuration — see
 | `setup_guidance_answer`   | `answers`            | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate`        |
 | `setup_guidance_generate` | `answers`            | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
-### Spec-Kit tools (16, profile `spec-kit` only)
+### Spec-Kit tools (16 — registered on every instance since WIZ-3)
 
 All tools operate on the Spec-Kit state of the session (created by
 `import_spec_kit_artifacts` and persisted per session).

@@ -18,7 +18,9 @@ export type ProfileId = "plain" | "spec-kit";
 
 export interface GuidanceMainConfig {
   version: number;
-  profile?: ProfileId;
+  /** WIZ-3: legacy field — tolerated on load (schema `profile: true`), never
+   *  read. Kept in the type so old JSON round-trips stay type-safe. */
+  profile?: "plain" | "spec-kit";
   project: { name: string };
   workspaces?: RawWorkspaceEntry[];
   workflow?: { file: string };
@@ -138,7 +140,6 @@ export interface ChainConfig {
 export interface LoadedConfig {
   configDir: string;
   project: { name: string };
-  profile: ProfileId;
   configVersion: string;
   main: GuidanceMainConfig;
   /** FR-1207: registry_register tool gate (default ON, opt-out). */
@@ -174,7 +175,10 @@ Object.assign(mainConfigSchema, {
   required: ["version", "project"],
   properties: {
     version: { type: "number", const: 2 },
-    profile: { enum: ["plain", "spec-kit"] },
+    // WIZ-3: the profile field is REMOVED from the config contract (all tools
+    // register unconditionally). Old guidance.json files carrying it still
+    // load: the empty schema tolerates any legacy value, which is ignored.
+    profile: true,
     // FR-906/FR-974: audit metadata written by the config assistant's adopt
     // flow (source/strategy/date/nonGenericOps/adaptedOps/resolvedPath).
     adoption: { type: "object" },
@@ -427,13 +431,9 @@ function isSafeRelative(rel: string): boolean {
   );
 }
 
-function resolveProfile(main: GuidanceMainConfig): ProfileId {
-  if (main.profile) return main.profile;
-  const sk = main.integrations?.specKit;
-  if (sk && (sk.enabled === true || sk.discovery?.featureRoot !== undefined))
-    return "spec-kit";
-  return "plain";
-}
+// WIZ-3: resolveProfile removed — the profile no longer exists as a config
+// concept (all tools register unconditionally; legacy `profile` fields in
+// old guidance.json are tolerated and ignored).
 
 function buildSpecKitConfig(main: GuidanceMainConfig): SpecKitConfig {
   const sk = main.integrations?.specKit ?? {};
@@ -1176,40 +1176,40 @@ export function loadConfig(
       }
     }
   }
-  let specKit: SpecKitConfig | undefined;
-  if (resolveProfile(cfg) === "spec-kit") {
-    const profileFilePath = join(configDir, "profiles", "spec-kit.json");
-    if (existsSync(profileFilePath)) {
-      // T030: standalone profile file form (profiles/spec-kit.json) — deep-merged
-      // over any inline integrations.specKit (guidance.json wins per key).
-      const profileFile = readJsonFile(
-        profileFilePath,
-        "profiles/spec-kit.json",
-      ) as {
-        integrations?: GuidanceMainConfig["integrations"];
-      };
-      // Deep merge (review finding: shallow merge silently dropped profile-file
-      // discovery/artifacts when guidance.json carried a partial specKit block).
-      const p = profileFile.integrations?.specKit ?? {};
-      const c = cfg.integrations?.specKit ?? {};
-      const sk = {
-        ...p,
-        ...c,
-        discovery: { ...p.discovery, ...c.discovery },
-        artifacts: { ...p.artifacts, ...c.artifacts },
-        taskExecution: {
-          ...p.taskExecution,
-          ...c.taskExecution,
-          batch: { ...p.taskExecution?.batch, ...c.taskExecution?.batch },
-        },
-        changes: { ...p.changes, ...c.changes },
-        completion: { ...p.completion, ...c.completion },
-      };
-      cfg.integrations = { specKit: sk };
-    }
-    specKit = buildSpecKitConfig(cfg);
-    hashable.push(canonical(specKit));
+  // WIZ-3: the spec-kit integration config is built UNCONDITIONALLY (the
+  // spec-kit tools register on every instance). The optional standalone
+  // profiles/spec-kit.json stays supported as a pure config file: when it
+  // exists it is deep-merged over inline integrations.specKit (guidance.json
+  // wins per key).
+  const profileFilePath = join(configDir, "profiles", "spec-kit.json");
+  if (existsSync(profileFilePath)) {
+    const profileFile = readJsonFile(
+      profileFilePath,
+      "profiles/spec-kit.json",
+    ) as {
+      integrations?: GuidanceMainConfig["integrations"];
+    };
+    // Deep merge (review finding: shallow merge silently dropped profile-file
+    // discovery/artifacts when guidance.json carried a partial specKit block).
+    const p = profileFile.integrations?.specKit ?? {};
+    const c = cfg.integrations?.specKit ?? {};
+    const sk = {
+      ...p,
+      ...c,
+      discovery: { ...p.discovery, ...c.discovery },
+      artifacts: { ...p.artifacts, ...c.artifacts },
+      taskExecution: {
+        ...p.taskExecution,
+        ...c.taskExecution,
+        batch: { ...p.taskExecution?.batch, ...c.taskExecution?.batch },
+      },
+      changes: { ...p.changes, ...c.changes },
+      completion: { ...p.completion, ...c.completion },
+    };
+    cfg.integrations = { specKit: sk };
   }
+  const specKit: SpecKitConfig = buildSpecKitConfig(cfg);
+  hashable.push(canonical(specKit));
 
   const chain: ChainConfig = {
     enabled: cfg.chain?.enabled ?? false,
@@ -1250,7 +1250,6 @@ export function loadConfig(
   return {
     configDir,
     project: cfg.project,
-    profile: resolveProfile(cfg),
     configVersion,
     main: cfg,
     chain,
