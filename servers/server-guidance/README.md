@@ -828,6 +828,24 @@ outcomes — then pick the matching case:
 | Client timeout on a submission or on `retry_operation`/`complete_workflow`                                      | The orchestrator may **have executed** the operation anyway (state is persisted per mutation)                  | Do **not** blindly resubmit: check `get_workflow_state` first. Re-submitting the same phase payload is safe (requestId replay returns the recorded result instead of double-executing), but a changed payload may be rejected by the reuse policy |
 | Server or container restarted mid-session                                                                       | Sessions persist in the workspace bind mount (`.guidance/state/`); `configurationVersion` is image-independent | Continue by `sessionId`: `get_workflow_state` / `get_current_guidance` return the exact position. A `.guidance/` config change, however, invalidates persisted sessions (fail-closed)                                                             |
 
+### Long state transitions: submit once, then poll
+
+Verification and completion hooks (lint, build, final-review,
+index-freshness) can run for minutes and may outlive the MCP client's
+request timeout. The transition still completes server-side while the
+client sees a timeout, and the single-flight lock queues any parallel
+retry into more timeouts. Therefore, for phase calls that trigger hooks
+(`submit_verification`, `complete_workflow`, `retry_operation`):
+
+1. Submit the call **once**.
+2. If it times out, do **not** retry it — poll
+   `get_workflow_state { "sessionId": "…" }` instead (with a pause between
+   polls) until the phase and operation outcomes reflect the transition.
+
+The same discipline applies to gated downstream calls: never replay a call
+after a transport timeout — route it once via the container route instead
+(see "Container route (timeout fallback)" above).
+
 Re-submission semantics (requestId ledger): every phase submission carries a
 `requestId`. Replaying the **same** payload with the **same** `requestId`
 returns the recorded result marked `replayed` — it never re-executes work. A
