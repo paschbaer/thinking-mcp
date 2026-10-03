@@ -1336,6 +1336,16 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 - [REV-FINAL-PF-3] INFO | Automatischer Pre-Flight ist Scope-Erweiterung gegenüber specs/015 US2 (dort nur Operationen + reaktive Hints); README-dokumentiert, Spec-Addendum empfohlen. | Trigger: nächste specs/015-Bearbeitung. | Action required (optional): AC-Addendum "automatic pre-flight" aufnehmen.
 - [REV-FINAL-PF-4] LOW | deps_preflight-Audit-Asymmetrie: Erfolg hinterlässt nur das Start-Event (Outcome steht in recordDownstreamState), Failure zusätzlich failed:true-Event; README dokumentiert nur das Failure-Event. | Trigger: nächste Änderung am Pre-Flight-Audit bzw. README-Abschnitt "Automatic dependency pre-flight". | Action required (optional): terminales Status-Event auch bei Erfolg + README-Satz.
 
+## Getrackte Follow-ups (2026-10-03, Independent Review fe25128 — WIZ-4 workspaceNameHint)
+
+> Review von commit fe25128 (feature/wiz-config-assistant-rework). Verdict: APPROVED,
+> 0 offene HIGH/CRITICAL. Folgende LOW/INFO-Findings als Follow-ups getrackt.
+
+- [REV-WIZ4-1] LOW — GELÖST (Review-Fix-Commit, gleicher Branch) | Duplizierte Assertion + irreführender Kommentar im Test "injects the composed default..." entfernt; nur noch eine nextQuestion-Assertion. | — | resolved
+- [REV-WIZ4-2] LOW — GELÖST (Review-Fix-Commit, gleicher Branch; Erwartungsbild empirisch geklärt) | Test ergänzt: callTool OHNE arguments-Feld → der SDK-Layer (Protokoll-Validierung, vor unserem Zod-Schema) antwortet isError:true + "MCP error" — Vorab-Verhalten, pinnt der Test jetzt. | — | resolved
+- [REV-WIZ4-3] INFO | `workspaceRootDefault` trimmt nur trailing `/`, nicht `\` — ein Windows-artiger Env-Wert (z. B. `D:\repos\`) würde `D:\repos\/hint` erzeugen. Spec-konform (Container-Pfade sind POSIX, kein Plausibility-Check per Variante ii); reine Beobachtung. | Trigger: falls GUIDANCE_WORKSPACE_ROOT künftig auch Windows-Pfade tragen soll. | Accepted observation.
+- [REV-WIZ4-4] INFO | `callStart` im Test schließt im finally nur den Client, nicht die Server-Seite des InMemoryTransport-Paars — in vitest harmlos, kann bei langen Läufen Handles akkumulieren. | Trigger: nächste Änderung an den Contract-Test-Helpers. | Action required (optional): `server.close()` ergänzen.
+
 ## Getrackte Follow-ups (2026-10-03, Config-Assistent-Rework — WIZ-Serie, Anforderungskonkretisierung offen)
 
 > Plan für vier Assistent-Verbesserungen. Umsetzung erst nach Klärung der

@@ -67,9 +67,6 @@ describe("WIZ-4 catalogOverview default injection", () => {
     const q = workspaceRootQuestion(out.questions);
     expect(q?.default).toBe("/workspaces/thinking-mcp");
     expect(out.nextQuestion?.id).toBe("configSource");
-    // the next question surfaced to the agent is the same catalog copy and
-    // therefore carries the default too
-    expect(out.nextQuestion?.id).toBe("configSource");
   });
 
   it("leaves the catalog unchanged when the env variable is missing", () => {
@@ -129,5 +126,26 @@ describe("WIZ-4 setup_guidance_start MCP tool", () => {
     expect(out.nextQuestion?.id).toBe("configSource");
     const q = workspaceRootQuestion(out.questions);
     expect(q?.default).toBeFalsy();
+  });
+
+  it("rejects a call with no arguments field at the SDK layer (pre-change behavior)", async () => {
+    delete process.env[ENV_KEY];
+    const server = createGuidanceServer();
+    registerSetupTools(server);
+    const pair = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "test", version: "1" });
+    await Promise.all([server.connect(pair[0]), client.connect(pair[1])]);
+    try {
+      const res = await client.callTool({
+        name: "setup_guidance_start",
+      });
+      // The SDK validates the arguments field before our zod schema runs —
+      // omitting it entirely is an MCP protocol error, independent of WIZ-4.
+      expect(res.isError).toBe(true);
+      const content = res.content as Array<{ type: string; text: string }>;
+      expect(content[0]!.text).toContain("MCP error");
+    } finally {
+      await client.close();
+    }
   });
 });
