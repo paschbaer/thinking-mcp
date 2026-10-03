@@ -2467,6 +2467,36 @@ npm test        # runs the suites of all workspaces
 npm run typecheck
 ```
 
+## Repository guards (yarn.lock integrity)
+
+The repository root is managed with Yarn (Berry); `yarn.lock` is the
+source of truth. npm ignores `yarn.lock` and can — triggered from the root
+OR from any member directory (npm walks up to the root) — rewrite the
+lockfile into Yarn-v1 format or prune the yarn-installed root `node_modules`.
+A pre-commit/pre-push guard (`scripts/check-yarn-lock.sh`) blocks commits and
+pushes when:
+
+- the staged `yarn.lock` is in Yarn-v1 format (`# yarn lockfile v1`) or not
+  recognizable as a Yarn-Berry lockfile,
+- `yarn.lock` is staged for deletion, or
+- the root `node_modules` looks pruned (`node_modules/.bin/tsc` missing while
+  the directory exists — fresh clones without `node_modules` are exempt).
+
+Remediation is always: `git checkout -- yarn.lock && corepack yarn install`.
+
+The hooks live in `.githooks/` and are versioned, but git only activates them
+via per-clone configuration — run once per clone/worktree:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Test the guard itself with:
+
+```bash
+sh scripts/test-yarn-lock-guard.sh
+```
+
 ## Further documentation
 
 - Example configuration: [`examples/default-guidance/`](./examples/default-guidance/)

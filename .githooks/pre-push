@@ -1,0 +1,4 @@
+#!/bin/sh
+# Pre-push guard: same checks as pre-commit; catches commits made from
+# clones/worktrees where core.hooksPath was never configured.
+exec "$(git rev-parse --show-toplevel)/scripts/check-yarn-lock.sh"
