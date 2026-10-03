@@ -844,3 +844,8 @@ für Umsetzungs-Planning.
 - **What works:** feature/yarn-lock-guard via fast-forward nach develop gemerged (develop = e4c6874, 3 Commits ahead of origin), Feature-Branch gelöscht; guard tests 11/11 grün auf develop; core.hooksPath weiter aktiv.
 - **What's left:** Push von develop (3 Commits) nach Nutzer-Freigabe.
 - **Current State:** YARN-LOCK-TRAP geschlossen; Guard auf develop produktiv (dieser Commit lief durch den Pre-Commit-Hook).
+
+## 2026-10-03 (Abend): SKP-1 Spec-Kit-Pool-Modus gefixt (feature/speckit-pool-mode-wiring, 255bfd2, Guidance-Session session-896320f1)
+- **What works:** `createConfiguredServer` in servers/server-guidance/src/server.ts übergibt jetzt `getSessionWorkspace` (Session-Root statt Pool-Root) — Pool-Modus-Discovery funktionsfähig. Contract-Tests tests/contract/speckit-pool-mode.test.ts (4 Fälle: Session-Root-Resolution, Pool-Root-Fallback, Pre-Fix-Regression, T6-Root-Check). specs/008 T6-Notiz ergänzt. Focused tests 12/12 grün, volle Suite 589/589 grün, GitNexus-Impact LOW (exact). LIVE VERIFIZIERT: Container neu gebaut, discover_spec_kit_feature löst /workspaces/Thinking-MCP/specs/008-multi-workspace auf (vorher: "feature root missing: specs").
+- **What's left:** Guidance-Workflow auf Nutzeranweisung gecancelt (Phase implement, submission fehlte summary-Feld) — Review/Completion-Phasen übersprungen; Merge nach develop + Push pending; Container läuft mit Fix (Rebuild bereits erfolgt).
+- **Current State:** SKP-1 (HIGH) implementiert + live verifiziert; Finding in remaining-work-plan.md getrackt, Auflösung dort nach Merge zu schließen.
