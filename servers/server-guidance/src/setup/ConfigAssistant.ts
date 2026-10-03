@@ -419,6 +419,8 @@ export function buildResponses(shell: string): string {
     " Submission idempotency: never reuse a requestId across submissions — each phase advance requires a fresh requestId; if a submission returns accepted but the phase is unchanged, do not retry the same requestId — check get_workflow_state (requestIds) instead.";
   const timeoutPolicy =
     " Timeout policy: NEVER retry the original call after a downstream MCP transport/request timeout — the call may already have run on the server. Instead, invoke the tool ONCE via the server's configured container route (containerRoute in downstream-servers.json; agent-side: run_operation through the guidance server). If the server has no containerRoute defined, or the container-route call also fails, make ONE direct call of the same tool over its HTTP MCP endpoint via curl (streamable-HTTP JSON-RPC). Non-idempotent calls (workspace_write/external_write) are never replayed on any route — for those, or if the direct call also fails, escalate via report_blocker (category: infrastructure). Route heavy GitNexus work (analyze/reindex) through the terminal CLI instead of MCP.";
+  const longTransitions =
+    " Long state transitions: verification and completion hooks (lint, build, final-review, index-freshness) can run for minutes and may outlive your MCP client timeout — submit the phase call ONCE; if it times out, do NOT retry it (the single-flight lock queues retries into more timeouts while the transition completes server-side), poll get_workflow_state instead until phase and operations reflect the transition.";
   const responses = {
     understand: {
       title: "Understand the Request",
@@ -482,13 +484,15 @@ export function buildResponses(shell: string): string {
       title: "Verify the Implementation",
       instruction:
         "Guidance will execute the configured verification operations. Analyze failures and return to implementation review when code changes are required. Do not claim success while a mandatory operation is failing." +
+        longTransitions +
         timeoutPolicy,
       requiredActions: [],
     },
     complete: {
       title: "Complete the Workflow",
       instruction:
-        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to .guidance/state/session-lessons.json as [{slug, observation, cause, fix}] — ALWAYS create the file (an empty array is the explicit no-op success); a MISSING file FAILS the capture-session-lessons gate, so the lessons review step must not be skipped." +
+        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (0) write `.guidance/state/final-review.json` FRESH for THIS session — strict schema per the check-final-review.mjs gate script (ships with the guidance server under scripts/; run it from the repo root): formatVersion 1; keys formatVersion, sessionId, reviewerRef, reviewScope, baseCommit, headCommit, commits, reviewedAt, openHighCritical, findings — each finding carries {id, severity, status, evidence}; headCommit MUST equal the current HEAD as a full 40-hex hash and every commit entry is a full 40-hex hash; write it AFTER the last commit — any commit after the review invalidates the gate, so after late commits re-run the review (or re-bless the delta with the same reviewer) and rewrite the file; validate it with that script BEFORE completing. (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to .guidance/state/session-lessons.json as [{slug, observation, cause, fix}] — ALWAYS create the file (an empty array is the explicit no-op success); a MISSING file FAILS the capture-session-lessons gate, so the lessons review step must not be skipped." +
+        longTransitions +
         idempotency +
         timeoutPolicy +
         questionsSentence("deferredWork/nextSteps"),
