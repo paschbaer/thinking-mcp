@@ -638,3 +638,8 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** Running `npm ci` / `npx vitest` inside `servers/server-guidance` (workspace member) rewrote the ROOT `yarn.lock` from Yarn-4 Berry format to a Yarn-v1 lockfile (458→41 keys, root workspace entry removed) — caught by independent review as CRITICAL (AGENTS.md WF-3).
 - **Root cause:** npm does not read `yarn.lock`; a tool invocation that resolves dependencies above the member package walks into the yarn-managed root and drifts it.
 - **Prevention:** In this repo, run member-server npm scripts only AFTER checking `git status` shows no lockfile change; after ANY npm/npx invocation, verify `git diff --stat yarn.lock` is empty before continuing. If drifted: `git checkout -- yarn.lock` and rerun the step via Corepack yarn. Consider adding a pre-commit lockfile-format check.
+
+## Avoid These Mistakes (2026-10-03 — missing --no-pager on git in compound commands)
+- **Issue:** A git read command inside a compound terminal command opened the pager and blocked/hung the tool call; the user had to interrupt it.
+- **Root cause:** `--no-pager` was applied to earlier standalone git log calls but omitted when git commands were embedded in longer compound commands (analyze + status chains).
+- **Prevention:** EVERY git read command (`log`, `diff`, `show`, `blame`, `status`) must carry `--no-pager` (or `--no-optional-locks` + `--no-pager` combined) in ALL contexts — standalone or embedded in compound commands. Never assume an earlier flag elsewhere covers a new invocation.
