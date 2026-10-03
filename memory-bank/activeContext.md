@@ -1184,3 +1184,11 @@
 - Alle vier WIZ-Tasks umgesetzt und durch Guidance-Cycles abgenommen (0 HIGH/CRITICAL in allen Independent Reviews): WIZ-4 (b1c62520), WIZ-2 (7876f096 Head), WIZ-1 (abe752d7), WIZ-3 (57412c1b). Final Review 4600e5bb über den Gesamt-Diff: 0 HIGH/CRITICAL; F1 (docs-drift camelCase-Regex) + F2 (README-Zähler) gefixt (1957ec9); F3/F4/F5 LOW getrackt.
 - Branch feature/wiz-config-assistant-rework: 12 Commits (fe25128..1957ec9), Vollauf 572/572, tsc/prettier/docs-drift grün. Offen: Merge nach develop, Push, Container-Rebuild.
 - final-review.json headCommit 1957ec9 (Gate-Skript grün); session-lessons.json mit 5 Lessons geschrieben; Chain endet nach WIZ-3 (letzter Step).
+
+## 2026-10-03, Spät: WF-Follow-up-Auflösung (feature/wf-followups, session-cc9b8326)
+
+- WF-1 GELÖST (Doku): Container-Route ist der sanktionierte Clear-Thought-Pfad; Attribution Editor-Client-Layer als Inferenz dokumentiert (AGENTS.md, Backup .bak vorhanden, generated Block unberührt).
+- WF-2 GELÖST: submit-once-then-poll in responses.json verify/complete (Instanz + Example) + README-Abschnitt.
+- WF-4 GELÖST: complete-Phase trägt explizites final-review.json-Mandat (Pflichtfelder, 40-hex, headCommit==HEAD, Re-Bless nach späten Commits, Checker-Kommando) + requiredAction.
+- WF-5 GELÖST (Code-Fix gewählt): check-index-freshness.mjs SKIP_DIRS auf alle Pfadsegmente; touch-Verifikation; README-Notiz.
+- WF-6 GELÖST (Closeout): WIZ-Kette komplett; Lektion in lessonsLearned.md verifiziert; Einträge resolved.

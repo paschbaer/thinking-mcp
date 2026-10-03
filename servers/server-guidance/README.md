@@ -166,7 +166,13 @@ From a bare machine to a running multi-workspace instance:
    read at boot. **Add `.guidance/state/` to each repo's `.gitignore`.**
 5. **Per-repo analysis index**: run `gitnexus analyze --no-stats` inside
    each registered repo (host-side pre-complete step; the freshness gate
-   checks `<root>/.gitnexus/meta.json` against git HEAD).
+   checks `<root>/.gitnexus/meta.json` against git HEAD). The freshness
+   scan ignores build/test-tooling artifacts (`node_modules`, `dist`,
+   `coverage` — at any depth, so `.vite` vitest results under a nested
+   `node_modules` do not count): a test run after a reindex no longer
+   makes the index look stale. Deterministic ordering still applies:
+   reindex after the last test run, immediately before
+   `complete_workflow`.
 
    **Dual-index procedure**: the index-freshness gate reads the
    **repo-local** `.gitnexus/` storage, which is owned by the exact path
