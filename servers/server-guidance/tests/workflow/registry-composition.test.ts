@@ -246,30 +246,31 @@ describe("specs/014: legacy monolith child composition (CT-2)", () => {
 });
 
 describe("specs/014: legacy monolith + dormancy boot diagnostics", () => {
-  it("FR-1105/F-5: the registry-edit payload round-trips through loadConfig as a registry-only instance", () => {
+  it("FR-1105/F-5: a registry-only instance guidance.json round-trips through loadConfig", () => {
     const zed = join(pool, "zed");
     mkdirSync(zed, { recursive: true });
     scaffoldFullConfig(zed);
-    const { files } = generateFiles({
-      configSource: "fresh",
-      projectName: "pool",
-      transport: "stdio",
-      profile: "plain",
-      insight: "no",
-      gitnexus: "no",
-      gates: "minimal",
-      target: "registry-edit",
-      workspaceRoot: pool,
-      extraWorkspaces: `zed=${zed}`,
-    });
+    // WIZ-1: the registry guidance.json is authored by the AGENT (merge of
+    // the assistant's snippet) — the test writes it inline, mirroring that
+    // contract (generateFiles never emits a registry file anymore).
+    const registry = {
+      version: 2,
+      project: { name: "pool" },
+      workspaces: [
+        { name: "pool", root: pool, projectName: "pool" },
+        { name: "zed", root: zed, projectName: "zed" },
+      ],
+      registryRegister: { enabled: true },
+      state: { directory: "state", persistAfterEveryOperation: true },
+    };
     mkdirSync(join(pool, ".guidance"), { recursive: true });
-    writeFileSync(join(pool, ".guidance", "guidance.json"), files[0]!.content);
+    writeFileSync(
+      join(pool, ".guidance", "guidance.json"),
+      JSON.stringify(registry, null, 2) + "\n",
+    );
     const cfg = loadConfig(join(pool, ".guidance"), { workspaceRoot: pool });
     expect(cfg.registryOnly).toBe(true);
-    expect(cfg.workspaces.list().map((w) => w.name)).toEqual([
-      "default",
-      "zed",
-    ]);
+    expect(cfg.workspaces.list().map((w) => w.name)).toEqual(["pool", "zed"]);
   });
 
   it("FR-1103/AC-4: legacy monolith (full config + extra workspaces) warns", () => {

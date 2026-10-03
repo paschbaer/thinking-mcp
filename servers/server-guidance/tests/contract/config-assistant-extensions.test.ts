@@ -268,6 +268,7 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
     try {
       const { files, notes } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "target-repo",
         transport: "stdio",
@@ -327,6 +328,7 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -368,6 +370,7 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -443,6 +446,7 @@ describe("configSource adopt flow (specs/009 T4, FR-901/903/909/910)", () => {
       );
       const { files } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -526,6 +530,7 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
       process.env[ENV_KEY] = dir;
       const { files } = generateFiles({
         configSource: "fresh",
+        registerWorkspace: "no",
         projectName: "t",
         transport: "stdio",
         profile: "plain",
@@ -558,6 +563,7 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
   function generateBuiltin(referencePath?: string) {
     return generateFiles({
       configSource: "adopt",
+      registerWorkspace: "no",
       ...(referencePath !== undefined ? { referencePath } : {}),
       projectName: "target-repo",
       transport: "stdio",
@@ -631,6 +637,7 @@ describe("builtin adopt template (specs/011 FR-971..974, AC-1..AC-4)", () => {
       mkdirSync(join(ref, "schemas"), { recursive: true });
       const mounted = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -678,6 +685,7 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
   it("derived questions (profile/insight/gitnexus/gates) are NOT asked in adopt mode", () => {
     const adopt = {
       configSource: "adopt",
+      registerWorkspace: "no",
       projectName: "t",
       transport: "stdio",
     };
@@ -690,6 +698,7 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
   it("fresh mode still asks the derived questions", () => {
     const fresh = {
       configSource: "fresh",
+      registerWorkspace: "no",
       projectName: "t",
       transport: "stdio",
     };
@@ -700,7 +709,8 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
   it("clearthought is predefined in generated downstream-servers (fresh + adopt)", () => {
     for (const answers of [
       {
-        configSource: "fresh",
+        configSource: "adopt",
+        registerWorkspace: "no",
         projectName: "t",
         transport: "stdio",
         profile: "plain",
@@ -708,7 +718,12 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
         gitnexus: false,
         gates: "minimal",
       },
-      { configSource: "adopt", projectName: "t", transport: "stdio" },
+      {
+        configSource: "adopt",
+        registerWorkspace: "no",
+        projectName: "t",
+        transport: "stdio",
+      },
     ]) {
       const { files } = generateFiles(answers as never);
       const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
@@ -745,6 +760,7 @@ describe("adopt-mode wizard UX + default profile (specs/011 follow-ups)", () => 
     for (const transport of ["stdio", "http-docker"] as const) {
       const { files } = generateFiles({
         configSource: "fresh",
+        registerWorkspace: "no",
         projectName: "t",
         transport,
         profile: "plain",
@@ -820,6 +836,7 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
     assertSelfContained(
       generateFiles({
         configSource: "fresh",
+        registerWorkspace: "no",
         projectName: "t",
         transport: "stdio",
         profile: "plain",
@@ -835,6 +852,7 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
     assertSelfContained(
       generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         projectName: "t",
         transport: "stdio",
       }),
@@ -846,6 +864,7 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
     for (const gates of ["standard", "minimal"] as const) {
       const { files } = generateFiles({
         configSource: "fresh",
+        registerWorkspace: "no",
         projectName: "t",
         transport: "stdio",
         profile: "plain",
@@ -916,6 +935,7 @@ describe("container-only self-containment (specs/011 follow-up, niyama finding)"
       );
       const { notes } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -996,6 +1016,7 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     try {
       const r = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1027,6 +1048,7 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     try {
       const r = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1052,6 +1074,7 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     // they regenerate cleanly instead of being copied as non-generic.
     const r = generateFiles({
       configSource: "adopt",
+      registerWorkspace: "no",
       projectName: "t",
       transport: "stdio",
     });
@@ -1091,6 +1114,7 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     try {
       const r = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1131,6 +1155,7 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     try {
       const r = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1200,6 +1225,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
     try {
       const { files } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1221,6 +1247,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
     try {
       const { files } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1242,6 +1269,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -1259,6 +1287,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -1273,6 +1302,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
     void ws;
     const { files } = generateFiles({
       configSource: "adopt",
+      registerWorkspace: "no",
       projectName: "t",
       transport: "stdio",
     });
@@ -1298,6 +1328,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -1360,6 +1391,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       );
     const fresh1 = generateFiles({
       configSource: "fresh",
+      registerWorkspace: "no",
       projectName: "t",
       transport: "stdio",
       profile: "plain",
@@ -1369,6 +1401,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
     });
     const fresh2 = generateFiles({
       configSource: "fresh",
+      registerWorkspace: "no",
       projectName: "t",
       transport: "stdio",
       profile: "plain",
@@ -1382,6 +1415,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
     try {
       const mounted1 = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1389,6 +1423,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       });
       const mounted2 = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1409,6 +1444,7 @@ describe("responses adoption + hardening (specs/012 FR-981/982/985)", () => {
       expect(resolveBuiltinReferencePath()).not.toBe("   ");
       const { files } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: "   ",
         projectName: "t",
         transport: "stdio",
@@ -1506,6 +1542,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
     for (const transport of ["stdio", "http-docker"] as const) {
       const { files } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         projectName: "my-project",
         transport,
       });
@@ -1533,6 +1570,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
     try {
       const off = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: refOff,
         projectName: "t",
         transport: "stdio",
@@ -1548,6 +1586,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
     try {
       const on = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: refOn,
         projectName: "t",
         transport: "stdio",
@@ -1585,6 +1624,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
       mkdirSync(join(ref, "schemas"), { recursive: true });
       const { files } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1606,6 +1646,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -1643,6 +1684,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
       mkdirSync(join(ref, "schemas"), { recursive: true });
       const { files } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1666,6 +1708,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -1686,6 +1729,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
       expect(() =>
         generateFiles({
           configSource: "adopt",
+          registerWorkspace: "no",
           referencePath: ref,
           projectName: "t",
           transport: "stdio",
@@ -1735,54 +1779,89 @@ describe("specs/014: wizard-driven registry-edit + repo-config separation", () =
     writeFileSync(join(dir, "schemas", "understand.schema.json"), "{}");
   }
 
-  it("adopt + registry-edit: emits ONLY the registry from the answers; reference workspaces[] are NEVER copied", () => {
+  it("adopt + registerWorkspace=yes: the registry snippet never carries reference workspaces[]", () => {
     const ref = mkdtempSync(join(tmpdir(), "adoptref-ws-"));
     try {
       makeReferenceWithWorkspaces(ref);
-      const { files } = generateFiles({
-        configSource: "adopt",
-        referencePath: ref,
-        projectName: "target-repo",
-        transport: "stdio",
-        target: "registry-edit",
-        workspaceRoot: "/target-root",
-        extraWorkspaces: "zed=/target-zed",
-      });
-      const byPath = Object.fromEntries(files.map((f) => [f.path, f.content]));
-      // exactly one file — registry-edit never produces repo-level process config
-      expect(Object.keys(byPath)).toEqual(["guidance.json"]);
-      const guidance = JSON.parse(byPath["guidance.json"]!) as {
-        workspaces?: Array<{ name: string; root: string }>;
-        registryRegister?: { enabled?: boolean };
-      };
-      expect(guidance.workspaces).toEqual([
-        { name: "default", root: "/target-root", projectName: "target-repo" },
-        { name: "zed", root: "/target-zed", projectName: "zed" },
-      ]);
-      expect(byPath["guidance.json"]).not.toContain("/reference-root");
-      expect(byPath["guidance.json"]).not.toContain("/reference-legacy");
-      // REV-RRDO-2: runtime registration is emitted ON by default (FR-1207)
-      expect(guidance.registryRegister).toEqual({ enabled: true });
+      const repoRoot = mkdtempSync(join(tmpdir(), "adopt-ws-root2-"));
+      try {
+        const { files, notes } = generateFiles({
+          configSource: "adopt",
+          registerWorkspace: "yes",
+          referencePath: ref,
+          projectName: "target-repo",
+          transport: "stdio",
+          workspaceRoot: repoRoot,
+        });
+        const byPath = Object.fromEntries(
+          files.map((f) => [f.path, f.content]),
+        );
+        const guidance = JSON.parse(byPath["guidance.json"]!) as {
+          workspaces?: unknown;
+          registryRegister?: unknown;
+        };
+        expect(guidance.workspaces).toBeUndefined();
+        expect(byPath["guidance.json"]).not.toContain("/reference-root");
+        expect(byPath["guidance.json"]).not.toContain("/reference-legacy");
+        const snippet = notes.find((n) =>
+          n.includes("WIZ-1 workspace registration"),
+        )!;
+        expect(snippet).toContain(`"name": "target-repo"`);
+        expect(snippet).toContain(`"root": "${repoRoot}"`);
+      } finally {
+        rmSync(repoRoot, { recursive: true, force: true });
+      }
     } finally {
       rmSync(ref, { recursive: true, force: true });
     }
   });
 
-  it("adopt + repo-config: workspace answers are rejected (AC-8) and no registry block is emitted", () => {
+  it("adopt + registerWorkspace=yes: snippet emitted from answers; reference workspaces[] are NEVER copied", () => {
     const ref = mkdtempSync(join(tmpdir(), "adoptref-ws-"));
     try {
       makeReferenceWithWorkspaces(ref);
-      expect(() =>
-        generateFiles({
+      const repoRoot = mkdtempSync(join(tmpdir(), "adopt-ws-root-"));
+      try {
+        const { files, notes } = generateFiles({
           configSource: "adopt",
+          registerWorkspace: "yes",
           referencePath: ref,
-          projectName: "t",
+          projectName: "target-repo",
           transport: "stdio",
-          workspaceRoot: "/target-root",
-        }),
-      ).toThrowError(/only apply to target "registry-edit"/);
-      const { files } = generateFiles({
+          workspaceRoot: repoRoot,
+        });
+        const byPath = Object.fromEntries(
+          files.map((f) => [f.path, f.content]),
+        );
+        const guidance = JSON.parse(byPath["guidance.json"]!) as {
+          workspaces?: unknown;
+        };
+        // repo process config NEVER carries the registry (WIZ-1)
+        expect(guidance.workspaces).toBeUndefined();
+        expect(byPath["guidance.json"]).not.toContain("/reference-root");
+        expect(byPath["guidance.json"]).not.toContain("/reference-legacy");
+        // the merge snippet comes from the ANSWERS, not from the reference
+        const snippet = notes.find((n) =>
+          n.includes("WIZ-1 workspace registration"),
+        )!;
+        expect(snippet).toContain(`"root": "${repoRoot}"`);
+        expect(snippet).not.toContain("/reference-root");
+        expect(snippet).not.toContain("/reference-legacy");
+      } finally {
+        rmSync(repoRoot, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
+  it("adopt + registerWorkspace=no: no registry step and no registry block (reference workspaces[] never leak)", () => {
+    const ref = mkdtempSync(join(tmpdir(), "adoptref-ws-"));
+    try {
+      makeReferenceWithWorkspaces(ref);
+      const { files, notes } = generateFiles({
         configSource: "adopt",
+        registerWorkspace: "no",
         referencePath: ref,
         projectName: "t",
         transport: "stdio",
@@ -1792,12 +1871,16 @@ describe("specs/014: wizard-driven registry-edit + repo-config separation", () =
         workspaces?: unknown;
       };
       expect(guidance.workspaces).toBeUndefined();
+      expect(byPath["guidance.json"]).not.toContain("/reference-root");
+      expect(
+        notes.some((n) => n.includes("WIZ-1 workspace registration")),
+      ).toBe(false);
     } finally {
       rmSync(ref, { recursive: true, force: true });
     }
   });
 
-  it("target question is asked in adopt mode too (not DERIVED_IN_ADOPT)", () => {
+  it("registerWorkspace question is asked in adopt mode too (not DERIVED_IN_ADOPT)", () => {
     const adopt = {
       configSource: "adopt",
       projectName: "t",
@@ -1805,8 +1888,9 @@ describe("specs/014: wizard-driven registry-edit + repo-config separation", () =
     };
     const cat = catalogOverview(adopt as never);
     const ids = cat.questions.map((q) => q.id);
-    expect(ids).toContain("target");
+    expect(ids).toContain("registerWorkspace");
     expect(ids).toContain("workspaceRoot");
-    expect(ids).toContain("extraWorkspaces");
+    expect(ids).not.toContain("target");
+    expect(ids).not.toContain("extraWorkspaces");
   });
 });

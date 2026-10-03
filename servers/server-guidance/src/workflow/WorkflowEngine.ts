@@ -809,7 +809,7 @@ export class WorkflowEngine {
       if (this.config.registryOnly && root === this.defaultRoot) {
         throw new GuidanceError(
           "workspace_process_config_missing",
-          'registry-only instance: the default workspace (pool root) has no process config — start a registered workspace by name (e.g. workspace: "zed"). Run the config assistant in that repo (setup_guidance_start) to create its .guidance/, and target "registry-edit" to manage this instance\'s workspaces[] registry',
+          'registry-only instance: the default workspace (pool root) has no process config — start a registered workspace by name (e.g. workspace: "zed"). Run the config assistant in that repo (setup_guidance_start) to create its .guidance/ — it emits a workspaces[] merge snippet for this instance\'s registry',
           { recoverable: false },
         );
       }

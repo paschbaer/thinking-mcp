@@ -431,6 +431,7 @@ describe("specs/015 US2 catalog shapes (FR-1215)", () => {
       await import("../../src/setup/ConfigAssistant.js");
     const { files } = generateFiles({
       configSource: "fresh",
+      registerWorkspace: "no",
       projectName: "drift-guard",
       transport: "stdio",
       shell: "sh",

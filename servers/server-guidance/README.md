@@ -458,19 +458,24 @@ call. Flow (which tool when) — the full configuration reference follows in
 | 5    | Agent writes the files                | The server deliberately writes nothing — the agent places the files in the project root with its file tools |
 | 6    | Restart the server / new session      | Config is snapshotted per session (`configurationVersion`)                                                  |
 
-Question catalog v2: `configSource` (**fresh / adopt** — see below),
-`projectName`, `transport` (stdio / http-docker — controls `localhost` vs.
+Question catalog: `configSource` (**fresh / adopt** — see below),
+`projectName` (auto-suggested from the `workspaceNameHint` — WIZ-2),
+`transport` (stdio / http-docker — controls `localhost` vs.
 `host.docker.internal` URLs and the egress allowlist), `referencePath`
-(adopt only: `builtin` — the shipped baseline template, default — or a path
-`to the reference `.guidance/`directory),`profile`(plain / spec-kit — locked to the reference when adopting),`target`(**repo-config** / **registry-edit** — repo-config generates
-the full repo file set without any`workspaces[]`block; registry-edit
-generates ONLY the instance registry`guidance.json`for`GUIDANCE_WORKSPACE_ROOT`— process truth is the repo, registry truth
-is the instance),`shell`(optional, agent-facing — placed in`workflow.json` `instructions.global`and injected into EVERY phase instruction),`workspaceRoot`and`extraWorkspaces`(optional multi-workspace registry — see below),`insight`and`gitnexus`(on/off — control the downstream entries and their
-gates) and the`gates` preset (`standard`: lint opt + test opt + build REQ ·
-`minimal`: build REQ only). Generation returns all six config files plus the
-seven submission schemas (from `examples/default-guidance/schemas`; if the
-directory is missing from the installation, the agent receives a copy hint
-instead of an error).
+(adopt only: `builtin` — the shipped baseline template — or a path to the
+reference `.guidance/` directory), `profile` (plain / spec-kit), `shell`
+(optional, agent-facing — placed in `workflow.json` `instructions.global`
+and injected into EVERY phase instruction), `workspaceRoot` (WIZ-1: the
+absolute container path where THIS repo is mounted, e.g.
+`/workspaces/Thinking-MCP` — auto-suggested from
+`GUIDANCE_WORKSPACE_ROOT` + the name hint, WIZ-4), `registerWorkspace`
+(WIZ-1: yes/no — emits a `workspaces[]` merge snippet, see below),
+`insight` and `gitnexus` (on/off — control the downstream entries and
+their gates) and the `gates` preset (`standard`: lint opt + test opt +
+build REQ · `minimal`: build REQ only). Generation returns all six config
+files plus the seven submission schemas (from
+`examples/default-guidance/schemas`; if the directory is missing from the
+installation, the agent receives a copy hint instead of an error).
 
 **`projectName` default (WIZ-2):** the same `workspaceNameHint` parameter
 also seeds the `projectName` question. The server normalizes the hint to a
@@ -496,27 +501,22 @@ value, and path existence is validated later in the setup flow, not here.
 When either input is missing, the question carries no default and the
 behavior is unchanged.
 
-**Multi-workspace registration:** which answers apply depends on
-the `target` question:
-
-- **`target: registry-edit`** — generates ONLY the instance registry
-  (`guidance.json` with `version`/`project`/`workspaces[]`/`state`).
-  Requires `workspaceRoot` (absolute container path of the served instance
-  root, e.g. `/workspaces`); `extraWorkspaces` takes additional repos as
-  `name=path` pairs separated by `;` (e.g.
-  `zed=/workspaces/zed;niyama=/workspaces/niyama`). Names must match
-  `^[a-z][a-z0-9-]{0,63}$` (`default` is reserved); paths must be absolute;
-  duplicate names/roots are rejected at generation time. Root **existence**
-  is validated fail-closed when the configuration is loaded (not at
-  generation), so remote-session sentinel roots are fine. The agent merges
-  the payload into `${GUIDANCE_WORKSPACE_ROOT}/.guidance/guidance.json` on
-  the operator's behalf.
-- **`target: repo-config`** (default) — the repo's process config; it NEVER
-  carries a `workspaces[]` block. `workspaceRoot`/`extraWorkspaces` answers
-  are rejected in this mode (process truth is the repo, registry
-  truth is the instance).
-
-In adopt mode the target question is asked in both modes; reference
+**Workspace registration (WIZ-1, merged target modes):** with
+`registerWorkspace: yes` one assistant run produces BOTH the repo process
+config AND a `workspaces[]` merge snippet in the payload notes:
+`{ name, root, projectName }`. `name` derives from `projectName` (which
+must satisfy `^[a-z][a-z0-9-]{0,63}$` — `default` is reserved — when
+registering); `root` is the `workspaceRoot` answer (absolute container
+path where THIS repo is mounted). The AGENT performs the merge into
+`${GUIDANCE_WORKSPACE_ROOT}/.guidance/guidance.json` on the operator's
+behalf (the server never writes files); when no instance registry exists
+yet, the agent creates it from the documented skeleton after confirming
+with the operator. The repo root's existence is validated BEFORE the
+payload is emitted (the agent must be able to access the path later) and
+again fail-closed at config load. With `registerWorkspace: no` no
+registry step is emitted. Remote mode: the registry step is replaced by a
+hint to register the repo config via `init_session` (the registry is per
+session there). In adopt mode the question is asked normally; reference
 `workspaces[]` blocks are never inherited (repo-specific paths would leak
 into the target).
 
@@ -2069,7 +2069,8 @@ recorded) or ends the run via `cancel_workflow`.
   - **Worktree** (for parallel work): create the worktree under the pool
     (e.g. `D:/repos/Thinking-MCP-worktrees/<name>` →
     `/workspaces/Thinking-MCP-worktrees/<name>`), register it in the
-    instance registry (config assistant, target `registry-edit`) and
+    instance registry (config assistant in the worktree repo — it emits a
+    workspaces[] merge snippet the agent applies) and
     restart the container — then start sessions with that workspace name.
     Run `npm install` once inside the worktree (its `node_modules`
     is separate from the main checkout) or the build/test gates fail.
@@ -2221,28 +2222,40 @@ start_workflow { "workspace": "zed", "request": "..." }
 
 ### Path 2 — Workspace-Mode, assistant
 
-The config assistant is mode-aware and splits the work into two wizard runs
-(new `target` question). Give your agent ONE prompt — it runs the
-wizard twice and edits the registry on your behalf:
+Since WIZ-1 the wizard is ONE run per repo: it produces the repo process
+config AND (opt-in `registerWorkspace: yes`) a `workspaces[]` merge snippet
+that the agent applies to the instance registry on your behalf. Give your
+agent ONE prompt per repo:
 
 ```
-This repo pool should be served by our Guidance instance in Workspace-Mode.
-Run setup_guidance_start TWICE:
-1) target=registry-edit: projectName "repos-pool", workspaceRoot
-   "/workspaces", extraWorkspaces "zed=/workspaces/zed" — take the generated
-   guidance.json and merge it into /workspaces/.guidance/guidance.json
-   (create the file if missing).
-2) target=repo-config inside /workspaces/zed: projectName "zed", transport
-   http-docker, standard gates — write the generated file set to
-   /workspaces/zed/.guidance/ (the repo's own config; it must NOT contain a
-   workspaces block).
-Then add /workspaces/zed/.guidance/state/ to zed's .gitignore and tell me to
-restart the guidance container.
+This repo pool is served by our Guidance instance in Workspace-Mode
+(instance root /workspaces). Onboard the repo at /workspaces/zed:
+Run setup_guidance_start with workspaceNameHint "zed" (derive the name
+from the repo's package manifest, present the suggestion to me and WAIT
+for my confirmation). Answer registerWorkspace "yes" and workspaceRoot
+"/workspaces/zed" (the assistant validates the path exists), transport
+http-docker, standard gates. Then:
+1) write the generated .guidance/ file set to /workspaces/zed/.guidance/
+   (the repo's own config; it never carries a workspaces block),
+2) merge the workspaces[] entry from the payload notes into
+   /workspaces/.guidance/guidance.json (create the registry from the
+   documented skeleton if it does not exist yet — confirm with me first),
+3) add /workspaces/zed/.guidance/state/ to zed's .gitignore and tell me to
+   restart the guidance container.
 ```
 
-The generated `registry-edit` payload looks exactly like the Path 1 sample;
-the `repo-config` run is the classic wizard (question catalog minus any
-registry emission).
+The merge snippet looks like this (the payload notes carry it verbatim):
+
+```json
+{
+  "name": "zed",
+  "root": "/workspaces/zed",
+  "projectName": "zed"
+}
+```
+
+Additional repos repeat the same one-run prompt with their own paths; the
+agent merges each entry into the shared instance registry.
 
 ---
 
@@ -2290,7 +2303,7 @@ Same as Path 3, but the agent drives both steps:
 ```
 Our Guidance container runs in Remote-Mode at http://localhost:3003/mcp
 (Bearer token in $GUIDANCE_TOKEN, key "zed-team"). Set up this repo:
-1) Run setup_guidance_start with target=repo-config (projectName "zed",
+1) Run setup_guidance_start with registerWorkspace=no (projectName "zed",
    transport http-docker, standard gates) and write the generated file set
    to this repo's .guidance/.
 2) Call init_session on the central container with exactly those generated
@@ -2408,11 +2421,11 @@ One guidance instance can serve multiple registered repositories.
 Two deployment modes; in both, the instance config and the repo configs own
 DIFFERENT concerns — they never compete:
 
-|                                                                 | **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`)                                                                               | **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`)                              |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Instance `.guidance/` (under `GUIDANCE_WORKSPACE_ROOT`)         | **Registry only** (`workspaces[]` in `guidance.json`) — nothing else                                                        | registry sits in the container; sessions are created per `init_session` |
-| Process config (workflow/operations/responses/schemas/policies) | **repo-level**, in each registered root's own `.guidance/`                                                                  | uploaded per session                                                    |
-| Adding a scope                                                  | edit the registry file manually, or the config assistant (target `registry-edit` — the agent edits the file on your behalf) | `init_session` manually, or the assistant prompts the agent to call it  |
+|                                                                 | **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`)                                                                                                               | **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`)                              |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Instance `.guidance/` (under `GUIDANCE_WORKSPACE_ROOT`)         | **Registry only** (`workspaces[]` in `guidance.json`) — nothing else                                                                                        | registry sits in the container; sessions are created per `init_session` |
+| Process config (workflow/operations/responses/schemas/policies) | **repo-level**, in each registered root's own `.guidance/`                                                                                                  | uploaded per session                                                    |
+| Adding a scope                                                  | edit the registry file manually, or run the config assistant in that repo (it emits a workspaces[] merge snippet — the agent edits the file on your behalf) | `init_session` manually, or the assistant prompts the agent to call it  |
 
 Normative truth statement: **process-config truth = the registered repo;
 registry truth = the serving instance; any other `.guidance/` copy is
