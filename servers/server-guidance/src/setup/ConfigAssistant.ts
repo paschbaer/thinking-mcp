@@ -253,13 +253,46 @@ export function workspaceRootDefault(hint?: string): string | undefined {
   return `${root}/${name}`;
 }
 
-/** Immutable per-call catalog copy with runtime defaults applied (WIZ-4). */
+/**
+ * Normalize a raw name hint into a kebab-case project name (WIZ-2): strip a
+ * leading npm scope ('@scope/pkg' -> 'pkg'), lowercase, map whitespace,
+ * underscores and dots to '-', collapse repeated '-', trim edge '-'. The
+ * result must satisfy the registry name pattern; 'default' is reserved and
+ * rejected. Returns undefined when nothing valid remains — the caller then
+ * injects NO suggestion (confirmation duty stays with the operator).
+ */
+export function normalizeProjectName(hint?: string): string | undefined {
+  if (hint === undefined) return undefined;
+  let name = hint.trim();
+  if (name.startsWith("@")) {
+    const slash = name.indexOf("/");
+    name = slash === -1 ? "" : name.slice(slash + 1);
+  }
+  name = name
+    .toLowerCase()
+    .replace(/[\s_.]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (name === "" || name === "default" || !WORKSPACE_NAME_PATTERN.test(name)) {
+    return undefined;
+  }
+  return name;
+}
+
+/** Immutable per-call catalog copy with runtime defaults applied (WIZ-4/WIZ-2). */
 function catalogWithOptions(options: CatalogOptions): SetupQuestion[] {
-  const def = workspaceRootDefault(options.workspaceNameHint);
-  if (def === undefined) return QUESTIONS;
-  return QUESTIONS.map((q) =>
-    q.id === "workspaceRoot" ? { ...q, default: def } : q,
-  );
+  const root = workspaceRootDefault(options.workspaceNameHint);
+  const project = normalizeProjectName(options.workspaceNameHint);
+  if (root === undefined && project === undefined) return QUESTIONS;
+  return QUESTIONS.map((q) => {
+    if (q.id === "workspaceRoot" && root !== undefined) {
+      return { ...q, default: root };
+    }
+    if (q.id === "projectName" && project !== undefined) {
+      return { ...q, default: project };
+    }
+    return q;
+  });
 }
 
 export function catalogOverview(

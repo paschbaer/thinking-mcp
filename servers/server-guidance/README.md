@@ -472,6 +472,18 @@ seven submission schemas (from `examples/default-guidance/schemas`; if the
 directory is missing from the installation, the agent receives a copy hint
 instead of an error).
 
+**`projectName` default (WIZ-2):** the same `workspaceNameHint` parameter
+also seeds the `projectName` question. The server normalizes the hint to a
+kebab-case name (strips a leading npm scope — `@scope/pkg` becomes `pkg`,
+lowercases, maps whitespace/underscores/dots to single dashes, collapses
+repeated dashes) and injects it as the `projectName` default when the
+result satisfies the registry name pattern (`^[a-z][a-z0-9-]{0,63}$`,
+`default` reserved). The normalized name is safe to double-use as the
+workspace registry name. **Confirmation duty:** the agent must never
+answer `projectName` on the operator's behalf — present the suggestion,
+let the operator confirm or override. When the hint is missing or
+cannot be normalized, the question carries no default.
+
 **`workspaceRoot` default (WIZ-4):** `setup_guidance_start` accepts an
 optional `workspaceNameHint` parameter — the workspace/project name the
 agent derives from the repo (package manifest `name` field, otherwise the
@@ -2344,11 +2356,11 @@ Registry semantics are documented in the "Runtime registry registration" table (
 Stateless wizard for designing a `.guidance/` configuration — see
 [Configuration assistant](#configuration-assistant) for the full flow.
 
-| Tool                      | Parameters | Purpose                                                                                                                               |
-| ------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `setup_guidance_start`    | `workspaceNameHint?` | Returns the question catalog and the first question; the hint composes the `workspaceRoot` question default (WIZ-4)      |
-| `setup_guidance_answer`   | `answers`  | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate`        |
-| `setup_guidance_generate` | `answers`  | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
+| Tool                      | Parameters           | Purpose                                                                                                                               |
+| ------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `setup_guidance_start`    | `workspaceNameHint?` | Returns the question catalog and the first question; the hint composes the `workspaceRoot` question default (WIZ-4)                   |
+| `setup_guidance_answer`   | `answers`            | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate`        |
+| `setup_guidance_generate` | `answers`            | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
 ### Spec-Kit tools (16, profile `spec-kit` only)
 
