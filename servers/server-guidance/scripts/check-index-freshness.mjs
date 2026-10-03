@@ -22,11 +22,14 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const repoRoot = process.argv[2] ?? process.cwd();
+// WF-5: SKIP_DIRS applies at EVERY path depth (nested node_modules, e.g.
+// servers/*/node_modules/.vite/vitest/results.json used to count as newest
+// source and made every test run after a reindex look like staleness).
 const SKIP_DIRS = new Set([".git", ".gitnexus", "node_modules", "dist", ".chats", ".yarn", "coverage"]);
 const SKIP_PREFIXES = [".guidance/state"];
 
 function isSkipped(rel) {
-  if (SKIP_DIRS.has(rel.split("/")[0])) return true;
+  if (rel.split("/").some((seg) => SKIP_DIRS.has(seg))) return true;
   return SKIP_PREFIXES.some((p) => rel === p || rel.startsWith(`${p}/`));
 }
 
@@ -108,7 +111,6 @@ function scanSource(dir, depth, relBase) {
   for (const e of entries) {
     const full = join(dir, e.name);
     const rel = relBase ? `${relBase}/${e.name}` : e.name;
-    if (depth === 0 && SKIP_DIRS.has(e.name)) continue;
     if (isSkipped(rel)) continue;
     if (e.isDirectory()) {
       if (depth > 12) continue;
