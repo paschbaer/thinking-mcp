@@ -1,4 +1,6 @@
 #!/bin/sh
-# Pre-push guard: same checks as pre-commit; catches commits made from
-# clones/worktrees where core.hooksPath was never configured.
+# Pre-push guard: yarn.lock format (committed tip) + root tree integrity.
+# Unlike pre-commit, this validates the TIP being pushed (HEAD:yarn.lock),
+# catching drift commits made with --no-verify or from clones without
+# core.hooksPath configured.
 exec "$(git rev-parse --show-toplevel)/scripts/check-yarn-lock.sh"
