@@ -32,6 +32,7 @@
 
 ## Reasoning & Planning Rules
 - For complex tasks, architectural decisions, or refactoring requests, you MUST use the `clearthought` tool.
+- **Clear-Thought availability (WF-1):** direct editor MCP calls (`sequential_thinking` and the other clear-thought tools) may time out at the editor's MCP client layer. Evidence (2026-10-03): the Docker container stays healthy, its logs record no failed requests, and the same tool call routed through the guidance container (`call_downstream` `serverId: "clearthought"`, or the `.guidance/operations.json` operations `reasoning-pass` / `ct-*`) returns instantly. Never retry a timed-out direct call — invoke the tool ONCE via the container route instead. Attribution of the fault to the editor client is an inference (the server side is proven healthy); revisit it if a future direct call succeeds after an editor update.
 - Use the `clearthought` process to break down the problem into logical steps, verify assumptions, and identify edge cases BEFORE writing code or modifying files.
 - Document your thought process in at least 3-5 steps within the tool to ensure a structured solution.
 - If a solution seems uncertain, use the "thought revision" capability of the server to adjust your plan accordingly.
