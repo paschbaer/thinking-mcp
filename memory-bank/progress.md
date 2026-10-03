@@ -839,3 +839,8 @@ für Umsetzungs-Planning.
 - **What works:** yarn.lock integrity guard live: pre-commit + pre-push hooks (scripts/check-yarn-lock.sh via .githooks/, core.hooksPath activated on main checkout) block Yarn-v1/unknown-format lockfiles (index + working tree + committed tip), staged deletions, and pruned root trees (fresh-clone exempt; fail-closed on unreadable git state). 11/11 guard tests green; independent review round (1 HIGH + 3 MEDIUM + 2 LOW) fully resolved — including the intent-to-add/commit -a bypass and the now-real push-time tip check. Live proof both directions (legit commit passed, drift commit blocked). YARN-LOCK-TRAP tracking resolved as fixed-with-coverage.
 - **What's left:** Merge of feature/yarn-lock-guard (2 commits) after user approval; push of develop.
 - **Current State:** feature branch off develop @ 052a2b5, HEAD b79df55; tree clean; final-review evidence written (0 open HIGH/CRITICAL).
+
+## 2026-10-03 (Abschluss): yarn-lock-guard gemerged
+- **What works:** feature/yarn-lock-guard via fast-forward nach develop gemerged (develop = e4c6874, 3 Commits ahead of origin), Feature-Branch gelöscht; guard tests 11/11 grün auf develop; core.hooksPath weiter aktiv.
+- **What's left:** Push von develop (3 Commits) nach Nutzer-Freigabe.
+- **Current State:** YARN-LOCK-TRAP geschlossen; Guard auf develop produktiv (dieser Commit lief durch den Pre-Commit-Hook).
