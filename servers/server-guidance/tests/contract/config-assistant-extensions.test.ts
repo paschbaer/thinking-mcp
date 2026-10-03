@@ -1741,7 +1741,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
   });
 });
 
-describe("specs/014: wizard-driven registry-edit + repo-config separation", () => {
+describe("specs/014 + WIZ-1: merged wizard run — repo config + workspace registration", () => {
   function makeReferenceWithWorkspaces(dir: string): void {
     for (const f of [
       "guidance.json",

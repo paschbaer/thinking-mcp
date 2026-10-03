@@ -235,6 +235,27 @@ describe("configuration assistant (stateless wizard)", () => {
     ).toThrowError(/used as the registry workspace name/);
   });
 
+  it("WIZ-1: registration-flow name rules do NOT apply when registerWorkspace=no (odd names still generate)", () => {
+    // the name pattern is a REGISTRY constraint — repo-config-only generation
+    // must keep accepting free-form project names (regression guard against
+    // hoisting the validation out of the registerWorkspace branch)
+    for (const odd of ["default", "My Project", "UPPER"]) {
+      const { files, notes } = generateFiles({
+        ...FULL_ANSWERS,
+        projectName: odd,
+      });
+      const guidance = JSON.parse(
+        Object.fromEntries(files.map((f) => [f.path, f.content]))[
+          "guidance.json"
+        ]!,
+      );
+      expect(guidance.project.name).toBe(odd);
+      expect(
+        notes.some((n) => n.includes("WIZ-1 workspace registration")),
+      ).toBe(false);
+    }
+  });
+
   it("WIZ-1 decision 2: remote mode replaces the registry step with an init_session hint (no throw)", () => {
     process.env.GUIDANCE_REMOTE_MODE = "1";
     try {
