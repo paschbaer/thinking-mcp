@@ -1201,6 +1201,7 @@
 
 ## 2026-10-03 (fault_tree top-gate fix, feature/fix-fault-tree-top-gate, session-a9c2d5b6)
 
-- Implementiert: fault_tree Top-Gate-Resolution aus top_event (id → unique name → unique unreferenced non-basic Gate → Legacy-Last-Element-Fallback); top_gate_type-Flag für Basic-Tops; assumption_xray no_marker-Note mit English-only-Hinweis; 16 neue Regressionstests (3 Report-Vektoren über mehrere Array-Reihenfolgen).
+- Implementiert: fault_tree Top-Gate-Resolution aus top_event (id → unique name → unique unreferenced non-basic Gate → Legacy-Last-Element-Fallback); top_gate_type-Flag für Basic-Tops; assumption_xray no_marker-Note mit English-only-Hinweis; 12 neue Regressionstests (3 Report-Vektoren über mehrere Array-Reihenfolgen).
+- Verifikation: 178/178 Suite, Typecheck clean, Prettier/Build-Gates grün, GitNexus-Reindex. Independent Review (Sub-Agent): approve, 0 HIGH/CRITICAL; 2 MEDIUM + 2 LOW in-Review behoben (ID-Precedence vor Namens-Ambiguität, Multi-Top-Fallback gepinnt, Basic-by-Name-Test); final review fügte 12 neue Regressionstests hinzu (3 über Array-Reihenfolgen-Loop).
 - Verifikation: 178/178 Suite, Typecheck clean, Prettier/Build-Gates grün, GitNexus-Reindex. Independent Review (Sub-Agent): approve, 0 HIGH/CRITICAL; 2 MEDIUM + 2 LOW in-Review behoben (ID-Precedence vor Namens-Ambiguität, Multi-Top-Fallback gepinnt, Basic-by-Name-Test); final review fügte 12 neue Regressionstests hinzu.
 - Offen (getrackt im remaining-work-plan): FT-AXRAY-DE (deutsche Marker), FT-FT-F1 (Multi-Root-Fallback-Transparenz), FT-CHAIN-DUP (Successoren-Duplikationsrisiko), Merge/Push nach Nutzer-Freigabe.
