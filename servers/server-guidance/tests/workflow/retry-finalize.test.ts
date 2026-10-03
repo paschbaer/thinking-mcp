@@ -252,3 +252,66 @@ describe("CHAIN-Replay: duplicate step-0 rejected fail-closed", () => {
     expect(state.request).toBe("HEAD-REQUEST");
   });
 });
+
+describe("CHAIN head-scope guidance annex (WF-6 trap)", () => {
+  it("a chained head receives the CHAIN HEAD SCOPE annex in its phase instructions", async () => {
+    chainOn();
+    newEngine();
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "HEAD-REQUEST",
+      chain: { steps: [{ request: "fix the flaky test" }] },
+    });
+    expect(head.guidance.instruction).toContain("CHAIN HEAD SCOPE");
+    const later = engine.guidanceForPublic(
+      await engine.getWorkflowState(head.sessionId),
+    );
+    expect(later.instruction).toContain("CHAIN HEAD SCOPE");
+  });
+
+  it("non-chained sessions do not receive the annex", async () => {
+    newEngine();
+    const s = await engine.startWorkflow({ workspaceRoot: ws, request: "r" });
+    expect(s.guidance.instruction).not.toContain("CHAIN HEAD SCOPE");
+  });
+
+  it("Form-B heads (source, no steps) do not receive the annex", async () => {
+    chainOn();
+    newEngine();
+    const s = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: {
+        source: "spec_kit_tasks",
+        requestTemplate: "task ${chain.taskId} of ${chain.featureId}",
+        featureId: "f",
+      },
+    });
+    expect(s.accepted).toBe(true);
+    expect(s.guidance.instruction).not.toContain("CHAIN HEAD SCOPE");
+  });
+
+  it("the successor session does NOT carry the head annex", async () => {
+    chainOn();
+    newEngine();
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "HEAD-REQUEST",
+      chain: { steps: [{ request: "fix the flaky test" }] },
+    });
+    await walkToVerify(head.sessionId);
+    const failed = await engine.completeWorkflow(
+      head.sessionId,
+      { summary: "head summary" },
+      "req-h2",
+    );
+    expect(failed.accepted).toBe(false);
+    setAnalyzeFail(false);
+    const retry = await engine.retryOperations(head.sessionId);
+    expect(retry.accepted).toBe(true);
+    const succSession = await engine.getWorkflowState(retry.nextSessionId!);
+    expect(succSession.status).toBe("active");
+    const succGuidance = engine.guidanceForPublic(succSession);
+    expect(succGuidance.instruction).not.toContain("CHAIN HEAD SCOPE");
+  });
+});

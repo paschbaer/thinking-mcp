@@ -799,3 +799,8 @@ für Umsetzungs-Planning.
 - **What works:** WF-1: Container-Route als sanktionierter Clear-Thought-Pfad dokumentiert (Diagnose: Container healthy, Logs leer, Route instant — Ursache Editor-Client-Layer, AGENTS.md-Note + Backup). WF-2: submit-once-then-poll-Regel in responses.json (Instanz+Example) und README. WF-4: explizite final-review.json-Mandats-Anweisung (Schema, 40-hex, Re-Bless, Checker). WF-5: check-index-freshness.mjs exkludiert nested Test-Tooling-Artefakte (isSkipped prüft jedes Segment; touch-Verifikation). WF-6: Closeout — Einträge resolved, Lektion verifiziert persistiert.
 - **What's left:** Merge/Push von feature/wf-followups nach develop (nach Review-Freigabe); Container-Rebuild-Angebot an den Operator (responses.json-Änderungen sind Bind-Mount-live, Rebuild optional); Reindex vor complete_workflow (in dieser Session).
 - **Current State:** alle WF-Infrastruktur-Follow-ups aus dem 2026-10-03-Chained-WIZ-Report abgearbeitet; eine Regel pro Follow-up in responses.json/README/AGENTS.md aktiv.
+
+## 2026-10-03 (Nachtrag): Chain-Head-Scope-Falle gehärtet
+- **What works:** Duplicate-guard (Stufe 1) verifiziert (bereits auf develop); neuer CHAIN HEAD SCOPE-Annex engine-seitig für chained Heads + 4 Regressionstests; README-Abschnitt "Head-session scope rules".
+- **What's left:** Merge von feature/wf-followups (enthält jetzt WF-Follow-ups + diese Härtung); Push; optionaler Container-Rebuild.
+- **Current State:** WF-6-Falle konstruktiv abgesichert (Fail-closed gegen Request-Duplikation, Guidance-Annex gegen die Disziplin-Form).

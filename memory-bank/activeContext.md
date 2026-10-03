@@ -1192,3 +1192,9 @@
 - WF-4 GELÖST: complete-Phase trägt explizites final-review.json-Mandat (Pflichtfelder, 40-hex, headCommit==HEAD, Re-Bless nach späten Commits, Checker-Kommando) + requiredAction.
 - WF-5 GELÖST (Code-Fix gewählt): check-index-freshness.mjs SKIP_DIRS auf alle Pfadsegmente; touch-Verifikation; README-Notiz.
 - WF-6 GELÖST (Closeout): WIZ-Kette komplett; Lektion in lessonsLearned.md verifiziert; Einträge resolved.
+
+## 2026-10-03, Nachtrag: WF-6-Falle konstruktiv gehärtet (session-2f55537b, feature/wf-followups)
+
+- Stufe 1 bereits vorhanden (CHAIN-Replay-Guard, startWorkflow: request === steps[0].request → configuration_invalid fail-closed; Tests in retry-finalize.test.ts) — verifiziert statt neu implementiert.
+- Neu: CHAIN HEAD SCOPE-Annex in guidanceFor für chained Heads (chainFrom === null + steps): warnt den Head-Agenten, keine steps[]-Scopes unter der Head-Session zu implementieren (Disziplin-Form der Falle); Successoren/Form-B/Non-Chained tragen den Annex nicht. 4 neue Tests, 8/8 grün.
+- Templates bewusst unverändert (conditional engine-side statt statischem Template-Satz — Annahme im Plan-Review dokumentiert).
