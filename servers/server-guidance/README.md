@@ -476,7 +476,7 @@ instead of an error).
 also seeds the `projectName` question. The server normalizes the hint to a
 kebab-case name (strips a leading npm scope — `@scope/pkg` becomes `pkg`,
 lowercases, maps whitespace/underscores/dots to single dashes, collapses
-repeated dashes) and injects it as the `projectName` default when the
+repeated dashes and trims leading/trailing dashes) and injects it as the `projectName` default when the
 result satisfies the registry name pattern (`^[a-z][a-z0-9-]{0,63}$`,
 `default` reserved). The normalized name is safe to double-use as the
 workspace registry name. **Confirmation duty:** the agent must never
