@@ -54,7 +54,6 @@ describe("scaffold-on-first-start (Option D)", () => {
     }
     // Die gescaffoldete Konfiguration muss durch den Loader gehen (compose startet)
     const app = composeApplication(ws, cfgDir, join(ws, "state"));
-    expect(app.config.profile).toBe("plain");
     expect(app.config.main.project.name).toBe("my-project");
   });
 

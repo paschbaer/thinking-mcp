@@ -61,12 +61,15 @@ afterEach(async () => {
 });
 
 describe("tool registration (Review Finding 1)", () => {
-  it("exposes exactly the workflow tool surface (no hidden/missing tools)", async () => {
+  it("exposes exactly the workflow tool surface of registerWorkflowTools (WIZ-3: spec-kit tools register separately)", async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([...WORKFLOW_TOOL_NAMES, "registry_register"].sort());
     // registry_register is flag-gated (default ON), profile-independent.
-    expect(names).not.toContain("discover_spec_kit_feature"); // plain profile: keine Spec-Kit-Tools (R17)
+    // WIZ-3: spec-kit tools are registered by a SEPARATE registerSpecKitTools
+    // call (see spec-kit-tools-registration.test.ts) — this server registers
+    // workflow tools only.
+    expect(names).not.toContain("discover_spec_kit_feature");
   });
 
   it("REV-RRDO-1: opts OUT of registry_register via registryRegister.enabled=false (tool-list gate)", async () => {

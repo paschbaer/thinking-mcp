@@ -277,19 +277,18 @@ describe("Amendment 002: workflow chaining", () => {
     expect(c3.chain?.[0]?.error).toContain("chain_depth_exceeded");
   });
 
-  it("§10.5 Form B in plain profile rejected (FR-112 rev.)", async () => {
+  it("§10.5 WIZ-3: Form B (source) is NO LONGER profile-gated (FR-112 rev. superseded)", async () => {
     chainOn();
-    engine = makeEngine();
-    await expect(
-      engine.startWorkflow({
-        workspaceRoot: ws,
-        request: "r",
-        chain: {
-          source: "spec_kit_tasks",
-          requestTemplate: "do ${chain.taskId}",
-        },
-      }),
-    ).rejects.toThrow(/spec-kit profile/);
+    engine = makeEngine(() => []); // no pending tasks: silent end after start
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: {
+        source: "spec_kit_tasks",
+        requestTemplate: "do ${chain.taskId}",
+      },
+    });
+    expect(head.status).toBe("active");
   });
 
   it("§10.6 feature gate: chain disabled (default) → configuration_invalid (FR-110)", async () => {
@@ -306,7 +305,6 @@ describe("Amendment 002: workflow chaining", () => {
 
   it("§10.7+8 Form B happy path: task-derived chain, scope annex, silent end when exhausted (FR-117/118)", async () => {
     chainOn();
-    config.profile = "spec-kit"; // test seam: Form B requires the spec-kit profile
     const pending = [
       {
         id: "T001",
@@ -412,7 +410,6 @@ describe("Amendment 002: workflow chaining", () => {
 
   it("§10.7b MEDIUM-1 regression: Form-B featureId from the task list wins over absent manifest featureId", async () => {
     chainOn();
-    config.profile = "spec-kit";
     const pending = [
       {
         id: "T001",
@@ -550,7 +547,6 @@ describe("Amendment 002: workflow chaining", () => {
 
   it("CHN-3 mixed manifest: explicit steps first, then task-derived (Form A → Form B)", async () => {
     chainOn();
-    config.profile = "spec-kit";
     const pending = [
       {
         id: "T001",
@@ -612,7 +608,6 @@ describe("Amendment 002: workflow chaining", () => {
 
   it("CHN-3 HIGH-1 regression: Form B after 2 explicit steps does NOT re-enter Form A", async () => {
     chainOn();
-    config.profile = "spec-kit";
     const pending = [
       {
         id: "T001",
@@ -654,20 +649,19 @@ describe("Amendment 002: workflow chaining", () => {
     expect(c4.chain).toBeUndefined();
   });
 
-  it("CHN-R2-2: mixed manifest (steps + source) in plain profile rejected entirely (FR-119)", async () => {
+  it("CHN-R2-2 WIZ-3: mixed manifest (steps + source) is ACCEPTED without a profile (FR-119 amended)", async () => {
     chainOn();
-    engine = makeEngine();
-    await expect(
-      engine.startWorkflow({
-        workspaceRoot: ws,
-        request: "r",
-        chain: {
-          steps: [{ request: "plain step" }],
-          source: "spec_kit_tasks",
-          requestTemplate: "task ${chain.taskId}",
-        },
-      }),
-    ).rejects.toThrow(/spec-kit profile/);
+    engine = makeEngine(() => []); // no pending tasks: chain ends silently
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: {
+        steps: [{ request: "plain step" }],
+        source: "spec_kit_tasks",
+        requestTemplate: "task ${chain.taskId}",
+      },
+    });
+    expect(head.status).toBe("active");
   });
 
   it("CHN-3 validation: manifest with neither steps nor source → configuration_invalid", async () => {

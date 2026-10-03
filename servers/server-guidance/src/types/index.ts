@@ -139,7 +139,6 @@ export interface Blocker {
 export interface WorkflowSession {
   sessionId: string;
   workflowId: string;
-  profile: ProfileId;
   configurationVersion: string;
   configDir: string;
   workspaceRoot: string;
@@ -200,7 +199,6 @@ export interface WorkflowSession {
 
 export interface WorkflowDefinition {
   workflowId: string;
-  profile?: ProfileId;
   initialPhase: PhaseId;
   terminalStates: string[];
   phases: Record<
