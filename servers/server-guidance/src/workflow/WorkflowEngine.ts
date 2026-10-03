@@ -3528,9 +3528,20 @@ export class WorkflowEngine {
     const scope = session.chainTaskScope
       ? ` CHAIN TASK SCOPE: This workflow is chained for spec-kit task ${session.chainTaskScope.taskId} of feature ${session.chainTaskScope.featureId} ONLY. Import the artifacts first (import_spec_kit_artifacts), then start/submit/complete exactly this task; do not touch other tasks.`
       : "";
+    // WF-6 trap (chain-head scope): the head session runs the top-level
+    // request; successors ALWAYS start at steps[0]. Warn the head agent not
+    // to implement steps[] scopes itself, or the first successor duplicates
+    // the work. Heads only (chainFrom === null); successors carry the rest
+    // of the chainSpec with chainFrom set.
+    const headScope =
+      session.chainFrom === null &&
+      Array.isArray(session.chainSpec?.steps) &&
+      session.chainSpec.steps.length > 0
+        ? " CHAIN HEAD SCOPE: this session is the chain head; successors will run chain.steps[0..] in order. Do NOT implement any steps[] scope under this head session — keep the head request as its own scope (or run it as a verification-only cycle), otherwise the first successor duplicates the work."
+        : "";
     return {
       title: configured?.title ?? key,
-      instruction: (configured?.instruction ?? "") + scope,
+      instruction: (configured?.instruction ?? "") + scope + headScope,
       requiredActions: configured?.requiredActions ?? [],
     };
   }

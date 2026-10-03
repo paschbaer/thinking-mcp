@@ -1176,6 +1176,22 @@ Chained sessions are fully audited: `chain_successor_created`,
 The rest of the chain is **copied into each successor**, so chains survive
 pruning of the head session.
 
+### Head-session scope rules
+
+The head session runs the top-level request; successors always start at
+`steps[0]` — there is no implicit offset. Two engine-side guards make the
+resulting duplication trap fail-safe:
+
+- **Duplicate guard (fail-closed):** `start_workflow` rejects a manifest
+  whose top-level request equals `steps[0].request` (whitespace-trimmed
+  comparison) — step 0 would run
+  twice (head + first successor). Give the head request its own scope and
+  omit the duplicated step, or run the head as a verification-only cycle.
+- **Head-scope annex (guidance):** a chained head session carries a
+  `CHAIN HEAD SCOPE` note on every phase instruction: never implement a
+  `steps[]` scope under the head session, even when the request texts
+  differ — the first successor would repeat that work.
+
 ### Example prompts for a chained workflow
 
 Everything above is tool-level; in chat you only need one message. The agent
