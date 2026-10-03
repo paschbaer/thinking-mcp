@@ -789,3 +789,8 @@ für Umsetzungs-Planning.
 - **What works:** WIZ-4 (workspaceRoot-Default aus workspaceNameHint + GUIDANCE_WORKSPACE_ROOT) vollständig umgesetzt und durch den Guidance-Workflow abgenommen (session-b1c62520, alle Completion-Gates grün); Commits fe25128 + 0f829ed auf feature/wiz-config-assistant-rework. Environment-Reparatur: Root-npm-install stellt tsc-Bins für alle Workspace-Builds wieder her.
 - **What's left:** WIZ-2, WIZ-1, WIZ-3 (Spezifikation fertig, Umsetzung offen; Wiederaufnahme-Struktur = WF-6-Nutzerentscheid). Push von develop (2+ Commits vor origin) und des Feature-Branch steht aus. WF-3b-Entscheid (yarn.lock vs. npm-lock). Merge des Feature-Branch nach develop nach Review-Freigabe.
 - **Current State:** Config-Assistent-Rework läuft auf feature/wiz-config-assistant-rework; Chain session-b22053ef cancelled; 6 Workflow-Probleme (WF-1..6) getrackt, Lektionen dokumentiert.
+
+## 2026-10-03 (Nacht): WIZ-Serie komplett abgenommen
+- **What works:** WIZ-4, WIZ-2, WIZ-1, WIZ-3 alle implementiert, independent-reviewed (0 HIGH/CRITICAL in 5 Reviews) und durch Guidance-Chains abgenommen (Sessions b1c62520, 7876f096, abe752d7, 57412c1b — alle completed, alle Completion-Gates grün). Wizard: 10 Fragen, Workspace-Registrierung imWizard-Lauf, keine Profile mehr, projectName/workspaceRoot-Auto-Vorschläge.
+- **What's left:** Merge feature/wiz-config-assistant-rework (12 Commits, fe25128..1957ec9 + e149146) nach develop nach Nutzer-Freigabe; Push; Container-Rebuild (neue Tool-Oberfläche 40 Tools); WF-1..WF-6 Infrastruktur-Follow-ups; LOW-Findings REV-FINAL-F3/F4/F5 getrackt.
+- **Current State:** Config-Assistent-Rework vollständig auf dem Feature-Branch; Knowledge-Graph frisch (Reindex nach letztem Commit); Chain beendet.
