@@ -1434,9 +1434,7 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 ## Getrackte Follow-ups (2026-10-03, SKP-1 Review — Sub-Agent bd833a54, APPROVED 0 HIGH/CRIT)
 
-- **SKP-2 (MEDIUM, test-depth gap):** tests/contract/speckit-pool-mode.test.ts wires registerSpecKitTools DIRECTLY with its own getSessionWorkspace — it pins the resolver contract but NOT the actual server.ts wiring: reverting the fix lines in src/server.ts would leave all 4 tests green.
-  - **Trigger point:** Next change to spec-kit registration in servers/server-guidance/src/server.ts (createConfiguredServer) or any new spec-kit pool-mode feature work.
-  - **Action required:** Add a regression test that goes through createConfiguredServer/createHttpApp (or asserts the options object passed to registerSpecKitTools includes getSessionWorkspace for the HTTP entry).
+- **SKP-2 (MEDIUM, test-depth gap) — RESOLVED (2026-10-03, chain head session-05e744f9):** tests/contract/speckit-pool-wiring.test.ts boots the server through the REAL HTTP entry (createConfiguredServer with a composed pool fixture), registers workspace B via the protocol, starts a workflow session and runs discover_spec_kit_feature with that sessionId — discovery resolves under the session root. Revert-detection PROVEN (SKP2-T3): with the server.ts wiring commented out the happy-path test FAILS (pool-root fallback), restored it passes. Negative case (unknown sessionId -> documented fallback) covered through the same wiring. Regression coverage complete.
 - **SKP-3 (LOW, pre-existing):** SpecKitEngine.ts L221 (discoverArtifacts) `resolved.startsWith(ws + "/")` checks only forward slash, while assertInsideWorkspace (L329-341) handles both separators — a native-Windows host would wrongly reject legitimate feature dirs in importArtifacts. Harmless today (tests + container run Linux).
   - **Trigger point:** Only if the guidance server is ever run natively on Windows (not via WSL/Linux container).
   - **Action required:** Align discoverArtifacts with assertInsideWorkspace's separator handling; or accept as observation with rationale.
