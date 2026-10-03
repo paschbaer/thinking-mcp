@@ -627,3 +627,9 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 
 - **Guidance-Phasen-Reihenfolge (WIZ-1/WIZ-3, 2026-10-03):** Implementierung VOR den Phase-Submissions erzwingt retrospektives Nacherfassen (invalid_active_phase). Nächstes Mal: submit_understanding → submit_plan → submit_plan_review IMMER vor dem ersten Code-Edit; die Engine toleriert keine Reihenfolge-Abkürzungen.
 - **40-hex-Pflicht in final-review.json:** Kurze Hashes im commits-Array lassen das Gate failen (evidence.commits must be 40-hex). Nächstes Mal: ausschließlich `git rev-parse`-Vollhashes einsetzen.
+
+### 2026-10-03 — fault_tree top-gate selection bug (silent HIGH)
+- **Issue:** fault_tree ignored its top_event parameter and evaluated the last gates-array element as the top gate — silently, even when it was a basic event (under-reported probability by ~11x in the report tree).
+- **Root cause:** L116 hardcoded `topId = defs[defs.length - 1].id`; top_event was only echoed into the response, never used. Existing tests passed because their TOP gate happened to be last.
+- **Preventive measure:** never derive semantics from array position when an explicit selector parameter exists; resolve selectors first (id, then unique name), use position only as a documented last-resort fallback. Parameter-echo without use is a smell — grep handlers for parameters that are echoed but never read.
+- **Meta-lesson:** assumption_xray marker detection is English-only (the no_marker note now says so); its confidence 0 on a valid claim means "no English markers found", not "no assumptions exist".

@@ -139,4 +139,123 @@ describe('fault_tree', () => {
     expect(data.mode).toBe('facilitation');
     expect(data.guiding_questions.length).toBeGreaterThan(0);
   });
+
+  // Regression: the top gate must come from top_event (id, then unique name)
+  // or the unique unreferenced gate — never from the array position.
+  describe('top-gate resolution (array-order independent)', () => {
+    const basics = [
+      { id: 'B1', type: 'basic', name: 'power', probability: 0.01 },
+      { id: 'B2', type: 'basic', name: 'cooling', probability: 0.02 },
+      { id: 'B3', type: 'basic', name: 'disk', probability: 0.05 }
+    ];
+    const g2 = { id: 'G2', type: 'and', inputs: ['B2', 'B3'] };
+    const g1 = { id: 'G1', type: 'or', inputs: ['B1', 'G2'] };
+    // P(G2)=0.001, P(G1)=1−(1−0.01)(1−0.001)=0.01099
+    const nestedTopProbability = 0.01099;
+
+    const orders: { label: string; gates: unknown[] }[] = [
+      { label: 'G1 last', gates: [...basics, g2, g1] },
+      { label: 'G2 last', gates: [...basics, g1, g2] },
+      { label: 'G1 middle', gates: [g1, ...basics, g2] }
+    ];
+
+    for (const { label, gates } of orders) {
+      it(`resolves the unreferenced OR gate as top (${label})`, async () => {
+        const data = await call(op, { top_event: 'system outage', gates });
+        expect(data.mode).toBe('analysis');
+        expect(data.top_gate).toBe('G1');
+        expect(data.top_probability).toBeCloseTo(nestedTopProbability, 9);
+        expect(data.top_gate_type).toBeUndefined();
+      });
+    }
+
+    it('resolves the top gate by id, regardless of position', async () => {
+      const data = await call(op, { top_event: 'G1', gates: [...basics, g1, g2] });
+      expect(data.top_gate).toBe('G1');
+      expect(data.top_probability).toBeCloseTo(nestedTopProbability, 9);
+    });
+
+    it('resolves the top gate by unique name', async () => {
+      const named = { ...g1, name: 'total loss' };
+      const data = await call(op, {
+        top_event: 'total loss',
+        gates: [...basics, named, g2]
+      });
+      expect(data.top_gate).toBe('G1');
+      expect(data.top_probability).toBeCloseTo(nestedTopProbability, 9);
+    });
+
+    it('rejects an ambiguous top_event name', async () => {
+      await expect(
+        call(op, {
+          top_event: 'clone',
+          gates: [...basics, { ...g1, name: 'clone', id: 'GA', inputs: ['B1'] }, { ...g2, name: 'clone', id: 'GB', inputs: ['B2', 'B3'] }]
+        })
+      ).rejects.toThrow(/multiple gate names/);
+    });
+
+    it('prefers an id match over ambiguous gate names', async () => {
+      // top_event names the id G1 exactly; two OTHER gates share that name.
+      // Resolution stage (a) must win before name ambiguity is considered.
+      const data = await call(op, {
+        top_event: 'G1',
+        gates: [
+          ...basics,
+          { ...g1, name: 'G1' },
+          { ...g2, name: 'G1' }
+        ]
+      });
+      expect(data.top_gate).toBe('G1');
+      expect(data.top_probability).toBeCloseTo(nestedTopProbability, 9);
+    });
+
+    it('resolves a basic event by unique name with top_gate_type', async () => {
+      const data = await call(op, { top_event: 'disk', gates: [...basics, g1, g2] });
+      expect(data.top_gate).toBe('B3');
+      expect(data.top_gate_type).toBe('basic');
+      expect(data.top_probability).toBe(0.05);
+    });
+
+    it('pins the multi-top fallback to the last unreferenced gate', async () => {
+      // Two unreferenced sibling roots and a non-matching top_event:
+      // documented behavior is the LAST unreferenced gate (legacy edge
+      // preservation).
+      const data = await call(op, {
+        top_event: 'unmatched',
+        gates: [
+          ...basics,
+          { id: 'GA', type: 'or', inputs: ['B1'] },
+          { id: 'GB', type: 'and', inputs: ['B2', 'B3'] }
+        ]
+      });
+      expect(data.top_gate).toBe('GB');
+      expect(data.top_probability).toBeCloseTo(0.001, 9);
+    });
+
+    it('never reports a basic event as top gate when a gate matches', async () => {
+      // B3 is last in the array but the top_event names the OR gate.
+      const data = await call(op, { top_event: 'G1', gates: [...basics, g1, g2] });
+      expect(data.top_gate).not.toBe('B3');
+      expect(data.top_gate).toBe('G1');
+    });
+
+    it('flags a basic event as top with top_gate_type', async () => {
+      const data = await call(op, { top_event: 'B3', gates: [...basics, g1, g2] });
+      expect(data.top_gate).toBe('B3');
+      expect(data.top_gate_type).toBe('basic');
+      expect(data.top_probability).toBe(0.05);
+    });
+
+    it('evaluates the flat OR tree exactly', async () => {
+      const flat = {
+        id: 'G1',
+        type: 'or',
+        inputs: ['B1', 'B2', 'B3']
+      };
+      const data = await call(op, { top_event: 'G1', gates: [...basics, flat] });
+      expect(data.top_gate).toBe('G1');
+      // 1 − (0.99 × 0.98 × 0.95)
+      expect(data.top_probability).toBeCloseTo(0.07831, 9);
+    });
+  });
 });

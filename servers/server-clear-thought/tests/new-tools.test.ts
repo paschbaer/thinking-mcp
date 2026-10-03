@@ -51,6 +51,9 @@ it('assumption_xray falls back to probing questions when no markers match', asyn
   expect(data.mode).toBe('no_marker');
   expect(data.assumptions).toEqual([]);
   expect(data.probing_questions.length).toBeGreaterThan(0);
+  // Regression: the note must disclose that marker detection is English-only
+  // so a non-English claim is not mistaken for "no assumptions exist".
+  expect(data.note).toMatch(/English-only/i);
 });
 
 it('value_of_information ranks uncertainties by impact and warns on length mismatch', async () => {
