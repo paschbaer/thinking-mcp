@@ -1429,7 +1429,18 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 - **Finding SKP-1 (HIGH):** Spec-Kit-Tools sind im HTTP-Pool-Modus (Container, `GUIDANCE_WORKSPACE_ROOT=/workspaces`, `createConfiguredServer` in `servers/server-guidance/src/server.ts`) nicht funktionsfähig: `discover_spec_kit_feature` liefert `spec_kit_feature_not_found: feature root missing: specs`, weil `registerSpecKitTools` dort ohne `getSessionWorkspace` registriert wird — der Resolver fällt auf Pool-Root `/workspaces` statt Session-Root zurück (`SpecKitEngineResolver.resolve`, `register-spec-kit-tools.ts` L138-144). Der stdio-Einstieg `src/index.ts` L43-49 hat das korrekte Wiring. Live verifiziert (session-67778fe9): Workflow/Phase/`get_spec_kit_status` OK, nur Feature-Discovery bricht.
 - **Trigger point:** Jeder Guidance-Workflow im Pool-Betrieb, der Spec-Kit-Discovery/Artifacts nutzt (`discover_spec_kit_feature`, `import_spec_kit_artifacts`, `refresh_spec_kit_artifacts`, `get_spec_kit_status`-Discovery-Pfade). Auch T6-Diskrepanz in `specs/008-multi-workspace/tasks.md` (als [x] markiert, nur stdio-seitig umgesetzt).
-- **Action required:** Fix in `server.ts` (`getSessionWorkspace: (sid) => { try { return composed.engine.getSession(sid).workspaceRoot } catch { return undefined } }`, analog index.ts) + Contract-Test für den HTTP-Einstieg + T6-Task-Notiz korrigieren. Umsetzung: Guidance-Workflow (Feature-Branch).
+- **Resolution:** IMPLEMENTED (255bfd2, feature/speckit-pool-mode-wiring) — see activeContext.md 2026-10-03 entry. Live-verified: discover_spec_kit_feature resolves /workspaces/Thinking-MCP/specs/008-multi-workspace in pool mode. Independent review (sub-agent bd833a54, fresh context): APPROVED, 0 unresolved CRITICAL/HIGH.
+- **Status:** closed (fixed). Residual follow-ups: SKP-2 (test wiring-depth gap, MEDIUM) and SKP-3 (SpecKitEngine.ts:221 Windows separator, LOW, pre-existing) below.
+
+## Getrackte Follow-ups (2026-10-03, SKP-1 Review — Sub-Agent bd833a54, APPROVED 0 HIGH/CRIT)
+
+- **SKP-2 (MEDIUM, test-depth gap):** tests/contract/speckit-pool-mode.test.ts wires registerSpecKitTools DIRECTLY with its own getSessionWorkspace — it pins the resolver contract but NOT the actual server.ts wiring: reverting the fix lines in src/server.ts would leave all 4 tests green.
+  - **Trigger point:** Next change to spec-kit registration in servers/server-guidance/src/server.ts (createConfiguredServer) or any new spec-kit pool-mode feature work.
+  - **Action required:** Add a regression test that goes through createConfiguredServer/createHttpApp (or asserts the options object passed to registerSpecKitTools includes getSessionWorkspace for the HTTP entry).
+- **SKP-3 (LOW, pre-existing):** SpecKitEngine.ts L221 (discoverArtifacts) `resolved.startsWith(ws + "/")` checks only forward slash, while assertInsideWorkspace (L329-341) handles both separators — a native-Windows host would wrongly reject legitimate feature dirs in importArtifacts. Harmless today (tests + container run Linux).
+  - **Trigger point:** Only if the guidance server is ever run natively on Windows (not via WSL/Linux container).
+  - **Action required:** Align discoverArtifacts with assertInsideWorkspace's separator handling; or accept as observation with rationale.
+- **Review-quality note:** Review executed on worktree HEAD cc30e14 with 255bfd2 as review basis; uncommitted lessonsLearned.md change was outside review scope (process tracking, not product code).
 
 ## RESOLVED: YARN-LOCK-TRAP (fixed with regression coverage, feature/yarn-lock-guard)
 

@@ -6,6 +6,8 @@
 
 ## Avoid These Mistakes
 
+- **start_workflow ohne registrierten Workspace-Namen (SKP-1-Session, 2026-10-03):** `start_workflow` im Pool-Betrieb MUSS explizit `workspace: "thinking-mcp"` (bzw. den jeweiligen registrierten Namen) übergeben — ohne den Namen landet die Session unter dem generischen Default-Workspace (Pool-Root), mit anderem Antwort-Schema (z.B. Pflicht-`summary` bei submit_implementation statt Repo-Schema) und Registry-Pfaden. → Prevention: future sessions immer mit dem registrierten Workspace-Namen starten; Schema-Abweichungen (fehlende Pflicht-Felder) sind ein Symptom dafür, nicht ein Server-Bug.
+
 - **GitNexus Storage-„foreign" durch Pfad-Casing-Drift (2026-10-02):** `gitnexus analyze` aus
   `/mnt/d/repos/Thinking-MCP` scheiterte mit `Storage path is in state "foreign"`, weil `.gitnexus/meta.json`
   den Index unter `/mnt/d/repos/thinking-mcp` (lowercase) referenziert — DrvFs ist case-insensitive
