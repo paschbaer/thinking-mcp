@@ -1390,3 +1390,17 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 - [WIZ-4] LOW — **Anforderungen geklärt (2026-10-03, Nutzer), umsetzungsbereit** | **`workspaceRoot` automatisch als Vorschlag vorgeben.** Bedeutung nach WIZ-1: Container-Pfad DIESES Repos (Registry-`root`). Default-Zusammensetzung: `GUIDANCE_WORKSPACE_ROOT + "/" + workspaceNameHint` (z. B. /workspaces + thinking-mcp → /workspaces/thinking-mcp); Repo-Name aus derselben Quelle wie WIZ-2. **Entscheidung (Nutzer): Variante (ii) einfach** — Env gesetzt UND Name vorhanden → Default setzen; sonst keine Vorgabe. Keine zusätzliche Plausibilitätslogik: Abweichungen (Case-Mismatch à la KA-4, abweichender Mount-Name, Repo außerhalb des Pools) korrigiert der Nutzer/Agent über die Bestätigungspflicht; die Pfad-Existenzprüfung aus WIZ-1 (Entscheidung 3) fängt Fehlvorschläge vor der Registry-Aufnahme ab. Umsetzung berührt: `register-setup-tools.ts` + `ConfigAssistant.ts` (default-Injektion in catalogOverview/QUESTIONS, gemeinsam mit WIZ-2-Mechanik), Contract-Tests (Default gesetzt/Env fehlt/Name fehlt).
   | Trigger: Umsetzungsstart WIZ-4 (ERSTER Schritt der Serie, teilt die Namensableitung mit WIZ-2). | Action required: Implementierung.
+
+## 2026-10-03 (Abend): WIZ-Serie UMGESETZT — feature/wiz-config-assistant-rework (Chain session-7876f096, 3 Sessions)
+
+- [WIZ-4] GELÖST (fe25128+0f829ed, session-b1c62520 completed) | workspaceRoot-Default aus GUIDANCE_WORKSPACE_ROOT + workspaceNameHint (Variante ii).
+- [WIZ-2] GELÖST (94ee3be+a42b404, session-7876f096 completed) | projectName-Default aus normalisiertem workspaceNameHint (normalizeProjectName: Scope-Strip/Kebab/Edge-Trim); Bestätigungspflicht README-regeln.
+- [WIZ-1] GELÖST (f482dc8+7b01463, session-abe752d7 completed) | target/extraWorkspaces-Fragen entfernt; registerWorkspace (Pflicht) → workspaces[]-Merge-Snippet in notes; Existenz-Validierung vor Emission; Remote → init_session-Hinweis.
+- [WIZ-3] GELÖST (05b0811+b329935, session-57412c1b completed) | Profil entfernt: Schema-Exit mit Legacy-Toleranz (`profile: true`), alle 16 Spec-Kit-Tools bedingungslos registriert (Tool-Count 24→40), chain Form B entkoppelt.
+- [WF-3b] GELÖST (7a4ca41) | Option A: yarn-only Root-Installs (AGENTS.md-Regel + README).
+- [REV-FINAL-F3] LOW | validateAdoptReference erzwingt weiterhin legacy profiles/<profile>.json für non-plain Legacy-Referenzen, obwohl generateFiles refGuidance.profile ignoriert — inkonsistente Toleranz. | Trigger: nächster Touch von validateAdoptReference. | Action required (optional): Toleranz anpassen + Test.
+- [REV-FINAL-F4] LOW | Stale Wizard-Antwort-Keys (target/extraWorkspaces/profile) werden still ignoriert; alt Answer-Sets failen sauber auf missing registerWorkspace (getestet), aber Stale-Key-Verhalten selbst ungepinnt. | Trigger: nächste Änderung an toAnswerRecord/requireCompleted. | Action required (optional): Test.
+- [REV-FINAL-F5] LOW | Legacy workflow.json mit workflow.profile toleriert (Raw-Read), aber ungepinnt. | Trigger: nächste Änderung am Workflow-Load. | Action required (optional): Test.
+- [REV-WIZ1-2/3, REV-WIZ3-3, REV-WIZ3-5] LOW/INFO | Wie im Review getrackt (Pool-Namen-Coverage, boolean-Answers-Lockerheit, vestigial if-throw, Form-B-Child-Engine-Brücke PRE-EXISTING CHN-4-Familie). | Trigger: je nächster Touch. | Accepted with rationale.
+
+**Offen:** Merge des Branch nach develop (Review freigegeben, 0 HIGH/CRITICAL); Push; Container-Rebuild für die neue Tool-Oberfläche (40 Tools); WF-1..WF-6 (s.o.) bleiben als Infrastruktur-Follow-ups stehen.
