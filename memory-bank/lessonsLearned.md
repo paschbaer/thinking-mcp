@@ -686,3 +686,7 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** clients stranded with "MCP session no longer valid" after server-side session eviction (TTL 1h, MAX_SESSIONS).
 - **Root cause:** custom early-reject returned 400 for unknown session ids; the MCP SDK client treats 400 as fatal but re-initializes on 404. Any custom /mcp gate MUST use 404 for expired/unknown sessions, reserving 400 for missing session id or malformed bodies.
 - **Prevention:** same pattern exists in server-insight (same CB-3-style code) — check it when touching session handling there.
+
+### 2026-10-04 — StreamableHTTPError hides the HTTP status in its message
+- **Issue:** session-expiry detection failed silently — the SDK error message is only "Streamable HTTP error: <response body>"; the status code lives on the error's `code` property.
+- **Prevention:** when classifying HTTP transport failures from the MCP SDK client, always read `err.code`, never parse the message alone. Also: guidance's reconnect only runs when `connection.reconnect.enabled` is configured — session-expiry is now exempt (minAttempts=1).

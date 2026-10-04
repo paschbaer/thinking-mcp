@@ -1365,3 +1365,8 @@
 - Symptom: Niyama agent got "MCP session no longer valid (HTTP 400)" on clear-thought calls; container healthy, fresh sessions fine.
 - Root cause: CB-3 early-reject answered 400 for POSTs carrying a session id the server no longer knows (1h idle TTL / MAX_SESSIONS eviction). The official MCP SDK client re-initializes ONLY on 404 — 400 stranded it permanently.
 - Fix: unknown session id WITH header -> 404/-32001 (client auto-recovers); no header -> 400 unchanged (CB-3 orphan protection intact). Regression test in tests/http-transport.test.ts; suite 188/188 green; container redeployed, 404 verified live.
+
+## 2026-10-04 — Stale-session recovery extended to insight + guidance (commit 767a940, branch fix/stale-session-404-recovery)
+- server-insight: same /mcp 404 gate as clear-thought (unknown session id -> 404/-32001; missing header stays 400). Live-verified on :3002.
+- server-guidance: HTTP transport is stateless (no fix needed there); downstream ClientManager now detects stale downstream sessions (StreamableHTTPError .code===404 — the status is NOT in its message — or -32001 body) and replays ONCE on a fresh connection even without an explicit reconnect policy (side-effect-safe: the request never reached the tool). HD-3 test now asserts recovery. Guidance + insight suites green (616/616; insight 121/133 with pre-existing better-sqlite3 worker-teardown crashes — baseline-verified same loss without the change).
+- Containers rebuilt: clear-thought/insight/guidance all healthy; /health checks green.
