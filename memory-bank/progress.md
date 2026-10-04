@@ -865,3 +865,19 @@ für Umsetzungs-Planning.
 - **What works:** Stufe 2 async acceptance (opt-in `_meta.async` / `GUIDANCE_ASYNC_ACCEPTANCE=1`, synchronous default), idempotent in-flight retry (atomic registry begin, sessionId+tool key), outcome retrieval via `get_workflow_state.asyncOperations` incl. failures + restart-reclassification; Stufe 3 SSE progress (progressToken-keyed upgrade, per-gate notifications with cumulative monotonic progress, 15s keepalives, redaction-safe). All ACs (AC1–AC5) covered by 7 new contract tests; full suite 613/613; build/lint/typecheck green (typecheck hat nur den prä-existing getrackten Fehler).
 - **What's left:** Adoption in insight/clear-thought (S016-ADOPT), N1 registry reconcile-mutex, N2 mutex eviction, N3 restart/multi-group coverage tests, S016-RETRY-OP — alle getrackt in remaining-work-plan.md mit Trigger-Punkten.
 - **Current State:** MERGED (2026-10-04, Nutzer-Freigabe): Fast-Forward-Merge nach develop (c544701..8ea8f80, 6 Commits), Feature-Branch gelöscht, Focused-Tests auf develop 15/15 grün. Push pending — kein SSH-Key im Shell-Kontext (bekannte Falle), develop liegt 6 Commits vor origin/develop; Push durch User mit Credentials nachziehen. Danach: S016-ADOPT (Extraction-Scope für insight/clear-thought).
+
+## 2026-10-04 — S016-ADOPT (feature/016-adopt-async-sse, session-7e49befd)
+
+### What works
+- servers/shared-workflow: canonical spec-016 modules (transition-protocol + operation-registry) with reconcile-under-mutex (N1), mutex eviction (N2), restart fixture, multi-group monotonic progress fixture; 12/12 tests green.
+- Vendoring via sync script + per-server hash-consistency guards (all 6 copies byte-identical, LF).
+- server-insight: async acceptance (experience_seed_lessons/experience_finalize; _meta.async or EMMS_ASYNC_ACCEPTANCE=1, sync default), workflow_status carries asyncOperations, SSE progress keyed on _meta.progressToken; 7/7 contract tests green.
+- server-clear-thought: async acceptance (session_save/session_load; _meta.async or CLEAR_THOUGHT_ASYNC_ACCEPTANCE=1), session_info carries asyncOperations, SSE transport shares SessionState; 7/7 contract tests green; full suite 187/187.
+- server-guidance: consumes shared copies behavior-identically; 615/615.
+
+### What's left
+- Merge of feature/016-adopt-async-sse into develop (review approved, 0 open HIGH/CRIT) + branch cleanup.
+- Tracked: S016-ENV-SQLITE (pre-existing insight test crashes, Node 24/WSL), S016-REVIEW-RESIDUEN F4/F6 (accepted), S016-RETRY-OP, S016-TYPECHECK (pre-existing), S016-CHAIN-PROGRESS.
+
+### Current state
+Spec 016 adoption (§6 step 2) implemented on feature branch; independent review re-blessed fix commit ba37e83 with 0 open HIGH/CRITICAL. Guidance session session-7e49befd in completion.
