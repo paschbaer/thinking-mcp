@@ -215,7 +215,10 @@ const sha256 = (content: string) =>
  *  so a native-Windows host does not reject legitimate paths (SKP-3). Both
  *  call sites (discoverArtifacts, assertInsideWorkspace) MUST use this helper;
  *  duplicating the condition is what caused the separator drift. */
-export function isInsideWorkspace(resolvedPath: string, wsRoot: string): boolean {
+export function isInsideWorkspace(
+  resolvedPath: string,
+  wsRoot: string,
+): boolean {
   return (
     resolvedPath === wsRoot ||
     resolvedPath.startsWith(wsRoot + "/") ||
