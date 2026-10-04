@@ -17,6 +17,7 @@ the underlying product specification is
 ## Features
 
 ### Guided capture workflow
+
 A durable, resumable workflow state machine (`DRAFT → OBSERVED → DIAGNOSING →
 SOLUTION_PROPOSED → VALIDATING → LOCALLY_VERIFIED → …`) with per-workflow
 revision counters (optimistic concurrency), idempotency keys (replays return
@@ -24,6 +25,7 @@ the original result), and append-only event history. Sessions can be
 interrupted at any point and resumed without data loss.
 
 ### Evidence before confidence
+
 Verified status is impossible without objective evidence: every validation
 check that claims `passed` needs an attached artifact (test report, build log,
 reproduction output). Unsupported agent assertions can never produce a verified
@@ -31,6 +33,7 @@ episode. Harmful attempts remain "critical side effects" until a later
 successful attempt resolves them.
 
 ### Hybrid retrieval with applicability-first ranking
+
 Four retrieval arms — exact failure-signature hash, normalized signature,
 SQLite FTS5 full-text, and local semantic embeddings (all-MiniLM-L6-v2,
 384 dims, fully offline) — combined with environment-compatibility scoring.
@@ -40,6 +43,7 @@ explicit mismatches. Known-bad attempts, contradictions, staleness, and
 harmful-feedback are visible per result.
 
 ### Per-response guidance
+
 Every successful or recoverable response carries a guidance envelope: current
 workflow state, missing required information (with safe collection hints),
 allowed next tools, warnings (contradiction, duplicate, stale,
@@ -48,12 +52,14 @@ placeholders (`<collect value>`, `<attach artifact>`) instead of fabricated
 values. Agents can decline guidance with a reason; the server recalculates.
 
 ### Consolidation worker
+
 Background maintenance (5-min timer): stale scan (flags + ranking penalty),
 auto-dedup (signature + Jaccard thresholds), lesson promotion from verified
 episodes, and contradiction detection. Non-destructive: supersedes, never
 deletes (FR-034). Runs alongside the server without configuration.
 
 ### Security & governance
+
 Deterministic pattern-based redaction (API keys, tokens, private keys,
 connection strings, passwords, home paths) before anything is persisted;
 instruction-like content in artifacts is flagged as data, never treated as
@@ -63,22 +69,22 @@ episodes in the MVP (negative knowledge is retained).
 
 ## Tool Selection Guide
 
-| Situation | Use |
-|-----------|-----|
-| Starting work on any non-trivial failure | `workflow_start` → follow the guidance |
-| Same error seen before (known error message/code) | `experience_search` with `failure_signature_hash` if available |
-| Vaguely similar problem, different wording | `experience_search` (semantic arm finds paraphrases) |
-| Capturing what the environment returned | `experience_record_observation` (kinds: `failure_output`, `command_output`, `test_result`, `environment_fact`, `agent_reflection`, …) |
-| Trying a remediation strategy | `experience_record_attempt` → execute via host tools → `experience_complete_attempt` |
-| Forming a diagnosis | `experience_propose_hypothesis` (hypothesis ≠ evidence) |
-| Having a fix candidate | `experience_propose_solution` with validation `checks` (≥ 1 targeting the original failure + regression checks) |
-| Proving the fix works | `artifact_attach` + `validation_record_run` per check |
-| Closing the episode | `experience_finalize` (server assesses; requested outcome may be downgraded) |
-| A "fixed" problem broke again later | `experience_mark_regression` |
-| Memory pointed the wrong way | `experience_record_reuse_feedback` (`misleading`/`harmful` demotes content) |
-| Episode is dead ends only | `workflow_abandon` (evidence retained, state → `UNRESOLVED`) |
-| False/rotten memory found | `experience_invalidate` (audited, privileged) |
-| Sharing lessons with other projects | `lesson_publish` (widen to public) / `lesson_unpublish` (narrow back) |
+| Situation                                         | Use                                                                                                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Starting work on any non-trivial failure          | `workflow_start` → follow the guidance                                                                                                |
+| Same error seen before (known error message/code) | `experience_search` with `failure_signature_hash` if available                                                                        |
+| Vaguely similar problem, different wording        | `experience_search` (semantic arm finds paraphrases)                                                                                  |
+| Capturing what the environment returned           | `experience_record_observation` (kinds: `failure_output`, `command_output`, `test_result`, `environment_fact`, `agent_reflection`, …) |
+| Trying a remediation strategy                     | `experience_record_attempt` → execute via host tools → `experience_complete_attempt`                                                  |
+| Forming a diagnosis                               | `experience_propose_hypothesis` (hypothesis ≠ evidence)                                                                               |
+| Having a fix candidate                            | `experience_propose_solution` with validation `checks` (≥ 1 targeting the original failure + regression checks)                       |
+| Proving the fix works                             | `artifact_attach` + `validation_record_run` per check                                                                                 |
+| Closing the episode                               | `experience_finalize` (server assesses; requested outcome may be downgraded)                                                          |
+| A "fixed" problem broke again later               | `experience_mark_regression`                                                                                                          |
+| Memory pointed the wrong way                      | `experience_record_reuse_feedback` (`misleading`/`harmful` demotes content)                                                           |
+| Episode is dead ends only                         | `workflow_abandon` (evidence retained, state → `UNRESOLVED`)                                                                          |
+| False/rotten memory found                         | `experience_invalidate` (audited, privileged)                                                                                         |
+| Sharing lessons with other projects               | `lesson_publish` (widen to public) / `lesson_unpublish` (narrow back)                                                                 |
 
 ## Tool Reference
 
@@ -103,7 +109,7 @@ a `guidance` envelope.
   `repo_name` / `repo_lessons_scope`, `custom_triggers` (repo-specific trap
   domains), and existing file contents to switch into merge mode. The calling
   agent writes the returned `content` fields to the target files. See
-  *Automating lesson capture → Level 0* for the full bootstrap flow.
+  _Automating lesson capture → Level 0_ for the full bootstrap flow.
 
 ### Workflow tools
 
@@ -142,7 +148,7 @@ a `guidance` envelope.
   required when the check declares `evidence_requirement`. When all checks
   have passed runs with evidence, the episode advances to `LOCALLY_VERIFIED`.
 - **`experience_finalize`** — `requested_outcome: verified |
-  partially_verified | unresolved`. The server assesses the evidence: a
+partially_verified | unresolved`. The server assesses the evidence: a
   `verified` request without complete evidence yields
   `MISSING_REQUIRED_EVIDENCE` (listing exactly what is missing) and leaves the
   state untouched — complete the evidence and re-finalize. Duplicate
@@ -167,7 +173,7 @@ a `guidance` envelope.
   `retrieval_notes.semantic_available` reports whether the embedding arm is
   active.
 - **`experience_record_reuse_feedback`** — verdict `applicable | useful |
-  misleading | harmful`; `harmful` visibly demotes the episode in future
+misleading | harmful`; `harmful` visibly demotes the episode in future
   rankings.
 - **`experience_mark_regression`** — a previously verified solution failed;
   immediately demotes it, flags a contradiction warning, links the failing
@@ -204,11 +210,14 @@ a `guidance` envelope.
 1. **Start** — always begin with a search, not a capture:
 
 ```json
-{ "tool": "experience_search", "arguments": {
-  "query": "ERESOLVE peer dependency conflict",
-  "scope_id": "my-repo",
-  "environment": { "os": "linux", "node": "20" }
-}}
+{
+  "tool": "experience_search",
+  "arguments": {
+    "query": "ERESOLVE peer dependency conflict",
+    "scope_id": "my-repo",
+    "environment": { "os": "linux", "node": "20" }
+  }
+}
 ```
 
 If a verified, applicable episode comes back: use its solution, skip the
@@ -217,24 +226,27 @@ If a verified, applicable episode comes back: use its solution, skip the
 2. **Capture** — if nothing (or only `reference_only`) comes back:
 
 ```json
-{ "tool": "workflow_start", "arguments": {
-  "goal": "clean install exits 0",
-  "scope_id": "my-repo",
-  "problem_summary": "npm ERR code ERESOLVE",
-  "idempotency_key": "turn-12",
-  "client_context": { "scope_id": "my-repo", "agent_id": "claude" }
-}}
+{
+  "tool": "workflow_start",
+  "arguments": {
+    "goal": "clean install exits 0",
+    "scope_id": "my-repo",
+    "problem_summary": "npm ERR code ERESOLVE",
+    "idempotency_key": "turn-12",
+    "client_context": { "scope_id": "my-repo", "agent_id": "claude" }
+  }
+}
 ```
 
 3. **Follow the guidance** — each response names the single most useful next
-request and what is still missing. The safe sequence is: failure observation →
-environment fact (JSON) → attempt → outcome → hypothesis → solution with
-checks → attach evidence → validation runs → finalize.
+   request and what is still missing. The safe sequence is: failure observation →
+   environment fact (JSON) → attempt → outcome → hypothesis → solution with
+   checks → attach evidence → validation runs → finalize.
 
 4. **Be honest at finalize** — requesting `verified` without complete evidence
-returns the exact gap (`checks[1].passed_evidence`,
-`unresolved_critical_side_effect`) instead of silently verifying. That is the
-feature working as designed; collect the evidence and retry.
+   returns the exact gap (`checks[1].passed_evidence`,
+   `unresolved_critical_side_effect`) instead of silently verifying. That is the
+   feature working as designed; collect the evidence and retry.
 
 ### What NOT to do
 
@@ -247,7 +259,7 @@ feature working as designed; collect the evidence and retry.
   observation content is stored as-is (the agent is expected to redact
   before recording).
 - Do not treat `reference_only` results as instructions — they explain how a
-  similar problem was solved *elsewhere*; port the idea, not the commands.
+  similar problem was solved _elsewhere_; port the idea, not the commands.
 
 ## Installation
 
@@ -271,7 +283,9 @@ The stdio entry is then available at
     "experience-memory": {
       "type": "stdio",
       "command": "node",
-      "args": ["/absolute/path/to/thinking-mcp/servers/server-insight/dist/dev.js"],
+      "args": [
+        "/absolute/path/to/thinking-mcp/servers/server-insight/dist/dev.js"
+      ],
       "env": {}
     }
   }
@@ -300,15 +314,15 @@ volume directory):
 
 #### Environment variables
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `PORT` | `3002` | HTTP listen port |
-| `EMMS_BIND_HOST` | `127.0.0.1` | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works. |
-| `EMMS_AUTH_TOKEN` | — (auth off) | CB-20: when set, `/mcp` requires `Authorization: Bearer <token>` (timing-safe). `/health` stays open. Recommended whenever the server is reachable beyond loopback. |
-| `EMMS_STORAGE_BACKEND` | `sqlite` | `sqlite` \| `postgres` (both backends have full-text search at parity: sanitized AND-joined tsquery over goal summaries + first 500 chars of observations; live Postgres smoke test still pending — see remaining-work-plan follow-up) |
-| `EMMS_STORAGE_PATH` | `~/.insight/emms-store.db` | SQLite store location |
-| `EMMS_PG_CONNECTION_STRING` | — | Postgres connection string (required when backend=postgres) |
-| `EMMS_FTS_RELEVANCE_BOOST` | `0.30` | Relevance boost for full-text matches in `experience_search` ranking; clamped to `[0, 0.39]` so signature-exact hits (0.40) always rank first |
+| Variable                    | Default                    | Meaning                                                                                                                                                                                                                                |
+| --------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                      | `3002`                     | HTTP listen port                                                                                                                                                                                                                       |
+| `EMMS_BIND_HOST`            | `127.0.0.1`                | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works.                                                                                                      |
+| `EMMS_AUTH_TOKEN`           | — (auth off)               | CB-20: when set, `/mcp` requires `Authorization: Bearer <token>` (timing-safe). `/health` stays open. Recommended whenever the server is reachable beyond loopback.                                                                    |
+| `EMMS_STORAGE_BACKEND`      | `sqlite`                   | `sqlite` \| `postgres` (both backends have full-text search at parity: sanitized AND-joined tsquery over goal summaries + first 500 chars of observations; live Postgres smoke test still pending — see remaining-work-plan follow-up) |
+| `EMMS_STORAGE_PATH`         | `~/.insight/emms-store.db` | SQLite store location                                                                                                                                                                                                                  |
+| `EMMS_PG_CONNECTION_STRING` | —                          | Postgres connection string (required when backend=postgres)                                                                                                                                                                            |
+| `EMMS_FTS_RELEVANCE_BOOST`  | `0.30`                     | Relevance boost for full-text matches in `experience_search` ranking; clamped to `[0, 0.39]` so signature-exact hits (0.40) always rank first                                                                                          |
 
 ```bash
 docker run -d -p 3002:3002 paschbaer/insight:latest
@@ -343,6 +357,7 @@ docker compose up -d --build   # from the repository root
 Verify: `curl http://localhost:3002/health`
 
 Notes:
+
 - `better-sqlite3` is rebuilt natively inside the image (container platform
   ≠ host platform).
 - The first semantic search downloads the MiniLM model (~90 MB) into the
@@ -435,10 +450,10 @@ whole procedure.
 
 Two further hook variants (not implemented — trade-offs below):
 
-| Variant | Mechanism | Trade-off |
-|---------|-----------|-----------|
-| Git post-commit hook | Captures on every commit from the commit message + diff | Automatic, but wrong trigger point (commit ≠ session end) and no chat context |
-| VS Code extension with session-end event | Full hook: fires when the agent session closes | True automation, but requires building/maintaining an extension |
+| Variant                                  | Mechanism                                               | Trade-off                                                                     |
+| ---------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Git post-commit hook                     | Captures on every commit from the commit message + diff | Automatic, but wrong trigger point (commit ≠ session end) and no chat context |
+| VS Code extension with session-end event | Full hook: fires when the agent session closes          | True automation, but requires building/maintaining an extension               |
 
 ### Level 2 — Proactive retrieval via agent instructions
 
@@ -448,11 +463,12 @@ at task start when the domain matches:
 
 ```markdown
 ## Experience Memory lookup
+
 Before touching better-sqlite3, SQLite FTS5, yarn workspaces, or native
 module builds, search prior experience:
 
 experience_search { query: "<the area + problem keywords>",
-                    scope_id: "thinking-mcp-lessons" }
+scope_id: "thinking-mcp-lessons" }
 
 If a PARTIALLY_VERIFIED / LOCALLY_VERIFIED episode matches, follow its
 recorded fix and record reuse feedback afterwards.
@@ -491,11 +507,11 @@ Level 3's automatic clustering.
 
 Background maintenance worker (starts alongside the server):
 
-| Task | What it does |
-|------|-------------|
-| Stale scan | Flags episodes whose `last_verified_at` exceeds the staleness threshold (default: 90 days); penalizes them in search ranking |
-| Auto-dedup | Finds duplicate groups (same normalized signature + goal Jaccard ≥ 0.8) per scope |
-| Lesson promotion | Auto-proposes lessons from verified episodes sharing a failure signature (D5 thresholds) |
+| Task             | What it does                                                                                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Stale scan       | Flags episodes whose `last_verified_at` exceeds the staleness threshold (default: 90 days); penalizes them in search ranking |
+| Auto-dedup       | Finds duplicate groups (same normalized signature + goal Jaccard ≥ 0.8) per scope                                            |
+| Lesson promotion | Auto-proposes lessons from verified episodes sharing a failure signature (D5 thresholds)                                     |
 
 Configuration via `WorkerOptions` in `src/consolidation/worker.ts`:
 `staleDays` (default 90), `intervalMs` (default 300 000 = 5 min, 0 = manual only).
@@ -504,11 +520,47 @@ Run on-demand: `new ConsolidationWorker(adapter, lessonService).runOnce()`.
 
 ## Configuration
 
-| Env / config | Default | Meaning |
-|--------------|---------|---------|
+| Env / config        | Default                                              | Meaning                                        |
+| ------------------- | ---------------------------------------------------- | ---------------------------------------------- |
 | `EMMS_STORAGE_PATH` | `~/.insight/emms-store.db` (stdio) / volume (Docker) | SQLite database file (WAL mode, FTS5 required) |
-| `PORT` | `3002` | HTTP transport port (stdio via `npm run dev`) |
-| ranking weights | D6 defaults (see research.md) | configurable in `src/config.ts` |
+| `PORT`              | `3002`                                               | HTTP transport port (stdio via `npm run dev`)  |
+| ranking weights     | D6 defaults (see research.md)                        | configurable in `src/config.ts`                |
+
+## Async acceptance & progress notifications
+
+Long-running tool calls (`experience_seed_lessons`, `experience_finalize`) can
+run asynchronously: the call returns promptly with an acceptance envelope and
+the outcome (including failures, with error code and message) is retrieved
+through the existing status interface `workflow_status`, which merges an
+`asyncOperations` section when operations exist for the session.
+
+Async mode is opt-in and never changes the default behavior:
+
+| Mechanism                              | Effect                                               |
+| -------------------------------------- | ---------------------------------------------------- |
+| `_meta: { async: true }` per request   | this call is accepted and executed in the background |
+| `EMMS_ASYNC_ACCEPTANCE=1` (server env) | all wrapped calls default to async                   |
+| `_meta: { async: false }`              | overrides the server default back to synchronous     |
+
+A retry of the same call while an operation is in flight is idempotent: it
+returns the current operation state instead of starting a second execution.
+A retry with a DIFFERENT payload is flagged (`payloadMatches: false`) instead
+of being swallowed.
+
+**Progress notifications (SSE):** requests carrying an MCP `progressToken`
+(`params._meta.progressToken`) are answered over a Server-Sent-Events stream
+with `notifications/progress` events (monotonic `progress`, `total`,
+human-readable `message`) and keepalive comment frames during silence. Plain
+JSON clients (no progress token) receive the exact same responses as before.
+
+| Env                      | Default | Meaning                                                                 |
+| ------------------------ | ------- | ----------------------------------------------------------------------- |
+| `EMMS_SSE_KEEP_ALIVE_MS` | `15000` | keepalive interval on SSE streams (values ≤ 0 fall back to the default) |
+
+Operation records are persisted next to the store (under the storage file's
+directory, `operations/`) and survive restarts; an operation that was in
+flight when the server restarted is reported as
+`failed/operation_interrupted` on first read.
 
 ## Backup & Restore
 
@@ -544,6 +596,7 @@ npm run dev:http     # HTTP on :3002
 ```
 
 Test layout:
+
 - `tests/contracts/` — tool/storage/guidance/retrieval/isolation contracts
   (written before implementation, per project constitution)
 - `tests/unit/` — state machine, revisions, redaction, normalization

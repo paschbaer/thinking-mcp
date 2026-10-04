@@ -144,6 +144,47 @@ app.post(
         // its own SessionState.
         await session.server.connect(session.transport);
       }
+      // Spec 016 FR-5/FR-7: Streamable HTTP requires every POST to accept
+      // BOTH application/json and text/event-stream (the SDK rejects
+      // anything else with 406), so Accept alone cannot signal the upgrade
+      // without breaking compliant legacy clients (FR-9). The upgrade keys
+      // on the MCP progress opt-in: requests carrying _meta.progressToken
+      // are answered over a per-request SSE transport (progress + keepalive
+      // frames); all other requests keep the session's plain-JSON transport
+      // and its byte-identical pre-016 behavior (FR-9/AC4).
+      const acceptTypes = (req.headers.accept ?? "")
+        .split(",")
+        .map((t) => t.trim().split(";")[0] ?? "");
+      const progressToken = (
+        req.body as
+          { params?: { _meta?: { progressToken?: unknown } } } | undefined
+      )?.params?._meta?.progressToken;
+      const wantsSse =
+        !!known &&
+        acceptTypes.includes("text/event-stream") &&
+        progressToken !== undefined;
+      if (wantsSse) {
+        const sseServer = createExperienceMemoryServer({
+          config: resolveEnvConfig(),
+        });
+        const sseTransport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined, // stateless, request-scoped
+          enableJsonResponse: false,
+          // FR-7: keepalives during silence (default 15 s; env-overridable
+          // for tests; non-positive/unparsable values fall back to default).
+          keepAliveMs:
+            Number(process.env.EMMS_SSE_KEEP_ALIVE_MS) > 0
+              ? Number(process.env.EMMS_SSE_KEEP_ALIVE_MS)
+              : 15000,
+        });
+        res.on("close", () => {
+          void sseTransport.close().catch(() => undefined);
+          void sseServer.close().catch(() => undefined);
+        });
+        await sseServer.connect(sseTransport);
+        await sseTransport.handleRequest(req, res, req.body);
+        return;
+      }
       await session.transport.handleRequest(req, res, req.body);
     } catch (err) {
       if (!res.headersSent) {

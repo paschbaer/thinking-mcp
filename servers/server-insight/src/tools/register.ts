@@ -9,6 +9,73 @@ import type { EmmsService, ClientContext } from "../service.js";
 import { EmmsError } from "../domain/errors.js";
 import { StaleRevisionError } from "../domain/revision.js";
 import { InvalidTransitionError } from "../domain/state-machine.js";
+import {
+  fingerprintArgs,
+  OperationRegistry,
+} from "../workflow/operation-registry.js";
+import type { ProgressChannel } from "../workflow/transition-protocol.js";
+
+/**
+ * Spec 016 (FR-1/FR-2/FR-3): async acceptance for long-running tools.
+ * Opt-in per request via `_meta.async` or server-wide via
+ * EMMS_ASYNC_ACCEPTANCE=1; synchronous execution remains the DEFAULT
+ * (FR-4/FR-10). Outcomes (incl. failures) are carried by the existing
+ * status interface: workflow_status merges `asyncOperations` (FR-3).
+ */
+const ASYNC_WRAPPED_TOOLS = new Set([
+  "experience_seed_lessons",
+  "experience_finalize",
+]);
+
+/** Minimal shape of the SDK request handler extra this wrapper needs. */
+interface HandlerExtra {
+  _meta?: { async?: boolean; progressToken?: string | number };
+  sessionId?: string;
+  sendNotification: (notification: {
+    method: string;
+    params: Record<string, unknown>;
+  }) => Promise<void>;
+}
+
+function resolveRegistry(): OperationRegistry {
+  // The registry directory lives next to the storage file (docker sets
+  // EMMS_STORAGE_PATH; tests point it at a temp dir).
+  const storage = process.env.EMMS_STORAGE_PATH ?? "./emms-data/emms-store.db";
+  const stateDir = storage.replace(/[^/\\]+$/, "") || ".";
+  return new OperationRegistry(stateDir);
+}
+
+let sharedRegistry: OperationRegistry | undefined;
+function registry(): OperationRegistry {
+  sharedRegistry ??= resolveRegistry();
+  return sharedRegistry;
+}
+
+function asyncMode(meta: HandlerExtra["_meta"]): boolean {
+  if (meta?.async !== undefined) return meta.async === true;
+  return process.env.EMMS_ASYNC_ACCEPTANCE === "1";
+}
+
+function progressChannelOf(extra: HandlerExtra): ProgressChannel | undefined {
+  const token = extra._meta?.progressToken;
+  if (token === undefined) return undefined;
+  return {
+    token,
+    send: (update) =>
+      extra.sendNotification({
+        method: "notifications/progress",
+        params: { progressToken: token, ...update },
+      }),
+  };
+}
+
+/** Test fixture hook (mirrors guidance's slow-gate fixture): makes the
+ *  background execution observably slow so acceptance/poll timing is
+ *  provable. Production default 0 — no effect. */
+function testMinDurationMs(): number {
+  const v = Number(process.env.EMMS_ASYNC_TEST_MIN_DURATION_MS);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
 
 export interface ToolDeps {
   service: EmmsService;
@@ -109,8 +176,30 @@ function registerTool(
   handler: (args: Record<string, unknown>) => Promise<unknown>,
   deps?: ToolDeps,
 ): void {
-  server.tool(name, description, schema, async (args) => {
-    let parsedSuccessArgs: Record<string, unknown> | undefined;
+  server.tool(name, description, schema, async (args, extra) => {
+    const handlerExtra = extra as unknown as HandlerExtra;
+    let parsedData: Record<string, unknown> | undefined;
+    // Spec 016 FR-6: progress channel (present only with a progressToken).
+    const progress = progressChannelOf(handlerExtra);
+    const progressStep = (message: string, value: number) =>
+      progress
+        ? progress
+            .send({ progress: value, total: 1, message })
+            .catch(() => undefined)
+        : Promise.resolve();
+    // Spec 016 FR-3: workflow_status carries async operation outcomes for
+    // this MCP session (only when any exist — otherwise the response shape
+    // is unchanged, FR-9).
+    const attachAsyncOperations = async (
+      payload: Record<string, unknown>,
+    ): Promise<Record<string, unknown>> => {
+      if (name !== "workflow_status") return payload;
+      const scope = handlerExtra.sessionId ?? "default";
+      const ops = await registry().allFor(scope);
+      return Object.keys(ops).length > 0
+        ? { ...payload, asyncOperations: ops }
+        : payload;
+    };
     try {
       const parsed = z.object(schema).safeParse(args);
       if (!parsed.success) {
@@ -128,9 +217,67 @@ function registerTool(
           },
         });
       }
-      parsedSuccessArgs = parsed.data as Record<string, unknown>;
-      const payload = await handler(parsedSuccessArgs);
-      return jsonResult(payload);
+      parsedData = parsed.data as Record<string, unknown>;
+      // Spec 016 FR-1: opt-in async acceptance at the single choke point.
+      if (ASYNC_WRAPPED_TOOLS.has(name) && asyncMode(handlerExtra._meta)) {
+        const scope = handlerExtra.sessionId ?? "default";
+        const fp = fingerprintArgs(parsedData);
+        const { record, created } = await registry().begin(scope, name, fp);
+        if (!created) {
+          // FR-2: an in-flight (or just-terminal) retry maps onto the same
+          // operation; the diagnostics fingerprint of the DIFFERENT payload
+          // is recorded in the response so a mismatch is visible (F5) and
+          // the in-flight result is never returned as if it were this
+          // payload's outcome.
+          const payloadMatches = record.fingerprint === fp;
+          return jsonResult({
+            accepted: false,
+            reason: "operation_in_progress",
+            payloadMatches,
+            operationId: record.operationId,
+            status: record.status,
+          });
+        }
+        const minMs = testMinDurationMs();
+        void (async () => {
+          try {
+            if (minMs > 0) await new Promise((r) => setTimeout(r, minMs));
+            const result = await handler(parsedData!);
+            await registry().complete(scope, name, result);
+          } catch (e) {
+            const mapped = (() => {
+              try {
+                mapError(e);
+              } catch (mappedErr) {
+                return mappedErr as EmmsError;
+              }
+              return new EmmsError("INTERNAL_ERROR", "unreachable", true);
+            })();
+            await registry().fail(scope, name, {
+              code: mapped.code,
+              message: mapped.message,
+              recoverable: mapped.retryable,
+            });
+          }
+        })().catch(() => undefined);
+        return jsonResult({
+          accepted: true,
+          operationId: record.operationId,
+          tool: name,
+          poll: "workflow_status",
+        });
+      }
+      // Spec 016 FR-6: with a progressToken the response streams over SSE;
+      // progress notifications are emitted WHILE the request is open (the
+      // transport drops notifications sent after the response completed).
+      const minMs = testMinDurationMs();
+      if (minMs > 0) await new Promise((r) => setTimeout(r, minMs));
+      await progressStep(`${name} started`, 0);
+      const payload = await handler(parsedData!);
+      await progressStep(`${name} succeeded`, 1);
+      return jsonResult(
+        await attachAsyncOperations(payload as Record<string, unknown>),
+      );
     } catch (e) {
       const mapped = (() => {
         try {
@@ -143,9 +290,8 @@ function registerTool(
       // FR-010: recoverable errors still carry a guidance envelope
       let guidance: unknown;
       try {
-        const wfId = (parsedSuccessArgs ?? {})["workflow_id"] as
-          string | undefined;
-        const cc = (parsedSuccessArgs ?? {})["client_context"];
+        const wfId = (parsedData ?? {})["workflow_id"] as string | undefined;
+        const cc = (parsedData ?? {})["client_context"];
         if (wfId && cc && mapped.code !== "INVALID_REQUEST") {
           const service = moduleDeps!.service;
           guidance = (await service.status(wfId, cc as never)).guidance;
@@ -153,15 +299,18 @@ function registerTool(
       } catch {
         guidance = undefined;
       }
-      return jsonResult({
-        error: {
-          code: mapped.code,
-          message: mapped.message,
-          retryable: mapped.retryable,
-          details: mapped.details,
-        },
-        guidance,
-      });
+      await progressStep(`${name} failed`, 1);
+      return jsonResult(
+        await attachAsyncOperations({
+          error: {
+            code: mapped.code,
+            message: mapped.message,
+            retryable: mapped.retryable,
+            details: mapped.details,
+          },
+          guidance,
+        }),
+      );
     }
   });
 }
