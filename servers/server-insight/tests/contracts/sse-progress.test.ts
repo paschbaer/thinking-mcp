@@ -189,6 +189,82 @@ describe("Spec 016 AC3: SSE progress stream", () => {
     expect(raw).not.toContain(process.env.EMMS_AUTH_TOKEN ?? "\u0000nope");
   }, 30000);
 
+  it("R1 regression: an async op accepted over SSE is visible to a plain-JSON workflow_status poll of the SAME session", async () => {
+    const initRes = await post(INIT);
+    const sid = initRes.headers.get("mcp-session-id")!;
+    expect(sid).toBeTruthy();
+
+    // Async acceptance over the SSE transport (progressToken + async).
+    const res = await post(
+      {
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "experience_seed_lessons",
+          arguments: {
+            lessons: [
+              {
+                slug: "s016-sse-async-lesson",
+                observation: "o",
+                cause: "c",
+                fix: "f",
+              },
+            ],
+            client_context: CC,
+          },
+          _meta: { async: true, progressToken: "tok-r1" },
+        },
+      },
+      { "mcp-session-id": sid },
+    );
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+    const raw = await readSse(res);
+    const acceptanceFrame = parseSse(raw).find((f) =>
+      f.data?.includes("accepted"),
+    );
+    expect(acceptanceFrame).toBeDefined();
+    const acceptance = JSON.parse(acceptanceFrame!.data!) as {
+      result?: { content?: Array<{ text: string }> };
+    };
+    const envelope = JSON.parse(acceptance.result!.content![0].text) as {
+      operationId?: string;
+    };
+    expect(envelope.operationId).toBeDefined();
+
+    // Plain-JSON poll on the SAME session must see the operation (FR-3).
+    const deadline = Date.now() + 15000;
+    let rec: Record<string, unknown> | undefined;
+    while (Date.now() < deadline) {
+      const status = await post(
+        {
+          jsonrpc: "2.0",
+          id: 5,
+          method: "tools/call",
+          params: {
+            name: "workflow_status",
+            arguments: {
+              workflow_id: "does-not-exist",
+              client_context: CC,
+            },
+          },
+        },
+        { "mcp-session-id": sid },
+      );
+      const body = (await status.json()) as {
+        result?: { content?: Array<{ text: string }> };
+      };
+      const payload = JSON.parse(body.result!.content![0].text) as {
+        asyncOperations?: Record<string, Record<string, unknown>>;
+      };
+      rec = payload.asyncOperations?.experience_seed_lessons;
+      if (rec && rec.status !== "in_flight") break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    expect(rec).toBeDefined();
+    expect(rec!.operationId).toBe(envelope.operationId);
+  }, 30000);
+
   it("a read tool with SSE accept but no progressToken stays on the JSON transport (FR-9)", async () => {
     const initRes = await post(INIT);
     const sid = initRes.headers.get("mcp-session-id")!;

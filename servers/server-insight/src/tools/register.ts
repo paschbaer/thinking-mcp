@@ -14,6 +14,7 @@ import {
   OperationRegistry,
 } from "../workflow/operation-registry.js";
 import type { ProgressChannel } from "../workflow/transition-protocol.js";
+import { requestSessionScope } from "./request-scope.js";
 
 /**
  * Spec 016 (FR-1/FR-2/FR-3): async acceptance for long-running tools.
@@ -75,6 +76,15 @@ function progressChannelOf(extra: HandlerExtra): ProgressChannel | undefined {
 function testMinDurationMs(): number {
   const v = Number(process.env.EMMS_ASYNC_TEST_MIN_DURATION_MS);
   return Number.isFinite(v) && v > 0 ? v : 0;
+}
+
+/** Operation scope = MCP session id. Sessioned transports provide it via
+ *  extra.sessionId; the per-request stateless SSE transport does not, so
+ *  server.ts binds the known session's wire id into requestSessionScope
+ *  (FR-3: outcomes must be visible to plain-JSON status polls of the SAME
+ *  session — and only those). */
+function operationScope(extra: HandlerExtra): string {
+  return extra.sessionId ?? requestSessionScope.getStore() ?? "default";
 }
 
 export interface ToolDeps {
@@ -194,7 +204,7 @@ function registerTool(
       payload: Record<string, unknown>,
     ): Promise<Record<string, unknown>> => {
       if (name !== "workflow_status") return payload;
-      const scope = handlerExtra.sessionId ?? "default";
+      const scope = operationScope(handlerExtra);
       const ops = await registry().allFor(scope);
       return Object.keys(ops).length > 0
         ? { ...payload, asyncOperations: ops }
@@ -220,7 +230,7 @@ function registerTool(
       parsedData = parsed.data as Record<string, unknown>;
       // Spec 016 FR-1: opt-in async acceptance at the single choke point.
       if (ASYNC_WRAPPED_TOOLS.has(name) && asyncMode(handlerExtra._meta)) {
-        const scope = handlerExtra.sessionId ?? "default";
+        const scope = operationScope(handlerExtra);
         const fp = fingerprintArgs(parsedData);
         const { record, created } = await registry().begin(scope, name, fp);
         if (!created) {

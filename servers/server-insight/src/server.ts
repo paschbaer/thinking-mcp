@@ -15,6 +15,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import createExperienceMemoryServer from "./index.js";
+import { requestSessionScope } from "./tools/request-scope.js";
 import {
   ServerConfigSchema,
   resolveConfig,
@@ -182,7 +183,11 @@ app.post(
           void sseServer.close().catch(() => undefined);
         });
         await sseServer.connect(sseTransport);
-        await sseTransport.handleRequest(req, res, req.body);
+        // FR-3: bind the known session's wire id so async operations
+        // accepted over SSE scope to the same session as plain-JSON polls.
+        await requestSessionScope.run(session.sessionId ?? "default", () =>
+          sseTransport.handleRequest(req, res, req.body),
+        );
         return;
       }
       await session.transport.handleRequest(req, res, req.body);

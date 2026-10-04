@@ -4,6 +4,7 @@
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
 ## 2026-10-02: MCP HTTP Keep-Alive-Timeout raised from 5 s to 65 s (feature/mcp-keep-alive-timeout)
+
 - **Symptom:** All MCP HTTP servers advertised `Keep-Alive: timeout=5`; client/agent connections stalled and dropped constantly.
 - **Root cause:** All four servers start via Express `app.listen()` → Node `http.Server`. Since Node 19, `keepAliveTimeout` defaults to 5000 ms and Node emits that value in the `Keep-Alive` response header, destroying idle sockets after 5 s.
 - **Fix:** In each `servers/*/src/server.ts` listen callback: `server.keepAliveTimeout = 65000` (env-overridable via `KEEP_ALIVE_TIMEOUT_MS`), `server.headersTimeout = +5000`. 65 s sits above common proxy idle timeouts (60 s).
@@ -17,10 +18,12 @@
 - **Offen:** MCP-Timeouts der direkten MCP-Routen (separates Infrastrukturthema, nicht index-bezogen).
 
 ## 2026-10-02: REV-RRDO-1/2 abgearbeitet (Guidance-Session session-1bb0632b, Commit 9f7bc5f)
+
 - **Was:** Coverage-Lücken aus dem Review von 283fc74 geschlossen: Opt-out-Tool-Listen-Test (tools-registration.test.ts — `registryRegister.enabled:false` → `tools/list` exkludiert `registry_register`, exakte Surface = WORKFLOW_TOOL_NAMES) + Emissions-Assertions (scaffold.test.ts, config-assistant.test.ts AC-6, config-assistant-extensions.test.ts adopt+registry-edit — jeweils `registryRegister: {enabled: true}`). Nur Tests, keine Produktionscode-Änderung. Vollauf 537/537, tsc/prettier grün, detect_changes risk low.
 - **Notiz:** direkte Clear-Thought-MCP-Route wieder durchgehend getimed-out; `reasoning-pass` über Container-Route (`run_operation`) erfolgreich — FR-035-Passthrough-Muster erneut produktiv bestätigt. Final-Review über den Session-Diff (Sub-Agent aa18d064): APPROVED, 0 HIGH/CRIT; FR-FINAL-1 (Hash-Ref) hiermit korrigiert, FR-FINAL-2 getrackt.
 
 ## 2026-10-02: registry_register aktiviert + Profil-Bindung entfernt (feature/registry-register-default-on)
+
 - **Was:** `registryRegister.enabled` ist jetzt Default-ON mit Opt-out (`enabled: false`) statt Default-OFF (config.ts Loader, FR-1207); die `spec-kit`-Profil-Bindung an `registry_register` wurde entfernt (ToolHandlers.isRegistryRegisterEnabled, WorkflowEngine.registerWorkspace, register-tools.ts) — Begründung: Workspace-Registrierung ist ein einmaliger Instanz-/Infrastruktur-Concern, der Workflow-Typ wird pro `start_workflow` gewählt; die Profil-Bindung mischte diese Ebenen. Beide Templates emitieren `registryRegister: { enabled: true }` (scaffold.ts Scaffold + ConfigAssistant registry-edit). README „Runtime registry registration“-Tabelle + Tool-Referenz-Zeile dokumentieren das neue Verhalten (Default ON, Opt-out, profilunabhängig).
 - **Tests:** registry-rebind (Opt-out-Test auf explizites `flag: false` umgestellt + neuer Default-ON/Plain-Profile-Regressionstest), tools-registration + spec-kit-tools-registration (erwartete Surface um `registry_register` erweitert), http-transport Tool-Count 23→24. Vollauf **535/535 grün** (68 Files), tsc + prettier clean.
 - **detect_changes:** risk `critical` (loadConfig/registerWorkflowTools an jedem Boot-Flow) — beabsichtigte Behavior-Änderung, durch Vollauf abgesichert.
@@ -28,23 +31,27 @@
 - **Next:** Merge nach develop; Container-Rebuild nötig, bis das Tool in der laufenden Instanz sichtbar ist (Hot-Reload gibt es nicht).
 
 ## 2026-10-02: CT-ARGS-1 implementiert (feature/ct-args-passthrough)
+
 - **Was:** Guidance-Workflow session-b0c6df8b — `call_downstream`-Passthrough-Tool + `run_operation`-Arguments-Parameter (Deep-Merge, Agent-Keys gewinnen) + `argumentsLocked`-Fail-closed-Flag. Neue Tests `tests/contract/call-downstream.test.ts` (12, in-process HTTP-MCP-Stub); http-transport Tool-Count 22→23. Full-Suite 516/516 (9 skipped), tsc clean.
 - **Review:** unabhängiger Reviewer (Sub-Agent): CHANGES REQUIRED (1 HIGH Redaction, 2 MEDIUM Router-Override-Drop/Cancel-Semantik) → alle gefixt (d1f0c7d), Re-Review: **APPROVED, 0 offene HIGH/CRITICAL** (Residuen als CT-ARGS-2 getrackt).
 - **Live-Evidenz im Workflow:** direkte Clear-Thought-MCP-Route durchgehend getimed-out (4×), Container-Route-Fallback (`reasoning-pass`) jedes Mal erfolgreich — FR-035-Verhalten produktiv bestätigt; nach CT-ARGS-1 sind parametrisierte Reasoning-Pässe (`assumption_xray` etc.) über `call_downstream` nutzbar.
 - **Next:** Merge nach develop.
 
 ## 2026-10-02: Clear-Thought-Operationen für Container-Route generiert (46 neue Ops)
+
 - **Was:** `.guidance/operations.json` um `ct-*`-mcpTool-Operationen für ALLE Clear-Thought-Tools erweitert (38× `read_only`, 8× `external_write` für session_save/load/import, session/recipe_runner/workflow/Stochastic-Toolsets — nicht idempotent, daher bewusst NICHT fallback-eligibel). Capabilities gegen `server-clear-thought/src/tools/tool-metadata.ts` + Toolset-Slugs verifiziert; JSON per Node-Parser validiert (47 Clear-Thought-Ops inkl. reasoning-pass).
 - **Befund / Runtime-Limitierung:** `run_operation` nimmt KEINE Agent-Argumente entgegen (register-tools.ts L280: nur sessionId+operationId); mcpTool-Ops ziehen Args ausschließlich aus `arguments` (fixed/template). Die neuen Ops sind daher sofort funktional für parameterlose Tools (session_info/export, existing_tool_example) — parametrisierte Tools benötigen entweder feste Args im Op-Eintrag oder einen künftigen Downstream-Passthrough. Getrackt als CT-ARGS-1 (remaining-work-plan.md).
 - **Nächste Schritte:** Guidance-Container neu starten/Config neu laden (`docker compose up -d` bzw. Session neu initialisieren), dann Smoke-Test: `run_operation(ct-session-info)` über die Container-Route.
 
 ## 2026-09-30: Guidance-Container-Start-Crash behoben (falscher /workspaces-Mount)
+
 - **Symptom:** Container crashete beim Start mit `EACCES ... mkdir '/workspaces/.guidance'` (scaffold.js).
 - **Root cause:** Veralteter Container (`thinking-mcp-guidance-1`) mit falschem Mount `bind /mnt -> /workspaces` (root-owned, für `USER node` nicht schreibbar) statt `D:\repos -> /workspaces` — aus einer früheren/WSL-seitigen Erzeugung. Isoliertest mit korrektem Mount bestätigte Schreibbarkeit als `node`.
 - **Fix:** `docker compose up -d --force-recreate` aus `servers/server-guidance`; `/health` → `configured:true, reachable:true`. Alt-Container via `docker rm -v` entfernt.
 - **Doku:** Lesson in lessonsLearned.md (2026-09-30) + neue Start-Discipline-Regel in AGENTS.md (Guidance-Sektion; Backup `AGENTS.md.bak` angelegt, Clear-Thought-Konsistenzcheck ohne Konflikte).
 
 ## 2026-09-28: Config-Assistant generic patterns (session-2c0c15fe, MERGED: develop @ 42e37bf)
+
 - **Root cause (Niyama-Folge):** der FRESH-Generator selbst war nicht generisch — `buildOperations` (ConfigAssistant.ts) hardcodete den Lint-Op als `npx prettier --check servers/*/src/**/*.{ts,tsx}` (Thinking-MCP-Glob) → exit 2 in jedem Repo ohne `servers/`-Layout. Zweitbefund: Adopt-Klassifikation prüfte Genericität nur über Op-NAMEN (+ kryptische `includes('"repo"')`-Heuristik) — repo-spezifische Args unter generischem Name entkamen dem `[adopted]`-Marker.
 - **Umgesetzt:** (1) Lint-Op → `npm run lint` (required:false, aligned mit examples/default-guidance); (2) strukturelle Genericitätsregel (nach Review-Verfeinerung): Preset-Ops werden IMMER aus dem Target-Fresh-Template regeneriert — divergente Ref-Args erzeugen eine laute `REGENERATED … reference args discarded`-Note statt Kopie; nur Non-Preset-Ops werden mit `[adopted — review args/paths]`-Marker kopiert (deckt beide Fehlerichtungen: Glob-Leak UND Scope-Kontamination); (3) Tests: Fresh-Args frei von Repo-Globs + Lint-Shape gepinnt; Niyama-Klasse (mutierter Lint-Args → regeneriert + Note), Builtin-Konvergenz + Builtin-Sync-Pin, Preset-Op ohne Fresh-Entsprechung → nonGeneric; (4) README: Genericity-Rule + npm/npx/sh-Konventionsannahme dokumentiert.
 - **Validierung:** ConfigAssistant-Suiten 57/57 grün, tsc --noEmit clean; Guidance-Suite 429/429 grün; Verify-Gates: build (required) GRÜN, lint-Fail = prä-existierender Prettier-Drift in 5 fremden Dateien (TMPL-1), test-Fail = better-sqlite3-musl-dlopen im Container (TMPL-2) — beide required:false, nicht durch diesen Diff verursacht. Independent Review (Sub-Agent): 0 HIGH/CRITICAL; GitNexus-MCP-Timeouts (2×) → grep-Fallback je FR-035.
@@ -52,39 +59,46 @@
 - **Session-Review-Befunde (3, mit Evidence getrackt in remaining-work-plan):** REV-1 FR-035-Fallback-Reihenfolge bei GitNexus-Timeouts (Container-Route für gitnexus nicht konfiguriert — nur clearthought; Klärung Regeltext/Route offen); REV-2 `get_next_task` ohne Spec-Kit-Import wirft `spec_kit_artifact_missing` (reproduziert, auch post-completion); REV-3 `git diff` ohne `--no-pager` → Terminal-Hang (AGENTS.md-Regelverstoß, Lesson ergänzt).
 
 ## 2026-09-28: Niyama Guidance-Session session-46a43aeb-6a87-4730-ac64-c73e613ae8d9 abgebrochen (Infrastruktur-Blocker)
+
 - **Kontext:** Session erreichte Phase `complete` nach Task 1 (gesamter C0+C1-Scope); verpflichtende Verification-Ops schlugen umgebungsbedingt fehl. Eigene Änderung (Standalone-.mjs + Markdown) kann build/lint/test nicht beeinflussen.
 - **Befunde:** (1) lint exit 2 — Pattern `servers/*/src/**/*.{ts,tsx}` existiert im Repo nicht (Verification-Config aus fremdem Repo-Layout kopiert, vermutlich Thinking-MCP `servers/`-Monorepo); (2) test exit 1 — `Cannot find module @rollup/rollup-linux-x64-musl` (Guidance-Container `/workspaces/Niyama`, pnpm-Store unvollständig/musl-inkompatibel). Keine der beiden Ops ist agent-invocable → nicht nachführbar.
 - **Entscheidung:** `report_blocker` (Kategorie infrastructure) gesetzt, dann `cancel_workflow` (status: cancelled) statt `complete_workflow` — Completion wäre unehrlich; betroffene Tasks NICHT als verified markiert.
 - **Follow-ups:** vor nächster Batch-Session (1) Lint-Glob in der Verification-Config des Guidance-Containers korrigieren, (2) pnpm-Store/Container-Mount reparieren, (3) komplette Verification-Config auf weitere fremde Repo-Pfade/Mounts auditieren. Danach frische Session pro Task-Batch; verbleibende C0-Tasks laufen dort (nicht in der abgeschlossenen Session — Lifecycle-Gates wären umgangen).
 
 ## 2026-09-28: Independent Review RID-1 (develop fbd5bdc) — CHANGES REQUIRED
+
 - Scope: `git show fbd5bdc` (RID-1 requestId-Replay-Hardening), Amendment 006. Snapshot verifiziert: develop @ fbd5bdc, Review-Basis = Commit-Diff (unstaged: nur memory-bank/SDD-Doku).
 - Verifiziert gegen Source: Replay-Marker + Clone (Cached-Original nie mutiert, Regressionstest), Replay-Check vor Phasen-/Schema-Checks in submitLocked UND completeWorkflowLocked (korrekt: Reuse erzeugt nie eine Submission), withLock-Serialisierung + MEDIUM-3-Successor-Race unbeeinträchtigt (Clone erhält nextSessionId), omitted-config-Defaults (submission absent → warn; requestPayloadHashes absent → Replay ohne Mismatch-Evaluation), fail-closed Policy-Validierung, Metric genau 1×/Replay. Tests: requestid-replay.test.ts 8/8 grün (lokal nachgeführt), tsc --noEmit grün.
 - Befunde: RID-2 MEDIUM (Hash-Poisoning bei fehlgeschlagenem Completion — First-Seen-Hash vor Outcome gespeichert, nie überschrieben → falsche payloadMismatch/fälschlicher Reject legaler Retries), RID-3 LOW (Metric nach Throw — payloadMismatches unter reject-mismatch immer 0), RID-4 LOW (Replays unauditiert), RID-5 INFO (undefined-Kollision in stablePayloadHash, wire-seitig unerreichbar), RID-6 INFO (fehlender Completion-Replay-Test als akzeptierte Abweichung bestätigt). Details + Trigger in remaining-work-plan.md.
 - Open HIGH/CRITICAL: 0. Verdict: CHANGES REQUIRED (RID-2 fixen, dann re-review).
 
 ## 2026-09-28: RID-1 requestId-Replay-Hardening implementiert (session-dcd3ddc5, develop fbd5bdc)
+
 - **Umgesetzt:** (1) Replay-Marker (replayed/duplicateOf/warning auf geklontem Result, Original nie mutiert — Amendment-002-Successor-Race sicher); (2) Payload-Hash (SHA-256 über sortiertes JSON, session.requestPayloadHashes) + Policy policies.submission.requestIdReuse warn|reject-mismatch (fail-closed Validierung, neuer ErrorCode requestId_reuse_payload_mismatch); (3) Metric requestIdReplays {total,payloadMismatches} in get_metrics; (4) 8 Contract-Tests + Error-Code-Snapshot; (5) Doku: README submit_* + specs/002/amendments/006.
 - **Validierung:** Worktree-Suite 228/233 grün (5 = bekannte final-review-gate-Worktree-Artefakte), Haupt-Checkout nach Merge Vollsuite grün (233/233 reale Tests), tsc clean.
 - **Vorfall:** Fremder Agent setzte während der Implementierung WorkflowEngine.ts im Haupt-Checkout auf HEAD zurück (RID-1-Edits verloren) und modifizierte SDD/guidance-mcp-specification-v2.md (fremde Änderung, unberührt gelassen). Arbeit in Worktree worktrees/rid1 isoliert neu aufgebaut und von dort gemerged — Parallel-Work-Lesson erneut bestätigt.
 - **Grenzen (Amendment 006 §4):** Pre-RID-1-Sessions ohne Hash durchlaufen warn ohne payloadMismatch-Bewertung; Completion-Replay-Test im Harness nicht erreichbar (repository-analysis required:true).
 
 ## 2026-09-28: FR-035-Container-Route — Review-Runde 1 gefixt (worktree fr035-fix, 34b029c)
+
 - Independent Review (Sub-Agent, CHANGES REQUIRED, 1 HIGH): F1 SSRF-Bypass (stdio + containerRoute übersprang Allowlist) → behoben (Block vor Transport-Typ-continue, 2 Regressionstests); F4 Timeout-Guard, F5 recordConnection im Fallback-Pfad → behoben; F2 → FR-611 auf Wisdom-Baseline re-gescope't (Follow-up CR-1 in remaining-work-plan); F3 Engine-Test-Debt → getrackt (CR-2, GDS4-Konfliktvermeidung). Zielgerichtet 110/110 grün, tsc clean; Full-Suite im Worktree: 7 Umgebungsartefakte (final-review-gate vs. Windows-.git-File im Container; im Haupt-Checkout grün).
 - **Prozess-Anmerkung:** GDS4-Agent arbeitet parallel im Haupt-Checkout (HEAD auf feature/gds4-expose-op-content, uncommittete WorkflowEngine-Änderungen) — Review-Fixes bewusst im separaten Worktree committet; Merge/Rebase nach GDS4-Abschluss.
 
 ## 2026-09-28: FR-035-Amendment „Container-Route vor lokalem Fallback“ (session-1afb793f, feature/fr035-container-route)
+
 - **Scope (Nutzerentscheid):** Textregel + maschinell; FR-035 amendiert (Amendment 005 in specs/002); RID-1 folgt separat.
 - **Umgesetzt:** (1) FR-035-Text in responses-wisdom.json + live .guidance/responses.json auf Reihenfolge retry → Container-Route → lokal → report_blocker (7 Phasen je Datei); (2) `containerRoute`-Feld in downstream-servers.json (fail-closed Validierung + SSRF-Allowlist + ${ENV}-Header in config.ts), Template + Live-Config für clearthought befüllt; (3) Engine-Fallback: EIN automatischer Versuch über containerRoute bei read_only-Timeout (ClientManager.invokeOnTransientHttpRoute + Gate in WorkflowEngine.buildInvokerClosure), Metric containerRouteFallbacks in get_metrics; (4) Tests tests/contract/container-route-fallback.test.ts (11) — Suite 221/221 grün, tsc clean; (5) Doku: README downstream-Attributtabelle + specs/002/amendments/005.
 - **Live bestätigt:** reasoning-pass über Container-Route erfolgreich, während direct-MCP gestern 2× timeoutete — die neue Regel ist genau der bewährte Workaround.
 - **Offen (nächster Schritt):** RID-1-Session nach Merge dieses Scopes starten; Refresh der Workspace-Configs (Niyama) auf den neuen Template-Stand.
 
 ## 2026-09-28: requestId-Reuse-Stall (Niyama session-46a43aeb) — Diagnose + Prävention
+
 - **Befund:** `WorkflowEngine.submitLocked` (~L1617) replays still das gecachte Result bei bereits registrierter requestId — 3× `accepted: true` ohne Phase-Advance in review_and_adjust_plan. Fix: Resubmission mit frischer requestId (`req-plan-review-adjusted-c0c1`) → sofort `implement`.
 - **Umgesetzt:** Lesson in memory-bank/lessonsLearned.md (Avoid-These-Mistakes + datierter Eintrag); Hardening-Plan RID-1 in memory-bank/remaining-work-plan.md; Regel-Satz „Submission idempotency …“ in beide Config-Assistant-Templates (examples/default-guidance/responses-wisdom.json + responses.json, alle 6 Submission-Phasen, JSON-Validierung grün).
 - **Offen:** Live-.guidance/responses.json bestehender Workspaces (u. a. Niyama /workspaces/Niyama/.guidance) enthalten die Regel noch nicht → bei nächster Gelegenheit via setup_guidance_generate neu generieren oder hand-nachziehen; Server-Hardening (RID-1) umsetzen, siehe remaining-work-plan.
 
 ## 2026-09-26: Kleinkitems L256/L257/L253 (Guidance-Chain session-3b7f96a5)
+
 - **L256 FTS-Coverage (GELÖST):** `observations_fts` (FTS5, 500-Zeichen-Cap) + Insert-Trigger + Count-Guard-Backfill in `SqliteAdapter.init()`; `searchFullText` matcht beide Indizes (Dedupe bei Dual-Match). Tests `tests/contracts/fts-observation-coverage.test.ts` (7).
 - **L257 Postgres-FTS-Parität (GELÖST, Contract-Level):** `searchFullText` → sanitisierte AND-`tsquery` über goal_summary + Observations-Auszüge, INNER→**LEFT** JOIN signatures (2026-09-22-Bugklasse im zweiten Backend behoben), GIN-Expression-Indexe; SQL-Contract gepinnt in `tests/contracts/postgres-fts-parity.test.ts` (5). Offen: Live-Smoke-Test bei erster `EMMS_STORAGE_BACKEND=postgres`-Aktivierung.
 - **L253 Prompt-Sync (OBSOLET geschlossen, User-Entscheid Option 3):** keine Ziel-Repos mit Kopien/Referenzen vorhanden; Verteilung über Paket/Smithery.
@@ -273,7 +287,7 @@
 
 - Erster echter Workflow-Lauf (Zed-Agent, Docs-Change): **build-Gate grün**
   nach Container-Deps-Install (`npm install --include=dev --ignore-scripts
-  --script-shell=/bin/true` im isolierten Volume; corepack-yarn crasht auf
+--script-shell=/bin/true` im isolierten Volume; corepack-yarn crasht auf
   alpine, NODE_ENV=production skippte devDeps, prepare-Scripts laufen trotz
   ignore-scripts). lint/test (optional) failen bekannt/toleriert (prettier
   pre-existing; @rollup/rollup-linux-x64-musl optional-deps-Bug).
@@ -285,6 +299,7 @@
   werden nie aufgelöst — Gate lief mit literalem Repo-Namen. Workaround:
   hartcodiert in operations.json (Backup .bak), wirkt erst nach Container-
   Restart (Config-Snapshot im Session-State). Restart erfolgt.
+
 ## 2026-09-25: WORKFLOW COMPLETED — GUID-1 geschlossen
 
 - Finaler grüner complete-Lauf: `repository-analysis` **succeeded**
@@ -381,18 +396,20 @@
 ## Recent Changes
 
 ### 2026-09-29 — Wildcard Container-Route (feature/wildcard-container-route, Guidance-Session session-45abc996)
+
 - Container-Route jetzt tool-name-agnostik-öffentlich: `capabilities.allow.tools:
-  ["*"]` (Wildcard, nur alleinig — gemischte Listen → configuration_invalid)
+["*"]` (Wildcard, nur alleinig — gemischte Listen → configuration_invalid)
   für gitnexus/clearthought/insight in `.guidance/` UND
   `examples/default-guidance/`; insight erstmals mit `containerRoute`
   (`host.docker.internal:3002/mcp` bzw. `localhost:3002/mcp` in examples).
   Enforcement: `ClientManager.assertAllowed` respektiert "*"; Auto-Fallback
   bleibt read_only-beschränkt (unverändert). Egress-Allowlist in examples-
   policies.json ergänzt (localhost:3000/3002/4747). Tests: Wildcard-Validierung
-  + Enforcement + Full-Suite 437/437 grün. Hinweis: laufender Docker-Container
-  braucht Image-Rebuild, um "*" zu akzeptieren.
+  - Enforcement + Full-Suite 437/437 grün. Hinweis: laufender Docker-Container
+    braucht Image-Rebuild, um "*" zu akzeptieren.
 
 ### 2026-09-25 — Guidance HTTP-Downstream-Transport (feature/guidance-http-downstream)
+
 - Plan reviewt (Clear-Thought-Server down ⇒ dokumentierter manueller Fallback
   mit Findings-Tabelle), Plan v2 um Egress-Host-Allowlist + Load-Time-Secret-
   Resolution + HTTP-Stub-E2E ergänzt.
@@ -466,9 +483,9 @@
   fermi-Feld `operation`→`combine` (reservierter Toolset-Diskriminator); Mixed-Formel
   für den Spalten-Spieler korrigiert ((h−g)/denom); 121/121 Tests.
 - 2026-09-14 (V): Roadmap-Track C (branch `feature/recipe-runner`, 0.3.0): `recipe_runner`
-  + `workflow`-Toolset — 6 Guide-Rezepte als Daten, per-session Fortschritt im neuen
-  `WorkflowStore`, Auto-Start/advance/reset; Guide (Routing + Rezept-Intro) und
-  Root-AGENTS.md regeneriert; 111/111 Tests.
+  - `workflow`-Toolset — 6 Guide-Rezepte als Daten, per-session Fortschritt im neuen
+    `WorkflowStore`, Auto-Start/advance/reset; Guide (Routing + Rezept-Intro) und
+    Root-AGENTS.md regeneriert; 111/111 Tests.
 - 2026-09-14 (V): Release 0.2.0 über PR `develop → main` (Branch-Protection aktiv);
   GitHub-Actions: ghcr-Images gepusht, npm-Publish durch Account-2FA-Modus
   (auth-and-writes) blockiert → 0.2.0 manuell published; Modus auf „authorization only“
@@ -577,7 +594,6 @@
   Cross-Familie-Session-State, Setup-Friction-Feedback, Wartungsdruck → dann Hybrid
   statt Full-Merge). Details in `memory-bank/decisions.md`. Kein Code-Change.
 
-
 ## 2026-09-15: Eval-Rig Upgrade (Actor/Judge-Split + harte Tasks)
 
 - Branch `feature/harder-evals-actor-judge-split`: `evals/run.mjs` behandelt
@@ -640,64 +656,71 @@
   (cleanup-integriert), Dual-Registration (`stochasticalgorithm` Name/Signatur
   unveraendert + Toolset `stochastic`, operation mdp/mcts/bandit/bayesian/hmm),
   2 TOOL_METADATA-Eintraege (stateful:true), Tests portiert (`algorithms.test.ts`)
-  + neue Merge-Contracts (`stochastic-merge.test.ts`: Paritaet, Bandit-runId ueber
-  beide Call-Pfade, Fehlerkontrakte). Orchestrator: Rezept 7
-  `decision-under-uncertainty` + stochastic-Stage in `architecture-decision`
-  (STAGE_GUIDANCE reindiziert), 7. Workflow-Prompt. Guide: Template erweitert,
-  Konstante via neuem `sync:guide`-Skript regeneriert; Root-AGENTS.md ueber echten
-  Handler (`scripts/regen-root-agents.ts`) regeneriert — verwaister
-  stochastic-thinking-Markerblock entfernt (verifiziert: 0 Marker, Rezept 7 sichtbar).
-  Docs: Root-README Single-Server + Migrations-Abschnitt; stochastic-README
-  Deprecation-Banner; MG-1/2/3 in remaining-work-plan getrackt. Gezielte Tests
-  30/30 gruen; Typecheck gruen. Offen: Full-Suite-Auswertung + Phase 6 (Release
-  1.1.0 + Deprecation, wartet auf Freigabe). Stale-Buffer-Trap dokumentiert
-  (lessonsLearned).
+  - neue Merge-Contracts (`stochastic-merge.test.ts`: Paritaet, Bandit-runId ueber
+    beide Call-Pfade, Fehlerkontrakte). Orchestrator: Rezept 7
+    `decision-under-uncertainty` + stochastic-Stage in `architecture-decision`
+    (STAGE_GUIDANCE reindiziert), 7. Workflow-Prompt. Guide: Template erweitert,
+    Konstante via neuem `sync:guide`-Skript regeneriert; Root-AGENTS.md ueber echten
+    Handler (`scripts/regen-root-agents.ts`) regeneriert — verwaister
+    stochastic-thinking-Markerblock entfernt (verifiziert: 0 Marker, Rezept 7 sichtbar).
+    Docs: Root-README Single-Server + Migrations-Abschnitt; stochastic-README
+    Deprecation-Banner; MG-1/2/3 in remaining-work-plan getrackt. Gezielte Tests
+    30/30 gruen; Typecheck gruen. Offen: Full-Suite-Auswertung + Phase 6 (Release
+    1.1.0 + Deprecation, wartet auf Freigabe). Stale-Buffer-Trap dokumentiert
+    (lessonsLearned).
 
 ## 2026-09-17: Spec-Review EMMS (specs/001-experience-memory-server)
+
 - Review mit clear-thought (structured_argumentation, argument_map 83% completeness, seven-seekers 7 Lenses). Ergebnis: spec plan-ready, Confidence 0.85.
 - 5 Findings (plan-level, nicht spec-invalidierend), getrackt in remaining-work-plan.md: Actor-Modell fehlt; Revision/Conflict-Semantik unbestimmt; Eval-Korpus nicht definiert; Guidance-Objekt ohne konkrete Struktur; Detektionsschwellen (Duplikate/Kontradiktionen FR-021) ohne Metrik.
 - Zusatz-Beobachtungen: Fabricated-Evidence-Risiko (Agent kann Exit Codes erfinden; nur Artefakt-Evidenz mildert) und fehlende Feedback-Schleife fuer gescheiterte Guidance-Pfade — als Akzeptanzkriterien in der Planung verengen.
 - Server-Scaffold: servers/server-experiencememory/ auf Branch 001-experience-memory-server angelegt (Abweichung von feature/-Namenskonvention dokumentiert).
 
 ## 2026-09-17: Analyze-Remediation EMMS (C1/C2/U1-U5/E1-E4/A1)
+
 - Alle 12 Findings aus /speckit-analyze per clear-thought-Entscheidung (Conf 0.88) aufgeloest: spec FR-008/022/SC-001/005/009 praezisiert; contracts um workflow.abandon + Artifact-Limits (1 MiB, 4 Media-Types) erweitert; research D6 (Ranking-Defaults + Applicability-Formel); tasks T007/T012/T022/T040 geschaerft, T047 (abandon, US2) + T048 (Baseline-Harness, Polish) neu -> 48 Tasks.
 
 ## 2026-09-18: EMMS Implementierung (T001-T048 abgeschlossen)
+
 - 58/58 Tests gruen, Typecheck sauber. Alle Phasen (Setup, Foundational, US1-US5, Polish) implementiert.
 - Neue Dateien: src/domain/{types,state-machine,revision,errors,normalize}.ts, src/storage/{adapter,sqlite,migrations}.ts, src/evidence/{store,redact}.ts, src/guidance/{envelope,engine,limits}.ts, src/service.ts, src/tools/{register,index}.ts, 13 Test-Dateien (contract+unit+fixtures).
 - Wichtige Design-Entscheidungen beim Implementieren: finalize-Assessment ist read-only (keine State-Mutation bei abgelehntem 'verified'); recordValidationRun transitioniert automatisch SOLUTION_PROPOSED->VALIDATING; harmful-Attempt gilt nur als 'unresolved critical side effect' wenn kein spaeterer 'successful'-Attempt existiert; Idempotenz-Check VOR Revisions-Check; Schema-Validierung geschieht auf SDK-Protokollebene (isError), Fachlichkeiten auf Service-Ebene.
 - Offen: T045 (gitnexus detect_changes), Commit-Freigabe, Full-quickstart-Durchlauf manuell.
-
 
 - 2026-09-18: `agents_guide` tool renamed to `setup_clearthought` (naming
   alignment with experience-memory's `setup_experience_memory`). Historical
   references above remain unchanged (log entries). Files renamed:
   setup-clearthought.ts / -template.ts / test. 142/142 tests green.
 
-
 ## 2026-09-22 — Guidance server Phase 1 (feature/guidance-v2-orchestration)
+
 - Phase 1 scaffold of servers/server-guidance committed (aa80a94) + review-fix commit (8dae32a). T001-T005 [x] in specs/002-guidance-workflow-server/tasks.md; next: Phase 2 foundational (T006-T016).
 - Code review (Review Agent) returned 7 findings; F1 (npm test failing) DISPUTED and dismissed with terminal evidence (passWithNoTests present, exit 0); F2-F7 fixed in 8dae32a. Reviewer could not run commands — snapshot verification done by main agent per Review Evidence Protocol.
 - Open: orchestration.md checklist 34/34 marked reviewed (user-directed); implementation continues Phase 2 on user go-ahead.
 
 ## 2026-09-22 — Guidance Phase 2 complete + reviewed
+
 - Phase 2 foundational (T006-T016) committed (4bdefbe) + review-fix commits (1b54853, 1970d8d). 39/39 tests, typecheck/build clean.
 - Phase 2 review (Review Agent): 2 HIGH (spec_kit_feature_in_use missing from ERROR_CODES; non-atomic lock persistence) + useful MEDIUMs (canonical hashing, createRequire order, validator memoization) — ALL FIXED. Verdict was needs-changes; fixes verified on disk via terminal grep after /mnt/d silent-patch no-ops (edit-tool reported success twice but changes absent — always re-verify with grep, patch via terminal python).
 - Next: Phase 3 / US1 workflow engine (T017-T028) on user go-ahead.
 
 ## 2026-09-22 — Guidance Phase 3 complete (US1 workflow engine)
+
 - Phase 3 (T017-T028) committed (cb38202). WorkflowEngine + WorkflowTools + OperationEngine (process + composite firstAvailable). 52/52 tests.
 - Schema example files made realistic (full field sets); transition selection fixed: reason-only transitions only on operation failure; test workspaces get a minimal package.json so verify ops succeed.
 - Known limitation: successful `completed` path requires Phase 5 downstream client (or gitnexus CLI present in workspace).
 - Next: Phase 4 US2 (T029-T033) then Phase 5 US4 (T034-T049) per tasks.md.
 
 ## 2026-09-22 — Guidance Phase 3 review APPROVED
+
 - cb38202 reviewed: APPROVE, 0 HIGH/CRITICAL. F1-F5 persisted as tracked follow-ups in remaining-work-plan.md; F5 (ledger-into-transition) and F7 (missing await) fixed immediately in follow-up commit. Idempotency replay test deferred to next engine scope.
 
 ## 2026-09-22 — Guidance Phase 7b/8/9 review APPROVED
+
 - 8658697 reviewed: APPROVED with tracked follow-ups (0 HIGH/CRITICAL; 3 MEDIUM + 5 LOW recorded in remaining-work-plan.md).
 
 ## 2026-09-22 — Guidance implementation COMPLETE (all 92 tasks)
+
 - Phases 1-12 implemented on feature/guidance-v2-orchestration; 118/118 tests, typecheck/build clean. Final commit: Phase 10-12 review fix (getSession pure read; locked reconcile in getWorkflowState — MEDIUM resolved).
 - Reviews: P1 fixed/approved, P2 fixed, P3 approve, P4 fixed, P5 fixed, P6 fixed, P7a H1 fixed + 7b scope recorded, P7b/8/9 approved w/ follow-ups, P10-12 approved w/ follow-up (write-on-read fixed immediately; ::1 test + Host-header validation recorded).
 - Remaining tracked follow-ups in remaining-work-plan.md: Phase 7c SpecKitEngine hardening, Phase 5/6 policy wiring depth, Phase 10-12 LOWs (IPv6 test, DNS-rebinding Host-header validation, perf percentile method), MCP streamable-HTTP adapter mount, bearer-token authN.
@@ -709,6 +732,7 @@
 - 2026-09-23 — Doku: server-guidance/README.md neu (Installation, .guidance/-Konfigurationsreferenz mit Beispielen, Agent-Loop mit Tool-Beispielen, Spec-Kit-Beispiel, Env-Variablen); Root-README um Guidance-Zeile + Kurzabschnitt erweitert (b4869af).
 
 ## 2026-09-23: SDK-Streamable-Transport-Migration (feature/sdk-streamable-transport-migration)
+
 - clear-thought + insight: @smithery/sdk-Wrapper entfernt, direkter StreamableHTTPServerTransport (stateful Sessions, mcp-session-id, enableJsonResponse). Keine neue Abhängigkeit, Sed-Patch aus beiden Dockerfiles gefallen.
 - Container-Härtung: clear-thought npm ci + compose modernisiert + CLEAR_THOUGHT_BIND_HOST; insight Label-Pfad gefixt, server-lokales Lockfile + npm ci (LOW resolved).
 - Root-Cause-Trap beim Migrationstest: fehlendes await server.connect(transport) — Transport annahm Sessions, Server antwortete nie. Nur per offiziellem SDK-Client-E2E gegen dist/Container auffindbar (curl-SSE-Artefakte irreführend).
@@ -718,6 +742,7 @@
 - 2026-09-23 — Store-Abgleich: STDIO-Store (~/.insight, 76 Episoden, Stand 22.09.) war disjunkt vom Docker-Store (37, heutige Lessons). migrate-stdio-store.mjs (Container gestoppt, vorher Dry-Run) → DOCKER-Store jetzt 113 Episoden, FTS 113/113, Container healthy, Suche via HTTP verifiziert (alte STDIO-Episoden + heutige Lessons beide auffindbar). STDIO-Store unangetastet als Backup.
 
 ## 2026-09-23: setup_clearthought Loop-Defense-Serie abgeschlossen
+
 - Feature-Zweige gemerged (develop): Loop-Guard (d9d6759), F4-Härtung (184a7ec),
   Pagination (53f7714/582a9b9), Eskalation (44063c6), Compact-Guide + Recipes-
   on-Demand (a5c5c98). Reviews: jeweils 0 HIGH/CRITICAL, approved.
@@ -730,6 +755,7 @@
      ~2-3KB-Payload); Rate-Limit nur falls Spam beobachtet wird.
 
 ## 2026-09-23: Spec-Review Amendment 001-remote-mode (v3)
+
 - Review durchgeführt: 0 Blocker, 2 MEDIUM (M1 Idempotenz-vs-MultiSession,
   M2 401-vs-session_not_found), 6 LOW. Findings persistiert in
   specs/002-guidance-workflow-server/amendments/001-remote-mode-review-findings.md
@@ -739,6 +765,7 @@
 - 2026-09-23 — Remote-Mode (spec amendment 001) implementiert: init_session-Config-Upload, Pair-Auth (optional, anonymer Fallback), sessiongebundene Tools, ClientOpEngine (1a), report_operation_result mit Auto-Retry, TTL 30d, configured-aware /health. Review: 2 CRITICAL (ClientOpEngine nie verdrahtet — Patch-Verlust; lastAttempt nur bei accepted) + 2 HIGH behoben. 155/155 Tests. Branch feature/remote-mode-session-binding, Merge nach develop offen.
 
 ## 2026-09-24: Full-Codebase-Review (develop @ 2d580fa)
+
 - Basis: Snapshot develop@2d580fa, clean, ahead 4 (fb0a350..2d580fa = Remote-Mode-Hardening + memory-bank). Merge nach develop ERFOLGT — „Merge nach develop offen" oben ist stale.
 - Ergebnis: 0 HIGH/CRITICAL offen; 4 MEDIUM (CB-1 guidance touch()-TTL-Bug; CB-2 guidance Quota-Rollback-Lücke configFiles; CB-3 Session-Orphan-Pattern insight+clear-thought — Re-Evaluation der akzeptierten LOW aus Review 1caa690; CB-4 Compose-Exposure 0.0.0.0 ohne insight-Auth); 9 LOW + 4 INFO — alle persistiert unter „Getrackte Follow-ups (2026-09-24...)" in remaining-work-plan.md.
 - Positiv verifiziert: insight FTS5-Sanitization + Prepared Statements + atomare tmp+rename-Writes + Read-Hash-Verifikation; guidance SESSION_ID_PATTERN, separator-bewusster Pfadschutz, timing-safe Pair-Auth, 401/404-Kanaltrennung, Loopback-fail-closed-Binding; Reaper+MAX_SESSIONS in beiden HTTP-Servern.
@@ -746,101 +773,121 @@
 - Review-Qualität: c22585a-Commitmsg „dbg-Logs entfernt" traf nicht zu (1 [dbg] in src L132 verblieben) → als CB-9 getrackt.
 
 ## 2026-09-26: Feature 003 Toolchain-Bootstrap implementiert (Chained Workflow)
+
 - Spec (16c6f1e auf develop) via Guidance-Chained-Workflow umgesetzt (Session session-1dcd604f, Profil spec-kit in .guidance/guidance.json aktiviert, chain depth 16). Branch feature/guidance-toolchain-bootstrap: 77fa854 (Implementierung) + Review-Fix-Commit.
 - Kern: run_operation-Tool (nur invocableByAgent:true, fail-closed), FR-107 Per-Session-Mutex, FR-109 Cross-Session-Workspace-Lock mit Stale-Recovery (dead-PID/TTL-Steal), FR-110 kooperativ (spawnSync-Constraint dokumentiert), Dockerfile python3 + uv 0.12.19 gepinnt, examples/python-guidance (uv sync --locked fail-closed), E2E SC-001..004. Suite 268/268 + tsc + build grün (Container guidance-bootstrap-test).
 - Unabhängiger Review (Subagent): 1 HIGH (Stale-Lock) + MEDIUMs/LOWs — HIGH + Denial-Audit + EACCES + README sofort gefixt; Rest (R-006 E2E-Lücken, R-008a globaler Lock, R-010 ERROR_CODES-Test) in remaining-work-plan getrackt.
 - Testumgebung: kein Node auf Host — Suite im Container (Repo-Copy + @rollup/rollup-linux-x64-musl; für E2E das Guidance-Image selbst: node+uv vereint).
 
 ## 2026-09-26: Amendment 003 Final-Review Evidence Gate implementiert
+
 - Anlass: verpasster frischer Gesamt-Review beim Feature-003-Completion (weicher Instruktionstext) → Gate machbar gemacht. Draft ff4fe31, Umsetzung 2983be3 (Q1–Q3-Defaults vom Nutzer gebilligt).
 - check-final-review.mjs (strict Schema, HEAD-Match ohne git-Binary, computed HIGH/CRITICAL), Gate-Op required in scaffold/examples/root-Workspace (complete.beforeExit), 6 Contract-Tests. 274/274 + tsc + build grün.
 - Getrackt: FR-Nummern-Kollision specs/003 vs Amendments 001/002; Amendment-Status-Update DRAFT→APPROVED bei Nutzerbilligung.
 
 ## 2026-09-26: Feature 004 Async Operation Execution (Chained Workflow, feature/async-operation-execution)
+
 - Session session-85c8e497. Async Executor (spawn, SIGTERM→SIGKILL, AbortSignal) ersetzt spawnSync; AbortController-Registry in WorkflowEngine; cancel_workflow = Hard-Kill (FR-202/110 erledigt); R-006-E2Es geschlossen. stderr-Redaction für failing ops nachgerüstet (neu gefundene Lücke). 290/290 + tsc + build grün.
 
 ## 2026-09-26: Lock-Hardening (R-011/R-012/R-010, feature/guidance-lock-hardening → develop 61d7399)
+
 - WorkspaceOpLock (src/workflow/workspace-lock.ts): Acquire via link() (atomar, Doppel-Halt konstruktiv ausgeschlossen), Steal via rename-in-Quarantäne mit Verify+Restore. TTL = max(120s, 2× max Op-Timeout) ⇒ TTL-stale impliziert toten Halter (R-012a-Invariante). Neuer ErrorCode workspace_lock_unavailable (R-012b).
 - Tests: 6-Prozess-Race (exakt 1 Halter), Live-Owner-nicht-stehlen, ERROR_CODES-Exact-Snapshot (R-010). 279/279 + tsc grün. Residuales Mikro-Fenster (inspect→rename) dokumentiert: nie Doppel-Halt, schlimmstenfalls transiente Contention + Quarantäne-Orphan.
 
 ## 2026-09-24: Security-/Policy-Verifikation (Phase 5/6-Fixes) + Rest-Fixes
+
 - User-Anderungen verifiziert (Code + Container-Tests, node:22-alpine): Phase 6 Egress-Inhaltsprüfung (`containsSecretPattern` für restricted), `redactUnknown()`-Seam auf content + protocolMetadata.structuredContent, Multi-Line-Redaction, Capability-Pin-Persistenz über Restarts. 192/192 grün + tsc clean.
 - Rest-Fixes umgesetzt: saveCapabilityPins atomar (tmp+rename), Pin-Helfer exportiert, Regressionstest tests/workflow/capability-pins.test.ts (5 Tests: Roundtrip/Merge/Drift/Korrupt/Atomarität). Suite 197/197 grün, tsc clean.
 - remaining-work-plan.md gesynct: L264/L266 (Phase 5/6) + CB-1/CB-2/CB-9 auf [x] mit Evidence; neue Sektion „Security-/Policy-Verifikation". Verbleibende Guidance-Offenpunkte: Metrics-Tool (L260), awaiting_client-Spec (L305d), Rest-LOWs aus R-1..R-3 (akzeptiert).
 - Testumgebung-Lesson: kein Node auf Host-PATH; Container-Run braucht Repo-COPY (Mount-EACCES bei npm install) + @rollup/rollup-linux-x64-musl nachinstallieren (bekannte native-Bindings-Falle).
 
-
 ## 2026-09-27: Multi-Repo-Fähigkeits-Befund (Guidance, Niyama-Beispiel)
+
 - Nutzer-Befund verifiziert: guidance ist single-repo verdrahtet — ein Workspace-Root (src/index.ts:15-16), assertWorkspaceInside + spec_kit_feature_outside_workspace lehnen Fremd-Repos ab, .guidance/-Config+State bound an das eine Root, Deployment 1 Container = 1 Repo (docker-compose.override.yml).
 - Konsequenz: Für ein zweites Repo (Niyama) sind heute nur Workarounds möglich (zusätzlicher Mount + Sub-Pfad als workspaceRoot, oder zweite Container-Instanz). Produktionsreif = Workspace-Registry-Konzept nötig.
 - Getrackt als MR-1 (MEDIUM, Architektur) + MR-2 (LOW, Docs) in remaining-work-plan.md.
 
 ## 2026-09-27: MCP-Timeout-Diagnose (clearthought/gitnexus) — Ursache clientseitig
+
 - Wiederkehrende `Context server request timeout`-Fehler verifiziert: Container healthy, Logs 24h ohne error/timeout/warn, direkter curl-MCP-Roundtrip gegen :3000/mcp = ~160 ms. Server-Seite exkulpiert → Ursache ist der Zed-MCP-Client/HTTP-Transport (eigener, kürzerer Request-Timeout; abgebrochener SSE-Stream kaskadiert).
 - Workarounds: schwere GitNexus-Ops via CLI statt MCP; nach Timeout MCP-Session im Editor neu starten. Lesson in lessonsLearned.md (Avoid These Mistakes, 2026-09-27) dokumentiert. Befund :4747 = Web-UI, kein /mcp-Endpunkt.
 
 ## 2026-09-27: Spec-009 Delta-Re-Review R-1…R-5 (Commit 7f9065f, spec-only)
+
 - R-1 gelöst in spec.md (FR-901/903: Kopierliste = workflow.json + schemas/, policies via FR-910 regeneriert) — ABER plan.md (L18, L46-47) und tasks.md (T7) nennen policies.json weiterhin als „kopiert" (widerspricht FR-910/T13). → N-D1 (MEDIUM) getrackt.
 - R-2 gelöst (FR-902: Referenz-guidance.json lesbar + profile-Feld auswertbar), R-3 gelöst (AC-3 differenzierter Golden-File-Vergleich, testbar via T5), R-4 gelöst (Muster „adopt coherence: workflow references unknown op <name>", AC-9), R-5 weitgehend gelöst (Ziel-.guidance-Ausschluss + Symlink-Regel für schemas/); Restvektor: Check nicht als realpath/resolve-basiert spezifiziert → N-D2 (LOW).
 - Weitere: N-D3 (LOW) FR-909 referenziert aber nicht definiert; N-D4 (INFO) FR-902 Satzbruch durch R-5-Einschub, plan.md-Typo „und宵".
 - Urteil: 0 HIGH/CRITICAL offen → Spec FREIGEGEBEN; Plan/Tasks brauchen 1-Zeilen-Fix (N-D1) vor/vor Implementation.
 
 ## 2026-09-27: Clear-Thought-Re-Routing über Guidance-Container (live verifiziert)
+
 - clearthought als Downstream-Server in .guidance konfiguriert (downstream-servers.json: host.docker.internal:3000/mcp, trusted, HD-1-Reconnect; policies.json: Egress-Allowlist; operations.json: reasoning-pass mcpTool, invocableByAgent:true). Teilweise vom parallelen Spec-009-Agenten committed (109d3df/5406875); invocableByAgent-Flag: d2b394a auf feature/clearthought-agent-invocable-pass.
 - Live-Test: run_operation(reasoning-pass) = succeeded, 177 ms serverseitig (get_metrics), clearthought-Status ready — vs. Timeout auf derselben Editor-Route. Guidance-Container-Neustart nötig nach Config-Änderung.
 - Ziel-Verwendung: workflow-verpflichtende Reasoning-Pässe orchestriert laufen lassen; Ad-hoc-Calls bleiben auf der Editor-Route (dort gilt die neue Timeout-Policy in responses.json).
 
 ## 2026-09-27: Spec-010 Review (independent spec review, Commit 76801a2, develop, tree clean)
+
 - Review-Objekt: specs/010-documentation-drift-gate/spec.md (Draft, Q1–Q3 entschieden). Review auf Spec-Qualität, keine Implementierung existiert.
 - Snapshot: branch develop, HEAD 76801a2 = Review-Commit, unstaged/staged diff leer zum Review-Zeitpunkt. Kontexte verifiziert: check-final-review.mjs, check-index-freshness.mjs, .guidance/operations.json + workflow.json (lifecycle.beforeExit), ConfigAssistant QUESTIONS (9 IDs), register-tools.ts (16 SPEC_KIT + 19 WORKFLOW Tool-Namen), errors.ts ERROR_CODES (~80), spec 009 (FR-901–910).
 - Urteil: NICHT FREIGEGEBEN — 1 HIGH (F-1: FR-954 Pfadmuster-Semantik/Basis undefiniert, `src/config.ts` etc. existieren nicht als Repo-Root-Pfade → Gate tot oder arbiträr), 5 MEDIUM (F-2 Verdrahtungspunkt workflow.json beforeExit fehlt + Gate-Reihenfolge, F-3 Check-1 „Abschnitts-Verweis" unpräzise + README-Tool-Tabelle bereits 12 vs 16 driftig, F-4 ERROR_CODES-Anker existiert in README gar nicht, F-5 Check-4 Heuristik „Merge-Commit" für dieses Repo (Rebase/Squash) ungeeignet/undefiniert + Blocking ohne Ausstiegsregel), 3 LOW, 2 INFO. Details: remaining-work-plan.md Abschnitt Spec-010.
 
 ## 2026-09-27: specs/010 Implementation abgeschlossen (T5-T10)
+
 - Snapshot: branch develop, HEAD d89bb25 + uncommittete Änderungen (operations.json, workflow.json, SpecKitEngine.ts, lifecycle.test.ts, Contract-Doku, tasks.md 010). Alles im Container verifiziert (344 Tests/tsc/build/Gate je Exit 0).
 - docsImpact-Semantik implementiert: Substring-Match gegen DOCS_RELEVANT_PATTERNS mit Backslash-Normalisierung (Windows-Pfade); löst S10-F1 praktisch (Muster als definierte Konstante mit definierter Basis repo-root-relative changedFiles).
 - S10-F2/F6 gelöst (beforeExit vor final-review-gate; Contract specs/002 dokumentiert docsImpact inkl. submission_invalid-Verhalten).
 - Offen: Push + index-freshness beim complete_workflow; AD-1/AD-2 (Adopt) unberührt.
 
 ## 2026-09-27: specs/010 Completion-Phase
+
 - Review-Fixes (3191d05): Segment-Matching + AC-5-Testlücken. Final-Review durch frischen Sub-Agent: 0 HIGH/CRITICAL unresolved. lint/test-Ops rot = pre-existing non-blocking (Doku in remaining-work-plan). final-review.json + session-lessons.json geschrieben; Index-Refresh nach letztem Commit.
 
 ## 2026-09-27: specs/010 Final-Review Runde 2 — 2 HIGH behoben
+
 - Unabhängiger Final-Review fand: Check-1-Tool-Parität war nie implementiert (No-op) + fehlende Gate-Tests. Beide HIGH gefixt (Segment: check-docs-drift.mjs vollständig umgebaut, tests/scripts/check-docs-drift.test.ts 12 Regressionstests). MEDIUMs (Freitext-Match, Override-Datei, Kapitel-Scoping) + LOWs (.bak-Dirs, Ziffern-Codes, done>0-Guard) ebenfalls gefixt. Gate Exit 0 (35 tools beidseitig), Vollsuite 357/357, tsc grün.
 
 ## 2026-09-27: Rest-Findings-Batch implementiert (session-4e4471f2)
+
 - Branch feature/rest-findings-batch. AD-1-Semantik: Kopie statt Verwerfen — nicht-generische Referenz-Ops landen mit Marker in operations.json; Notes-Text + Test AC-9 angepasst (legacy-custom-op jetzt erwartet).
 - Achtung: Prettier --write reformatiert server-guidance/src (ConfigAssistant/SpecKitEngine) — Bulk-Diff in diesem Commit enthalten (Format-only).
 
 ## 2026-09-27: AD-1/AD-1a/AD-2 geschlossen (parallel implementiert, live verifiziert) + Guidance-Workflow-Restart-Falle
+
 - AD-1/AD-1a/AD-2 wurden vom parallelen Agenten implementiert (36e6233: non-generische Ops werden mit [adopted]-Marker kopiert statt verworfen; realistic-reference Regressionstest; referencePath-Help+README dokumentieren builtin-Referenz; 798e545: Shape-Validation kopierter Ops; 4bd2556: [x]-Close-out mit Independent Final Review 0 HIGH/CRITICAL, Suite 360/360).
 - Unabhängige Live-Verifikation: Guidance-Image neu gebaut, Original-Repro setup_guidance_generate {referencePath:/examples/default-guidance} jetzt GRÜN (9-Dateien-Payload, final-review-gate/store-completion-insight kopiert mit Review-Hinweis, Kohärenzprüfung grün).
 - Workflow session-d57a0bc7 wurde nach Container-Restart nicht fortsetzbar: (1) Restart mit falschem Compose-File (servers/server-guidance/docker-compose.yml allein — docker compose -f lädt das override.yml NICHT automatisch → falsches /workspace-Mount, Sessions "verschwunden"); korrekt: -f docker-compose.yml -f docker-compose.override.yml. (2) Danach Config-Drift: Session an alte configurationVersion gebunden (specs/008 AC-5, fail-closed) — Restarts nach Config-Änderung invalidieren laufende Sessions grundsätzlich.
 
 ## 2026-09-27: specs/011-adopt-templates implementiert (session-f66c3f62, feature/011-adopt-templates)
+
 - T1–T6 komplett: resolveBuiltinReferencePath() (env GUIDANCE_BUILTIN_TEMPLATE_DIR, Default PKG_ROOT/examples/default-guidance); validateAdoptReference akzeptiert "builtin" (fail-closed FR-973); generateFiles: adopt ohne/"builtin" referencePath → builtin (AC-1/AC-2); adoptionBlock source:"builtin"+resolvedPath (AC-3); mounted-Referenz byte-identisch (AC-4); README builtin-vs-Referenz + env-Override.
 - 2 latente 009-Bugs dabei gefixt (AC-1-e2e deckte sie auf): (1) mainConfigSchema additionalProperties:false ohne "adoption" → JEDE adopt-Config scheiterte am loadConfig; Schema um adoption:{type:"object"} ergänzt (config.ts). (2) Insight-Erkennung prüfte nur "capture-session-lessons", Template nutzt store-completion-insight → query-project-insights wurde nicht regeneriert, Workflow-Boot failte operation_not_configured.
 - Verification: vitest 369/369 (56 Files), tsc --noEmit grün, build grün, detect-changes 4 Files/6 Symbole/MEDIUM (nur erwartete).
 
 ## 2026-09-28: specs/011 Follow-up — Wizard-Findings aus niyama (branch feature/011-adopt-wizard-fixes)
+
 - 3 Findings aus dem Wizard-Lauf im niyama-Repo behoben: (1) Sample-Prompts erzwingen jetzt Warten auf Nutzerantwort ("ask one at a time and WAIT — do not answer on my behalf"); (2) clearthought ist Teil des Default-Profils: buildDownstream erzeugt den Server immer (Tools-Allowlist der in Instructions referenzierten Reasoning-Tools), shipped Template downstream-servers.json ergänzt, policies-egress um :3000 erweitert; (3) derived Fragen (profile/insight/gitnexus/gates) werden im Adopt-Mode nicht mehr gestellt (nextQuestion respektiert DERIVED_IN_ADOPT — Antworten wären ohnehin von der Referenz überschrieben worden).
 - Tests: +4 contract tests (adopt-skip, fresh-still-asks, clearthought fresh+adopt inkl. egress, Template-Datencheck); alter config-assistant-Test (downstream {}) an Default-Profil angepasst. Suite 374/374, tsc/build grün, detect-changes 5 Dateien/11 Symbole/MEDIUM nur erwartete.
 
 ## 2026-09-28: specs/011 Follow-up 2 — Container-Only Self-Containment (niyama-Finding, branch feature/011-adopt-wizard-fixes)
+
 - Finding: generierte Ops referenzierten Skripte im Guidance-Paket (servers/server-guidance/scripts/check-final-review.mjs, servers/server-insight/scripts/seed-lessons.mjs) — existieren im Ziel-Repo nicht → complete-Phase scheitert an final-review-gate. Regel: Container-only-Configs dürfen KEINE Abhängigkeiten außerhalb des Ziel-Repos haben.
 - Fix: (1) generateFiles bettet beide Gate-Skripte als generierte Dateien unter .guidance/scripts/ ein (fail-closed, wenn Paket-Skripte fehlen); (2) zero-dep-Seeder scripts/embedded/seed-lessons.mjs (MCP Streamable-HTTP via node:fetch statt @modelcontextprotocol/sdk — Ziel-Repo hat kein SDK), LIVE gegen EMMS-Server :3002 verifiziert (initialize-Handshake + Session-Id + SEEDED smoke); (3) Template final-review-gate + buildOperations capture-session-lessons zeigen auf .guidance/scripts/-Kopien; capture-session-lessons-Scope jetzt ${projectName}-lessons (EMMS-Konvention <repo>-lessons statt festem thinking-mcp-lessons); (4) mounted-Referenzen mit Alt-Pfaden → laute WARNING-note (Rewrite nicht möglich, Detektion fail-loud); (5) adoption.resolvedPath bleibt als Provenance-Metadaten erlaubt (nichts executed es).
 - Tests: 3 neue Self-Containment-Tests (fresh, builtin-adopt, mounted-warning). Suite 377/377, tsc/build grün.
 
 ## 2026-09-28: specs/012-adopt-response-wisdom implementiert (session-3a85d0ce, feature/012-adopt-response-wisdom)
+
 - T1–T8: (1) neues dependency-freies Embedded-Skript check-spec-drift.mjs (generische Spec-Status-Hygiene: Draft vs offene Checkboxen in tasks.md, FR-951.4-Override-Kommentar); (2) Embedded-Fileset +3; (3) Builtin-Template: docs-drift-Op + complete.beforeExit [docs-drift, final-review-gate, repository-analysis, store-completion-insight]; (4) FR-982: validateAdoptReference requiredFiles + responses.json + Phasen-Deckung (adopt source: responses missing phase <id>) — BREAKING für Alt-Referenzen ohne responses.json (dokumentiert); (5) FR-981: responsesOverride — Referenz-Responses kopiert, instructions.global auf Ziel-Shell getauscht (Slot bei leerer Antwort entfernt), buildResponses nur noch Fresh; (6) FR-985: referencePath-Trim + Whitespace-Tests; (7) README: Responses-Adoption + Spec-Drift-Gate dokumentiert.
 - Infrastruktur-Note: Chat-seitiger Clear-Thought-MCP-Transport zeitete out (2×) → Pflicht-Passes (sequential_thinking understand/plan, assumption_xray review) via Container-HTTP-Endpoint (localhost:3000/mcp, fetch + Session-Handshake) ausgeführt — Server selbst healthy; Throwaway-Helper nach Gebrauch gelöscht.
 - Verification: Suite 384/384, tsc exit 0, build exit 0, detect-changes 5 Dateien/7 Symbole/LOW.
 
 ## 2026-09-28: specs/012 Final-Review (Sub-Agent 7d3ca207) — Findings-Bilanz
+
 - Final-Review (frischer Sub-Agent, HEAD a55d381+Follow-ups): 0 HIGH/CRITICAL. 2 MEDIUM: F-1 (FR-981-Kommentar behauptete Mirror-Verhalten, das nur für responses.json gilt — Kommentar korrigiert, 011-workflow-Verhalten bewusst unberührt), F-2 (Golden-Tests fehlten → Determinismus-Tests fresh+mounted ergänzt, Timestamps gestrippt). LOWs: F-3 (Spec-ohne-tasks-Skip jetzt in spec.md dokumentiert), F-4 (Duplikat-Write entfernt).
 - Getrackte Follow-ups (Trigger: nächste Testrunde an config-assistant-extensions): wisdom-e2e über composeApplication-Boot mit Marker; indented-checkbox-Test für check-spec-drift; env-Override-e2e (011-Erbe).
 - FR-982 Breaking (Alt-Referenzen ohne responses.json) final bestätigt akzeptiert + dokumentiert.
 
 ## 2026-09-28: specs/013-wisdom-baseline implementiert (session-14fd6161, feature/013-wisdom-baseline)
+
 - T1–T7: (1) FR-991 Template-responses.json auf buildResponses("")-Output synchronisiert (war stale-generic ohne Clear-Thought-Sätze — die Niyama-Regression-Wurzel) + Drift-Guard-Contract-Test; buildResponses jetzt exportiert. (2) FR-992 responses-wisdom.json kuratiert (7 Phasen aus .guidance/responses.json, Shell-Sätze/WSL-Pfade entfernt, {{CLEARTHOUGHT_URL}}/{{INSIGHT_URL}}/{{PROJECT_NAME}}-Platzhalter + {{#server:NAME}}-Bedingungsblöcke). (3) FR-993 renderAdoptedResponses (Platzhalter→transportabhängige URLs, Bedingungsblöcke je aktivem Server, Unknown-Token/Unbalanced fail-closed, instructions.global-Slot FR-981-Semantik). (4) FR-994 Adopt-Pfad: builtin → wisdom fail-closed; mounted → wisdom wenn vorhanden sonst responses.json (012-kompatibel); Coverage-Prüfung auf der verwendeten Datei. (5) FR-995 Anti-Drift-Tests. (6) e2e + README (Two response baselines). (7) Regression.
 - Order-Bug beim ersten Lauf: enabledServers wurde VOR dem Adopt-Block aus initialen insight/gitnexus-Werten gebaut (immer clearthought-only) → Bedingungsblöcke rendernten nie; Fix: Set erst am Render-Aufruf.
 - Verification: Suite 393/393, tsc/build exit 0, detect-changes 4 Dateien/5 Symbole/LOW.
@@ -848,6 +895,7 @@
 ## 2026-09-28: specs/013 Final-Review (Sub-Agent fd7b22e1) — Findings-Bilanz [L755-758]
 
 ## 2026-09-28: Guidance `get_downstream_status` zeigt auf HTTP-Transport strukturell immer "disconnected" (Diagnose-Sitzung, live verifiziert)
+
 - **Befund:** Der HTTP-Endpoint von server-guidance ist zustandslos — pro Request wird ein frischer McpServer + WorkflowEngine + ClientManager gebaut (server.ts L170-174: "Stateless streamable HTTP: fresh server+transport per request"). Der Verbindungsstatus (`ClientManager.statuses`, in-memory) wird nach jedem Request verworfen. Daher kann `get_downstream_status` über :3003/mcp niemals `ready` oder `failed` melden — nur den Default `disconnected` (WorkflowEngine.getDownstreamStatus L668: `st?.status ?? "disconnected"`). Live verifiziert: `run_operation reasoning-pass` = succeeded, unmittelbar danach Status weiterhin `disconnected`.
 - **Widerspruch zu Alt-Eintrag:** Der Eintrag 2026-09-27 (L697) meldet "clearthought-Status ready" — auf dem HTTP-Transport nach heutigem Befund nicht reproduzierbar (evtl. In-Process-Beobachtung oder anderes Build). Alt-Befund ist als review-quality issue zu betrachten; der technische Inhalt (Route funktioniert, 177 ms) bleibt gültig.
 - **Timeout-Einordnung (Folge der Diagnose):** guidance→clearthought timed out NICHT: get_metrics zeigt reasoning-pass 13/13 succeeded, 0 timedOut, max 177 ms; query-project-insights 22/22, max 258 ms. Beobachtete Timeouts stammen von einer anderen Route —primärverdacht: direkte Editor-MCP-Verbindung (clientseitiger Request-Timeout, konsistent mit Diagnose 2026-09-27 L685). Ausstehend: konkrete Fehlermeldung/Quelle eines Timeouts zuordnen.
@@ -856,6 +904,7 @@
 - Implementation-Review (cb51d48e): F-1 MEDIUM (Non-kanonische {{…}}-Reste) → strictLeftovers-Lösung; F-2 Backreference; F-4 Tokens shipped. Alle in der Bilanz oben referenziert.
 
 ## 2026-09-28: GDS-4 implementiert (feature/gds4-expose-op-content) — run_operation leitet vollständige Tool-Antworten weiter
+
 - Fix: exposeOpResult (WorkflowEngine.ts) gibt jetzt das exposure-gefilterte Vollresult zurück (content, data, errors, warnings; Redaction bleibt upstream); neuer exportierter Typ ExposedOpResult; runOperation/StartResult/SubmitResult auf breiteren Typ umgestellt.
 - Config: .guidance/operations.json — alle 10 Operationen auf returnToAgent:"raw" (minimal-invasiver Diff, 10 Zeilen).
 - Tests: +2 Contract-Tests (raw forwarded vollständig inkl. warnings; summary_and_errors stripped weiter, SC-004 erhalten), profile-config-Test auf objectContaining umgestellt. Contract-Suite 206/206 grün (2 Bestätigungsläufe), tsc --noEmit grün.
@@ -863,24 +912,28 @@
 - Hinweis: GitNexus impact()/sequential_thinking über die Editor-Route sind während der Session mit dem bekannten clientseitigen Timeout (GDS-Diagnose 2026-09-27) ausgestiegen — Aufrufer-Analyse manuell per grep, plan dokumentiert im Chat statt im Tool.
 
 ### 2026-09-29 — WC-4 Shipped-Config-Contract (feature/wc4-shipped-config-contract, Guidance-Session session-e782866b — COMPLETED, alle Gates grün)
+
 - Fix: tests/contract/shipped-configs.test.ts lädt alle 5 ausgelieferten Config-Sets gegen loadConfig (einzige Substitution: workspaces[]-Key; Container-Roots host-seitig nicht existent); Egress-Konsistenz inkl. disabled Server (raw URL.host wie Validator) + Negative-Control. 7/7 Tests, Suite 458/458 grün. Unabhängiger Review APPROVED 0 HIGH/CRIT; F1/F2 post-review gefixt.
 - Änderungen UNCOMMITTED auf dem Feature-Branch; Merge nach develop ausständig. Keine neuen getrackten Findings (F3/F4 als INFO accepted dokumentiert im final-review.json).
 
 ### 2026-09-29 — WC-1 Wildcard↔TrustLevel-Coupling (feature/wc1-wildcard-trustlevel-coupling, Guidance-Session session-22e9b598 — COMPLETED, alle Gates grün)
+
 - Fix: validateDownstreamServers lehnt Wildcard ["*"] bei effektiver trustLevel != "trusted" fail-closed ab; nicht-string trustLevel abgelehnt (Review-F1); toTrustLevel nach src/trust-level.ts extrahiert (Validator+Runtime eine Semantik). 6 neue Tests, Suite 451/451, unabhängiger Review APPROVED 0 HIGH/CRIT.
 - Offene getrackte Findings aus diesem Run: **WC-1-B** (trusted Wildcard-Server + unkonfigurierte destructive Tools — Runtime-Hardening, Trigger: destructive Non-Operation-Tools auf gitnexus/clearthought/insight) und **WC-4** (Contract-Test für shipped Configs vs. Validator) in remaining-work-plan.md.
 - Änderungen liegen UNCOMMITTED auf dem Feature-Branch; Merge nach develop + Docker-Rebuild ausständig.
 
 ### 2026-09-29 — WA-1 Config-Assistent Multi-Workspace (feature/wizard-workspaces)
+
 - Wizard-Fragen `workspaceRoot` + `extraWorkspaces` („name=path;…“) ergänzt;
   `generateFiles` emittiert workspaces[]-Block (Default-Eintrag + Extras) nur
   bei gesetzten Antworten; Generierungs-Validierung fail-closed (Name-Pattern,
   absolute Roots, Dubletten; Root-Existenz bei loadConfig); Adopt-Modus
   übernimmt NIE Referenz-Workspaces (Niyama-Klasse). Suite 440/440 grün
   (sauberer Volllauf; Last-Flakiness-Lesson beachtet). README aktualisiert.
- - Final Review (unabhängig, session-756c112d): APPROVED, 0 HIGH/CRITICAL offen. Neue getrackte LOW-Follow-ups WW-2 (workspaceRoot ohne isAbsolute-Fail-fast bei Generierung) + WW-3 (ungetestete Boundary-Cases: '=' im Pfad, whitespace-only-Antworten) in remaining-work-plan.md. Verifikation: Suite-Lauf 2× — Lauf 1: 2 Load-Flakes (Timeout-Fehler, 310 s Dauer), Lauf 2: 440/440 sauber (0 failed, JSON-Report verifiziert).
+- Final Review (unabhängig, session-756c112d): APPROVED, 0 HIGH/CRITICAL offen. Neue getrackte LOW-Follow-ups WW-2 (workspaceRoot ohne isAbsolute-Fail-fast bei Generierung) + WW-3 (ungetestete Boundary-Cases: '=' im Pfad, whitespace-only-Antworten) in remaining-work-plan.md. Verifikation: Suite-Lauf 2× — Lauf 1: 2 Load-Flakes (Timeout-Fehler, 310 s Dauer), Lauf 2: 440/440 sauber (0 failed, JSON-Report verifiziert).
 
 ### 2026-09-29 — specs/014 Config Truth & Composition v2 (feature/config-truth-v2)
+
 - Zwei-Modi-Modell umgesetzt (Nutzerentscheid): Workspace-Mode-Instanz-
   .guidance = Registry only (registryOnly-Flag in loadConfig, FR-1101);
   cpSync-Bootstrap entfernt → fehlende Repo-Process-Config fail-closed
@@ -891,6 +944,7 @@
   workspace_process_config_missing (docs-drift-konform).
 
 ### 2026-09-30 — CT-1 Constructor-Guard (feature/ct1-constructor-guard, 8f588c6, Guidance-Session session-1070c546)
+
 - Fix: WorkflowEngine-Konstruktor wirft bei registryOnly=false und fehlender/
   unvollständiger workflow.file jetzt configuration_invalid (recoverable:false)
   statt nacktem TypeError — Strukturcheck über workflow.id/initialPhase,
@@ -907,6 +961,7 @@
   node_modules im Container, required:false) — TYPE-1/GATE-1 getrackt.
 
 ### 2026-09-30 — CT-2 Legacy-Monolith-E2E (feature/ct2-legacy-monolith-e2e, 96b0a67, Guidance-Session session-9e23340f)
+
 - Test-Gap geschlossen: registry-composition.test.ts um E2E-Test ergänzt —
   Legacy-Monolith (Voll-Config am Pool-Root + workspaces[]-Registry) und
   registrierter Extra-Workspace mit eigener voller .guidance: Session wird
@@ -916,6 +971,7 @@
   Kette (session-9e23340f) wegen CHAIN-1 (AC-5-Drift der Auto-Folgesession).
 
 ### 2026-09-30 — WW-1 Extra-Root-Default-Dedupe (feature/ww1-extraroot-default-dedupe, 6029007, Guidance-Session session-58b4d57f)
+
 - parseExtraWorkspaces(value, defaultRoot?): seenRoots-Seed mit
   resolve(defaultRoot) — Extra-Root, der zum Default-workspaceRoot
   kollidiert, failt bei Generation-Zeit (configuration_invalid) statt
@@ -926,6 +982,7 @@
   aus bereits bekannten Code-Stellen statt Voll-Datei-Reads.
 
 ### 2026-09-30 — WW-2 workspaceRoot-isAbsolute (feature/ww2-workspaceroot-isabsolute, 5c06639, Guidance-Session session-c4d8dba2)
+
 - generateFiles (registry-edit): isAbsolute-Fail-fast für den Default-
   workspaceRoot nach dem Empty-Check — konsistente Semantik mit den
   Extras (parseExtraWorkspaces); relativer Pfad failt jetzt bei
@@ -935,12 +992,14 @@
   (CHAIN-1-Workaround).
 
 ### 2026-09-30 — WW-3 extraWorkspaces-Boundary-Tests (feature/ww3-extraworkspaces-boundary-tests, 101306c, Guidance-Session session-46674965)
+
 - Beide getrackten Boundary-Cases regressionsgesichert: '=' im Root
   (indexOf-Trennung, Rest = Root) und whitespace-only ≡ weggelassen.
   E2E-Assertions über generiertes guidance.json; kein Produktionscode
   nötig. Suite 482/482 grün, prettier grün.
 
 ### 2026-09-30 — specs/015 SDD: Registry-Hot-Reload + Dependency-Bootstrap (feature/015-sdd-registry-hot-reload-deps, Guidance-Session session-7980b278)
+
 - SDD-Artefakte im Draft-Status (KEINE Implementierung, gemäß Regel):
   spec.md (US1 HR-1 mit offener Design-Entscheidung Watch-vs-Register +
   AC-1…AC-6, US2 DB-1-Rest deps-install/deps-reinstall mit AC-7…AC-12,
@@ -951,6 +1010,7 @@
   Umsetzung ausstehend.
 
 ### 2026-09-30 — WC-1-B Wildcard-Approval-Hardening (feature/wc1b-wildcard-unconfigured-approval, e5408c1, Guidance-Session session-b470f696)
+
 - Option B (Nutzerentscheid im Chat, Alternativen A/C abgewogen):
   PolicyEngine.assertUnconfiguredWildcard — unkonfiguriertes Tool auf
   Wildcard-Server → recoverable authorization_required (statt lautlos
@@ -963,6 +1023,7 @@
   Change ausbaubar.
 
 ## 2026-09-30: Language Convention (communication German / artifacts English)
+
 - User established a persistent language convention: chat communication in
   German, all generated artifacts (code, comments, documentation, commit
   messages, memory-bank entries) in English.
@@ -971,6 +1032,7 @@
   Protocol. Convention also noted in `memory-bank/lessonsLearned.md`.
 
 ### 2026-09-30 — Neue Maschine: Guidance-Registry neu aufgesetzt
+
 - Pool-Registry `/workspaces/.guidance/guidance.json` (host `D:\repos\.guidance`):
   Workspace **thinking-mcp** → `/workspaces/Thinking-MCP` registriert (neben default).
   Alt-Container `server-guidance-guidance-1` (falscher Kontext, Port-Drift,
@@ -985,6 +1047,7 @@
   separate Chain nach R1/R2-Nutzerentscheid.
 
 ### 2026-09-30 — TYPE-1 gelöst (feature/type1-ts2532, Guidance-Session session-77a51a32, Kettenschritt 1/4)
+
 - TS2532 in tests/contract/shipped-configs.test.ts(125) gefixt: `CONFIG_SETS[1]!.dir`
   (Konsistent mit `[0]!`-Idiom im selben File). Zusätzlich File auf LF normalisiert —
   Root-Cause-Befund: Datei kam in WC-4 (235e9e6) mit CRLF-Zeilenenden UND dem
@@ -997,6 +1060,7 @@
   nicht Teil von TYPE-1.
 
 ### 2026-10-01 — TYPE-1 gemerged; Cleanup-Chain neu gestartet
+
 - feature/type1-ts2532 per Fast-Forward nach develop gemerged (58faa7e…e0b2f60,
   develop ahead 6 of origin — Push wartet auf Nutzer), Branch gelöscht.
 - Neue Chain session-293a251f-77ef-4ea1-a20d-f7587b926663 gestartet:
@@ -1004,6 +1068,7 @@
   .guidance-Config-Änderungen mid-session (CHAIN-1-Workaround).
 
 ### 2026-10-01 — WC1B-F3 gelöst (feature/wc1b-f3-integration-test, Guidance-Session session-293a251f, Kettenschritt 1/3)
+
 - Integrationstest in tests/contract/tools-run-operation.test.ts: Wildcard-Server
   (stdio, nie gespawnt — Policy wirft vor ensureReady) + Composite-Operation mit
   mcpTool-Step (server=wildcard, capability=unlisted-tool) → run_operation liefert
@@ -1014,6 +1079,7 @@
 - Fokussiert 20/20, Vollauf 475 passed / 9 skipped (63 Files), prettier grün.
 
 ### 2026-10-01 — GATE-1 Evidenznotiz (feature/gate1-evidence, Guidance-Session session-a0577447, Kettenschritt 1/2)
+
 - Klassifizierung bestätigt: Container-Verify-Gates (lint=prettier --check,
   test=root npm test --workspaces) bleiben umweltbedingt — der Guidance-Container
   hat keine Linux-nativen node_modules (DB-1-Kontext, specs/015 US2 löst es).
@@ -1027,12 +1093,14 @@
   bis dahin blockiert; GATE-1 bleibt OBSERVATION mit erweiterter Evidenz.
 
 ### 2026-10-01 — specs/015 Umsetzung gestartet (feature/015-us1-registry-register, Guidance-Session session-7e69dcdd, Schritt 1/4)
+
 - T001 erledigt: Spec gegen Codebase geprüft (WorkflowEngine/PolicyEngine/
   specs/014-Registry; GDS-6 als verwandter WorkflowEngine-Defekt referenziert).
 - T002 erledigt: FR-1201…1210 (US1, Alternative B) und FR-1211…1216 (US2)
   im spec.md verankert; R1/R2-Entscheidungen als entschieden eingetragen.
 
 ### 2026-10-01 — specs/015 Kette: Schritt 1 complete, US1-Session in plan-Phase (HANDOVER)
+
 - Kette session-7e69dcdd: Schritt 1/4 (Phase 1, T001/T002) COMPLETED (9dcca90,
   FR-1201..1216 verankert, Review APPROVED). Successor born-invalid (AC-5) →
   getrackt + cancelled; Rest-Kette als FRESH chain gestartet:
@@ -1052,6 +1120,7 @@
   first-try complete (GDS-6!).
 
 ### 2026-10-01 — specs/015 US1 implementiert (T003..T006, Guidance-Session session-b045ff14)
+
 - **AC-16-Fix (CHAIN-1):** getWorkflowState delegiert nach Probe-Routing den
   GESAMTEN AC-5-Guard an die Routing-Engine (WorkflowEngine.ts) — Workspace-
   Sessions werden nicht mehr am Pool-Hash gemessen. Successor born-invalid
@@ -1071,12 +1140,14 @@
   typecheck + prettier grün.
 
 ## 2026-10-01 — Re-Review Fix-Commit 04a2b4c (F1-F5) — CHANGES REQUESTED (1 HIGH neu)
+
 - F1-F5-Fixes im Source verifiziert (sessionRoutes-Purge, fingerprintConfigDir-Drift-Probe vor AC-5-Guard, registryWriteLock-Serialisierung, configuration_invalid-Wrapper + tmp-Cleanup, Engine-Level-Profile-Gate).
 - [REV-04a2b4c-1] HIGH (neu, durch den Fix-Commit eingeführt): register-tools.ts L320-328 — registry_register-Handler reicht das jetzt async registerWorkspace()-Promise UN-awaited an toJson() durch; JSON.stringify(Promise) → "{}". Tool-Antwort verliert configurationVersion/registry; bei Rejection (z.B. Flag off, invalid root) floated das Promise als unhandled rejection statt MCP-Tool-Error. Fix: `await tools.registerWorkspace(...)` im Handler (Muster existiert: getDownstreamStatus L301). Repro: registry_register-Toolaufruf → response content "{}".
 - [REV-04a2b4c-2] MEDIUM (Coverage): Kein Test übt den Fingerprint-Drift-Probe auf einer LIVE-Engine aus — AC-13/14/15 nutzen jeweils frische engine2 nach touchConfig(); Claim "existing AC-14 test now exercises a live-engine path" trifft nicht zu. Fehlt: touchConfig() → engine1.getWorkflowState() → Rebind.
 - [REV-04a2b4c-3] MEDIUM (Coverage): F1-Purge-Loop (sessionRoutes beim childEngines-Invalidieren) hat keinen Regressionstest (FR-1208 testet register→serve, nicht remove→stale-route-purge).
 
 ## 2026-10-01 — specs/015 US2 implementiert (feature/015-us2-deps-operations, Guidance-Session session-2184b012)
+
 - deps-install (composite firstAvailable: npm ci → npm-install-Fallback, Audit via data.via capability-Label npm-ci-lockfile/npm-install-fallback), deps-reinstall (einzelner process-Step: node -e rm node_modules + spawnSync npm install — firstAvailable stoppt beim ersten Erfolg, daher kein 2-Step-Composite). Templates: scaffold.ts (Node-Block), ConfigAssistant.buildOperations, examples/default-guidance.
 - Reaktive Erkennung (AC-9): OperationEngine hängt bei Process-Fails mit "Cannot find module" bzw. ERR_DLOPEN_FAILED node_deps_hint-Warnings an (deps-install resp. deps-reinstall). Proaktive Sonde (AC-10): guidance.json-Flag nodeDeps.proactiveProbe (Default OFF) schaltet warnNodeDeps in Operational-Wording (verweist auf die Ops).
 - T007 Contract-Tests FIRST (11 Tests, echte offline npm-Installations mit file:-Dependency — Zero-Dep-Pakete erzeugen gar kein node_modules). Vollauf 496 passed / 9 skipped; tsc/prettier/docs-drift grün; Commit e5780fc.
@@ -1084,16 +1155,19 @@
 - Offen: Deploy nach der Kette (docker compose build guidance insight && up -d --force-recreate, NUR außerhalb von Sessions) + Instanz-.guidance/operations.json erst DANN um die deps-Ops erweitern (AC-5-Fingerprint — bewusst nicht mid-Session geändert); Push nur auf Nutzeranweisung.
 
 ### 2026-10-01 — specs/015 US2 COMPLETED (Guidance-Session session-a0feb195, 3. Anlauf)
+
 - Guidance-Completion nach zwei Infrastruktur-Wedges erreicht: (1) session-2184b012 verify-Gate wedged am Container-test-Timeout (19 min, GATE-1) + geleaktem Test-Fixture-Prozess → cancelled; (2) session-a1afbe61 starb an einem Guidance-Container-Restart (Sessions sind workflow-run-scoped, überleben keinen Neustart). session-a0feb195 lief komplett durch: alle Completion-Gates grün (docs-drift, final-review-gate, index-freshness, repository-analysis, capture-session-lessons).
 - Merge: feature/015-us2-deps-operations fast-forward nach develop (e5780fc + 06cf335), Branch gelöscht. Push weiterhin nur auf Nutzeranweisung.
 - Infrastruktur-Lessons (siehe lessonsLearned.md): gitnexus -32001 "Session not found" wird vom ClientManager NICHT re-initialisiert → gitnexus-Server-Restart allein hilft nicht, weil guidance-Sessions prozessinterner sind; Repo-Root-/tmp-Scratch-Dateien dürfen niemals jünger als der gitnexus-Index sein (index-freshness-Gate zählt sie als Quellen) — Diagnose-Ausgaben ausschließlich nach /tmp.
 
 ## 2026-10-01 — REV-04a2b4c-1 abgeschlossen (Guidance-Session session-b568d084)
+
 - Await-Fix war bereits in develop (b09f74b, inkl. F1/F2-Regressionstests); Rest-Gap war der fehlende Tool-Level-Response-Shape-Test. Ergänzt in registry-rebind.test.ts ('review F-handler'): Stub-MCP-Server fängt registry_register-Handler ab, echte WorkflowTools über Pool-Engine; asserted configurationVersion + registry im serialisierten Body (nicht Promise-'{}') + fail-closed-Rejection /root does not exist/. Fokussiert 12/12, tsc/prettier grün.
 - Merge: feature/rev04a2b4c1-registry-await-test → develop (9b07627, fast-forward), Branch gelöscht. Unabhängiger Reviewer-Sub-Agent (fc79ecb9): APPROVED, 0 HIGH/CRIT.
 - Infrastruktur-Befunde: (1) Clear-Thought-MCP-Server durchgehend timeouts (sequential_thinking/metacognitive_monitoring) — FR-035-Eskalation + Chat-Analyse-Fallback; Container thinking-mcp-clear-thought-1 läuft, aber antwortet nicht → prüfen. (2) GDS-7-Konkretisierung: repo-lokales .gitnexus gehört zur Identität /mnt/d/repos/thinking-mcp (KLEIN) — WSL-Analyze von /mnt/d/repos/Thinking-MCP (GROSS) failt mit 'foreign'; Fix: Analyze vom kleingeschriebenen Pfad fahren. gitnexus-server-Analyze schreibt in eigenen /data-Storage, NICHT repo-lokal → hilflos für den index-freshness-Gate. (3) gitnexus-Analyze OHNE --skip-skills rewritet AGENTS.md/CLAUDE.md (CLI-Sektion entfernt) — revertiert; künftig immer --skip-skills. (4) GDS-6 live bestätigt: nach required_hook_failed → retry_operation-Success finalisiert der Server nicht (Phase completed, Status bleibt active, kein Terminal-Übergang) — exakt das getrackte Defektbild.
 
 ## 2026-10-01 — GDS-6 + CHAIN-Replay geschlossen, CHAIN-1/US1 als implementiert verifiziert (Guidance-Session session-310b5d4a)
+
 - Scope-Reassess gegen develop 9b07627: specs/015-US1 (R1=B, R2-Rebind AC-13..17, Successor-Rebind) bereits implementiert (a40f485/04a2b4c/b09f74b) mit 12 Regressionstests — kein Re-Implementation-Bedarf.
 - GDS-6 gefixt (WorkflowEngine): Hook-Fail persistiert pendingCompletion {report, requestId}; retryOperations finalisiert bei Phase complete jetzt vollstaendig (status=completed, completedAt, workflow_completed-Audit, Chain-Successor aus Retained-Report, requestId-Cache). Neue Helper createChainSuccessorLocked/activateSuccessor von completeWorkflow geteilt. Live-Repro war session-b568d084 (gleiche Defektbild).
 - CHAIN-Replay gefixt: start_workflow lehnt top-level request == steps[0].request (getrimmt) fail-closed mit configuration_invalid ab (Step-0-Doppelau sofuehrung); generische Kontext-Ketten bleiben valide.
@@ -1101,6 +1175,7 @@
 - README: Chain-Semantik ergaenzt (Duplicate-Step-0-Regel, Retry-Finalisierung).
 
 ## 2026-10-01 — Independent Review eedb7bb (feature/gds6-chain-replay-hardening): APPROVED, 0 HIGH/CRITICAL
+
 - Basis: HEAD eedb7bb == review commit, working tree clean; diff vs develop 9b07627 gelesen; WorkflowEngine.ts-Touchpoints + Typen im Current Source verifiziert.
 - Refactor-Aequivalenz bestaetigt: sessionId→session.sessionId / result.sessionId sind wertidentisch; Audit-Events (chain_end/chain_failed/chain_successor_created/session_started), requestIds-Caching und chainUpNext-Advancement unverändert.
 - State-Machine: Lock-Discipline korrekt (Successor-Creation im Predecessor-Lock, Activation im Successor-Lock mit Re-Check); 'complete'-Phase hat Success-Transition → retry-finalize feuert; requestId-Replay liefert Final-Result; complete_workflow danach → workflow_already_completed; 'activating'-Recovery-Pfad unberuehrt.
@@ -1108,6 +1183,7 @@
 - Findings: 0 HIGH/CRITICAL; 1 LOW Code (requestId-Cache im Retry-Finalize nicht post-activation refreshed), 1 LOW Test-Hygiene (orphan comment), Rest Info — alle als REV-eedb7bb-* in remaining-work-plan.md getrackt.
 
 ## 2026-10-01 — REV-US2-F2/F3/F4 geschlossen (Guidance-Session session-12d087d8)
+
 - F2: deps-install-Beschreibung in allen drei Katalogen (scaffold.ts, ConfigAssistant.ts, examples/default-guidance/operations.json) + README auf echte firstAvailable-Semantik umgestellt (Fallback bei JEDEM npm-ci-Fehler, node_modules-Lösch-Caveat). Entscheidung: Doku-Alignment statt condition-Feld.
 - F3: OperationEngine-Composite-Failure-Merge führt Step-Warnings mit (node_deps_hint überlebt); neuer Test pinnt das.
 - F4: Drei Kataloge field-identisch (canonical: protocolRequestMustSucceed + summary_and_errors + 'Runs in the workspace root'-Phrase); Drift-Guard-Test vergleicht scaffold-Generierung vs. ConfigAssistant-generateFiles vs. shipped example über 10 Felder.
@@ -1115,11 +1191,13 @@
 - Vollauf 504 passed / 9 skipped; tsc/prettier grün. Commits 7edef62 + 3ed06b9 auf feature/rev-us2-f2f3f4; Merge nach develop nach Completion.
 
 ## 2026-10-02 — Independent Review 5d782c9 (feature/fr053-approval-gate) — APPROVED (0 HIGH/CRIT offen)
+
 - Snapshot: branch feature/fr053-approval-gate @ 5d782c9, Basis origin/develop 5a0a3b6, clean tree. Tests: approval-gate/policy-engine/exposure-wiring/deps-operations — 26/26 grün (WSL vitest).
 - Gate-Verdrahtung semantisch verifiziert: 8 assert/consume-Paare (runOperation, activateSession, runAfterEnter, submitLocked beforeExit/beforeEnter/afterExit, completeWorkflowLocked, retryOperations); assert vor JEGLICHER Ausführung, consume nur bei status=succeeded; Replay-Check (requestIds) VOR assert → Replay re-executiert keine Ops; runningOps/Workspace-Lock schließt TOCTOU-Fenster; routedFor delegiert komplett an die Child-Engine, die dieselbe Session-Datei (inkl. Grants) liest. Exposure: warnings unter summary_and_errors now redacted-at-source (stderr → redactor), errors führten redigierten stderr bereits vorher — keine neue Leak-Klasse. Harness-Rewrites (replay/e2e) keine geschwächten Assertions, alle SC-Cases erhalten.
 - Neue getrackte Findings: REV-F053-1 (LOW, Hook-Listen Op-für-Op statt Batch-Assert — Re-Approval nach Retry), REV-F053-2 (LOW, deklaratives riskClass-Vertrauen bei Composites — accepted), REV-F053-3 (INFO, consume lost-update-Fenster — unerreichbar, accepted). Details in remaining-work-plan.md.
 
 ## 2026-10-02 — FR-053 Approval Gate verdrahtet (Guidance-Session session-01df2607, Rest-Backlog)
+
 - ESCALATION: requiresApproval hatte KEINEN Runtime-Consumer — der FR-053-Gate war komplett unverdrahtet (F1-Befund schärfer als getrackt).
 - Umsetzung (Scope-A Nutzerentscheid): requiresApproval + workspace_write; assertApprovals an allen 8 Executions-Pfaden (runOperation + Lifecycle); Grants via Approval-Zeremonie (report_blocker category approval + resume "approve <op>", session.approvedOperations, erfolgsbasierter Einmal-Konsum); Audit approval_required/granted/consumed.
 - REV-F2F3F4-1: applyExposure summary_and_errors lässt Warnings durch (node_deps_hint agent-sichtbar).
@@ -1130,22 +1208,26 @@
 - Deployment-Note: der laufende Container erzwingt den Gate erst nach dem nächsten Rebuild/Redeploy.
 
 ## 2026-10-02 — FR-053-Batch deployed
+
 - develop → origin/develop gepusht (5d782c9 + 46a3afa); Container neu gebaut (Image 2026-10-02T13:08Z) und neu gestartet (healthy). Der FR-053-Approval-Gate (Scope A), die GDS-6-Retry-Finalisierung und der CHAIN-Replay-Schutz sind damit in der laufenden Instanz aktiv.
 - Betriebs-Hinweis: erste Ausführung einer workspace_write/destructive/credential_sensitive-Op pro Run → authorization_required → Approval-Zeremonie (report_blocker category approval + resume "approve <op>"), siehe README "FR-053 approval ceremony".
 
 ## 2026-10-02 — Independent Review 588fa62 (feature/f0531-gds7-cleanup) — APPROVED (0 HIGH/CRIT offen)
+
 - Basis: 588fa62 vs. origin/develop 46a3afa; 34/34 Tests grün (approval-gate, deps-operations, engine, lifecycle-points).
 - REV-F053-1 als GELÖST verifiziert: alle vier Loops (activateSession beforeEnter, runAfterEnter, submitLocked beforeEnter, afterExit) hoisten Resolution + assertApprovals vor die erste Ausführung; consumeApprovals bleibt erfolgsbasiert pro Op; Batch-Sites (completeWorkflowLocked, retryOperations, runOperation, Submit-Gates 2491/2832/3122) unverändert; Audit-Rename id → op.operationId ist neutral (operationId = Config-Key, WorkflowEngine.ts:330).
 - Neue Tests pinnen den Defekt: Pre-Loop-Denial nennt repository-analysis, KEIN approval_consumed in History, build-Grant intakt — auf Pre-Fix-Code (per-op-assert) würde der Test fehlschlagen (früheres Op lief + konsumierte Grant).
 - Neues getracktes Finding: REV-F053-1b-1 (INFO, Kosmetik — Kommentartext-Einrückung WorkflowEngine.ts:2622). Details in remaining-work-plan.md.
 
 ## 2026-10-02 — REV-F053-1 All-or-Nothing + GDS-7-Doku + F2F3F4-2 (Guidance-Session session-a6005ca0)
+
 - Die vier op-by-op-Lifecycle-Loops (activateSession-beforeEnter, runAfterEnter, submitLocked-beforeEnter/afterExit) validieren jetzt die gesamte Hook-Liste vor der ersten Ausführung (all-or-nothing); Konsum erfolgsbasiert pro Op. Audit-Events id→op.operationId (wertidentisch).
 - Regressionstests (approval-gate.test.ts, plan.beforeEnter Multi-Gate-Liste [ungated, build, RA]): Denial am letzten gated Op VOR jeder Ausführung, kein approval_consumed, früherer Grant intakt; Happy Path konsumiert genau 2 Grants.
 - GDS-7: Dual-Index-Prozedere in README verankert (lowercase-Pfad, --skip-skills, --force bei 'Already up to date', Container-/data-Split). F2F3F4-2: via-Label 'visible in run history' in 3 Katalogen.
 - Review (980283a0): APPROVED, 0 HIGH/CRIT; REV-F053-1b-1 (INFO, Einrückung) gefixt in 10cc5a9. Vollauf 532/532; tsc/prettier grün.
 
 ## 2026-10-02 — Approval-Policy-Config (Unattended-Rework, session-0861a7b4)
+
 - Nutzer-Design-Korrektur: Workflows müssen unattended laufen — per-Execution-Approvals (Scope A) widersprachen dem. Trust-Act in die Konfiguration verschoben: policies.approvals (riskClass → allow|require, RID-1-Stil fail-closed validiert); Defaults: destructive/credential_sensitive → require (Zeremonie bleibt vollständig), alle anderen → allow (Unattended).
 - En route gefundener + gefixter Bug: validatePolicies early-returned bei fehlender submission-Sektion und übersprang die approvals-Validierung — Fail-closed-Test pinnt den Fix (scheitert unter Alt-Code).
 - requiresApproval(config, approvals) resolvt entry ?? default; assertApprovals/consumeApprovals übergeben config.approvals (Child-Engines nutzen ihre Workspace-Config); configVersion-Hash erfasst policies inkl. approvals.
@@ -1154,6 +1236,7 @@
 - Deployment: neuer Build nötig; danach läuft der Betrieb unattended — die Zeremonie greift nur noch bei destructive/credential_sensitive (aktuell keine solche Op in den Profilen).
 
 ## 2026-10-02 — Registry-Hot-Reload + Deps-Pre-Flight (Guidance-Session session-fae2aa34, feature/guidance-registry-hot-reload-deps-preflight)
+
 - Bug 1 (workspace_not_registered nach registry_register): Root Cause war ein zur Boot-Zeit eingefrorenes WorkspaceRegistry-Handle im start_workflow-Closure (registerWorkflowTools param 4), während registerWorkspaceLocked die Engine-Config (inkl. Registry) längst live neu komponierte. Fix 1A: registerWorkflowTools nimmt jetzt einen Provider () => WorkspaceRegistry; ComposedApp trägt engine; composeApplication liefert workspaces als Live-Getter (fixt auch stale /workspaces-Listings). Regression: register → start_workflow im selben Prozess (registry-rebind.test.ts, +2 Tests).
 - Bug 2 (niyama ohne node_modules): Nutzerentscheidung 2B — automatischer Pre-Flight. config.preFlight.enabled (default ON, opt-out); vor required Lifecycle-Gates (beforeEnter/beforeExit) prüft WorkflowEngine den Deps-State (node_modules fehlt = deterministisch; mtime best-effort) und ruft die konfigurierte deps-install-Operation, pro Workspace-Root serialisiert, fail-open, Audit deps_preflight. ABI-Mismatch bleibt bewusst reaktiv (deps-reinstall/nodeDepsHints).
 - Verifikation: tsc grün; registry-rebind 15/15; deps-preflight 8/8; Vollauf server-guidance 69 Dateien / 547 Tests grün (im Guidance-Container). gitnexus analyze --no-stats (Reindex, exakter Pfad /mnt/d/repos/thinking-mcp) + detect-changes --scope all: nur server-guidance-Symbole betroffen, keine Überraschungen.
@@ -1261,3 +1344,4 @@
 - **clear-thought:** Wrapper am zentralen `tool.update()`-Callback in `index.ts` (`_meta.async` / `CLEAR_THOUGHT_ASYNC_ACCEPTANCE=1`); Wrapped Set `session_save` + `session_load` (Infrastruktur-Adoption, ehrlich dokumentiert); `session_info` merged `asyncOperations`; SSE per transientem `createSessionMcpServer` der die SessionState TEILT; Acceptance-Antworten mit `structuredContent` (SDK-Pflicht bei outputSchema). 7/7 Contract-Tests grün; volle Suite 187/187.
 - **Verifikation:** guidance 615/615 (613 + 2 Hash-Tests, NULL Test-Modifikationen), insight: alle zur Baseline grünen Files grün (AC4), clear-thought 187/187; typecheck clean (guidance nur Prä-existing S016-TYPECHECK).
 - **Prä-existing Env-Befund (neu getrackt):** better-sqlite3-Native-Crash beim Worker-Exit (Statement::~Statement, Node 24/WSL) in insight `tests/contracts/evaluation.test.ts` + `mcp-surface.test.ts` (+ flaky `seed-lessons` unter Volllast) — NICHT durch diesen Scope verursacht (Branch unverändert zu develop reproduziert); Einzellauf mcp-surface crasht auch singleFork.
+- **Final-Review (Fresh Sub-Agent 5eb3da64):** 0 offene HIGH/CRITICAL. R1 (MEDIUM) FR-3-Scope-Lücke im insight-SSE-Pfad gefixt (AsyncLocalStorage-Session-Scope + Regressionstest SSE-async → JSON-poll); R2/R4/R5 akzeptiert dokumentiert, R3 getrackt (S016-FINAL-REVIEW im remaining-work-plan).
