@@ -121,6 +121,22 @@ app.post(
       // request may create a server+transport. Garbage/batch/non-initialize POSTs
       // previously created reaper-invisible orphan instances per request.
       if (!known && !isInitializeRequest(req.body)) {
+        // A request CARRYING a session id the server no longer knows (TTL/
+        // MAX_SESSIONS eviction, restart) must answer 404 — the official MCP
+        // SDK client auto-reinitializes on 404, but treats 400 as a hard
+        // failure and never recovers (observed: client stuck on
+        // "MCP session no longer valid" after idle eviction).
+        if (typeof sessionId === "string" && sessionId.length > 0) {
+          res.status(404).json({
+            jsonrpc: "2.0",
+            error: { code: -32001, message: "unknown or expired MCP session id" },
+            id: null,
+          });
+          return;
+        }
+        // CB-3 hardening: without a known session id, only a genuine initialize
+        // request may create a server+transport. Garbage/batch/non-initialize POSTs
+        // previously created reaper-invisible orphan instances per request.
         res.status(400).json({
           jsonrpc: "2.0",
           error: {

@@ -46,6 +46,18 @@ describe('CB-3: /mcp early-reject (no orphan sessions)', () => {
     expect(body.error?.code).toBe(-32700);
   });
 
+  it('returns 404 (-32001) for a non-initialize POST carrying an UNKNOWN session id (SDK client recovery path)', async () => {
+    // TTL/MAX_SESSIONS eviction or restart orphans client-side session ids.
+    // The MCP SDK client re-initializes only on 404 — 400 would strand it.
+    const res = await post(
+      { jsonrpc: '2.0', id: 3, method: 'tools/list' },
+      { 'mcp-session-id': '00000000-0000-0000-0000-000000000000' },
+    );
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error?: { code?: number } };
+    expect(body.error?.code).toBe(-32001);
+  });
+
   it('initialize still creates a working session; known session id passes the gate', async () => {
     const res = await post(INIT);
     expect([200, 201]).toContain(res.status);
