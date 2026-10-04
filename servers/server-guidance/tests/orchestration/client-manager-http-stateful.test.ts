@@ -162,12 +162,15 @@ describe("ClientManager over stateful HTTP downstream (HD-3 regression)", () => 
     expect(stub.sessions.size).toBeGreaterThanOrEqual(1);
   });
 
-  it("a lost server-side session is classified as a transport failure (no crash, no false tool_reported)", async () => {
+  it("a lost server-side session recovers: one fresh-connection replay succeeds (stale-session recovery)", async () => {
     const mgr = await bootManager();
     await mgr.ensureReady("stateful");
     stub.resetSessions(); // server loses the session (restart simulation)
+    // Session-expiry (404) never reached the tool — ClientManager must
+    // reconnect and replay ONCE even without an explicit reconnect policy.
     const out = await mgr.invokeTool("stateful", "ping", {});
-    expect(out.kind).toBe("transport"); // deterministic classification
-    expect(stub.notFoundCount).toBeGreaterThanOrEqual(1); // the 404 came from the stateful stub
+    expect(out.kind).toBe("success");
+    expect(stub.notFoundCount).toBeGreaterThanOrEqual(1); // the 404 was hit
+    expect(stub.sessions.size).toBeGreaterThanOrEqual(1); // a new session exists
   });
 });

@@ -10,6 +10,12 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { createHash } from "node:crypto";
 import { GuidanceError } from "../types/errors.js";
 
+/** Matches transport failures that mean "the downstream session expired and
+ *  the request never reached the tool" (HTTP 404 / JSON-RPC -32001 from the
+ *  stale-session gate). Safe to replay on a fresh connection. */
+const sessionExpiryPattern =
+  /\b404\b|unknown or expired MCP session id/i;
+
 export interface DownstreamToolInfo {
   name: string;
   inputSchemaHash: string;
@@ -265,7 +271,14 @@ export class ClientManager {
   ): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
-    | { kind: "transport"; message: string; timedOut?: boolean }
+    | {
+        kind: "transport";
+        message: string;
+        timedOut?: boolean;
+        /** Transport failure was a stale downstream session (404/-32001) —
+         *  the request never reached the tool, replay is side-effect-safe. */
+        sessionExpired?: boolean;
+      }
   > {
     if (
       requestTimeoutSeconds !== undefined &&
@@ -290,12 +303,25 @@ export class ClientManager {
     // could duplicate side effects on non-idempotent tools. Retry semantics
     // stay upstream (FR-035).
     if (out.timedOut) return out;
+    // Session-expiry failures (HTTP 404 / "unknown or expired MCP session id")
+    // never reached the downstream tool — the HTTP transport rejected before
+    // dispatch — so ONE fresh-connection replay is side-effect-safe even
+    // without an explicit reconnect policy (stale-session recovery).
+    const sessionExpired =
+      out.sessionExpired === true || sessionExpiryPattern.test(out.message);
+    if (
+      !sessionExpired &&
+      this.connections.get(serverId)?.reconnect?.enabled !== true
+    ) {
+      return out;
+    }
     return await this.reconnectAndRetry(
       serverId,
       toolName,
       args,
       requestTimeoutSeconds,
       out,
+      sessionExpired ? 1 : 0,
     );
   }
 
@@ -412,19 +438,26 @@ export class ClientManager {
     args: Record<string, unknown>,
     requestTimeoutSeconds: number | undefined,
     firstFailure: { kind: "transport"; message: string; timedOut?: boolean },
+    minAttempts = 0,
   ): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
-    | { kind: "transport"; message: string; timedOut?: boolean }
+    | {
+        kind: "transport";
+        message: string;
+        timedOut?: boolean;
+        sessionExpired?: boolean;
+      }
   > {
     const conn = this.connections.get(serverId);
     const rc = conn?.reconnect;
-    const maximumAttempts =
+    const configuredAttempts =
       rc?.enabled === true &&
       Number.isInteger(rc.maximumAttempts) &&
       rc.maximumAttempts! > 0
         ? rc.maximumAttempts!
         : 0;
+    const maximumAttempts = Math.max(configuredAttempts, minAttempts);
     let last: { kind: "transport"; message: string } = firstFailure;
     for (let attempt = 1; attempt <= maximumAttempts; attempt++) {
       const delayMs = rc?.delayMilliseconds;
@@ -476,7 +509,12 @@ export class ClientManager {
   ): Promise<
     | { kind: "success"; content: unknown[]; structuredContent?: unknown }
     | { kind: "tool_reported"; message: string; content: unknown[] }
-    | { kind: "transport"; message: string; timedOut?: boolean }
+    | {
+        kind: "transport";
+        message: string;
+        timedOut?: boolean;
+        sessionExpired?: boolean;
+      }
   > {
     let client: Client;
     try {
@@ -517,9 +555,15 @@ export class ClientManager {
               }),
             ])) as typeof response);
     } catch (err) {
+      // The SDK's StreamableHTTPError carries the HTTP status ONLY on
+      // `.code` (its message is just the response body) — a stale downstream
+      // session (404) must stay detectable for session-expiry recovery.
+      const sessionExpired =
+        (err as { code?: unknown }).code === 404 ||
+        sessionExpiryPattern.test(String(err));
       return timedOut
         ? { kind: "transport", message: String(err), timedOut: true }
-        : { kind: "transport", message: String(err) };
+        : { kind: "transport", message: String(err), sessionExpired };
     } finally {
       clearTimeout(timer);
     }
