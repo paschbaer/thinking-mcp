@@ -894,3 +894,6 @@ Spec 016 adoption (§6 step 2) implemented on feature branch; independent review
 
 ### Current state
 Runtime drift fixed and verified; documentation in sync; workflow session-d5a440cb in completion.
+
+### 2026-10-04 (Merge): schema-drift cleanup merged to develop
+Fast-forward aaffb81..452f1d4 (3 commits), feature branch deleted, develop ahead of origin/develop by 3 — push pending (user-side, known SSH-key trap). GitNexus index refreshed after merge.
