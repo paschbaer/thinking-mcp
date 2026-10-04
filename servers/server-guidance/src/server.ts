@@ -301,8 +301,7 @@ export function createHttpApp(opts: HttpAppOptions) {
             .map((t) => t.trim().split(";")[0] ?? "");
           const progressToken = (
             req.body as
-              | { params?: { _meta?: { progressToken?: unknown } } }
-              | undefined
+              { params?: { _meta?: { progressToken?: unknown } } } | undefined
           )?.params?._meta?.progressToken;
           const wantsSse =
             acceptTypes.includes("text/event-stream") &&

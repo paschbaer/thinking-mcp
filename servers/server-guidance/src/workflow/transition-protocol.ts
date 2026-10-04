@@ -60,7 +60,9 @@ export function hooksFromContext(ctx?: TransitionContext): TransitionHooks {
     onGateEvent: (event) => {
       // Monotonic progress: started at gate index, finished at index+1.
       const value =
-        event.phase === "started" ? event.index : Math.min(event.index + 1, event.total);
+        event.phase === "started"
+          ? event.index
+          : Math.min(event.index + 1, event.total);
       const message =
         event.phase === "started"
           ? `gate ${event.operationId} started`

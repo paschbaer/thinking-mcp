@@ -2589,15 +2589,15 @@ export class WorkflowEngine {
       (phaseDef?.lifecycle?.beforeEnter?.length ?? 0) +
       (phaseDef?.lifecycle?.afterExit?.length ?? 0);
     let gateCursor = 0;
-    const gateObserver: ((event: GateEvent) => void) | undefined = hooks
-      ?.onGateEvent
-      ? (event) =>
-          hooks.onGateEvent!({
-            ...event,
-            index: gateCursor + event.index,
-            total: gateTotal,
-          })
-      : undefined;
+    const gateObserver: ((event: GateEvent) => void) | undefined =
+      hooks?.onGateEvent
+        ? (event) =>
+            hooks.onGateEvent!({
+              ...event,
+              index: gateCursor + event.index,
+              total: gateTotal,
+            })
+        : undefined;
     let opResults: { id: string; status: string; summary: string }[] = [];
     let opsSucceeded = true;
     if (ops.length > 0) {

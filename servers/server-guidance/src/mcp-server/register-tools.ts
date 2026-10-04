@@ -378,10 +378,7 @@ export function registerWorkflowTools(
       operationId: z.string().min(1),
       arguments: z.record(z.unknown()).optional(),
     },
-    async (
-      { sessionId, operationId, arguments: argumentOverrides },
-      extra,
-    ) =>
+    async ({ sessionId, operationId, arguments: argumentOverrides }, extra) =>
       toJson(
         await tools.runOperation(
           sessionId,

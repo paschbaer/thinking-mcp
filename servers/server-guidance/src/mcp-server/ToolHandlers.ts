@@ -33,7 +33,10 @@ interface AsyncAcceptance {
   pollWith: "get_workflow_state";
 }
 
-function acceptancePayload(record: OperationRecord, retry: boolean): AsyncAcceptance {
+function acceptancePayload(
+  record: OperationRecord,
+  retry: boolean,
+): AsyncAcceptance {
   return {
     accepted: true,
     asyncAccepted: true,
@@ -126,10 +129,13 @@ export class WorkflowTools {
     }
     // F7: the terminal .catch keeps a registry write failure from becoming
     // an unhandled rejection after the acceptance response is gone.
-    void exec().then(
-      (result) => this.registry!.complete(sessionId, tool, result),
-      (err: unknown) => this.registry!.fail(sessionId, tool, errorDetail(err)),
-    ).catch(() => undefined);
+    void exec()
+      .then(
+        (result) => this.registry!.complete(sessionId, tool, result),
+        (err: unknown) =>
+          this.registry!.fail(sessionId, tool, errorDetail(err)),
+      )
+      .catch(() => undefined);
     return acceptancePayload(record, false);
   }
 
@@ -141,8 +147,19 @@ export class WorkflowTools {
     requestId: string | undefined,
     ctx: TransitionContext | undefined,
   ): Promise<SubmitResult | AsyncAcceptance> {
-    return this.runTransition(tool, sessionId, { ...payload, requestId }, ctx, () =>
-      this.engine.submit(sessionId, phase, payload, requestId, hooksFromContext(ctx)),
+    return this.runTransition(
+      tool,
+      sessionId,
+      { ...payload, requestId },
+      ctx,
+      () =>
+        this.engine.submit(
+          sessionId,
+          phase,
+          payload,
+          requestId,
+          hooksFromContext(ctx),
+        ),
     );
   }
 
@@ -192,7 +209,14 @@ export class WorkflowTools {
     requestId?: string,
     ctx?: TransitionContext,
   ): Promise<SubmitResult | AsyncAcceptance> {
-    return this.submitPhase("submit_plan", "plan", sessionId, payload, requestId, ctx);
+    return this.submitPhase(
+      "submit_plan",
+      "plan",
+      sessionId,
+      payload,
+      requestId,
+      ctx,
+    );
   }
   async submitPlanReview(
     sessionId: string,
@@ -278,7 +302,9 @@ export class WorkflowTools {
 
   async getWorkflowState(
     sessionId: string,
-  ): Promise<WorkflowSession & { asyncOperations?: Record<string, OperationRecord> }> {
+  ): Promise<
+    WorkflowSession & { asyncOperations?: Record<string, OperationRecord> }
+  > {
     // specs/008 AC-5: agent-facing read goes through getWorkflowState, which
     // enforces the configurationVersion binding (getSession is internal-only).
     const state = await this.engine.getWorkflowState(sessionId);
@@ -346,9 +372,7 @@ export class WorkflowTools {
     operationId: string,
     argumentOverrides?: Record<string, unknown>,
     ctx?: TransitionContext,
-  ): Promise<
-    ReturnType<WorkflowEngine["runOperation"]> | AsyncAcceptance
-  > {
+  ): Promise<ReturnType<WorkflowEngine["runOperation"]> | AsyncAcceptance> {
     const resolved = this.resolveTransition(ctx);
     return await this.runTransition(
       "run_operation",
