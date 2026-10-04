@@ -162,12 +162,35 @@ export class OperationEngine {
   async executeRequired(
     configs: OperationConfig[],
     ctx: OperationContext,
+    /** Spec 016 FR-6: passive per-gate observer. Optional; absent by
+     *  default — gate semantics/order/fail-closed behavior are untouched. */
+    observer?: (event: {
+      operationId: string;
+      index: number;
+      total: number;
+      phase: "started" | "succeeded" | "failed";
+      status?: string;
+    }) => void,
   ): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> {
     const results: NormalizedResult[] = [];
     let allSucceeded = true;
-    for (const config of configs) {
+    const total = configs.length;
+    for (const [index, config] of configs.entries()) {
+      observer?.({
+        operationId: config.operationId,
+        index,
+        total,
+        phase: "started",
+      });
       const result = await this.execute(config, ctx, 1);
       results.push(result);
+      observer?.({
+        operationId: config.operationId,
+        index,
+        total,
+        phase: result.status === "succeeded" ? "succeeded" : "failed",
+        status: result.status,
+      });
       if (config.required && result.status !== "succeeded") {
         allSucceeded = false;
         break;

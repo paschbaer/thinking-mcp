@@ -287,9 +287,33 @@ export function createHttpApp(opts: HttpAppOptions) {
         try {
           const server = createConfiguredServer(opts, composedView!);
           if (manager) registerRemoteTools(server, manager);
+          // Spec 016 FR-5/FR-7: Streamable HTTP requires every POST to
+          // accept BOTH application/json and text/event-stream (the SDK
+          // rejects anything else with 406), so Accept alone cannot signal
+          // the upgrade without breaking compliant legacy clients (FR-9).
+          // The upgrade therefore keys on the MCP progress opt-in: requests
+          // carrying _meta.progressToken are answered as SSE (progress per
+          // gate + keepalive comment frames); all other requests keep the
+          // byte-identical plain-JSON response of the pre-016 behavior
+          // (FR-9/AC4).
+          const acceptTypes = (req.headers.accept ?? "")
+            .split(",")
+            .map((t) => t.trim().split(";")[0] ?? "");
+          const progressToken = (
+            req.body as
+              | { params?: { _meta?: { progressToken?: unknown } } }
+              | undefined
+          )?.params?._meta?.progressToken;
+          const wantsSse =
+            acceptTypes.includes("text/event-stream") &&
+            progressToken !== undefined;
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: undefined, // stateless
-            enableJsonResponse: true,
+            enableJsonResponse: !wantsSse,
+            // FR-7: keepalives during silence (default 15 s; env-overridable
+            // for tests and slow-intermediary deployments).
+            keepAliveMs:
+              Number(process.env.GUIDANCE_SSE_KEEP_ALIVE_MS) || 15000,
           });
           res.on("close", () => {
             void transport.close();

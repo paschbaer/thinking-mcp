@@ -26,6 +26,7 @@ import type {
   WorkflowSession,
 } from "../types/index.js";
 import { WorkspaceOpLock, workspaceLockFile } from "./workspace-lock.js";
+import type { TransitionHooks } from "./transition-protocol.js";
 import type { NormalizedResult } from "../types/index.js";
 import {
   MetricsRepository,
@@ -2358,11 +2359,13 @@ export class WorkflowEngine {
     phase: string,
     payload: Record<string, unknown>,
     requestId?: string,
+    hooks?: TransitionHooks,
   ): Promise<SubmitResult> {
     const routed = this.routedFor(sessionId);
-    if (routed) return routed.submit(sessionId, phase, payload, requestId);
+    if (routed)
+      return routed.submit(sessionId, phase, payload, requestId, hooks);
     return this.sessions.withLock(sessionId, () =>
-      this.submitLocked(sessionId, phase, payload, requestId),
+      this.submitLocked(sessionId, phase, payload, requestId, hooks),
     );
   }
 
@@ -2492,6 +2495,7 @@ export class WorkflowEngine {
     phase: string,
     payload: Record<string, unknown>,
     requestId?: string,
+    hooks?: TransitionHooks,
   ): Promise<SubmitResult> {
     const session = this.getSession(sessionId);
 
@@ -2589,7 +2593,11 @@ export class WorkflowEngine {
         id: sessionId,
         workspaceRoot: ctx.workspaceRoot,
       });
-      const run = await this.operationEngine.executeRequired(ops, ctx);
+      const run = await this.operationEngine.executeRequired(
+        ops,
+        ctx,
+        hooks?.onGateEvent,
+      );
       this.consumeApprovals(session, ops, run.results);
       opsSucceeded = run.allSucceeded;
       const opById = new Map(ops.map((op) => [op.operationId, op]));
@@ -2794,11 +2802,13 @@ export class WorkflowEngine {
     sessionId: string,
     report: Record<string, unknown>,
     requestId?: string,
+    hooks?: TransitionHooks,
   ): Promise<SubmitResult> {
     const routed = this.routedFor(sessionId);
-    if (routed) return routed.completeWorkflow(sessionId, report, requestId);
+    if (routed)
+      return routed.completeWorkflow(sessionId, report, requestId, hooks);
     const result = await this.sessions.withLock(sessionId, () =>
-      this.completeWorkflowLocked(sessionId, report, requestId),
+      this.completeWorkflowLocked(sessionId, report, requestId, hooks),
     );
     return await this.activateSuccessor(result, requestId);
   }
@@ -2846,6 +2856,7 @@ export class WorkflowEngine {
     sessionId: string,
     report: Record<string, unknown>,
     requestId?: string,
+    hooks?: TransitionHooks,
   ): Promise<SubmitResult> {
     const session = this.getSession(sessionId);
     if (requestId && session.requestIds[requestId] !== undefined) {
@@ -2943,6 +2954,7 @@ export class WorkflowEngine {
     const run = await this.operationEngine.executeRequired(
       ops,
       this.ctxFor(session),
+      hooks?.onGateEvent,
     );
     this.consumeApprovals(session, ops, run.results);
     const opById = new Map(ops.map((op) => [op.operationId, op]));
@@ -3154,9 +3166,12 @@ export class WorkflowEngine {
   }
 
   /** Re-runs the current phase's required beforeExit operations (FR-040 retry). */
-  async retryOperations(sessionId: string): Promise<SubmitResult> {
+  async retryOperations(
+    sessionId: string,
+    hooks?: TransitionHooks,
+  ): Promise<SubmitResult> {
     const routed = this.routedFor(sessionId);
-    if (routed) return routed.retryOperations(sessionId);
+    if (routed) return routed.retryOperations(sessionId, hooks);
 
     let finalizeRequestId: string | undefined;
     const result = await this.sessions.withLock(sessionId, async () => {
@@ -3232,6 +3247,7 @@ export class WorkflowEngine {
       const run = await this.operationEngine.executeRequired(
         ops,
         this.ctxFor(session),
+        hooks?.onGateEvent,
       );
       this.consumeApprovals(session, ops, run.results);
       const opById = new Map(ops.map((op) => [op.operationId, op]));

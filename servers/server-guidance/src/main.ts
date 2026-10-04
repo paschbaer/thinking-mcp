@@ -128,7 +128,7 @@ export function composeApplication(
     clientOperationEngine: options?.clientOperationEngine,
     specKitTasks,
   });
-  const tools = new WorkflowTools(engine);
+  const tools = new WorkflowTools(engine, { stateDir });
   return {
     config,
     configDir,

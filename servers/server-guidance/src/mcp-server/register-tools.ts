@@ -9,6 +9,48 @@ import type { WorkspaceRegistry } from "../workspace-registry.js";
 import { GuidanceError } from "../types/errors.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { WorkflowTools } from "./ToolHandlers.js";
+import type { TransitionContext } from "../workflow/transition-protocol.js";
+
+/**
+ * Spec 016 (FR-4/FR-6): extract per-call transition options from the MCP
+ * request `_meta`: `async` toggles async acceptance per request (synchronous
+ * stays the default), `progressToken` opens the notifications/progress
+ * channel (delivered via the request-related sendNotification, i.e. over
+ * the SSE response stream when one is active).
+ */
+interface MetaCarrier {
+  _meta?: { async?: boolean; progressToken?: string | number };
+  sendNotification: (notification: never) => Promise<void>;
+}
+
+export function transitionContextFrom(
+  extra: MetaCarrier | undefined,
+): TransitionContext | undefined {
+  const meta = extra?._meta;
+  const progressToken = meta?.progressToken;
+  const progress =
+    progressToken !== undefined && extra?.sendNotification
+      ? {
+          token: progressToken,
+          send: (update: {
+            progress: number;
+            total?: number;
+            message: string;
+          }) =>
+            extra.sendNotification({
+              method: "notifications/progress",
+              params: {
+                progressToken,
+                progress: update.progress,
+                ...(update.total !== undefined ? { total: update.total } : {}),
+                message: update.message,
+              },
+            } as never),
+        }
+      : undefined;
+  if (meta?.async === undefined && progress === undefined) return undefined;
+  return { asyncAcceptance: meta?.async, progress };
+}
 
 const sessionId = { sessionId: z.string().min(1) };
 const requestId = { requestId: z.string().min(1).optional() };
@@ -147,15 +189,29 @@ export function registerWorkflowTools(
       assumptions: z.array(z.string()).optional(),
       acceptanceCriteria: z.array(z.string()).optional(),
     },
-    async ({ sessionId, requestId, ...payload }) =>
-      toJson(await tools.submitUnderstanding(sessionId, payload, requestId)),
+    async ({ sessionId, requestId, ...payload }, extra) =>
+      toJson(
+        await tools.submitUnderstanding(
+          sessionId,
+          payload,
+          requestId,
+          transitionContextFrom(extra),
+        ),
+      ),
   );
   server.tool(
     "submit_plan",
     "Reicht den Implementierungsplan ein",
     { ...sessionId, ...requestId, tasks: z.array(z.record(z.unknown())) },
-    async ({ sessionId, requestId, ...payload }) =>
-      toJson(await tools.submitPlan(sessionId, payload, requestId)),
+    async ({ sessionId, requestId, ...payload }, extra) =>
+      toJson(
+        await tools.submitPlan(
+          sessionId,
+          payload,
+          requestId,
+          transitionContextFrom(extra),
+        ),
+      ),
   );
   server.tool(
     "submit_plan_review",
@@ -166,8 +222,15 @@ export function registerWorkflowTools(
       findings: z.array(z.record(z.unknown())).optional(),
       approvedPlan: z.record(z.unknown()).optional(),
     },
-    async ({ sessionId, requestId, ...payload }) =>
-      toJson(await tools.submitPlanReview(sessionId, payload, requestId)),
+    async ({ sessionId, requestId, ...payload }, extra) =>
+      toJson(
+        await tools.submitPlanReview(
+          sessionId,
+          payload,
+          requestId,
+          transitionContextFrom(extra),
+        ),
+      ),
   );
   server.tool(
     "submit_implementation",
@@ -178,8 +241,15 @@ export function registerWorkflowTools(
       implementedTasks: z.array(z.string()),
       changedFiles: z.array(z.string()),
     },
-    async ({ sessionId, requestId, ...payload }) =>
-      toJson(await tools.submitImplementation(sessionId, payload, requestId)),
+    async ({ sessionId, requestId, ...payload }, extra) =>
+      toJson(
+        await tools.submitImplementation(
+          sessionId,
+          payload,
+          requestId,
+          transitionContextFrom(extra),
+        ),
+      ),
   );
   server.tool(
     "submit_implementation_review",
@@ -190,24 +260,43 @@ export function registerWorkflowTools(
       findings: z.array(z.record(z.unknown())).optional(),
       filesChangedDuringReview: z.array(z.string()).optional(),
     },
-    async ({ sessionId, requestId, ...payload }) =>
+    async ({ sessionId, requestId, ...payload }, extra) =>
       toJson(
-        await tools.submitImplementationReview(sessionId, payload, requestId),
+        await tools.submitImplementationReview(
+          sessionId,
+          payload,
+          requestId,
+          transitionContextFrom(extra),
+        ),
       ),
   );
   server.tool(
     "submit_verification",
     "Reicht Verifizierungsergebnisse ein",
     { ...sessionId, ...requestId, verificationSummary: z.array(z.string()) },
-    async ({ sessionId, requestId, ...payload }) =>
-      toJson(await tools.submitVerification(sessionId, payload, requestId)),
+    async ({ sessionId, requestId, ...payload }, extra) =>
+      toJson(
+        await tools.submitVerification(
+          sessionId,
+          payload,
+          requestId,
+          transitionContextFrom(extra),
+        ),
+      ),
   );
   server.tool(
     "complete_workflow",
     "Reicht den Abschlussbericht ein und fordert Completion an",
     { ...sessionId, ...requestId, summary: z.string() },
-    async ({ sessionId, requestId, summary }) =>
-      toJson(await tools.completeWorkflow(sessionId, { summary }, requestId)),
+    async ({ sessionId, requestId, summary }, extra) =>
+      toJson(
+        await tools.completeWorkflow(
+          sessionId,
+          { summary },
+          requestId,
+          transitionContextFrom(extra),
+        ),
+      ),
   );
   server.tool(
     "get_workflow_state",
@@ -289,9 +378,17 @@ export function registerWorkflowTools(
       operationId: z.string().min(1),
       arguments: z.record(z.unknown()).optional(),
     },
-    async ({ sessionId, operationId, arguments: argumentOverrides }) =>
+    async (
+      { sessionId, operationId, arguments: argumentOverrides },
+      extra,
+    ) =>
       toJson(
-        await tools.runOperation(sessionId, operationId, argumentOverrides),
+        await tools.runOperation(
+          sessionId,
+          operationId,
+          argumentOverrides,
+          transitionContextFrom(extra),
+        ),
       ),
   );
   server.tool(

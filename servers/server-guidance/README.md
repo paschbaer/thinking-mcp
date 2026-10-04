@@ -852,6 +852,10 @@ The same discipline applies to gated downstream calls: never replay a call
 after a transport timeout — route it once via the container route instead
 (see "Container route (timeout fallback)" above).
 
+Instead of relying on this timeout-recovery discipline, clients can opt into
+first-class async acceptance and/or live progress — see "Async acceptance
+and progress notifications" below.
+
 Re-submission semantics (requestId ledger): every phase submission carries a
 `requestId`. Replaying the **same** payload with the **same** `requestId`
 returns the recorded result marked `replayed` — it never re-executes work. A
@@ -864,6 +868,59 @@ Operations can tune their failure behavior in `operations.json` via the
 `failure` block (`remainInPhase`, `allowManualRetry`, `reportToAgent`) — this
 is how non-blocking gates (`required: false`) report failures without keeping
 the session in the phase.
+
+### Async acceptance and progress notifications
+
+By default every tool call answers synchronously with a single JSON response
+— exactly as described above. Two opt-in mechanisms exist for long-running
+phase transitions (`submit_*`, `complete_workflow`, `run_operation`):
+
+**Async acceptance.** Set `_meta.async: true` on a tool call (or start the
+server with `GUIDANCE_ASYNC_ACCEPTANCE=1` to make async the default;
+`_meta.async: false` opts a single call back out). The call then returns
+promptly with an acceptance payload:
+
+```json
+{
+  "accepted": true,
+  "asyncAccepted": true,
+  "sessionId": "session-…",
+  "tool": "submit_verification",
+  "operationId": "op-…",
+  "status": "in_flight",
+  "retry": false,
+  "pollWith": "get_workflow_state"
+}
+```
+
+Execution continues server-side under the same per-session single-flight
+lock as a synchronous call. A retry of the same submit while the transition
+is in flight is **idempotent**: it returns the current in-flight state (with
+`retry: true`) instead of queueing a second execution. The terminal outcome
+— success or failure, including which gate failed and why — is retrievable
+via `get_workflow_state` under the `asyncOperations` key until the next
+transition of the same tool supersedes it.
+
+**Progress notifications (SSE).** A client that wants live progress sends a
+tool call with `Accept: text/event-stream` (as required by Streamable HTTP)
+and a `_meta.progressToken`. The server then answers that call as an SSE
+stream carrying:
+
+- one `notifications/progress` event per gate — started, succeeded, or
+  failed — with a monotonically increasing `progress`, the gate `total`, and
+  a short status-only `message` (progress events never contain gate output,
+  environment data, or credentials), and
+- the terminal JSON-RPC result as the final `message` event.
+
+During periods without progress events the server emits keepalive comment
+frames (`: keepalive`) every 15 seconds (configurable via
+`GUIDANCE_SSE_KEEP_ALIVE_MS`), so silence can always be distinguished from a
+hang.
+
+Requests without a `progressToken` — including clients that merely include
+`text/event-stream` in their `Accept` header, as Streamable HTTP requires —
+continue to receive plain JSON responses, byte-identical to the synchronous
+default.
 
 ### Example: one full pass
 
