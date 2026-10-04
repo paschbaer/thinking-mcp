@@ -802,23 +802,33 @@ export class WorkflowEngine {
    * limitation — chaining across non-default workspaces is out of scope).
    */
   private engineForWorkspace(root: string): WorkflowEngine {
-    if (this.isChild || root === this.defaultRoot) {
-      // specs/014 FR-1101/FR-1102: a registry-only instance has no process
-      // config at the boot root — sessions must target a registered workspace
-      // whose root carries its own full process config.
-      if (this.config.registryOnly && root === this.defaultRoot) {
-        throw new GuidanceError(
-          "workspace_process_config_missing",
-          'registry-only instance: the default workspace (pool root) has no process config — start a registered workspace by name (e.g. workspace: "zed"). Run the config assistant in that repo (setup_guidance_start) to create its .guidance/ — it emits a workspaces[] merge snippet for this instance\'s registry',
-          { recoverable: false },
-        );
-      }
+    if (this.isChild) {
       return this;
+    }
+    if (root === this.defaultRoot && !this.config.registryOnly) {
+      return this;
+    }
+    // specs/014 FR-1101/FR-1102: a registry-only instance has no process
+    // config at its boot root. NOTE: `workspaces.default` falls back to the
+    // first alphabetically registered entry (WorkspaceRegistry.default), so
+    // defaultRoot CAN be a registered workspace. Fail closed only when that
+    // root truly carries no guidance.json (the real pool root); a configured
+    // root composes its own engine below like any registered workspace.
+    const cfgDir = join(root, ".guidance");
+    if (
+      this.config.registryOnly &&
+      root === this.defaultRoot &&
+      !existsSync(join(cfgDir, "guidance.json"))
+    ) {
+      throw new GuidanceError(
+        "workspace_process_config_missing",
+        'registry-only instance: the default workspace (pool root) has no process config — start a registered workspace by name (e.g. workspace: "zed"). Run the config assistant in that repo (setup_guidance_start) to create its .guidance/ — it emits a workspaces[] merge snippet for this instance\'s registry',
+        { recoverable: false },
+      );
     }
     // specs/014 FR-1102 (no-copy): a registered workspace MUST carry its own
     // process config — the former silent cpSync of the boot config manufactured
     // divergent copies (audit F2/MC-2).
-    const cfgDir = join(root, ".guidance");
     if (!existsSync(join(cfgDir, "guidance.json"))) {
       throw new GuidanceError(
         "workspace_process_config_missing",
@@ -828,7 +838,17 @@ export class WorkflowEngine {
     }
     let eng = this.childEngines.get(root);
     if (!eng) {
-      const cfg = loadConfig(join(root, ".guidance"), { workspaceRoot: root });
+      const cfg = loadConfig(cfgDir, { workspaceRoot: root });
+      if (cfg.registryOnly) {
+        // FR-1101: a workspace whose own config is registry-only has no
+        // process engine — starting a session on it would manufacture a
+        // hollow session. Fail closed with the classified code.
+        throw new GuidanceError(
+          "workspace_process_config_missing",
+          `workspace ${root} carries a registry-only instance config (no process files) — run the config assistant in that repo to create its full process config`,
+          { recoverable: false },
+        );
+      }
       const stateDir = join(root, ".guidance", "state");
       mkdirSync(stateDir, { recursive: true });
       eng = new WorkflowEngine({
@@ -848,14 +868,22 @@ export class WorkflowEngine {
   private probeWorkspaceRoutes(sessionId: string): void {
     if (this.sessionRoutes.has(sessionId)) return;
     for (const w of this.config.workspaces.list()) {
-      if (w.root === this.defaultRoot) continue;
+      // registry-only instance: defaultRoot may BE a registered workspace
+      // (alphabetical fallback) — its sessions must stay probe-routable.
+      if (w.root === this.defaultRoot && !this.config.registryOnly) continue;
       if (
         existsSync(
           join(w.root, ".guidance", "state", "sessions", `${sessionId}.json`),
         )
       ) {
-        this.sessionRoutes.set(sessionId, this.engineForWorkspace(w.root));
-        return;
+        // Fail-closed composition (FR-1101/FR-1102) must not break session
+        // lookups for stale state dirs — skip unroutable entries.
+        try {
+          this.sessionRoutes.set(sessionId, this.engineForWorkspace(w.root));
+          return;
+        } catch {
+          continue;
+        }
       }
     }
   }

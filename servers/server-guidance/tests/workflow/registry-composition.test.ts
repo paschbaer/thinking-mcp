@@ -174,6 +174,40 @@ describe("specs/014: registry-only composition (FR-1101/FR-1102)", () => {
     expect(existsSync(join(other, ".guidance"))).toBe(false);
   });
 
+  it("FR-1101 regression: default-root alphabetical fallback — the first registered workspace with a full process config is startable", async () => {
+    // Without an explicit "default" entry, WorkspaceRegistry.default falls
+    // back to the FIRST ALPHABETICAL entry, so defaultRoot === alpha's root.
+    // engineForWorkspace must compose alpha (full config) instead of throwing
+    // the pool-root guard at it.
+    const alpha = join(pool, "alpha");
+    const beta = join(pool, "beta");
+    mkdirSync(alpha, { recursive: true });
+    mkdirSync(beta, { recursive: true });
+    scaffoldFullConfig(alpha);
+    writeRegistry(pool, [
+      { name: "alpha", root: alpha, projectName: "alpha" },
+      { name: "beta", root: beta, projectName: "beta" },
+    ]);
+    const app = compose();
+    const res = await app.engine.startWorkflow({
+      workspace: "alpha",
+      request: "r",
+    });
+    expect(res.sessionId).toBeTruthy();
+    // the session must live in the workspace's own state dir
+    expect(
+      existsSync(
+        join(
+          alpha,
+          ".guidance",
+          "state",
+          "sessions",
+          `${res.sessionId}.json`,
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it("FR-1101: starting the pool (default) root itself fails closed in registry-only mode", async () => {
     const zed = join(pool, "zed");
     mkdirSync(zed, { recursive: true });
