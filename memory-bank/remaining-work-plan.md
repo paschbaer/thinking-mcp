@@ -1439,6 +1439,7 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
   - **Trigger point:** Only if the guidance server is ever run natively on Windows (not via WSL/Linux container).
   - **Action required:** Align discoverArtifacts with assertInsideWorkspace's separator handling; or accept as observation with rationale.
 - **Review-quality note:** Review executed on worktree HEAD cc30e14 with 255bfd2 as review basis; uncommitted lessonsLearned.md change was outside review scope (process tracking, not product code).
+- **SKP-1 FINAL CLOSURE (2026-10-04, session-8a3f5bf4):** SKP-2 gap closed by tests/contract/speckit-pool-wiring.test.ts (8c41768, real HTTP entry via createConfiguredServer pool fixture + revert drill). Full suite 73 files / 591 tests green; live pool-mode discovery re-verified on freshly rebuilt container (root compose --build): /workspaces/Thinking-MCP/specs/008-multi-workspace. Fast-forward merged to develop (develop == merge-base d44fc34, 0/4); feature branch deleted. Caveat: merge safety verified against LOCAL develop ref only — no origin fetch possible from this shell (SSH key passphrase unavailable); push will surface remote drift. Only SKP-3 (LOW, pre-existing) remains tracked.
 
 ## RESOLVED: YARN-LOCK-TRAP (fixed with regression coverage, feature/yarn-lock-guard)
 

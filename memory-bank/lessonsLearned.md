@@ -645,3 +645,8 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** A git read command inside a compound terminal command opened the pager and blocked/hung the tool call; the user had to interrupt it.
 - **Root cause:** `--no-pager` was applied to earlier standalone git log calls but omitted when git commands were embedded in longer compound commands (analyze + status chains).
 - **Prevention:** EVERY git read command (`log`, `diff`, `show`, `blame`, `status`) must carry `--no-pager` (or `--no-optional-locks` + `--no-pager` combined) in ALL contexts — standalone or embedded in compound commands. Never assume an earlier flag elsewhere covers a new invocation.
+
+## Avoid These Mistakes (2026-10-04 — guidance container rebuild from the wrong compose context)
+- **Issue:** `docker compose up -d --force-recreate` run from `servers/server-guidance` failed with `Bind for 127.0.0.1:3003 failed: port is already allocated` and left a second, dead container behind.
+- **Root cause:** The running stack belongs to the ROOT docker-compose project (`thinking-mcp`, all three servers orchestrated); the member directory has its own compose file with the same published port. Recreating from the member context creates a container of a DIFFERENT project that collides with the healthy one instead of replacing it.
+- **Prevention:** Always recreate the guidance container from the repo root (`docker compose up -d --build guidance`). Before recreating, check `docker ps --format "{{.Names}}\t{{.Ports}}"` to identify the owning project by container name prefix; remove stray containers from the wrong project (`docker rm -f <name>`).
