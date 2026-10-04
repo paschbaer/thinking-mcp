@@ -63,3 +63,16 @@
   bewusst 1.0.0 (Datenformat-Version, Schema unverändert). Root-`package.json`
   (0.0.1, privat/unpubliziert) und stochastic-`package.json` (0.1.1, wird nach
   Release deprecatet; Version-Guard überspringt es) unverändert.
+
+## 2026-10-04 — DEC-SKM-1: Spec-Kit-Modus als Workflow-Variante mit Artifact-Bindung (W5+W1, mit Phasen-Split)
+
+- **Kontext:** Der "Spec-Kit-Modus" war nie real (session-62689b13: metadata `specKitMode` war wirkungslos; Boot-Komposition ist hart standard-development; Spec-Kit = passives 16-Tool-Set). Brainstorming ergab drei Ontologien (Workflow / Policy / Treiber); Nutzer-Entscheidung: W5-Bindung + W1-Auswahl, ABER mit Phasen-Split (damit faktisch ein Workflow-Varianten-File).
+- **Entscheidung:**
+  1. W1: Workflow-Registry `.guidance/workflows/*.json`, Auswahl via `start_workflow {workflowId}` bei Session-Erstellung (Engine: Definition pro Session statt Boot-Definition; standard-development bleibt Default; rückwärtskompatibel).
+  2. Workflow-Variante `spec-kit-development` (Derivat des Standard-Workflows, geteilte Phasen-Definitionen gegen Drift): understand → specify+clarify; plan → speckit-plan; NEU checklist → speckit-checklist; NEU tasks → speckit-tasks; review_and_adjust_plan → speckit-analyze; implement → speckit-implement (+ Task-Tools Mikro-Loop); review_and_fix_implementation bewusst ungebunden; verify → speckit.converge; complete ungebunden.
+  3. Bindung = Instruktionsschicht (Phasen-Guidance nennt die Commands) + DURCHSETZBARES Artifact-Gate (Exit nur wenn Artefakt existiert und sauber importiert; Fail-closed, retry_operation als Recovery).
+  4. Modus ist ATTENDED: Clarify-Fragen über report_blocker (requiresUserDecision), Phase pausiert bis zur Nutzerantwort.
+  5. Generelle Skip-Regel: Existiert das Exit-Artefakt einer gebundenen Phase bereits (und importiert sauber), Skip via Transition-Reason `artifacts_present`, protokolliert in der Session → ergibt idempotentes Workflow-Resume.
+- **Explizit NICHT:** W8-Transitionsautomation (Task-Events als Phasentreiber) — Agent-Judgment + Severity-Gates bleiben.
+- **Offene Mikro-Entscheidungen (in Spec 017 zu klären):** Clarify-Exit-Signal; Convergence-Report-Artefaktname für das Verify-Gate; Review-Loop-Ziele nach Phasen-Split (minor→tasks, major→plan als Vorschlag); Feature-Nummerierung durch Discovery.
+- **Status:** Entscheidung getroffen im Brainstorming (2026-10-04); Spec 017 ausstehend.
