@@ -211,6 +211,18 @@ export const DEFAULT_ARTIFACTS: Record<
 const sha256 = (content: string) =>
   `sha256:${createHash("sha256").update(content).digest("hex")}`;
 
+/** Shared inside-workspace check for resolved paths — accepts both separators
+ *  so a native-Windows host does not reject legitimate paths (SKP-3). Both
+ *  call sites (discoverArtifacts, assertInsideWorkspace) MUST use this helper;
+ *  duplicating the condition is what caused the separator drift. */
+export function isInsideWorkspace(resolvedPath: string, wsRoot: string): boolean {
+  return (
+    resolvedPath === wsRoot ||
+    resolvedPath.startsWith(wsRoot + "/") ||
+    resolvedPath.startsWith(wsRoot + "\\")
+  );
+}
+
 function discoverArtifacts(
   featureDir: string,
   workspaceRoot: string,
@@ -218,7 +230,7 @@ function discoverArtifacts(
 ): { type: string; path: string }[] {
   const resolved = resolve(featureDir);
   const ws = resolve(workspaceRoot);
-  if (!resolved.startsWith(ws + "/") && resolved !== ws) {
+  if (!isInsideWorkspace(resolved, ws)) {
     throw new GuidanceError(
       "spec_kit_feature_outside_workspace",
       `feature directory escapes the workspace: ${featureDir}`,
@@ -329,11 +341,7 @@ export class SpecKitEngine {
   private assertInsideWorkspace(dir: string): void {
     const resolved = resolve(dir);
     const ws = resolve(this.workspaceRoot);
-    if (
-      resolved !== ws &&
-      !resolved.startsWith(ws + "/") &&
-      !resolved.startsWith(ws + "\\")
-    ) {
+    if (!isInsideWorkspace(resolved, ws)) {
       throw new GuidanceError(
         "spec_kit_feature_outside_workspace",
         `outside workspace: ${dir}`,
@@ -352,26 +360,24 @@ export class SpecKitEngine {
     const findings: { severity: string; message: string }[] = [];
     const artifacts: Snapshot["artifacts"] = [];
     const patterns = { ...DEFAULT_ARTIFACTS, ...this.config.artifactPatterns };
-    for (const [type, def] of Object.entries(patterns)) {
-      let content: string | null = null;
-      let path: string | null = null;
-      for (const pattern of def.patterns) {
-        if (pattern.endsWith("/**")) continue;
-        const candidate = join(feature.directory, pattern);
-        if (existsSync(candidate)) {
-          path = candidate;
-          break;
-        }
-      }
-      if (!path) {
-        if (def.required)
-          findings.push({
-            severity: "blocking",
-            message: `${type}: required artifact missing (${def.patterns.join(", ")})`,
-          });
-        continue;
-      }
-      content = readFileSync(path, "utf-8");
+    // C-Full: ONE traversal (discoverArtifacts) replaces the former inline
+    // file-pattern loop and the ad-hoc contracts walk. Directory patterns
+    // (contracts/**, checklists/**, and any config-provided "dir/**") are now
+    // imported uniformly with REAL relative paths (relative to the feature
+    // directory) — isSnapshotStale joins this path back per host, and
+    // top-level artifacts keep their identical previous relativePath
+    // ("spec.md" == the actual relative path), so existing snapshots stay
+    // comparable without migration.
+    const discovered = discoverArtifacts(
+      feature.directory,
+      this.workspaceRoot,
+      patterns,
+    ).sort((a, b) => (a.type === b.type ? (a.path < b.path ? -1 : 1) : 0));
+    const seen = new Set<string>();
+    for (const { type, path: p } of discovered) {
+      if (seen.has(p)) continue;
+      seen.add(p);
+      const content = readFileSync(p, "utf-8");
       if (content.trim() === "") {
         findings.push({
           severity: "blocking",
@@ -379,31 +385,21 @@ export class SpecKitEngine {
         });
         continue;
       }
-      const stat = statSync(path);
+      const stat = statSync(p);
       artifacts.push({
         type,
-        relativePath: patternOf(def.patterns[0] ?? ""),
+        relativePath: relative(feature.directory, p),
         sha256: sha256(content),
         sizeBytes: stat.size,
         mtimeAtImport: stat.mtime.toISOString(),
         content,
       });
     }
-    // contracts dir pattern
-    const contractsDir = join(feature.directory, "contracts");
-    if (existsSync(contractsDir)) {
-      for (const f of readdirRecursive(contractsDir)) {
-        const content = readFileSync(f, "utf-8");
-        // M1: Pfade relativ zum Feature-Verzeichnis — absolute Pfade liessen
-        // isSnapshotStale nach einem Umzug garantiert "stale" melden.
-        const relPath = relative(feature.directory, f);
-        artifacts.push({
-          type: "contracts",
-          relativePath: relPath,
-          sha256: sha256(content),
-          sizeBytes: statSync(f).size,
-          mtimeAtImport: statSync(f).mtime.toISOString(),
-          content,
+    for (const [type, def] of Object.entries(patterns)) {
+      if (def.required && !artifacts.some((a) => a.type === type)) {
+        findings.push({
+          severity: "blocking",
+          message: `${type}: required artifact missing (${def.patterns.join(", ")})`,
         });
       }
     }
@@ -1219,10 +1215,6 @@ export class SpecKitEngine {
       planChanges: { ...previous.planChanges, ...nextImport.planChanges },
     } as SpecKitState;
   }
-}
-
-function patternOf(p: string): string {
-  return p;
 }
 
 function parseCriteria(
