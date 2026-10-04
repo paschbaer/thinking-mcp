@@ -14,11 +14,15 @@ import type { Request, Response, NextFunction } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import createClearThoughtServer from "./index.js";
+import createClearThoughtServer, { createSessionMcpServer } from "./index.js";
 import { ServerConfigSchema, type ServerConfig } from "./config.js";
+import { SessionState } from "./state/SessionState.js";
 
 interface HttpSession {
   server: Server;
+  /** Shared session state — a per-request SSE server binds to the SAME
+   *  state (spec 016), so progress requests see the session's data. */
+  sessionState: SessionState;
   transport: StreamableHTTPServerTransport;
   /** Epoch ms of last request — used by the idle-session reaper. */
   lastSeen: number;
@@ -43,6 +47,10 @@ function createSession(): HttpSession {
     sessionId,
     config: resolveEnvConfig(),
   });
+  // SessionState is created inside createClearThoughtServer; recover it via
+  // the server's attached reference so SSE requests can share it.
+  const sessionState = (server as unknown as { __sessionState: SessionState })
+    .__sessionState;
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     enableJsonResponse: true,
@@ -54,7 +62,12 @@ function createSession(): HttpSession {
   transport.onclose = () => {
     if (session.sessionId) sessions.delete(session.sessionId);
   };
-  const session: HttpSession = { server, transport, lastSeen: Date.now() };
+  const session: HttpSession = {
+    server,
+    sessionState,
+    transport,
+    lastSeen: Date.now(),
+  };
   return session;
 }
 
@@ -124,6 +137,50 @@ app.post(
         // Covers initialize (no session id yet): a fresh server instance with
         // its own SessionState, registered via onsessioninitialized.
         await session.server.connect(session.transport);
+      }
+      // Spec 016 FR-5/FR-7: Streamable HTTP requires every POST to accept
+      // BOTH application/json and text/event-stream (the SDK rejects
+      // anything else with 406), so Accept alone cannot signal the upgrade
+      // without breaking compliant legacy clients (FR-9). The upgrade keys
+      // on the MCP progress opt-in: requests carrying _meta.progressToken
+      // are answered over a per-request SSE transport that SHARES the
+      // session's SessionState; all other requests keep the session's
+      // plain-JSON transport and its byte-identical pre-016 behavior
+      // (FR-9/AC4).
+      const acceptTypes = (req.headers.accept ?? "")
+        .split(",")
+        .map((t) => t.trim().split(";")[0] ?? "");
+      const progressToken = (
+        req.body as
+          { params?: { _meta?: { progressToken?: unknown } } } | undefined
+      )?.params?._meta?.progressToken;
+      const wantsSse =
+        !!known &&
+        acceptTypes.includes("text/event-stream") &&
+        progressToken !== undefined;
+      if (wantsSse) {
+        const sseMcp = createSessionMcpServer({
+          sessionId: session.sessionId ?? "sse-request",
+          config: resolveEnvConfig(),
+          sessionState: session.sessionState,
+        });
+        const sseTransport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined, // stateless, request-scoped
+          enableJsonResponse: false,
+          // FR-7: keepalives during silence (default 15 s; env-overridable
+          // for tests; non-positive/unparsable values fall back to default).
+          keepAliveMs:
+            Number(process.env.CLEAR_THOUGHT_SSE_KEEP_ALIVE_MS) > 0
+              ? Number(process.env.CLEAR_THOUGHT_SSE_KEEP_ALIVE_MS)
+              : 15000,
+        });
+        res.on("close", () => {
+          void sseTransport.close().catch(() => undefined);
+          void sseMcp.server.close().catch(() => undefined);
+        });
+        await sseMcp.connect(sseTransport);
+        await sseTransport.handleRequest(req, res, req.body);
+        return;
       }
       await session.transport.handleRequest(req, res, req.body);
     } catch (err) {

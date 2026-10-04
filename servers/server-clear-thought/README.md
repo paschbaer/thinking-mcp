@@ -220,12 +220,12 @@ calls update the inserted block in place instead of duplicating it.
 All derived artifacts are generated from `AGENTS.template.md` — never edit
 them by hand. After changing the template, run the chain:
 
-| Command | What it regenerates |
-|---|---|
-| `npm run sync:guide` | `src/tools/setup-clearthought-template.ts` (embedded constant; guarded by `tests/setup-clearthought.test.ts`) |
-| `npx tsx scripts/regen-root-agents.ts` | the repo-root `AGENTS.md` guide block, via the real `setup_clearthought` merge handler |
-| `npm run sync:skill` | the user-level Claude skill `~/.claude/skills/clear-thought/SKILL.md` covering all tools (custom target: `--out <path>`) |
-| `npm run sync:all` | `sync:guide` + `sync:skill` in one go |
+| Command                                | What it regenerates                                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `npm run sync:guide`                   | `src/tools/setup-clearthought-template.ts` (embedded constant; guarded by `tests/setup-clearthought.test.ts`)            |
+| `npx tsx scripts/regen-root-agents.ts` | the repo-root `AGENTS.md` guide block, via the real `setup_clearthought` merge handler                                   |
+| `npm run sync:skill`                   | the user-level Claude skill `~/.claude/skills/clear-thought/SKILL.md` covering all tools (custom target: `--out <path>`) |
+| `npm run sync:all`                     | `sync:guide` + `sync:skill` in one go                                                                                    |
 
 `generate-skill.mjs` fails when the toolset routing table in the template no
 longer matches the registries wired in `src/toolsets/*.ts` — fix the table,
@@ -268,132 +268,182 @@ structured JSON plus a `sessionContext`/status block where noted.
 ### Reasoning tools
 
 #### `sequential_thinking`
+
 Step-by-step reasoning with revision and branching.
+
 - **Parameters:** `thought`, `thoughtNumber`, `totalThoughts`, `nextThoughtNeeded`; optional `isRevision` + `revisesThought` (correct a thought), `branchFromThought` + `branchId` (explore alternatives), `needsMoreThoughts` (extend the estimate).
 - **Returns:** current thought, full `thoughtHistory`, `branches`, and `sessionContext` stats.
 
 #### `mental_model`
+
 Applies one of six thinking heuristics to a problem.
+
 - **Parameters:** `modelName` (`first_principles` | `opportunity_cost` | `error_propagation` | `rubber_duck` | `pareto_principle` | `occams_razor`), `problem`, `steps[]`, `reasoning`, `conclusion`.
 - **Returns:** model-specific `modelInsights`, `applicationResults`, `sessionContext`.
 
 #### `debugging_approach`
+
 Structured bug-hunting with 12 named strategies.
+
 - **Parameters:** `approachName` (`binary_search`, `reverse_engineering`, `divide_conquer`, `backtracking`, `cause_elimination`, `program_slicing`, `log_analysis`, `static_analysis`, `root_cause_analysis`, `delta_debugging`, `fuzzing`, `incremental_testing`), `issue`, `steps[]`, plus `rootCause`/`resolution`/`findings` as they become known.
 - **Returns:** approach-specific analysis, `resolution`, `sessionContext`.
 
 #### `collaborative_reasoning`
+
 Multi-persona deliberation: define personas, trade observations/questions/insights.
+
 - **Parameters:** `topic`, `personas[]` (name, expertise, perspective, biases, communication style/tone), `contributions[]`, `stage` (`problem-definition` → `ideation` → `critique` → `integration` → `decision` → `reflection`), `activePersonaId`, `sessionId`, `iteration`, `nextContributionNeeded`.
 - **Returns:** the processed contribution, updated persona state, `sessionContext`.
 
 #### `decision_framework`
+
 Weighted multi-option decision analysis over multiple stages.
+
 - **Parameters:** `decisionStatement`, `options[]` (name + description + pros/cons), `analysisType` (e.g. `architecture`, `technology`, `process`), `stage` (`options` → `evaluation` → `decision`), `iteration`, `nextStageNeeded`.
 - **Returns:** `recommendations` ranked per criterion, comparison matrix, accumulated `sessionContext`.
 
 #### `metacognitive_monitoring`
+
 Audits the quality of your own reasoning before you commit to a claim.
+
 - **Parameters:** `task`, `stage`, `overallConfidence` (0–1), `uncertaintyAreas[]`, `recommendedApproach`, `monitoringId`, `iteration`, `nextAssessmentNeeded`.
 - **Returns:** confidence `judgments`, identified biases/knowledge gaps, `sessionContext`.
 
 #### `socratic_method`
+
 Stress-tests a claim through staged questioning.
+
 - **Parameters:** `claim`, `premises[]`, `conclusion`, `question`, `stage` (`clarification` → `assumptions` → `evidence` → `perspectives` → `implications` → `questions`), `argumentType` (`deductive` | `inductive` | `abductive` | `analogical`), `confidence` (0–1), `sessionId`, `iteration`, `nextArgumentNeeded`.
 - **Returns:** challenge results, refined argument state, `sessionContext`.
 
 #### `creative_thinking`
+
 Divergent idea generation with explicit technique tracking.
+
 - **Parameters:** `prompt`, `ideas[]`, `techniques[]` (e.g. `first_principles`, `scamper`, `lateral_thinking`), `connections[]`, `insights[]`, `sessionId`, `iteration`, `nextIdeaNeeded`.
 - **Returns:** processed idea set with `metrics`, `sessionContext`.
 
 #### `systems_thinking`
+
 Models a system's components, feedback loops, and leverage points.
+
 - **Parameters:** `system`, `components[]`, `relationships[]` (`from`, `to`, `type`: `positive` | `negative` feedback), `feedbackLoops[]`, `emergentProperties[]`, `leveragePoints[]`, `sessionId`, `iteration`, `nextAnalysisNeeded`.
 - **Returns:** dynamics analysis, identified loops, `sessionContext`.
 
 #### `scientific_method`
+
 Empirical hypothesis testing workflow.
+
 - **Parameters:** `stage` (`observation` → `question` → `hypothesis` → `experiment` → `analysis` → `conclusion` → `iteration`), `variables` (independent/dependent/controlled/confounding), `hypothesis`, `experiment`, `analysis`, `conclusion`, `status` (`proposed`/`testing`/`supported`/`refuted`/`refined`), `nextStageNeeded`.
 - **Returns:** stage-specific evaluation, `sessionContext`.
 
 #### `structured_argumentation`
+
 Builds or attacks an argument with explicit premises.
+
 - **Parameters:** `claim`, `premises[]`, `conclusion`, `argumentType` (`deductive` | `inductive` | `abductive` | `analogical`), `confidence` (0–1), `nextArgumentNeeded`.
 - **Returns:** argument `validity`/`soundness` checks, counterarguments, `sessionContext`.
 
 #### `visual_reasoning`
+
 Creates and evolves visual diagrams as reasoning artifacts.
+
 - **Parameters:** `operation` (`create` | `update` | `delete` | `transform` | `observe`), `diagramId`, `diagramType` (e.g. `graph`, `flowchart`, `mindmap`), diagram elements, `iteration`, `nextOperationNeeded`.
 - **Returns:** updated diagram state with insights, `sessionContext`.
 
 ### Visualization tools
 
-All five are **dual-mode**: called without content they return a *facilitation scaffold* (guiding questions); called with content they return the structured analysis. Never present the scaffold as a result.
+All five are **dual-mode**: called without content they return a _facilitation scaffold_ (guiding questions); called with content they return the structured analysis. Never present the scaffold as a result.
 
 #### `mind_map`
+
 Hierarchical brainstorm.
+
 - **Parameters:** `topic` (required), optional `branches[]` (`title`, `subtopics[]`), `sessionId`, `iteration`.
 - **Returns:** normalized mind-map structure plus `suggestions` and stats.
 
 #### `concept_map`
+
 Concepts connected by labelled relations.
+
 - **Parameters:** `main_concept` (required), optional `related_concepts[]` and `relations[]` (`from`, `to`, `label`).
 - **Returns:** normalized concept map with cycle/grouping analysis.
 
 #### `fishbone_diagram`
+
 Ishikawa root-cause analysis across cause categories.
+
 - **Parameters:** `problem` (required), optional `causes[]` (`category`, `causes[]`) and custom `categories[]`.
 - **Returns:** normalized fishbone with per-category statistics.
 
 #### `swot_analysis`
+
 Weighted SWOT with TOWS strategy ranking. See the detailed example in [Usage](#usage).
+
 - **Parameters:** `subject` (required), optional quadrant arrays with plain strings or weighted objects `{ text, impact 1-5, likelihood 1-5, tags[] }`, `topN` (default 5 per TOWS family), `matchMode` (`all` | `tags`).
 - **Returns:** normalized quadrants, ranked `towsRanked` (`so`/`wo`/`st`/`wt`), `scores` (incl. `balance`, `riskExposure`, `weighted`) and `meta` (`truncatedPerQuadrant`, `unpaired`).
 
 #### `issue_tree`
+
 Hierarchical problem decomposition.
+
 - **Parameters:** `problem` (required), `depth` (1–5), optional `sub_questions[]`.
 - **Returns:** normalized issue tree with per-branch depth statistics.
 
 ### Utility tools
 
 #### `analogical_mapper`
+
 Imports solution patterns from other domains. Returns per-domain guiding questions; **you** construct the analogy.
+
 - **Parameters:** `problem`, `seed_domains[]` (e.g. `biology`, `economics`), `k` (domains to use).
 
 #### `assumption_xray`
+
 Surfaces hidden assumptions in a claim via heuristic extraction (universality, causality, necessity, comparatives).
+
 - **Parameters:** `claim`, `context`.
 - **Returns:** assumptions with `evidence`, `heuristicConfidence`, and `falsificationTests`.
 
 #### `comparative_advantage`
+
 Maps tasks to the best-suited agent by skill fit.
+
 - **Parameters:** `skills` (map agent → { skill: level }), `tasks` (map task → required skills[]); optional `capacity` (max tasks per agent → greedy multi-task assignment) and `costs` (effective score = skill score / cost). Missing skills count as 0.
 
 #### `drag_point_audit`
+
 Scans a process log for drag points: per-keyword occurrence counts, repeated messages, overall drag density.
+
 - **Parameters:** `log` (required), optional `categories[]` (default: `error`, `warning`, `timeout`, `retry`, `slow`).
 
 #### `safe_struggle_designer`
+
 Designs a deliberate-practice plan from a skill gap.
+
 - **Parameters:** `skill`, `current_level`, `target_level` (must be greater); optional `hours_per_week`, `session_minutes`, `deadline_weeks`.
 - **Returns:** level ladder with success criteria and prerequisite chains per step, review intervals, deadline-overrun warnings.
 
 #### `seven_seekers_orchestrator`
+
 Orchestrates a multi-lens research sweep.
+
 - **Parameters:** `query`, optional `downstream_tools[]`.
 - **Returns:** scaffold for seven lenses (empirical, logical, ethical, pragmatic, systemic, creative, critical) with guiding questions; **you** answer them and synthesize.
 
 #### `value_of_information`
+
 Quantifies whether resolving an uncertainty is worth the research cost (EVPI-style).
+
 - **Parameters:** `decision_options[]`, `uncertainties[]`, `payoffs[]` (opportunity cost per uncertainty); optional `probabilities[]` (0–1), `option_payoffs` (per-option matrix), `sampled_uncertainties[]` (partial VoI).
 - **Returns:** `voi_score`, ranked uncertainties by expected impact.
 
 #### `existing_tool_example`
+
 Echoes the provided `text` back — smoke test for the tool wiring.
 
 #### `setup_clearthought`
+
 Returns a ready-to-use AGENTS.md reasoning-tool guide for consuming projects.
 One-shot: it always succeeds on the first call — never retry it; the response
 puts `status: "success"` first and includes a `one_shot` flag plus an explicit
@@ -437,13 +487,13 @@ deprecated `@paschbaer/stochasticthinking` server). Available as the individual
 tool **`stochasticalgorithm`** (`algorithm`: `mdp` | `mcts` | `bandit` | `bayesian` | `hmm`)
 and as the grouped **`stochastic`** toolset (`operation` discriminator).
 
-| Algorithm | Decision situation | Key `parameters` |
-|---|---|---|
-| `mdp` | Sequential decisions with an explicit transition/reward model | `transitions[s][a][s′]` (row-stochastic, 1e-6), `rewards[s][a]`, optional `states`/`actions`, `gamma`, `theta`, `maxIterations` → value function + greedy policy |
-| `mcts` | Search in a spatial environment | `environment { rows, cols, start, goal, walls?, traps?, … }`, `simulations`, `explorationConstant`, `seed` → UCT visit counts + values |
-| `bandit` | Explore-vs-exploit with measurable regret | `arms` (Bernoulli/Gaussian, ≥2), `strategy` (`epsilon-greedy` \| `UCB` \| `thompson`), `pulls`, `seed`, optional `runId` |
-| `bayesian` | Next best evaluation of an expensive black box | `observations [[x,y],…]`, `bounds`, `lengthscale?`, `noise?`, `maximize?` → GP posterior + Expected Improvement |
-| `hmm` | Latent states behind an observed sequence | `states`, `observationSymbols`, `observations`, `transitions`, `emissions`, `initial`, `algorithm` (`viterbi` \| `forward-backward` \| `both`) |
+| Algorithm  | Decision situation                                            | Key `parameters`                                                                                                                                                 |
+| ---------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mdp`      | Sequential decisions with an explicit transition/reward model | `transitions[s][a][s′]` (row-stochastic, 1e-6), `rewards[s][a]`, optional `states`/`actions`, `gamma`, `theta`, `maxIterations` → value function + greedy policy |
+| `mcts`     | Search in a spatial environment                               | `environment { rows, cols, start, goal, walls?, traps?, … }`, `simulations`, `explorationConstant`, `seed` → UCT visit counts + values                           |
+| `bandit`   | Explore-vs-exploit with measurable regret                     | `arms` (Bernoulli/Gaussian, ≥2), `strategy` (`epsilon-greedy` \| `UCB` \| `thompson`), `pulls`, `seed`, optional `runId`                                         |
+| `bayesian` | Next best evaluation of an expensive black box                | `observations [[x,y],…]`, `bounds`, `lengthscale?`, `noise?`, `maximize?` → GP posterior + Expected Improvement                                                  |
+| `hmm`      | Latent states behind an observed sequence                     | `states`, `observationSymbols`, `observations`, `transitions`, `emissions`, `initial`, `algorithm` (`viterbi` \| `forward-backward` \| `both`)                   |
 
 - **Bandit runs persist per session**: the first call without `runId` creates a
   run (`bandit-1`, …); pass `runId` to continue it — counts, regret and RNG
@@ -487,7 +537,7 @@ as objects, and `towsRanked` lists the strategic pairs sorted by `impact × like
   the unlimited cross product. `tows` and `towsRanked` are cut consistently — TOWS strings
   stay score-free, scores live only in `towsRanked` (`pair`, `score`, `tags`, `sharedTags`).
 - Quadrant arrays in the response are **normalized objects** (`{ text, impact, likelihood,
-  tags }`), not the raw input strings — consumers reading plain strings must switch to
+tags }`), not the raw input strings — consumers reading plain strings must switch to
   `.text`.
 
 **Tag matching:** `matchMode: "tags"` keeps only pairs whose entries share at least one
@@ -503,36 +553,40 @@ balance/riskExposure ratios on weighted sums (impact × likelihood per entry).
 ### Mental Models
 
 ```typescript
-const response = await mcp.callTool('reasoning', {
-  operation: 'mental_model',
-  modelName: 'first_principles',
-  problem: 'How to implement a new feature?',
-  steps: ['Break down the problem', 'Analyze components', 'Build solution']
+const response = await mcp.callTool("reasoning", {
+  operation: "mental_model",
+  modelName: "first_principles",
+  problem: "How to implement a new feature?",
+  steps: ["Break down the problem", "Analyze components", "Build solution"],
 });
 ```
 
 ### Debugging Approaches
 
 ```typescript
-const response = await mcp.callTool('reasoning', {
-  operation: 'debugging_approach',
-  approachName: 'binary_search',
-  issue: 'Performance degradation in the system',
-  steps: ['Identify performance metrics', 'Locate bottleneck', 'Implement solution'],
-  findings: 'Database connections spiking during peak hours',
-  resolution: 'Optimized connection pooling'
+const response = await mcp.callTool("reasoning", {
+  operation: "debugging_approach",
+  approachName: "binary_search",
+  issue: "Performance degradation in the system",
+  steps: [
+    "Identify performance metrics",
+    "Locate bottleneck",
+    "Implement solution",
+  ],
+  findings: "Database connections spiking during peak hours",
+  resolution: "Optimized connection pooling",
 });
 ```
 
 ### Sequential Thinking
 
 ```typescript
-const response = await mcp.callTool('reasoning', {
-  operation: 'sequential_thinking',
-  thought: 'Initial analysis of the problem',
+const response = await mcp.callTool("reasoning", {
+  operation: "sequential_thinking",
+  thought: "Initial analysis of the problem",
   thoughtNumber: 1,
   totalThoughts: 3,
-  nextThoughtNeeded: true
+  nextThoughtNeeded: true,
 });
 ```
 
@@ -582,7 +636,7 @@ Verify: `curl http://localhost:3000/health`
 Recurring traps from building/maintaining this server (native module builds,
 ESM resolution, SDK quirks) are persisted as searchable experience episodes in
 the companion **experience-memory** server (port 3002) — see its README
-section *„Automating lesson capture"* for the three automation levels:
+section _„Automating lesson capture"_ for the three automation levels:
 
 1. **Batch seeding** — `servers/server-insight/scripts/seed-lessons.mjs`
    with a JSON lesson file (idempotent, reviewable source of truth)
@@ -591,7 +645,44 @@ section *„Automating lesson capture"* for the three automation levels:
 3. **Auto-capture hooks** — planned consolidation phase (spec §30.2)
 
 Until level 3 ships, add level-2 lookup rules to your agent instructions so
-known traps surface *before* the mistake repeats.
+known traps surface _before_ the mistake repeats.
+
+## Async acceptance & progress notifications
+
+Long-running tool calls (`session_save`, `session_load`) can run
+asynchronously: the call returns promptly with an acceptance envelope and the
+outcome (including failures) is retrieved through the existing status
+interface `session_info`, which merges an `asyncOperations` section when
+operations exist for the session.
+
+Async mode is opt-in and never changes the default behavior:
+
+| Mechanism                                       | Effect                                               |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| `_meta: { async: true }` per request            | this call is accepted and executed in the background |
+| `CLEAR_THOUGHT_ASYNC_ACCEPTANCE=1` (server env) | all wrapped calls default to async                   |
+| `_meta: { async: false }`                       | overrides the server default back to synchronous     |
+
+A retry of the same call while an operation is in flight is idempotent: it
+returns the current operation state instead of starting a second execution.
+A retry with a DIFFERENT payload is flagged (`payloadMatches: false`) instead
+of being swallowed.
+
+**Progress notifications (SSE):** requests carrying an MCP `progressToken`
+(`params._meta.progressToken`) are answered over a Server-Sent-Events stream
+with `notifications/progress` events (monotonic `progress`, `total`,
+human-readable `message`) and keepalive comment frames during silence. The
+SSE stream shares the MCP session's state; plain JSON clients (no progress
+token) receive the exact same responses as before.
+
+| Env                               | Default | Meaning                                                                 |
+| --------------------------------- | ------- | ----------------------------------------------------------------------- |
+| `CLEAR_THOUGHT_SSE_KEEP_ALIVE_MS` | `15000` | keepalive interval on SSE streams (values ≤ 0 fall back to the default) |
+
+Operation records are persisted under the configured `dataDir`
+(`operations/`); without a dataDir a process-local temporary directory is
+used. An operation that was in flight when the server restarted is reported
+as `failed/operation_interrupted` on first read.
 
 ## Development
 
@@ -611,13 +702,13 @@ with an independent judge model against weighted rubrics.
 
 ### Commands
 
-| Command | What it does |
-|---|---|
-| `npm run build` | Required first — the runner spawns `dist/dev.js` over stdio (all tools incl. stateful stochastic algorithms, `runId` continuation) |
-| `npm run eval:llm` | Easy set — `evals/tasks.json`: 3 reasoning-quality tasks (risk analysis, argument stress-test, guided decision) |
-| `npm run eval:llm:hard` | Hard set — `evals/tasks-hard.json`: 4 computation-forcing tasks with ground-truth numbers baked into the rubric (exact fault-tree probability, iterated dominance + mixed equilibrium, Fermi + value of information, bandit `runId` continuation across two calls) |
-| `node evals/run.mjs --max-tasks 1` | Cost-limited smoke (first task only) |
-| `node evals/run.mjs --tasks <file>` | Run a custom task file |
+| Command                             | What it does                                                                                                                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run build`                     | Required first — the runner spawns `dist/dev.js` over stdio (all tools incl. stateful stochastic algorithms, `runId` continuation)                                                                                                                                 |
+| `npm run eval:llm`                  | Easy set — `evals/tasks.json`: 3 reasoning-quality tasks (risk analysis, argument stress-test, guided decision)                                                                                                                                                    |
+| `npm run eval:llm:hard`             | Hard set — `evals/tasks-hard.json`: 4 computation-forcing tasks with ground-truth numbers baked into the rubric (exact fault-tree probability, iterated dominance + mixed equilibrium, Fermi + value of information, bandit `runId` continuation across two calls) |
+| `node evals/run.mjs --max-tasks 1`  | Cost-limited smoke (first task only)                                                                                                                                                                                                                               |
+| `node evals/run.mjs --tasks <file>` | Run a custom task file                                                                                                                                                                                                                                             |
 
 Per task the runner (1) asks the actor **baseline-style** without tools,
 (2) reruns with the full MCP toolset in a tool-use loop, and (3) has an
@@ -634,15 +725,15 @@ Via environment variables or `.env` (copy `.env.example`; the runner
 reads `.env` from the server dir and the repo root — real environment
 variables always win; the file is gitignored):
 
-| Variable | Role | Default |
-|---|---|---|
-| `EVAL_ACTOR_API_KEY` | actor API key (**required**) | `EVAL_API_KEY` → `OPENAI_API_KEY` |
-| `EVAL_ACTOR_BASE_URL` | actor endpoint | `EVAL_BASE_URL` → `https://api.openai.com/v1` |
-| `EVAL_ACTOR_MODEL` | actor model (solves the tasks) | `EVAL_MODEL` → `gpt-4o-mini` |
-| `EVAL_JUDGE_MODEL` | judge model (scores the answers) | actor model |
-| `EVAL_JUDGE_BASE_URL` / `EVAL_JUDGE_API_KEY` | judge endpoint | actor values |
-| `EVAL_ACTOR_THINKING` / `EVAL_JUDGE_THINKING` | reasoning mode: `enabled` / `disabled` (set empty to omit the field on providers that reject it) | `disabled` / `enabled` |
-| `EVAL_MAX_TOOL_ROUNDS` | tool-call rounds per task | `8` |
+| Variable                                      | Role                                                                                             | Default                                       |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| `EVAL_ACTOR_API_KEY`                          | actor API key (**required**)                                                                     | `EVAL_API_KEY` → `OPENAI_API_KEY`             |
+| `EVAL_ACTOR_BASE_URL`                         | actor endpoint                                                                                   | `EVAL_BASE_URL` → `https://api.openai.com/v1` |
+| `EVAL_ACTOR_MODEL`                            | actor model (solves the tasks)                                                                   | `EVAL_MODEL` → `gpt-4o-mini`                  |
+| `EVAL_JUDGE_MODEL`                            | judge model (scores the answers)                                                                 | actor model                                   |
+| `EVAL_JUDGE_BASE_URL` / `EVAL_JUDGE_API_KEY`  | judge endpoint                                                                                   | actor values                                  |
+| `EVAL_ACTOR_THINKING` / `EVAL_JUDGE_THINKING` | reasoning mode: `enabled` / `disabled` (set empty to omit the field on providers that reject it) | `disabled` / `enabled`                        |
+| `EVAL_MAX_TOOL_ROUNDS`                        | tool-call rounds per task                                                                        | `8`                                           |
 
 Actor and judge are independent endpoints — use a different model
 (ideally a different provider) for the judge to avoid same-model
