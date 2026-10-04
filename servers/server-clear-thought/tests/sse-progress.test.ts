@@ -172,7 +172,7 @@ describe("Spec 016 AC3: SSE progress stream", () => {
     expect(raw.toLowerCase()).not.toContain("bearer");
   }, 30000);
 
-  it("Accept: text/event-stream alone does NOT upgrade (FR-9: 406-trap; JSON stays byte-identical)", async () => {
+  it("a read tool with SSE accept but no progressToken stays on the JSON transport (FR-9)", async () => {
     const initRes = await post(INIT);
     const sid = initRes.headers.get("mcp-session-id")!;
     const res = await post(

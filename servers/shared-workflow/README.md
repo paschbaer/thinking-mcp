@@ -16,7 +16,7 @@ shared by the HTTP MCP servers in this repository (`server-guidance`,
   async-accepted long-running calls. Keyed by (sessionId, tool); atomic
   `begin` under an in-process per-session mutex (`created` flag = idempotent
   retry, FR-2); argument-hash fingerprint as diagnostics only — a different
-  payload in flight is rejected, not swallowed; `bootId` staleness
+  payload in flight is flagged, not swallowed; `bootId` staleness
   reclassification (in-flight records from a previous process boot become
   `failed/operation_interrupted` on first read); atomic tmp+rename writes;
   every read that may reconcile runs under the session mutex; idle mutex
@@ -39,6 +39,7 @@ self-containment.
 
 `npm test` (vitest, forks pool) covers: atomic begin / idempotent retry,
 fingerprint semantics, outcome retention incl. failures, concurrent
-begin/get/complete without torn files (S016-N1), mutex-map eviction
-(S016-N2), the restart reclassification fixture (S016-RESTART-TEST) and the
-multi-group cumulative-monotonic progress fixture (S016-N3).
+begin/get/complete without torn files (reconcile-under-mutex regression),
+mutex-map eviction (idle cleanup), the restart reclassification fixture
+(in-flight record from a previous boot) and the multi-group
+cumulative-monotonic progress fixture.

@@ -170,6 +170,8 @@ describe("Spec 016 AC2: in-flight retry is idempotent (single flight)", () => {
     );
     expect(other.accepted).toBe(false);
     expect(other.reason).toBe("operation_in_progress");
+    // A different payload in flight is flagged, never swallowed (F5).
+    expect(other.payloadMatches).toBe(false);
 
     // Single-execution proof: exactly one terminal outcome is recorded and
     // the seeded lesson count reflects ONE run (the fixture lesson exists).

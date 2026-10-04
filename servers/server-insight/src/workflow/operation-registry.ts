@@ -164,7 +164,10 @@ export class OperationRegistry {
     return data;
   }
 
-  async get(sessionId: string, tool: string): Promise<OperationRecord | undefined> {
+  async get(
+    sessionId: string,
+    tool: string,
+  ): Promise<OperationRecord | undefined> {
     // S016-N1: reconcile under the session mutex (previously ran unlocked,
     // racing a fresh begin's save with a stale post-reboot save).
     return this.mutexFor(sessionId).enter(() => {
@@ -176,8 +179,8 @@ export class OperationRegistry {
   /** All retained records for a session, keyed by tool name (FR-3). */
   async allFor(sessionId: string): Promise<Record<string, OperationRecord>> {
     // S016-N1: reconcile under the session mutex (see get()).
-    return this.mutexFor(sessionId).enter(() =>
-      this.reconcile(this.load(sessionId), sessionId).operations,
+    return this.mutexFor(sessionId).enter(
+      () => this.reconcile(this.load(sessionId), sessionId).operations,
     );
   }
 
