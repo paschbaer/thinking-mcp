@@ -162,6 +162,33 @@ describe("spec 016 — async acceptance (Stufe 2)", () => {
     expect(state.currentPhase).toBe("plan");
   }, 30_000);
 
+  it("F5: a DIFFERENT payload while in flight is rejected, not swallowed as a retry", async () => {
+    const { port } = await startHttpServer("127.0.0.1", 0);
+    const sessionId = await startSession(port);
+
+    const first = mcpCall(
+      port,
+      7,
+      "submit_understanding",
+      { sessionId, summary: "original payload" },
+      { async: true },
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    const second = await mcpCall(
+      port,
+      8,
+      "submit_understanding",
+      { sessionId, summary: "DIFFERENT payload" },
+      { async: true },
+    );
+    const secondText = second.body.result?.content?.[0]?.text ?? "";
+    expect(secondText).toMatch(/in flight|operation_in_progress/);
+    // The original transition still completes normally.
+    const firstPayload = parse((await first).body);
+    expect(firstPayload.asyncAccepted).toBe(true);
+    await waitForTerminal(port, sessionId);
+  }, 30_000);
+
   it("AC2: retry while in flight is idempotent — same operation, no second execution", async () => {
     const { port } = await startHttpServer("127.0.0.1", 0);
     const sessionId = await startSession(port);

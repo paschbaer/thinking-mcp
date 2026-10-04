@@ -922,6 +922,10 @@ Requests without a `progressToken` — including clients that merely include
 continue to receive plain JSON responses, byte-identical to the synchronous
 default.
 
+Combining async acceptance with a progress token is supported but the SSE
+stream ends with the acceptance response; per-gate progress for such a call
+is available through `get_workflow_state` instead.
+
 ### Example: one full pass
 
 **Agent:** `start_workflow { "workspaceRoot": "/repo", "request": "Add rate limiting to the API" }`

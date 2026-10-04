@@ -311,9 +311,12 @@ export function createHttpApp(opts: HttpAppOptions) {
             sessionIdGenerator: undefined, // stateless
             enableJsonResponse: !wantsSse,
             // FR-7: keepalives during silence (default 15 s; env-overridable
-            // for tests and slow-intermediary deployments).
+            // for tests and slow-intermediary deployments; non-positive or
+            // unparsable values fall back to the default).
             keepAliveMs:
-              Number(process.env.GUIDANCE_SSE_KEEP_ALIVE_MS) || 15000,
+              Number(process.env.GUIDANCE_SSE_KEEP_ALIVE_MS) > 0
+                ? Number(process.env.GUIDANCE_SSE_KEEP_ALIVE_MS)
+                : 15000,
           });
           res.on("close", () => {
             void transport.close();

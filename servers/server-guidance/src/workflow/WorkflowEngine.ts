@@ -26,7 +26,7 @@ import type {
   WorkflowSession,
 } from "../types/index.js";
 import { WorkspaceOpLock, workspaceLockFile } from "./workspace-lock.js";
-import type { TransitionHooks } from "./transition-protocol.js";
+import type { TransitionHooks, GateEvent } from "./transition-protocol.js";
 import type { NormalizedResult } from "../types/index.js";
 import {
   MetricsRepository,
@@ -2581,6 +2581,23 @@ export class WorkflowEngine {
         );
       return op;
     });
+    // Spec 016 FR-6: monotonic cumulative gate progress across the three
+    // lifecycle gate groups (beforeExit -> beforeEnter -> afterExit); the
+    // observer is passive — gate semantics/order/fail-closed are untouched.
+    const gateTotal =
+      (phaseDef?.lifecycle?.beforeExit?.length ?? 0) +
+      (phaseDef?.lifecycle?.beforeEnter?.length ?? 0) +
+      (phaseDef?.lifecycle?.afterExit?.length ?? 0);
+    let gateCursor = 0;
+    const gateObserver: ((event: GateEvent) => void) | undefined = hooks
+      ?.onGateEvent
+      ? (event) =>
+          hooks.onGateEvent!({
+            ...event,
+            index: gateCursor + event.index,
+            total: gateTotal,
+          })
+      : undefined;
     let opResults: { id: string; status: string; summary: string }[] = [];
     let opsSucceeded = true;
     if (ops.length > 0) {
@@ -2596,8 +2613,9 @@ export class WorkflowEngine {
       const run = await this.operationEngine.executeRequired(
         ops,
         ctx,
-        hooks?.onGateEvent,
+        gateObserver,
       );
+      gateCursor += ops.length;
       this.consumeApprovals(session, ops, run.results);
       opsSucceeded = run.allSucceeded;
       const opById = new Map(ops.map((op) => [op.operationId, op]));
@@ -2675,7 +2693,9 @@ export class WorkflowEngine {
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
+        gateObserver,
       );
+      gateCursor += 1;
       this.consumeApprovals(session, [op], run.results);
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));
@@ -2754,7 +2774,9 @@ export class WorkflowEngine {
       const run = await this.operationEngine.executeRequired(
         [op],
         this.ctxFor(session),
+        gateObserver,
       );
+      gateCursor += 1;
       this.consumeApprovals(session, [op], run.results);
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));

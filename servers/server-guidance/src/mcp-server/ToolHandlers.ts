@@ -14,6 +14,7 @@ import {
   hooksFromContext,
   type TransitionContext,
 } from "../workflow/transition-protocol.js";
+import { GuidanceError } from "../types/errors.js";
 
 /** Spec 016 FR-1: acceptance payload returned promptly when a gate-executing
  *  call is opted into async mode. Outcome stays retrievable via
@@ -102,19 +103,33 @@ export class WorkflowTools {
     const resolved = this.resolveTransition(ctx);
     const exec = fn;
     if (!resolved.asyncAcceptance || !this.registry) return await exec();
-    const existing = this.registry.get(sessionId, tool);
-    if (existing?.status === "in_flight") {
-      return acceptancePayload(existing, true);
-    }
-    const record = this.registry.begin(
+    // F1: begin() checks-and-registers atomically under the per-session
+    // registry mutex — a concurrent submit can never start a second
+    // execution; the loser receives the winner's in-flight record.
+    const fingerprint = fingerprintArgs(args);
+    const { record, created } = await this.registry.begin(
       sessionId,
       tool,
-      fingerprintArgs(args),
+      fingerprint,
     );
+    if (!created) {
+      // F5: only an IDENTICAL payload is an idempotent retry (FR-2); a
+      // different payload must not be swallowed under the original's id.
+      if (record.fingerprint !== fingerprint) {
+        throw new GuidanceError(
+          "operation_in_progress",
+          `a different ${tool} transition is currently in flight for session ${sessionId}; poll get_workflow_state and resubmit afterwards`,
+          { recoverable: true },
+        );
+      }
+      return acceptancePayload(record, true);
+    }
+    // F7: the terminal .catch keeps a registry write failure from becoming
+    // an unhandled rejection after the acceptance response is gone.
     void exec().then(
       (result) => this.registry!.complete(sessionId, tool, result),
       (err: unknown) => this.registry!.fail(sessionId, tool, errorDetail(err)),
-    );
+    ).catch(() => undefined);
     return acceptancePayload(record, false);
   }
 

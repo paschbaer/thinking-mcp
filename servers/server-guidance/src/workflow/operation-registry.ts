@@ -13,26 +13,44 @@
  * Terminal entries are retained (bounded: last operation per session+tool)
  * so get_workflow_state can report outcomes including failures (FR-3);
  * they are superseded by the next transition of the same tool.
+ *
+ * Concurrency (review 73b2dbf F1/F4): every mutation runs under an in-process
+ * per-session mutex and writes are atomic (tmp file + rename), so the
+ * check-then-begin sequence cannot lose an in-flight record to a concurrent
+ * submit and readers cannot observe torn files.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 
 export interface OperationRecord {
   /** Opaque operation reference (safe to expose; no internal task ids). */
   operationId: string;
   tool: string;
   sessionId: string;
-  /** Diagnostics-only fingerprint of the submitted arguments. */
+  /** Diagnostics fingerprint of the submitted arguments (F5): compared on
+   *  in-flight retries — a DIFFERENT payload is not an idempotent retry. */
   fingerprint: string;
   status: "in_flight" | "succeeded" | "failed";
   acceptedAt: string;
   completedAt?: string;
+  /** Boot-scoped: an in_flight record stamped by a previous process boot is
+   *  reclassified as failed/interrupted on first read (F2 — no permanent
+   *  latch after a crash mid-transition). */
+  bootId?: string;
   /** JSON-serializable tool result (SubmitResult / ExposedOpResult). */
   result?: unknown;
   /** Failure detail (GuidanceError code/message) — failures are never
    *  swallowed (FR-3). */
   error?: { code: string; message: string; recoverable?: boolean };
+}
+
+export interface BeginResult {
+  record: OperationRecord;
+  /** False when an in-flight record for (session, tool) already existed —
+   *  the caller must NOT start a second execution (FR-2). */
+  created: boolean;
 }
 
 interface RegistryFile {
@@ -62,10 +80,27 @@ export function fingerprintArgs(args: Record<string, unknown>): string {
 
 export class OperationRegistry {
   private readonly dir: string;
+  /** Process-unique boot stamp for F2 staleness reclassification. */
+  private readonly bootId = `boot-${randomUUID()}`;
+  /** F1/F4: in-process per-session mutex serializing whole-file RMW. */
+  private readonly mutexes = new Map<string, Promise<unknown>>();
 
   constructor(stateDir: string) {
     this.dir = join(stateDir, "operations");
     mkdirSync(this.dir, { recursive: true });
+  }
+
+  private mutexFor(sessionId: string): {
+    enter: <T>(fn: () => T) => Promise<T>;
+  } {
+    let tail = this.mutexes.get(sessionId) ?? Promise.resolve();
+    const enter = <T>(fn: () => T): Promise<T> => {
+      const run = tail.then(fn, fn);
+      tail = run.catch(() => undefined);
+      this.mutexes.set(sessionId, tail);
+      return run;
+    };
+    return { enter };
   }
 
   private fileFor(sessionId: string): string {
@@ -84,60 +119,102 @@ export class OperationRegistry {
     }
   }
 
+  /** Atomic write (F4): tmp + rename so readers never see a torn file. */
   private save(sessionId: string, data: RegistryFile): void {
-    writeFileSync(this.fileFor(sessionId), `${JSON.stringify(data, null, 2)}\n`);
+    const final = this.fileFor(sessionId);
+    const tmp = `${final}.${randomUUID()}.tmp`;
+    writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`);
+    renameSync(tmp, final);
+  }
+
+  /** F2: in_flight records stamped by a previous boot cannot make progress
+   *  anymore — reclassify them as failed/interrupted on first read. */
+  private reconcile(data: RegistryFile, sessionId: string): RegistryFile {
+    let dirty = false;
+    for (const record of Object.values(data.operations)) {
+      if (record.status === "in_flight" && record.bootId !== this.bootId) {
+        record.status = "failed";
+        record.completedAt = new Date().toISOString();
+        record.error = {
+          code: "operation_interrupted",
+          message:
+            "the server restarted while this operation was in flight; outcome unknown — resubmit",
+          recoverable: true,
+        };
+        dirty = true;
+      }
+    }
+    if (dirty) this.save(sessionId, data);
+    return data;
   }
 
   get(sessionId: string, tool: string): OperationRecord | undefined {
-    return this.load(sessionId).operations[tool];
+    return this.reconcile(this.load(sessionId), sessionId).operations[tool];
   }
 
   /** All retained records for a session, keyed by tool name (FR-3). */
   allFor(sessionId: string): Record<string, OperationRecord> {
-    return this.load(sessionId).operations;
+    return this.reconcile(this.load(sessionId), sessionId).operations;
   }
 
-  /** Registers the start of a transition; returns the new record. */
-  begin(sessionId: string, tool: string, fingerprint: string): OperationRecord {
-    const record: OperationRecord = {
-      operationId: `op-${randomUUID()}`,
-      tool,
-      sessionId,
-      fingerprint,
-      status: "in_flight",
-      acceptedAt: new Date().toISOString(),
-    };
-    const data = this.load(sessionId);
-    data.operations[tool] = record;
-    this.save(sessionId, data);
-    return record;
+  /** Registers the start of a transition ATOMICALLY (F1): when an in-flight
+   *  record already exists it is returned with created=false and the caller
+   *  must not start a second execution (FR-2). */
+  async begin(
+    sessionId: string,
+    tool: string,
+    fingerprint: string,
+  ): Promise<BeginResult> {
+    return this.mutexFor(sessionId).enter(() => {
+      const data = this.reconcile(this.load(sessionId), sessionId);
+      const existing = data.operations[tool];
+      if (existing?.status === "in_flight") {
+        return { record: existing, created: false };
+      }
+      const record: OperationRecord = {
+        operationId: `op-${randomUUID()}`,
+        tool,
+        sessionId,
+        fingerprint,
+        status: "in_flight",
+        acceptedAt: new Date().toISOString(),
+        bootId: this.bootId,
+      };
+      data.operations[tool] = record;
+      this.save(sessionId, data);
+      return { record, created: true };
+    });
   }
 
-  complete(
+  async complete(
     sessionId: string,
     tool: string,
     result: unknown,
-  ): void {
-    const data = this.load(sessionId);
-    const record = data.operations[tool];
-    if (!record || record.status !== "in_flight") return;
-    record.status = "succeeded";
-    record.completedAt = new Date().toISOString();
-    record.result = result;
-    this.save(sessionId, data);
+  ): Promise<void> {
+    await this.mutexFor(sessionId).enter(() => {
+      const data = this.load(sessionId);
+      const record = data.operations[tool];
+      if (!record || record.status !== "in_flight") return;
+      record.status = "succeeded";
+      record.completedAt = new Date().toISOString();
+      record.result = result;
+      this.save(sessionId, data);
+    });
   }
 
-  fail(
+  async fail(
     sessionId: string,
     tool: string,
     error: { code: string; message: string; recoverable?: boolean },
-  ): void {
-    const data = this.load(sessionId);
-    const record = data.operations[tool];
-    if (!record || record.status !== "in_flight") return;
-    record.status = "failed";
-    record.completedAt = new Date().toISOString();
-    record.error = error;
-    this.save(sessionId, data);
+  ): Promise<void> {
+    await this.mutexFor(sessionId).enter(() => {
+      const data = this.load(sessionId);
+      const record = data.operations[tool];
+      if (!record || record.status !== "in_flight") return;
+      record.status = "failed";
+      record.completedAt = new Date().toISOString();
+      record.error = error;
+      this.save(sessionId, data);
+    });
   }
 }
