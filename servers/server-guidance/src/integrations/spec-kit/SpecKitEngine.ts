@@ -372,7 +372,17 @@ export class SpecKitEngine {
       feature.directory,
       this.workspaceRoot,
       patterns,
-    ).sort((a, b) => (a.type === b.type ? (a.path < b.path ? -1 : 1) : 0));
+    );
+    // Total order: pattern declaration order for types, then path — avoids the
+    // non-transitive comparator hazard (mixed type/path comparison) and makes
+    // snapshot artifact ordering deterministic regardless of readdir order.
+    const typeOrder = new Map(Object.keys(patterns).map((t, i) => [t, i]));
+    const byPath = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+    discovered.sort(
+      (a, b) =>
+        (typeOrder.get(a.type) ?? typeOrder.size) -
+          (typeOrder.get(b.type) ?? typeOrder.size) || byPath(a.path, b.path),
+    );
     const seen = new Set<string>();
     for (const { type, path: p } of discovered) {
       if (seen.has(p)) continue;

@@ -250,7 +250,9 @@ describe("artifact discovery — unified traversal (C-Full)", () => {
     expect(engine.isSnapshotStale(state, dir)).toBe(true);
   });
 
-  it("produces deterministic artifact ordering across imports", () => {
+  it("produces deterministic artifact ordering across imports (comparator exercised)", () => {
+    // Create files in REVERSE alphabetical order so readdirSync order differs
+    // from the sorted expectation — makes the test sensitive to the sort.
     writeFeature("ordered", {
       ...BASE_FILES,
       "checklists/b.md": "# B\n",
@@ -264,6 +266,18 @@ describe("artifact discovery — unified traversal (C-Full)", () => {
     const keys = (s: SpecKitState) =>
       s.snapshots[0]!.artifacts.map((a) => `${a.type}:${a.relativePath}`);
     expect(keys(s1)).toEqual(keys(s2));
+    // Explicit expected order: pattern declaration order for types
+    // (specification, plan, tasks, research, dataModel, quickstart, contracts,
+    // checklists), path-ascending within each type.
+    expect(keys(s1)).toEqual([
+      "specification:spec.md",
+      "plan:plan.md",
+      "tasks:tasks.md",
+      "contracts:contracts/y.json",
+      "contracts:contracts/z.json",
+      "checklists:checklists/a.md",
+      "checklists:checklists/b.md",
+    ]);
   });
 });
 
