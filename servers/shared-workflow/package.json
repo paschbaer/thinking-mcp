@@ -5,6 +5,9 @@
   "description": "Canonical source of truth for the spec-016 async-acceptance + SSE-progress pattern shared by the HTTP MCP servers in this repository. Consumed by VENDORED COPY (scripts/sync-shared-workflow.mjs) — not as a package dependency, so per-server Docker builds and bundles stay self-contained.",
   "type": "module",
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "docker:build": "node -e \"console.log('shared-workflow is vendored source; nothing to build')\"",
     "test": "vitest run"
   },
   "devDependencies": {
