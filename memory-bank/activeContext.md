@@ -1360,3 +1360,8 @@
 - Root cause: `WorkspaceRegistry.default` falls back to the first alphabetical registered entry, so `defaultRoot` was `/workspaces/Niyama`; the `engineForWorkspace` pool-root guard threw `workspace_process_config_missing` for exactly that workspace. Empirically confirmed: `niyama` failed, `thinking-mcp` started.
 - Fix: engineForWorkspace composes a child engine for a defaultRoot that carries a full `.guidance/guidance.json`; explicit fail-closed (`workspace_process_config_missing`) for registry-only child configs; `probeWorkspaceRoutes` no longer skips a defaultRoot that is a registered workspace (try/catch around routing).
 - Suite 616/616 green (incl. new regression test), container rebuilt, `start_workflow workspace:"niyama"` verified live, gitnexus reindexed (--no-stats).
+
+## 2026-10-04 — Fix: stale clear-thought MCP session stranded the client (fix/stale-session-404-recovery, commit 7949329)
+- Symptom: Niyama agent got "MCP session no longer valid (HTTP 400)" on clear-thought calls; container healthy, fresh sessions fine.
+- Root cause: CB-3 early-reject answered 400 for POSTs carrying a session id the server no longer knows (1h idle TTL / MAX_SESSIONS eviction). The official MCP SDK client re-initializes ONLY on 404 — 400 stranded it permanently.
+- Fix: unknown session id WITH header -> 404/-32001 (client auto-recovers); no header -> 400 unchanged (CB-3 orphan protection intact). Regression test in tests/http-transport.test.ts; suite 188/188 green; container redeployed, 404 verified live.

@@ -681,3 +681,8 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** registry-only guidance instance rejected `start_workflow` for the alphabetically-first registered workspace (`workspace_process_config_missing`) although its `.guidance/` existed and was visible in the container.
 - **Root cause:** `WorkspaceRegistry.default` falls back to the first registered entry, hijacking `defaultRoot`; the guard assumed defaultRoot = pool root without process config. Misleading symptom: the failing workspace was registered AND its config existed — always test a sibling workspace as a discriminator (it worked → identity/guard bug, not a mount problem).
 - **Prevention:** never assume `defaultRoot` equals the boot/pool root in multi-workspace code paths; when changing guard conditions, follow both start and session-probe paths (`probeWorkspaceRoutes` skipped defaultRoot and would have broken restart routing).
+
+### 2026-10-04 — HTTP 400 vs 404 decides MCP client recovery
+- **Issue:** clients stranded with "MCP session no longer valid" after server-side session eviction (TTL 1h, MAX_SESSIONS).
+- **Root cause:** custom early-reject returned 400 for unknown session ids; the MCP SDK client treats 400 as fatal but re-initializes on 404. Any custom /mcp gate MUST use 404 for expired/unknown sessions, reserving 400 for missing session id or malformed bodies.
+- **Prevention:** same pattern exists in server-insight (same CB-3-style code) — check it when touching session handling there.
