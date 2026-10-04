@@ -311,7 +311,8 @@ export class WorkflowTools {
     // Spec 016 FR-3: surface async-accepted operation outcomes (incl.
     // failures with gate results) through the existing status interface.
     if (!this.registry) return state;
-    const operations = this.registry.allFor(sessionId);
+    // S016-N1: allFor is async — reconcile now runs under the session mutex.
+    const operations = await this.registry.allFor(sessionId);
     return Object.keys(operations).length > 0
       ? { ...state, asyncOperations: operations }
       : state;
