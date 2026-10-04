@@ -2621,7 +2621,8 @@ Rules (fail-closed):
 - `name`: `^[a-z][a-z0-9-]{0,63}$`, unique; `root`: absolute, must exist,
   unique after `realpath` resolution.
 - Missing `workspaces[]` ⇒ single implicit workspace `default` mapped to
-  `GUIDANCE_WORKSPACE_ROOT` (backward compatible). Once `workspaces[]` holds
+  `GUIDANCE_WORKSPACE_ROOT` (backward compatible) — an explicitly empty
+  `workspaces: []` behaves the same way. Once `workspaces[]` holds
   at least one explicit entry, the implicit fallback is GONE: sessions must
   name a registered workspace, everything else fails with
   `workspace_not_registered`.
