@@ -1354,3 +1354,4 @@
 - README (server-guidance): documented no-implicit-fallback, registry-only-instance rule, boot-only registry + restart-kills-sessions.
 
 - Review follow-up (independent pass): (1) the first registry rewrite still carried file references to the deleted process files — `loadConfig` fails at boot on a missing referenced file, so the refs were removed (true registry-only now); (2) `niyama` had disappeared from the registry through an external edit and was restored; (3) README restart/hot-reload wording corrected against source (registry boot-loaded for new sessions; `registry_register` is the runtime path; workspace sessions persist on disk and rebind after restart).
+- Final review re-blessed (commit 5bfb0e0): 0 open HIGH/CRITICAL; remaining F1 (low, pre-existing spec-literal gap) tracked in remaining-work-plan.md.
