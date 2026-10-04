@@ -2621,7 +2621,19 @@ Rules (fail-closed):
 - `name`: `^[a-z][a-z0-9-]{0,63}$`, unique; `root`: absolute, must exist,
   unique after `realpath` resolution.
 - Missing `workspaces[]` ⇒ single implicit workspace `default` mapped to
-  `GUIDANCE_WORKSPACE_ROOT` (backward compatible).
+  `GUIDANCE_WORKSPACE_ROOT` (backward compatible). Once `workspaces[]` holds
+  at least one explicit entry, the implicit fallback is GONE: sessions must
+  name a registered workspace, everything else fails with
+  `workspace_not_registered`.
+- Keep the instance config registry-only once you register workspaces —
+  registry-only means NO `workflow`/`responses`/`operations`/
+  `downstreamServers`/`policies` file references at all (a config that
+  references a missing file fails at boot with `configuration_invalid`). A
+  full process config at the instance root only governs the implicit
+  `default` workspace; next to an explicit registry it serves no session
+  and its phase schemas silently drift from the repo configs — an agent
+  submitting against the wrong workspace then sees validation errors that
+  match neither the tool schema nor its repo schema.
 - A fresh scaffold (`ensureConfiguration`) now writes the default workspace
   entry explicitly, so the registry is visible and editable from day one.
 
@@ -2656,7 +2668,12 @@ workspaces (`workspace_not_registered` otherwise).
 `workspaceRoot` (deprecated: only accepted when it realpath-matches a
 registered root exactly). Anything else is rejected with
 `workspace_not_registered` — including sub-paths of registered roots
-(intentional hardening).
+(intentional hardening). The instance registry is loaded at boot: manual
+edits to the registry file take effect for new sessions after a container
+restart — use the runtime `registry_register` tool to add or remove a
+workspace without restarting. Active sessions persist on disk and rebind
+across restarts; a restart re-validates them against the (possibly changed)
+config on the next access.
 
 ### Isolation
 

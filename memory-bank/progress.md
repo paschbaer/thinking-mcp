@@ -881,3 +881,16 @@ für Umsetzungs-Planning.
 
 ### Current state
 Spec 016 adoption (§6 step 2) implemented on feature branch; independent review re-blessed fix commit ba37e83 with 0 open HIGH/CRITICAL. Guidance session session-7e49befd in completion.
+
+## 2026-10-04 — Guidance schema-drift cleanup (feature/schema-drift-cleanup)
+
+### What works
+- Pool root `D:\repos\.guidance` reduced to registry-only `guidance.json` (no `default` entry, no legacy process files).
+- Verified live: `default` rejected fail-closed (`workspace_not_registered`) after container restart; registered workspaces unaffected; server health green.
+- README + memory-bank documentation updated.
+
+### What's left
+- Commit + merge of `feature/schema-drift-cleanup` into develop (after review); reindex via `gitnexus analyze --no-stats` before guidance completion.
+
+### Current state
+Runtime drift fixed and verified; documentation in sync; workflow session-d5a440cb in completion.

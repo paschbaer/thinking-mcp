@@ -1345,3 +1345,12 @@
 - **Verifikation:** guidance 615/615 (613 + 2 Hash-Tests, NULL Test-Modifikationen), insight: alle zur Baseline grünen Files grün (AC4), clear-thought 187/187; typecheck clean (guidance nur Prä-existing S016-TYPECHECK).
 - **Prä-existing Env-Befund (neu getrackt):** better-sqlite3-Native-Crash beim Worker-Exit (Statement::~Statement, Node 24/WSL) in insight `tests/contracts/evaluation.test.ts` + `mcp-surface.test.ts` (+ flaky `seed-lessons` unter Volllast) — NICHT durch diesen Scope verursacht (Branch unverändert zu develop reproduziert); Einzellauf mcp-surface crasht auch singleFork.
 - **Final-Review (Fresh Sub-Agent 5eb3da64):** 0 offene HIGH/CRITICAL. R1 (MEDIUM) FR-3-Scope-Lücke im insight-SSE-Pfad gefixt (AsyncLocalStorage-Session-Scope + Regressionstest SSE-async → JSON-poll); R2/R4/R5 akzeptiert dokumentiert, R3 getrackt (S016-FINAL-REVIEW im remaining-work-plan).
+
+## 2026-10-04: Guidance schema-drift cleanup (feature/schema-drift-cleanup, session-d5a440cb)
+
+- Removed the `default` workspace entry from the pool-root `D:\repos\.guidance\guidance.json`; deleted the legacy instance files (workflow.json, responses.json, operations.json, policies.json, downstream-servers.json, schemas/, state/) — pool root is now registry-only.
+- Container recreated from the ROOT compose context; `/health` lists only `niyama` + `thinking-mcp`; fail-closed probe: `start_workflow` with workspace `default` → `workspace_not_registered`.
+- Root cause of the original `summary`-required submission error: the legacy pool-root instance config's `implement.schema.json` governed `default`-workspace sessions; repo schema only requires `implementedTasks`.
+- README (server-guidance): documented no-implicit-fallback, registry-only-instance rule, boot-only registry + restart-kills-sessions.
+
+- Review follow-up (independent pass): (1) the first registry rewrite still carried file references to the deleted process files — `loadConfig` fails at boot on a missing referenced file, so the refs were removed (true registry-only now); (2) `niyama` had disappeared from the registry through an external edit and was restored; (3) README restart/hot-reload wording corrected against source (registry boot-loaded for new sessions; `registry_register` is the runtime path; workspace sessions persist on disk and rebind after restart).
