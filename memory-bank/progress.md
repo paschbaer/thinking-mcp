@@ -897,3 +897,8 @@ Runtime drift fixed and verified; documentation in sync; workflow session-d5a440
 
 ### 2026-10-04 (Merge): schema-drift cleanup merged to develop
 Fast-forward aaffb81..452f1d4 (3 commits), feature branch deleted, develop ahead of origin/develop by 3 — push pending (user-side, known SSH-key trap). GitNexus index refreshed after merge.
+
+## 2026-10-04
+- **What works:** registry-only guidance pool starts sessions for ANY registered workspace (alphabetical-first fallback bug fixed, commit 5d1437e on fix/registry-only-default-root-guard); container redeployed and verified live (niyama + thinking-mcp).
+- **Open:** branch not yet merged to develop; the Niyama agent can rerun its workflow with workspace "niyama".
+- **Current state:** guidance suite 616/616 green; knowledge graph reindexed.

@@ -676,3 +676,8 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** Removing the process files at the instance root while keeping their `*.file` references in `guidance.json` produced a config that boots fine (in-memory) but fails the NEXT restart hard: `loadConfig` throws `configuration_invalid: <key>: referenced file missing` whenever a `*.file` ref is set, and `registryOnly` is only true when NO file refs exist at all.
 - **Root cause:** "Registry-only" is defined by absence of file references, not by absence of the files.
 - **Prevention:** When slimming an instance config to registry-only, delete the `workflow`/`responses`/`operations`/`downstreamServers`/`policies` BLOCKS from `guidance.json` in the same step, then verify with a real restart — a running container proves nothing about boot validity.
+
+### 2026-10-04 — defaultRoot is NOT necessarily the pool root
+- **Issue:** registry-only guidance instance rejected `start_workflow` for the alphabetically-first registered workspace (`workspace_process_config_missing`) although its `.guidance/` existed and was visible in the container.
+- **Root cause:** `WorkspaceRegistry.default` falls back to the first registered entry, hijacking `defaultRoot`; the guard assumed defaultRoot = pool root without process config. Misleading symptom: the failing workspace was registered AND its config existed — always test a sibling workspace as a discriminator (it worked → identity/guard bug, not a mount problem).
+- **Prevention:** never assume `defaultRoot` equals the boot/pool root in multi-workspace code paths; when changing guard conditions, follow both start and session-probe paths (`probeWorkspaceRoutes` skipped defaultRoot and would have broken restart routing).

@@ -1355,3 +1355,8 @@
 
 - Review follow-up (independent pass): (1) the first registry rewrite still carried file references to the deleted process files — `loadConfig` fails at boot on a missing referenced file, so the refs were removed (true registry-only now); (2) `niyama` had disappeared from the registry through an external edit and was restored; (3) README restart/hot-reload wording corrected against source (registry boot-loaded for new sessions; `registry_register` is the runtime path; workspace sessions persist on disk and rebind after restart).
 - Final review re-blessed (commit 5bfb0e0): 0 open HIGH/CRITICAL; remaining F1 (low, pre-existing spec-literal gap) tracked in remaining-work-plan.md.
+
+## 2026-10-04 — Fix: registry-only start blocked for alphabetically-first workspace (feature/fix-registry-only-default-root-guard, commit 5d1437e)
+- Root cause: `WorkspaceRegistry.default` falls back to the first alphabetical registered entry, so `defaultRoot` was `/workspaces/Niyama`; the `engineForWorkspace` pool-root guard threw `workspace_process_config_missing` for exactly that workspace. Empirically confirmed: `niyama` failed, `thinking-mcp` started.
+- Fix: engineForWorkspace composes a child engine for a defaultRoot that carries a full `.guidance/guidance.json`; explicit fail-closed (`workspace_process_config_missing`) for registry-only child configs; `probeWorkspaceRoutes` no longer skips a defaultRoot that is a registered workspace (try/catch around routing).
+- Suite 616/616 green (incl. new regression test), container rebuilt, `start_workflow workspace:"niyama"` verified live, gitnexus reindexed (--no-stats).
