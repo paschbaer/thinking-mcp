@@ -13,7 +13,7 @@ import { GuidanceError } from "../types/errors.js";
 /** Matches transport failures that mean "the downstream session expired and
  *  the request never reached the tool" (HTTP 404 / JSON-RPC -32001 from the
  *  stale-session gate). Safe to replay on a fresh connection. */
-const sessionExpiryPattern = /\b404\b|unknown or expired MCP session id/i;
+const sessionExpiryPattern = /unknown or expired MCP session id/i;
 
 export interface DownstreamToolInfo {
   name: string;
@@ -306,8 +306,9 @@ export class ClientManager {
     // never reached the downstream tool — the HTTP transport rejected before
     // dispatch — so ONE fresh-connection replay is side-effect-safe even
     // without an explicit reconnect policy (stale-session recovery).
-    const sessionExpired =
-      out.sessionExpired === true || sessionExpiryPattern.test(out.message);
+    // invokeOnce.classified only: no message re-matching here — a loose
+    // pattern would false-positive on unrelated transport errors.
+    const sessionExpired = out.sessionExpired === true;
     if (
       !sessionExpired &&
       this.connections.get(serverId)?.reconnect?.enabled !== true
