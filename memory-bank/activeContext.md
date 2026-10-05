@@ -1375,3 +1375,8 @@
 - get_downstream_status now: sessionId-routed live status + instance-level declared-state per registered workspace (read-only, redacted declaredError, disabled servers omitted); monolith wire contract preserved (flat array).
 - Independent review verdict: approve, 0 HIGH/CRITICAL. Fixed: F1 monolith envelope compat, F3 routed-session test, F4 redaction, F7 README/test disabled-filter. Tracked below: F2, F5, F6.
 - Guidance suite 78/621 green; typecheck clean (except pre-existing F6).
+
+## 2026-10-05 — Feature: package-manager-aware config assistant (feature/pm-aware-config-assistant, session-b6820e9b)
+- New optional wizard answer packageManager (npm|pnpm|yarn, default npm; agent-side lockfile detection encoded in help text); generated gates + deps ops per PM; unknown values fail closed; npm output preserved byte-identically (template sync pins).
+- Guidance suite 79/628 green; independent review approved (0 HIGH/CRITICAL); review fixes: adopt-mode re-throw of answer-validation errors, empty-string fallback consistency, normalization tests.
+- Tracked: F-4-style gate-description wording drift vs scaffold/example (cosmetic, pre-existing pattern); remote/divergence items from previous session remain open.
