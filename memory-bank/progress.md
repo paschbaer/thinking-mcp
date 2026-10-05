@@ -902,3 +902,20 @@ Fast-forward aaffb81..452f1d4 (3 commits), feature branch deleted, develop ahead
 - **What works:** registry-only guidance pool starts sessions for ANY registered workspace (alphabetical-first fallback bug fixed, commit 5d1437e on fix/registry-only-default-root-guard); container redeployed and verified live (niyama + thinking-mcp).
 - **Open:** branch not yet merged to develop; the Niyama agent can rerun its workflow with workspace "niyama".
 - **Current state:** guidance suite 616/616 green; knowledge graph reindexed.
+
+## 2026-10-05 — specs/017 spec-kit mode (feature/017-spec-kit-mode)
+
+### What works
+- Workflow selection at session start: `start_workflow {workflowId}` resolves the session definition from `<configDir>/workflows/<id>.json` (per workspace root, pool-compatible); absent workflowId keeps the boot definition byte-identical (FR-1/FR-2/FR-9).
+- Per-key `$include` variant loading with fail-closed missing-target, cycle and unknown-phase validation (FR-3/DQ-2); include cycles throw classified `include_cycle` errors.
+- `spec-kit-development` variant shipped in `.guidance/workflows/` with artifact-bound phases: commands rendered into phase guidance; fail-closed artifact exit gate reusing `checkArtifactPattern` (same discovery as import); `artifacts_present` skip recorded in session state (FR-4/FR-8).
+- Strict batch cadence: batch-scoped implement submissions, `batch_approved_more_pending` loop, all-batches-approved gate for `submission_valid`, per-batch review-round max with user-decision blocker (FR-6).
+- Hash-based converge loop: tasks.md snapshot at verify ENTRY, byte-diff classification (DQ-1), refresh-before-loopback guidance, convergence-pass max with blocker (FR-7).
+- FR-10 helper `nextFeatureNumber()` aligned with `get_highest_from_specs`.
+- Guidance suite 667/668 green (1 pre-existing failure labeled baseline: speckit-pool-mode.test.ts typecheck, commit 7884ba4); 7 new test files cover AC1–AC7.
+
+### What's left
+- Commit(s) on feature/017-spec-kit-mode, independent review, merge to develop (rebase), README already updated.
+
+### Current state
+Implementation complete on feature branch; session session-c4ddeb4d in verify/complete.

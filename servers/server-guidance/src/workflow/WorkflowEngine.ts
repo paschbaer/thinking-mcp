@@ -54,6 +54,12 @@ import {
   resolveTemplate,
 } from "../orchestration/template-resolver.js";
 import { evaluateReviewFindings } from "./review-findings.js";
+import {
+  WorkflowRegistry,
+  type LoadedWorkflow,
+  type PhaseBinding,
+  type VariantLimits,
+} from "./workflow-registry.js";
 
 /** Shared with the config validator (WC-1): one normalization semantics. */
 import { toTrustLevel } from "../trust-level.js";
@@ -180,6 +186,18 @@ export interface EngineDeps {
   clientOperationEngine?: OperationEngine;
   /** FR-117 bridge: pending spec-kit tasks of a session, tasks.md order. */
   specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
+  /** specs/017 FR-4/FR-8 bridge: artifact discovery/import validation for a
+   *  session's feature (single source of truth with the spec-kit tools —
+   *  SKP-1). Returns present/reason plus content hash/text for the gates. */
+  specKitArtifactCheck?: (
+    sessionId: string,
+    pattern: string,
+  ) => {
+    present: boolean;
+    reason?: string;
+    sha256?: string;
+    content?: string;
+  };
   /** specs/008 T8: child engines (per non-default workspace) never re-route. */
   isChild?: boolean;
 }
@@ -214,6 +232,8 @@ export class WorkflowEngine {
   private readonly chain: ChainConfig;
   private readonly specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
   private readonly validators = new Map<string, SchemaValidator>();
+  /** specs/017 FR-1: per-workspace workflow variant registry (cached). */
+  private readonly workflowRegistry = new WorkflowRegistry();
 
   constructor(deps: EngineDeps) {
     this.config = deps.config;
@@ -994,7 +1014,7 @@ export class WorkflowEngine {
     const routed = this.routedFor(sessionId);
     if (routed) return routed.getOrchestrationStatus(sessionId);
     const s = this.sessions.load(sessionId);
-    const phaseDef = this.definition.phases[s.currentPhase];
+    const phaseDef = this.definitionFor(s).phases[s.currentPhase];
     const ids = [
       ...(phaseDef?.lifecycle?.beforeExit ?? []),
       ...(phaseDef?.lifecycle?.afterEnter ?? []),
@@ -2002,6 +2022,17 @@ export class WorkflowEngine {
         { recoverable: true },
       );
     }
+    // specs/017 FR-1: resolve the session definition at creation. Absent or
+    // boot-equal workflowId keeps the boot definition object itself (FR-2
+    // byte-identical default); a variant id loads from the per-workspace
+    // registry and fails closed on unknown/unresolvable ids (F4).
+    let definition: WorkflowDefinition = this.definition;
+    if (input.workflowId && input.workflowId !== this.definition.workflowId) {
+      definition = this.workflowRegistry.resolve(
+        this.config.configDir,
+        input.workflowId,
+      ).definition as unknown as WorkflowDefinition;
+    }
     const session: WorkflowSession = {
       sessionId,
       workflowId: input.workflowId ?? this.definition.workflowId,
@@ -2009,7 +2040,7 @@ export class WorkflowEngine {
       configDir: this.config.configDir,
       workspaceRoot: input.workspaceRoot!,
       status: "active",
-      currentPhase: this.definition.initialPhase,
+      currentPhase: definition.initialPhase,
       previousPhase: null,
       request: input.request,
       submissions: {},
@@ -2024,6 +2055,10 @@ export class WorkflowEngine {
         : {}),
     };
     this.sessions.save(session);
+    // specs/017 FR-8: skip bound phases whose exit artifact already exists
+    // (understand at session start when spec.md is present; crash-resume for
+    // every other bound phase). Recorded in session state + audit.
+    this.applyArtifactSkips(session, definition);
     this.audit.append({
       sessionId,
       eventType: "session_started",
@@ -2278,8 +2313,9 @@ export class WorkflowEngine {
     // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
     // list before any op executes (a later denial must not burn the grants
     // of already-executed ops).
+    const def = this.definitionFor(this.sessions.load(sessionId));
     const beforeEnterOps = (
-      this.definition.phases[phase]?.lifecycle?.beforeEnter ?? []
+      def.phases[phase]?.lifecycle?.beforeEnter ?? []
     ).map((id) => {
       const op = this.operations[id];
       if (!op)
@@ -2354,7 +2390,7 @@ export class WorkflowEngine {
     const requiredFailed =
       afterEnterResults.length > 0 &&
       afterEnterResults.some((o) => o.status !== "succeeded") &&
-      (this.definition.phases[phase]?.lifecycle?.afterEnter ?? []).some(
+      (def.phases[phase]?.lifecycle?.afterEnter ?? []).some(
         (id) => this.operations[id]?.required,
       );
     if (requiredFailed) {
@@ -2386,7 +2422,8 @@ export class WorkflowEngine {
     session: WorkflowSession,
     phase: string,
   ): Promise<{ id: string; status: string; summary: string }[]> {
-    const ids = this.definition.phases[phase]?.lifecycle?.afterEnter ?? [];
+    const ids =
+      this.definitionFor(session).phases[phase]?.lifecycle?.afterEnter ?? [];
     const out: { id: string; status: string; summary: string }[] = [];
     // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
     // list before any op executes.
@@ -2689,13 +2726,37 @@ export class WorkflowEngine {
       );
     }
 
-    const phaseDef = this.definition.phases[session.currentPhase];
+    const def = this.definitionFor(session);
+    const phaseDef = def.phases[session.currentPhase];
     if (phaseDef?.submissionSchema) {
       const validator = this.validatorFor(phaseDef.submissionSchema);
       const result = validator.validate(payload);
       if (!result.valid) {
         return fail("submission_invalid", result.errors.join("; "));
       }
+    }
+
+    // specs/017: variant gates run before anything is persisted — artifact
+    // exit gate (FR-4), batch registration (FR-6), batch-cadence rejects and
+    // convergence classification (FR-7). standard-development is untouched
+    // (variantFor returns null there, FR-2).
+    const variant = this.variantFor(session);
+    let variantReason: string | undefined;
+    if (variant) {
+      const gateReject = this.specKitExitGate(session, variant, phase);
+      if (gateReject) {
+        return gateReject as unknown as SubmitResult;
+      }
+      const variantGate = this.specKitVariantGate(
+        session,
+        variant,
+        phase,
+        payload,
+      );
+      if (variantGate.reject) {
+        return variantGate.reject as unknown as SubmitResult;
+      }
+      variantReason = variantGate.reason;
     }
 
     // Persist submission (FR-019) and audit.
@@ -2780,7 +2841,9 @@ export class WorkflowEngine {
     // evaluated only when ops succeeded (failing verifications loop via
     // verification_failed, FR-040).
     const gateReason = opsSucceeded
-      ? this.reviewGateReason(sessionId, session, phaseDef, payload)
+      ? (this.reviewGateReason(sessionId, session, phaseDef, payload) ??
+        variantReason ??
+        null)
       : null;
 
     // Transition selection: success path ignores reason-only alternatives.
@@ -2816,8 +2879,7 @@ export class WorkflowEngine {
 
     // FR-038: beforeEnter der Ziel-Phase VOR dem Betreten; Required-Failure
     // blockiert die Transition (Session bleibt in der alten Phase).
-    const beforeEnterIds =
-      this.definition.phases[target]?.lifecycle?.beforeEnter ?? [];
+    const beforeEnterIds = def.phases[target]?.lifecycle?.beforeEnter ?? [];
     // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
     // list before any op executes.
     const beforeEnterOps = beforeEnterIds.map((id) => {
@@ -2882,6 +2944,30 @@ export class WorkflowEngine {
     });
     session.previousPhase = previousPhase;
     session.currentPhase = target;
+    // specs/017 FR-7: snapshot tasks.md when the verify phase is ENTERED
+    // (before the agent runs speckit.converge) — never at submission time,
+    // otherwise the classification races the agent's run (lesson #10).
+    if (variant && target === "verify") {
+      const sk = (session.specKit ??= {
+        skips: [],
+        batches: [],
+        convergence: null,
+      });
+      const check = this.artifactCheck(session, "tasks.md");
+      sk.convergence = {
+        snapshotSha256: check.sha256 ?? "",
+        passes: sk.convergence?.passes ?? 0,
+      };
+      this.sessions.update(sessionId, (s) => {
+        s.specKit = session.specKit;
+      });
+    }
+    // specs/017 FR-8: crash-resume — entering a bound phase whose artifact
+    // already exists skips it via artifacts_present (recorded).
+    if (variant) {
+      this.applyArtifactSkips(session, def);
+    }
+    const finalPhase = session.currentPhase;
     this.audit.append({
       sessionId,
       eventType: "transition_accepted",
@@ -2897,8 +2983,7 @@ export class WorkflowEngine {
 
     // FR-038: afterExit der alten Phase nach dem Verlassen (nicht-blockierend,
     // Required-Failures werden auditiert).
-    const afterExitIds =
-      this.definition.phases[previousPhase]?.lifecycle?.afterExit ?? [];
+    const afterExitIds = def.phases[previousPhase]?.lifecycle?.afterExit ?? [];
     // REV-F053-1: all-or-nothing approval — resolve + validate the WHOLE
     // list before any op executes.
     const afterExitOps = afterExitIds.map((id) => {
@@ -2939,19 +3024,20 @@ export class WorkflowEngine {
       }
     }
 
-    opResults.push(...(await this.runAfterEnter(session, target)));
+    opResults.push(...(await this.runAfterEnter(session, finalPhase)));
     const result: SubmitResult = {
       accepted: true,
       sessionId,
       previousPhase,
-      currentPhase: target,
+      currentPhase: finalPhase,
       status: session.status,
-      guidance: this.guidanceFor(session, target),
+      guidance: this.guidanceFor(session, finalPhase),
       operations: opResults,
     };
     this.sessions.update(sessionId, (s) => {
-      s.currentPhase = target;
+      s.currentPhase = finalPhase;
       s.previousPhase = previousPhase;
+      s.specKit = session.specKit;
       s.submissions[phase] = session.submissions[phase]!;
       if (requestId) {
         s.requestIds[requestId] = result;
@@ -2992,6 +3078,9 @@ export class WorkflowEngine {
       await this.sessions.withLock(result.nextSessionId, async () => {
         const successor = this.sessions.load(result.nextSessionId!);
         if (successor.status !== "activating") return;
+        // specs/017 FR-8: session-start skip applies to chain successors too
+        // (bound phase artifact already present → artifacts_present skip).
+        this.applyArtifactSkips(successor, this.definitionFor(successor));
         const activation = await this.activateSession(
           successor.sessionId,
           successor.currentPhase,
@@ -3085,7 +3174,7 @@ export class WorkflowEngine {
         status: session.status,
       };
     }
-    const phaseDef = this.definition.phases["complete"];
+    const phaseDef = this.definitionFor(session).phases["complete"];
     const schema = phaseDef?.submissionSchema;
     if (schema) {
       const result = this.validatorFor(schema).validate(report);
@@ -3255,6 +3344,20 @@ export class WorkflowEngine {
     }
     const { step, spec, upNext, taskId, featureId } = resolved;
     const chainIndex = (session.chainIndex ?? 0) + 1;
+    // specs/017 F3: a chain step naming a variant workflowId must boot the
+    // successor into THAT variant's initial phase — resolve via the registry
+    // and fail closed on unknown ids instead of silently using the boot def.
+    const successorWorkflowId = step.workflowId ?? session.workflowId;
+    let successorDefinition: WorkflowDefinition = this.definition;
+    if (
+      successorWorkflowId &&
+      successorWorkflowId !== this.definition.workflowId
+    ) {
+      successorDefinition = this.workflowRegistry.resolve(
+        this.config.configDir,
+        successorWorkflowId,
+      ).definition as unknown as WorkflowDefinition;
+    }
     const succNow = new Date().toISOString();
     const successorSpec =
       spec.source === "spec_kit_tasks"
@@ -3274,7 +3377,7 @@ export class WorkflowEngine {
       configDir: session.configDir,
       workspaceRoot: session.workspaceRoot,
       status: "activating", // crash-window fix (Plan-Review F1): fail-closed until activateSession completes
-      currentPhase: this.definition.initialPhase,
+      currentPhase: successorDefinition.initialPhase,
       previousPhase: null,
       request: step.request,
       submissions: {},
@@ -3396,7 +3499,7 @@ export class WorkflowEngine {
           status: session.status,
         } as SubmitResult;
       }
-      const phaseDef = this.definition.phases[session.currentPhase];
+      const phaseDef = this.definitionFor(session).phases[session.currentPhase];
       const ops = (phaseDef?.lifecycle?.beforeExit ?? []).map((id) => {
         const op = this.operations[id];
         if (!op)
@@ -3640,6 +3743,385 @@ export class WorkflowEngine {
     return raw.filter((s): s is string => typeof s === "string");
   }
 
+  /** specs/017 FR-1: the variant definition of a session, or null when the
+   *  session runs the boot workflow (standard-development — untouched, FR-2). */
+  private variantFor(session: WorkflowSession): LoadedWorkflow | null {
+    if (
+      !session.workflowId ||
+      session.workflowId === this.definition.workflowId
+    ) {
+      return null;
+    }
+    return this.workflowRegistry.resolve(
+      this.config.configDir,
+      session.workflowId,
+    );
+  }
+
+  /** Session-scoped definition lookup: variant definition when the session
+   *  opted into one at creation, boot definition otherwise (FR-2 fallback). */
+  private definitionFor(session: WorkflowSession): WorkflowDefinition {
+    const variant = this.variantFor(session);
+    return variant
+      ? (variant.definition as unknown as WorkflowDefinition)
+      : this.definition;
+  }
+
+  private bindingsFor(session: WorkflowSession): Record<string, PhaseBinding> {
+    return this.variantFor(session)?.bindings ?? {};
+  }
+
+  private limitsFor(session: WorkflowSession): VariantLimits {
+    return (
+      this.variantFor(session)?.limits ?? {
+        maxReviewRoundsPerBatch: 5,
+        maxConvergencePasses: 5,
+      }
+    );
+  }
+
+  private artifactCheck(
+    session: WorkflowSession,
+    pattern: string,
+  ): { present: boolean; reason?: string; sha256?: string; content?: string } {
+    return (
+      this.deps.specKitArtifactCheck?.(session.sessionId, pattern) ?? {
+        present: false,
+        reason: "artifact check bridge not wired",
+      }
+    );
+  }
+
+  /** specs/017 FR-8: advance through bound phases whose exit artifact already
+   *  exists and imports cleanly (artifacts_present). Records every skip in
+   *  session state + audit. Mutates session.currentPhase in place. */
+  private applyArtifactSkips(
+    session: WorkflowSession,
+    definition: WorkflowDefinition,
+  ): void {
+    const bindings = this.bindingsFor(session);
+    for (let guard = 0; guard < 16; guard++) {
+      const artifact = bindings[session.currentPhase]?.artifact;
+      if (!artifact || !artifact.required) break;
+      const check = this.artifactCheck(session, artifact.pattern);
+      if (!check.present) break;
+      const transition = (
+        definition.phases[session.currentPhase]?.transitions ?? []
+      ).find((t) => t.when === "submission_valid");
+      if (!transition) break;
+      const from = session.currentPhase;
+      session.currentPhase = transition.to;
+      const sk = (session.specKit ??= {
+        skips: [],
+        batches: [],
+        convergence: null,
+      });
+      sk.skips.push({
+        phase: from,
+        reason: "artifacts_present",
+        at: new Date().toISOString(),
+      });
+      this.audit.append({
+        sessionId: session.sessionId,
+        eventType: "phase_skipped",
+        phase: from,
+        data: { reason: "artifacts_present", to: transition.to },
+      });
+    }
+    this.sessions.update(session.sessionId, (s) => {
+      s.currentPhase = session.currentPhase;
+      s.specKit = session.specKit;
+    });
+  }
+
+  /** specs/017 FR-4 (enforcement layer): fail-closed artifact exit gate for
+   *  bound variant phases. Returns a reject result or null. */
+  private specKitExitGate(
+    session: WorkflowSession,
+    variant: LoadedWorkflow,
+    phase: string,
+  ): Record<string, unknown> | null {
+    const artifact = variant.bindings[phase]?.artifact;
+    if (!artifact || !artifact.required) return null;
+    const check = this.artifactCheck(session, artifact.pattern);
+    if (check.present) return null;
+    const err = new GuidanceError(
+      "spec_kit_artifact_missing",
+      `bound phase "${phase}" cannot be exited: no importable artifact matching "${artifact.pattern}" (${check.reason ?? "not found"}) — produce it with the phase's bound command, or it is picked up by the artifacts_present skip`,
+      {
+        recoverable: true,
+        currentPhase: session.currentPhase,
+        workflowStatus: session.status,
+      },
+    );
+    return {
+      ...err.toResponse(),
+      sessionId: session.sessionId,
+      currentPhase: session.currentPhase,
+      status: session.status,
+    };
+  }
+
+  /** specs/017 FR-6/FR-7: variant-specific transition gating. Returns a
+   *  reason for selectTransition, a reject result, or nothing. Handles:
+   *  - review_and_fix_implementation `outcome` (batch cadence)
+   *  - implement batch registration
+   *  - verify convergence classification (hash-based, DQ-1) */
+  private specKitVariantGate(
+    session: WorkflowSession,
+    variant: LoadedWorkflow,
+    phase: string,
+    payload: Record<string, unknown>,
+  ): { reason?: string; reject?: Record<string, unknown> } {
+    const sk = (session.specKit ??= {
+      skips: [],
+      batches: [],
+      convergence: null,
+    });
+    const fail = (
+      code: "spec_kit_batch_gate" | "spec_kit_convergence_unclassified",
+      message: string,
+    ) => {
+      const err = new GuidanceError(code, message, {
+        recoverable: true,
+        currentPhase: session.currentPhase,
+        workflowStatus: session.status,
+      });
+      return {
+        ...err.toResponse(),
+        sessionId: session.sessionId,
+        currentPhase: session.currentPhase,
+        status: session.status,
+      };
+    };
+
+    // implement: register/update the submitted batch (batch-scoped payload).
+    // Re-submitting the same batch id updates the current batch instead of
+    // stacking duplicates (implement -> review fix loop re-runs implement).
+    if (phase === "implement") {
+      const batch = payload.batch as
+        { id?: unknown; taskIds?: unknown } | undefined;
+      if (
+        batch &&
+        Array.isArray(batch.taskIds) &&
+        batch.taskIds.length > 0 &&
+        batch.taskIds.every((t) => typeof t === "string")
+      ) {
+        const id =
+          typeof batch.id === "string" && batch.id.length > 0
+            ? batch.id
+            : `batch-${sk.batches.length + 1}`;
+        const existing = [...sk.batches]
+          .reverse()
+          .find((b) => !b.approved && b.id === id);
+        if (existing) {
+          existing.taskIds = batch.taskIds as string[];
+        } else {
+          sk.batches.push({
+            id,
+            taskIds: batch.taskIds as string[],
+            reviewRounds: 0,
+            approved: false,
+          });
+        }
+        this.sessions.update(session.sessionId, (s) => {
+          s.specKit = session.specKit;
+        });
+      }
+      return {};
+    }
+
+    // review_and_fix_implementation: strict batch cadence outcome.
+    if (phase === "review_and_fix_implementation") {
+      const outcome = payload.outcome;
+      const current = [...sk.batches].reverse().find((b) => !b.approved);
+      if (outcome === "implementation_changes_required") {
+        if (current) {
+          current.reviewRounds += 1;
+          if (current.reviewRounds > variant.limits.maxReviewRoundsPerBatch) {
+            return {
+              reject: this.escalateBlocker(
+                session,
+                "spec_kit_review_round_exceeded",
+                `batch "${current.id}" exceeded the review-round maximum (${variant.limits.maxReviewRoundsPerBatch}) — escalate to the user`,
+              ),
+            };
+          }
+        }
+        return { reason: "implementation_changes_required" };
+      }
+      if (outcome === "batch_approved_more_pending") {
+        if (!current) {
+          return {
+            reject: fail(
+              "spec_kit_batch_gate",
+              "outcome batch_approved_more_pending requires an unapproved batch",
+            ),
+          };
+        }
+        // Approve and loop — the NEXT implement submission registers the
+        // following batch (batches are unknown until the agent implements
+        // them; the task list tells the agent whether more are pending).
+        current.approved = true;
+        current.reviewRounds += 1;
+        return { reason: "batch_approved_more_pending" };
+      }
+      if (outcome === "submission_valid") {
+        if (current) current.approved = true;
+        const unapproved = sk.batches.filter((b) => !b.approved);
+        if (unapproved.length > 0) {
+          return {
+            reject: fail(
+              "spec_kit_batch_gate",
+              `submission_valid requires every batch to have an approved review pass — unapproved: ${unapproved.map((b) => b.id).join(", ")}`,
+            ),
+          };
+        }
+        return {};
+      }
+      // No outcome: fall through to the standard severity gate / selection.
+      return {};
+    }
+
+    // verify: hash-based convergence classification (DQ-1).
+    if (phase === "verify") {
+      const snapshot = sk.convergence;
+      if (!snapshot) return {}; // no snapshot (bridge unwired): standard flow
+      const check = this.artifactCheck(session, "tasks.md");
+      if (!check.present || !check.sha256) return {};
+      if (check.sha256 === snapshot.snapshotSha256) {
+        return {}; // converged — normal flow advances to complete
+      }
+      const appended =
+        typeof check.content === "string" &&
+        /##\s*Phase\s+\d+:\s*Convergence/.test(check.content);
+      if (!appended) {
+        return {
+          reject: fail(
+            "spec_kit_convergence_unclassified",
+            "tasks.md changed during speckit.converge without a '## Phase N: Convergence' section — classify the converge outcome (byte-identical = converged, Convergence section = tasks_appended)",
+          ),
+        };
+      }
+      const passes = snapshot.passes + 1;
+      if (passes > variant.limits.maxConvergencePasses) {
+        return {
+          reject: this.escalateBlocker(
+            session,
+            "spec_kit_convergence_exceeded",
+            `convergence pass maximum exceeded (${variant.limits.maxConvergencePasses}) — escalate to the user`,
+          ),
+        };
+      }
+      sk.convergence = { snapshotSha256: snapshot.snapshotSha256, passes };
+      this.sessions.update(session.sessionId, (s) => {
+        s.specKit = session.specKit;
+      });
+      return { reason: "tasks_appended" };
+    }
+    return {};
+  }
+
+  /** specs/017 US4/US5: escalate a loop-limit breach via a
+   *  requiresUserDecision blocker (session status blocked). */
+  private escalateBlocker(
+    session: WorkflowSession,
+    category: string,
+    description: string,
+  ): Record<string, unknown> {
+    this.sessions.update(session.sessionId, (s) => {
+      s.status = "blocked";
+      s.specKit = session.specKit;
+      s.blockers.push({
+        blockerId: `blocker-${randomUUID()}`,
+        category,
+        description,
+        requiresUserDecision: true,
+      });
+    });
+    session.status = "blocked";
+    this.audit.append({
+      sessionId: session.sessionId,
+      eventType: "blocker_reported",
+      phase: session.currentPhase,
+      data: { category, requiresUserDecision: true },
+    });
+    const err = new GuidanceError("workflow_blocked", description, {
+      recoverable: true,
+      currentPhase: session.currentPhase,
+      workflowStatus: session.status,
+    });
+    return {
+      ...err.toResponse(),
+      sessionId: session.sessionId,
+      currentPhase: session.currentPhase,
+      status: session.status,
+    };
+  }
+
+  /** specs/017 US7: variant visibility annex for phase guidance. */
+  private specKitGuidanceNote(session: WorkflowSession, phase: string): string {
+    const variant = this.variantFor(session);
+    if (!variant) return "";
+    const lines: string[] = [
+      ` SPEC-KIT MODE (workflow "${variant.workflowId}") phase "${phase}":`,
+    ];
+    const binding = variant.bindings[phase];
+    if (binding) {
+      lines.push(
+        `- Bound command(s): ${binding.commands.join(", ")} — run them for this phase.`,
+      );
+      if (binding.artifact?.required) {
+        lines.push(
+          `- Exit gate: a non-empty artifact matching "${binding.artifact.pattern}" must exist and import cleanly before submission (fail-closed).`,
+        );
+      }
+      if (phase === "understand") {
+        lines.push(
+          "- Attended clarify (FR-5): surface open questions via report_blocker with requiresUserDecision: true — NEVER answer clarify questions yourself; resume_workflow continues the phase.",
+        );
+      }
+    }
+    if (phase === "implement") {
+      lines.push(
+        "- Strict batch cadence: submit the current, fully implemented batch (batch-scoped submit_implementation payload carrying the batch's task ids); every batch passes review_and_fix_implementation before verify.",
+      );
+      if ((session.specKit?.convergence?.passes ?? 0) > 0) {
+        lines.push(
+          "- Convergence loop active: call refresh_spec_kit_artifacts FIRST (the task snapshot changed), then implement the gap tasks from the appended '## Phase N: Convergence' section — they re-enter the strict batch cadence.",
+        );
+      }
+    }
+    if (phase === "review_and_fix_implementation") {
+      lines.push(
+        '- Review outcomes: {"outcome": "implementation_changes_required" | "batch_approved_more_pending" | "submission_valid"} — submission_valid is only accepted when EVERY batch has an approved review pass.',
+      );
+    }
+    if (phase === "verify") {
+      lines.push(
+        '- Converge loop: run speckit.converge; byte-identical tasks.md = converged (submit_verification proceeds to complete); a new "## Phase N: Convergence" section loops back to implement — call refresh_spec_kit_artifacts first, then implement the gap tasks (they re-enter the batch cadence).',
+      );
+    }
+    const sk = session.specKit;
+    if (sk?.skips.length) {
+      lines.push(
+        `- Skips: ${sk.skips.map((s) => `${s.phase} (${s.reason})`).join(", ")}.`,
+      );
+    }
+    if (sk?.batches.length) {
+      const current = [...sk.batches].reverse().find((b) => !b.approved);
+      lines.push(
+        `- Batches: ${sk.batches.length} total, ${sk.batches.filter((b) => b.approved).length} approved${current ? `, current batch "${current.id}" review round ${current.reviewRounds}/${variant.limits.maxReviewRoundsPerBatch}` : ""}.`,
+      );
+    }
+    if (sk?.convergence) {
+      lines.push(
+        `- Convergence passes: ${sk.convergence.passes}/${variant.limits.maxConvergencePasses}.`,
+      );
+    }
+    return "\n" + lines.join("\n");
+  }
+
   /** Severity gate (reviewFindings.blockingSeverities): when the phase has a
    *  reason-transition, ops succeeded and the submission carries open
    *  blocking findings, return that transition's reason so selectTransition
@@ -3777,8 +4259,13 @@ export class WorkflowEngine {
     phase?: string,
   ): PhaseInstruction {
     const key = phase ?? session.currentPhase;
-    const phaseDef = this.definition.phases[key];
+    const def = this.definitionFor(session);
+    const phaseDef = def.phases[key];
     const configured = this.instructions[phaseDef?.response ?? key];
+    // specs/017 FR-4 (instruction layer) + US7: bound commands, exit gate,
+    // batch/review-round state, skips and convergence progress are surfaced
+    // in the phase guidance of variant sessions.
+    const specKitNote = this.specKitGuidanceNote(session, key);
     // Amendment 002 (FR-118): Form-B successors are scoped to exactly one
     // spec-kit task — the annex is appended to EVERY phase instruction.
     const scope = session.chainTaskScope
@@ -3814,7 +4301,11 @@ export class WorkflowEngine {
     return {
       title: configured?.title ?? key,
       instruction:
-        (configured?.instruction ?? "") + scope + headScope + gateNote,
+        (configured?.instruction ?? "") +
+        scope +
+        headScope +
+        gateNote +
+        specKitNote,
       requiredActions: configured?.requiredActions ?? [],
     };
   }

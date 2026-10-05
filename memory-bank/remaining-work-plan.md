@@ -1571,3 +1571,7 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 ### Added 2026-10-05 (adopt deps-op presets, session: chat/fix-adopt-pm)
 6. REGENERATED notes for preset deps ops should include the DISCARDED reference args (custom registry flags etc.) so reviewers need not dig up the old operations.json. Trigger: next ConfigAssistant adoption-note scope (reviewer F1, MEDIUM-adjacent advisory).
 7. deps-op regression coverage: deps-reinstall + yarn + type-mismatch cases — deps-reinstall now covered (cf457f2); yarn/type-mismatch verified ad hoc by reviewer, not pinned. Trigger: next touch of config-assistant-extensions.test.ts.
+
+## 2026-10-05 — specs/017 tracked follow-ups
+- [OPEN] Spec amendment note (FR-3): $include cycle protection is implemented (classified `include_cycle` error + contract test) but NOT spelled out in spec.md §4 FR-3. Trigger point: next spec.md 017 revision or spec-kit-mode follow-up scope — add one sentence to FR-3 ("include cycles fail closed"). Action: required before spec status is bumped to done.
+- [OPEN] FR-10 helper currently exists as `nextFeatureNumber()` (unit-tested) but is not yet exposed through any session-facing tool (no session-created feature directories exist today). Trigger point: when a guidance flow starts creating feature directories — wire the helper there and reuse it (never re-derive the rule).

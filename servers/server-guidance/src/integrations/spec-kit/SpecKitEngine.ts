@@ -281,6 +281,48 @@ function readdirSyncSafe(dir: string): string[] {
   return readdirSync(dir);
 }
 
+/** specs/017 FR-4/FR-8: single-source-of-truth artifact check for the
+ *  workflow-engine gates (SKP-1). Uses the SAME discovery as importArtifacts
+ *  plus the same non-empty importability rule; returns content hash/text for
+ *  the converge classification. */
+export function checkArtifactPattern(
+  featureDir: string,
+  workspaceRoot: string,
+  pattern: string,
+): {
+  present: boolean;
+  reason?: string;
+  sha256?: string;
+  content?: string;
+} {
+  let discovered: { type: string; path: string }[];
+  try {
+    discovered = discoverArtifacts(featureDir, workspaceRoot, {
+      target: { required: true, patterns: [pattern] },
+    });
+  } catch (err) {
+    return {
+      present: false,
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  }
+  if (discovered.length === 0) {
+    return { present: false, reason: `no file matches "${pattern}"` };
+  }
+  const content = readFileSync(discovered[0]!.path, "utf-8");
+  if (content.trim() === "") {
+    return {
+      present: false,
+      reason: `artifact matching "${pattern}" is empty`,
+    };
+  }
+  return {
+    present: true,
+    sha256: `sha256:${createHash("sha256").update(content).digest("hex")}`,
+    content,
+  };
+}
+
 export class SpecKitEngine {
   constructor(
     private readonly workspaceRoot: string,

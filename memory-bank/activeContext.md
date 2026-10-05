@@ -1380,3 +1380,8 @@
 - New optional wizard answer packageManager (npm|pnpm|yarn, default npm; agent-side lockfile detection encoded in help text); generated gates + deps ops per PM; unknown values fail closed; npm output preserved byte-identically (template sync pins).
 - Guidance suite 79/628 green; independent review approved (0 HIGH/CRITICAL); review fixes: adopt-mode re-throw of answer-validation errors, empty-string fallback consistency, normalization tests.
 - Tracked: F-4-style gate-description wording drift vs scaffold/example (cosmetic, pre-existing pattern); remote/divergence items from previous session remain open.
+
+## 2026-10-05 — specs/017 spec-kit mode (feature/017-spec-kit-mode)
+- Implemented FR-1..FR-10 on feature/017-spec-kit-mode (see progress.md entry); guidance suite 667/668 green (baseline: speckit-pool-mode.test.ts typecheck, 7884ba4).
+- Open follow-ups recorded in remaining-work-plan.md (include-cycle spec amendment note; FR-10 helper wiring).
+- Pending: commits, independent review, GitNexus reindex, merge.

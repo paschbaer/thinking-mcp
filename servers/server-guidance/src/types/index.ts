@@ -180,6 +180,18 @@ export interface WorkflowSession {
    *  gate-triggered loop-backs, surfaced in phase guidance (Option A —
    *  counter only, no hard cap). */
   reviewGateLoops?: Record<string, number>;
+  /** specs/017: spec-kit variant state — artifacts_present skips, strict
+   *  batch cadence (review rounds per batch) and the converge-loop snapshot. */
+  specKit?: {
+    skips: { phase: string; reason: string; at: string }[];
+    batches: {
+      id: string;
+      taskIds: string[];
+      reviewRounds: number;
+      approved: boolean;
+    }[];
+    convergence: { snapshotSha256: string; passes: number } | null;
+  };
   downstream: {
     servers: Record<
       string,

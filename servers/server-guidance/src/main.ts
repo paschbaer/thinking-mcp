@@ -19,6 +19,7 @@ import { scaffoldIfMissing } from "./scaffold.js";
 import { SpecKitStateStore } from "./mcp-server/register-spec-kit-tools.js";
 import { GuidanceError } from "./types/errors.js";
 import type { SpecKitState } from "./integrations/spec-kit/SpecKitEngine.js";
+import { checkArtifactPattern } from "./integrations/spec-kit/SpecKitEngine.js";
 
 export interface Composition {
   config: LoadedConfig;
@@ -121,12 +122,51 @@ export function composeApplication(
       return [];
     }
   };
+  // specs/017 FR-4/FR-8: artifact gate/skip bridge — same discovery/import
+  // validation as the spec-kit tools (checkArtifactPattern), feature dir from
+  // the session's imported state (import_spec_kit_artifacts is the source of
+  // truth for featureId).
+  const specKitArtifactCheck = (
+    sessionId: string,
+    pattern: string,
+  ): {
+    present: boolean;
+    reason?: string;
+    sha256?: string;
+    content?: string;
+  } => {
+    try {
+      const state = new SpecKitStateStore(stateDir).load(
+        sessionId,
+      ) as SpecKitState;
+      const featureDir = join(
+        workspaceRoot,
+        config.specKit?.discovery.featureRoot ?? "specs",
+        state.featureId,
+      );
+      return checkArtifactPattern(featureDir, workspaceRoot, pattern);
+    } catch (err) {
+      if (
+        !(err instanceof GuidanceError) ||
+        err.code !== "spec_kit_artifact_missing"
+      ) {
+        process.stderr.write(
+          `[guidance] warning: specKitArtifactCheck failed for ${sessionId}: ${String(err)}\n`,
+        );
+      }
+      return {
+        present: false,
+        reason: "no imported spec-kit state for session",
+      };
+    }
+  };
   const engine = new WorkflowEngine({
     config,
     stateDir,
     operationEngine: options?.operationEngine,
     clientOperationEngine: options?.clientOperationEngine,
     specKitTasks,
+    specKitArtifactCheck,
   });
   const tools = new WorkflowTools(engine, { stateDir });
   return {

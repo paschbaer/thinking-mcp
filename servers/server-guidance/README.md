@@ -1086,6 +1086,76 @@ affected files, the expected behavior, and any constraints.
 The short variant delegates scoping to the agent: it will ask targeted
 questions in the `understand` phase before committing to a plan.
 
+## Workflow Selection (Spec-Kit Mode)
+
+By default every session runs the boot-composed `standard-development`
+workflow. A session can opt into a different phase model at creation time:
+
+```
+start_workflow { request: "...", workflowId: "spec-kit-development" }
+```
+
+- Workflow definitions are loaded from `<workspace-root>/.guidance/workflows/
+  <workflowId>.json` — each workspace carries its own set (pool-compatible);
+  a workspace without the file cannot start the variant (fail-closed
+  `workflow_not_found`).
+- Sessions without `workflowId` are byte-identical to previous behavior; the
+  `standard-development` workflow itself is untouched.
+
+### Variant files and `$include`
+
+A variant file declares its full phase model. Shared phases are inherited
+INDIVIDUALLY via per-key `$include` references into a base file
+(`"$include": "workflow.json#/phases/plan"`); local keys override the
+inherited ones. Missing include targets, include cycles, and transitions to
+unknown phases fail closed at load time — full-file inheritance with sparse
+override maps is deliberately not supported.
+
+### Artifact-bound phases (spec-kit-development)
+
+The shipped `spec-kit-development` variant binds phases to spec-kit commands.
+Each bound phase's guidance names its command(s) (instruction layer), and a
+fail-closed artifact gate blocks the phase exit until the bound artifact
+exists and imports cleanly (enforcement layer, using the same artifact
+discovery as the spec-kit tools):
+
+| Phase | Command(s) | Exit gate |
+|---|---|---|
+| `understand` | `/speckit-specify`, `/speckit-clarify` | `spec.md` |
+| `plan` | `/speckit-plan` | `plan.md` |
+| `checklist` | `/speckit-checklist` | `checklists/**` |
+| `tasks` | `/speckit-tasks` | `tasks.md` |
+| `review_and_adjust_plan` | `/speckit-analyze` | review submission |
+| `implement` | `/speckit-implement` | per-batch review (see below) |
+| `review_and_fix_implementation` | — (agent-driven) | review submission |
+| `verify` | `speckit.converge` | convergence (see below) |
+
+Behavioral rules of the variant:
+
+- **Attended clarify:** open questions from `/speckit-clarify` must be
+  surfaced via `report_blocker` (`requiresUserDecision: true`); the session
+  pauses until `resume_workflow` carries the answers.
+- **Strict batch cadence:** `implement` submissions carry the current batch
+  (`batch: { id, taskIds }`); the review phase decides with
+  `outcome`: `implementation_changes_required` (loop),
+  `batch_approved_more_pending` (approve, next batch), or `submission_valid`
+  (accepted only when EVERY batch has an approved review pass). A per-batch
+  review-round maximum escalates via a user-decision blocker instead of
+  looping.
+- **Converge loop:** entering `verify` snapshots a hash of `tasks.md`. A
+  byte-identical `tasks.md` after `speckit.converge` completes the workflow;
+  a new `## Phase N: Convergence` section loops back to `implement` (the
+  loop guidance mandates `refresh_spec_kit_artifacts` first); a changed file
+  without that section is rejected as an unclassified outcome. A maximum
+  convergence-pass counter escalates via a user-decision blocker.
+- **Skip on existing artifacts:** a bound phase whose exit artifact already
+  exists and imports cleanly is skipped (`artifacts_present`, recorded in
+  session state) — this also yields crash-resume mid-SDD-flow and lets a
+  session start at `plan` when `spec.md` already exists.
+
+All loop limits and counters are visible in `get_workflow_state` (`specKit`
+block) and in the per-phase guidance.
+
 ## Workflow Chaining
 
 Chaining runs **multiple workflows back-to-back without user input**. The

@@ -70,6 +70,8 @@ const EXPECTED_ERROR_CODES = [
   "spec_kit_feature_ambiguous",
   "spec_kit_feature_outside_workspace",
   "spec_kit_artifact_missing",
+  "spec_kit_batch_gate",
+  "spec_kit_convergence_unclassified",
   "spec_kit_artifact_unreadable",
   "spec_kit_artifact_empty",
   "spec_kit_artifact_invalid",

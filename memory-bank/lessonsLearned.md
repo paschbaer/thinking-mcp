@@ -692,3 +692,9 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Prevention:** when classifying HTTP transport failures from the MCP SDK client, always read `err.code`, never parse the message alone. Also: guidance's reconnect only runs when `connection.reconnect.enabled` is configured — session-expiry is now exempt (minAttempts=1).
 
 - **UNAUFGEFORDERTE FIXES sind Regelverstoß (2026-10-05):** Nach Befunden/Analysen nur Beobachtung + Optionen; jeden Fix (Config, Registry, Dateien außerhalb des Auftrags) VORHER konkret anfragen und auf Bestätigung warten. Zweiter Vorfall (Registry-Register + Niyama-operations.json ohne Auftrag). Ambiguität löst zu NICHT-Handeln auf.
+
+## 2026-10-05 — specs/017 implementation lessons
+- **$include inherits transitions too:** inheriting a base phase via `$include` also inherits its transitions — a variant that inserts phases between inherited ones MUST override `transitions` explicitly (plan initially jumped straight to `review_and_adjust_plan`, bypassing the new checklist/tasks phases). Preventive: after authoring a variant, walk the transition graph end-to-end.
+- **Schema coupling on inherited phases:** inherited phases keep the base `submissionSchema`; variant-specific payload extensions (e.g. `batch`, review `outcome`) require the variant phase to override `submissionSchema` — otherwise `additionalProperties: false` rejects the extension at submission time.
+- **One-level `$include` resolution:** include targets are read as raw JSON (no recursive workflow-file loading), so A→B→A cycles surface as an unresolved `$include` key in the merged phase — fail closed on a leftover `$include` after merge rather than recursing.
+- **Skip chain vs. test fixtures:** `artifacts_present` skips run transitively at session start; test fixtures that pre-seed artifacts must account for the resulting start phase (walk the queue from the session's actual `currentPhase`, not from `understand`).
