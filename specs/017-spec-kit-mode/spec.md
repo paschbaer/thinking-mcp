@@ -1,6 +1,7 @@
 # Spec 017 — First-Class Spec-Kit Mode (Workflow Selection + Artifact-Bound Phases)
 
-**Status:** Draft (design decision DEC-SKM-1, memory-bank/decisions.md)
+**Status:** Draft — design questions resolved (DQ-1..4); ready for review
+(design decision DEC-SKM-1, memory-bank/decisions.md)
 **Scope:** `servers/server-guidance` (workflow engine + config + spec-kit integration)
 **Out of scope:** `server-insight`, `server-clear-thought` (async/SSE adoption is specs/016 follow-up); `server-stochasticthinking` (deprecated); changes to gate semantics of `standard-development`; transition automation driven by task events (rejected — agent judgment and severity gates remain the transition triggers).
 
@@ -102,11 +103,16 @@ Mechanics:
 
 Mechanics:
 
-1. The convergence report is the verification evidence; its path is declared in the
-   `submit_verification` payload; the gate checks the report exists and states
-   "Converged".
+1. **Convergence outcome is hash-based, not file-based:** `speckit.converge` has
+   exactly two outcomes — `converged` (tasks.md left byte-for-byte unchanged,
+   in-session summary "✅ Converged") or `tasks_appended` (new `## Phase N:
+   Convergence` section appended to tasks.md with the gap tasks). The workflow
+   snapshots a hash of `tasks.md` before the converge pass and classifies the
+   outcome after: unchanged hash + submitted summary → `complete`; changed with a
+   Convergence section → loop. The convergence summary (outcome, checked-counts,
+   findings) is carried in the `submit_verification` payload as evidence.
 2. Because converge **mutates** `tasks.md` (appends gap tasks), the loop transition
-   order is: convergence report → `refresh_spec_kit_artifacts` → back to
+   order is: classify outcome → `refresh_spec_kit_artifacts` → back to
    `implement` (never loop against a stale task snapshot).
 3. Appended tasks form new batches and pass through the same strict batch review
    cadence (US4).
@@ -140,10 +146,12 @@ to `plan`) and identically to every other bound phase (crash-resume mid-SDD-flow
   creation (per-session definition, replacing the boot-definition reuse).
 - **FR-2 (default invariance):** Sessions without `workflowId`, all existing sessions,
   chains, and the `standard-development` workflow behave byte-identically to today.
-- **FR-3 (derivative definitions):** Workflow files may include shared base phase
-  definitions (include/override semantics) so `spec-kit-development` cannot drift
-  from `standard-development` on unbound concerns (gates, severity logic, review
-  requirements).
+- **FR-3 (derivative definitions):** Workflow files may reference shared base phase
+  definitions via per-key `$include` (each inherited phase individually referenced;
+  fail-closed when an include target is missing or unresolvable) so
+  `spec-kit-development` cannot drift from `standard-development` on unbound concerns
+  (gates, severity logic, review requirements). Full-file inheritance with sparse
+  override maps is explicitly rejected (silent drift on renamed base phases).
 - **FR-4 (binding format):** A workflow file may declare per-phase bindings
   `{ commands: string[], artifact: {pattern, required} }`. Bound phases render the
   commands into their phase guidance (instruction layer) and gain a fail-closed
@@ -156,14 +164,22 @@ to `plan`) and identically to every other bound phase (crash-resume mid-SDD-flow
   (`implementation_changes_required`, `batch_approved_more_pending`, `submission_valid`
   only after all batches approved), per-batch review-round maximum with blocker
   escalation.
-- **FR-7 (converge loop):** Per US5 — report-as-evidence, refresh before loop-back,
-  appended tasks re-enter batch cadence, maximum convergence passes with blocker
-  escalation.
+- **FR-7 (converge loop):** Per US5 — hash-based outcome classification (tasks.md
+  before/after the pass; unchanged = converged, new `## Phase N: Convergence`
+  section = tasks_appended), evidence summary in the `submit_verification` payload,
+  refresh before loop-back, appended tasks re-enter batch cadence, maximum
+  convergence passes with blocker escalation.
 - **FR-8 (skip rule):** Per US6 — `artifacts_present` transitions per bound phase,
   decided by artifact discovery/import validation, recorded in session state.
 - **FR-9 (multi-workspace):** Workflow files resolve per workspace root (each
   workspace's `.guidance/` may carry its own set) — pool-compatible, no global mode
   switch; unregistered/legacy workspaces keep current behavior.
+
+- **FR-10 (feature numbering alignment):** Guidance's next-feature-number helper
+  applies the same rule as `.specify/scripts/bash/create-new-feature.sh`
+  (`get_highest_from_specs`: highest existing `NNN-` directory in `specs/`, next =
+  highest + 1, zero-padded to 3 digits) so session-created feature directories and
+  `speckit-specify` output can never diverge.
 
 ## 5. Acceptance Criteria
 
@@ -182,8 +198,9 @@ to `plan`) and identically to every other bound phase (crash-resume mid-SDD-flow
 - **AC4 (FR-8):** Contract test: with a pre-existing importable `spec.md`, a session
   skips `understand` via `artifacts_present` (recorded), starting at `plan`; partial
   artifact sets skip only the phases whose artifacts exist.
-- **AC5 (FR-7):** Contract test: converge report without "Converged" loops back to
-  `implement` after a task refresh; report with "Converged" completes; exceeding
+- **AC5 (FR-7):** Contract test: a converge pass that leaves tasks.md unchanged (no
+  Convergence section) completes the workflow; a pass that appends a `## Phase N:
+  Convergence` section loops back to `implement` after a task refresh; exceeding
   maximum passes escalates.
 - **AC6 (FR-5):** Clarify questions surface as `report_blocker`
   (`requiresUserDecision`); the session blocks; `resume_workflow` with answers
@@ -204,15 +221,24 @@ to `plan`) and identically to every other bound phase (crash-resume mid-SDD-flow
   `profiles/spec-kit.json` discovery semantics beyond reusing them as the skip/gate
   decision source.
 
-## 7. Open Questions (to resolve before implementation, non-blocking for review)
+## 7. Resolved Design Questions (previously open; resolved 2026-10-04 against
+     `.github/skills/speckit-*` definitions and `.specify/scripts/bash/`)
 
-- **OQ-1:** Convergence report convention: fixed path/shape to be agreed with the
-  `speckit.converge` command output (gate validates "Converged" statement + path from
-  `submit_verification` payload).
-- **OQ-2:** Include/override syntax for derivative workflow files (candidates:
-  `$include` per phase key, or full-file inheritance with sparse override map).
-- **OQ-3:** Feature numbering: confirm discovery-based next-number selection aligns
-  with `speckit-specify`'s directory creation (SKP-1-class drift prevention).
+- **DQ-1 (convergence outcome convention):** RESOLVED — no separate report file.
+  `speckit.converge` outcomes are byte-difference on `tasks.md` (unchanged →
+  `converged`; new `## Phase N: Convergence` section → `tasks_appended`); evidence
+  summary travels in the `submit_verification` payload (source:
+  `.github/skills/speckit-converge/SKILL.md`, Steps 6–7: byte-for-byte contract and
+  append-only contract).
+- **DQ-2 (include syntax):** RESOLVED — per-key `$include`, fail-closed (see FR-3);
+  sparse full-file inheritance rejected.
+- **DQ-3 (feature numbering):** RESOLVED — both sides apply "highest `NNN-` dir in
+  specs/ + 1" (source: `.specify/scripts/bash/create-new-feature.sh`,
+  `get_highest_from_specs`); codified as FR-10.
+- **DQ-4 (clarify exit signal):** RESOLVED by artifact semantics — `/speckit-clarify`
+  encodes answers back INTO `spec.md` (no separate artifact); the phase exit is the
+  agent's submission confirming the attended Q&A round completed and spec.md
+  re-imports cleanly.
 
 ## 8. Adoption Notes
 
