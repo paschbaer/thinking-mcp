@@ -409,12 +409,14 @@ export function registerWorkflowTools(
   server.tool(
     "get_downstream_status",
     "Gesundheitsstatus der Downstream-Server",
-    {},
-    async () => ({
+    { sessionId: z.string().optional() },
+    async ({ sessionId }) => ({
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(await tools.getDownstreamStatus()),
+          text: JSON.stringify(
+            await tools.getDownstreamStatusReport(sessionId),
+          ),
         },
       ],
     }),

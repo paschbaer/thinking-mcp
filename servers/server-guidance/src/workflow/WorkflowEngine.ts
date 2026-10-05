@@ -1021,6 +1021,109 @@ export class WorkflowEngine {
     }));
   }
 
+  /** Pool-composition downstream report: the instance-level view that plain
+   *  getDownstreamStatus() cannot provide — a registry-only parent owns no
+   *  ClientManager by design (FR-1101 counts downstreamServers as a process
+   *  file ref), so the live list is empty even when every registered
+   *  workspace declares downstream servers in its own process config.
+   *  Declared entries are parsed READ-ONLY from <root>/.guidance: plain fs
+   *  reads, no engine composition (a compose would mkdir state dirs), no
+   *  ClientManager, no connection attempt. A workspace with an unreadable
+   *  or invalid config yields a declaredError entry instead of failing the
+   *  report. With a sessionId routed to a workspace child engine, `live`
+   *  carries that engine's live ClientManager status instead. */
+  async getDownstreamStatusReport(sessionId?: string): Promise<{
+    mode: "pool" | "monolith";
+    live: Awaited<ReturnType<WorkflowEngine["getDownstreamStatus"]>>;
+    workspaces?: Array<{
+      name: string;
+      root: string;
+      declaredServers?: Array<{
+        id: string;
+        transportType?: string;
+        required?: boolean;
+        trustLevel?: string;
+      }>;
+      declaredError?: string;
+    }>;
+  }> {
+    let live = await this.getDownstreamStatus();
+    if (sessionId) {
+      const eng = await this.routedDownstreamEngine(sessionId);
+      if (eng) live = await eng.getDownstreamStatus();
+    }
+    if (!(this.config.registryOnly && !this.isChild)) {
+      return { mode: "monolith", live };
+    }
+    const workspaces: Array<{
+      name: string;
+      root: string;
+      declaredServers?: Array<{
+        id: string;
+        transportType?: string;
+        required?: boolean;
+        trustLevel?: string;
+      }>;
+      declaredError?: string;
+    }> = [];
+    for (const w of this.config.workspaces.list()) {
+      const cfgDir = join(w.root, ".guidance");
+      if (!existsSync(join(cfgDir, "guidance.json"))) {
+        workspaces.push({
+          name: w.name,
+          root: w.root,
+          declaredError:
+            "workspace has no process config (.guidance/guidance.json)",
+        });
+        continue;
+      }
+      try {
+        const cfg = loadConfig(cfgDir, { workspaceRoot: w.root });
+        const servers =
+          (cfg.downstreamServers as
+            | {
+                servers?: Record<
+                  string,
+                  {
+                    enabled?: boolean;
+                    required?: boolean;
+                    trustLevel?: string;
+                    transport?: { type?: string };
+                  }
+                >;
+              }
+            | undefined)?.servers ?? {};
+        const declaredServers = Object.entries(servers)
+          .filter(([, v]) => v.enabled !== false)
+          .map(([id, v]) => ({
+            id,
+            transportType: v.transport?.type,
+            required: v.required,
+            trustLevel: v.trustLevel,
+          }));
+        workspaces.push({ name: w.name, root: w.root, declaredServers });
+      } catch (err) {
+        workspaces.push({
+          name: w.name,
+          root: w.root,
+          declaredError: String(err).slice(0, 200),
+        });
+      }
+    }
+    return { mode: "pool", live, workspaces };
+  }
+
+  /** Resolve the child engine owning sessionId (probe + route map), or
+   *  undefined when the session is not routed to a non-default workspace. */
+  private async routedDownstreamEngine(
+    sessionId: string,
+  ): Promise<WorkflowEngine | undefined> {
+    if (this.isChild) return undefined;
+    this.probeWorkspaceRoutes(sessionId);
+    const eng = this.routedFor(sessionId);
+    return eng && eng !== this ? eng : undefined;
+  }
+
   async getDownstreamStatus(): Promise<
     {
       id: string;
