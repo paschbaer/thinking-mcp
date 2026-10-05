@@ -1563,3 +1563,7 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 1. F2 remote/local get_downstream_status contract divergence (remote-tools.ts flat array + required sessionId vs local unwrap/envelope). Trigger: next scope touching the remote surface or remote mode enablement. Action required: unify wire contract (versioned envelope or same unwrap).
 2. F5 get_downstream_status declared-state per-call loadConfig for every workspace (no cache). Trigger: pools with >5 workspaces or status polling. Accepted observation: tiny local files; add mtime cache if cost matters. Also extract duplicated workspaces[] type literal.
 3. F6 PRE-EXISTING typecheck error tests/contract/speckit-pool-mode.test.ts:48 (SpecKitConfig missing maxTasks/maxEntities/maxExcerptBytes; last touched 255bfd2). Trigger: next typecheck/tooling scope. Action required: align fixture with current schema.
+
+### Added 2026-10-05 (pm-assistant feature, session-b6820e9b)
+4. PM-F4 gate-op description wording drift vs scaffold/example ('... via npm.' vs 'build the project'): cosmetic, deps sync pins do not cover gates. Trigger: next scaffold/template lockstep scope. Action optional: unify wording or extend sync-pin FIELDS to descriptions.
+5. PM-NOTES accepted observations: pm detection is agent-side (statelessness); yarn target 4+ documented. No action unless users report yarn-1 repos.
