@@ -180,3 +180,22 @@ Verbindliche Akzeptanzkriterien für die US1-Implementierung:
   Successor-Erzeugung); `complete_workflow` erneut liefert
   `invalid_active_phase`. Wird mit US1 nicht gelöst, aber im selben
   WorkflowEngine-Bereich adressiert (siehe remaining-work-plan).
+
+---
+
+## Amendment note (package-manager awareness, 2026-10-05)
+
+FR-1211/1212 context: the dependency-bootstrap strategies are
+package-manager-dependent since the config assistant gained the optional
+`packageManager` answer (npm | pnpm | yarn, default npm; detection is
+agent-side from the repo-root lockfiles). Generated semantics per PM:
+
+- npm: `deps-install` = `npm ci` -> fallback `npm install` (unchanged).
+- pnpm: `pnpm install --frozen-lockfile` -> fallback `pnpm install`
+  (frozen is the sync-with-lockfile equivalent of npm ci; no destructive
+  node_modules reset on failure).
+- yarn (4+): `yarn install --immutable` -> fallback `yarn install`.
+- Gates run via the PM (`npm run` / `pnpm run` / `yarn` + script name;
+  npm keeps the idiomatic bare `npm test`).
+
+Unknown `packageManager` values fail closed with `configuration_invalid`.

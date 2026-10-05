@@ -32,6 +32,60 @@ interface GeneratedFile {
 /** specs/008 registry name rule (mirrors workspace-registry.ts). */
 const WORKSPACE_NAME_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 
+/** Package-manager profiles for generated operations. `scripts` are the
+ *  invocation args per lifecycle script, preserving each PM's idiomatic form
+ *  EXACTLY for npm ("npm test" has no "run") — the builtin template sync pin
+ *  depends on it. cleanInstall is the PM's sync-with-lockfile strategy;
+ *  install is the firstAvailable fallback when the clean strategy fails
+ *  (lockfile missing or out of sync). Yarn target is yarn 4+ (berry). */
+const PM_PROFILES: Record<
+  "npm" | "pnpm" | "yarn",
+  {
+    runner: string;
+    scripts: { build: string[]; lint: string[]; test: string[] };
+    cleanInstall: { capability: string; args: string[] };
+    install: { capability: string; args: string[] };
+    cleanLabel: string;
+    fallbackLabel: string;
+  }
+> = {
+  npm: {
+    runner: "npm",
+    scripts: { build: ["run", "build"], lint: ["run", "lint"], test: ["test"] },
+    cleanInstall: { capability: "npm-ci-lockfile", args: ["ci"] },
+    install: { capability: "npm-install-fallback", args: ["install"] },
+    cleanLabel: "npm ci (clean semantics)",
+    fallbackLabel: "npm install",
+  },
+  pnpm: {
+    runner: "pnpm",
+    scripts: {
+      build: ["run", "build"],
+      lint: ["run", "lint"],
+      test: ["run", "test"],
+    },
+    cleanInstall: {
+      capability: "pnpm-install-frozen",
+      args: ["install", "--frozen-lockfile"],
+    },
+    install: { capability: "pnpm-install-fallback", args: ["install"] },
+    cleanLabel:
+      "pnpm install --frozen-lockfile (clean sync with pnpm-lock.yaml)",
+    fallbackLabel: "pnpm install",
+  },
+  yarn: {
+    runner: "yarn",
+    scripts: { build: ["build"], lint: ["lint"], test: ["test"] },
+    cleanInstall: {
+      capability: "yarn-install-immutable",
+      args: ["install", "--immutable"],
+    },
+    install: { capability: "yarn-install-fallback", args: ["install"] },
+    cleanLabel: "yarn install --immutable (clean sync with yarn.lock, yarn 4+)",
+    fallbackLabel: "yarn install",
+  },
+};
+
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const QUESTIONS: SetupQuestion[] = [
@@ -115,6 +169,15 @@ const QUESTIONS: SetupQuestion[] = [
     options: ["standard", "minimal"],
     required: true,
     default: "standard",
+  },
+  {
+    id: "packageManager",
+    question:
+      "Which package manager does this repo use for install/test gates?",
+    help: "DETECT from the repo root (do not guess): pnpm-lock.yaml or pnpm-workspace.yaml -> pnpm; yarn.lock -> yarn; package-lock.json or none -> npm. Controls the generated operations: gates run via the PM (npm run / pnpm run / yarn), deps-install uses the PM's clean-install strategy with plain install as firstAvailable fallback (npm ci -> npm install | pnpm install --frozen-lockfile -> pnpm install | yarn install --immutable -> yarn install; yarn target is yarn 4+). Default npm.",
+    options: ["npm", "pnpm", "yarn"],
+    required: false,
+    default: "npm",
   },
 ];
 
@@ -503,12 +566,26 @@ export function buildResponses(shell: string): string {
 }
 
 function buildOperations(
+  packageManager: string,
   gates: string,
   gitnexus: boolean,
   insight: boolean,
   projectName: string,
   transport: string,
 ): string {
+  const pmRaw = String(packageManager ?? "npm")
+    .trim()
+    .toLowerCase();
+  if (pmRaw !== "npm" && pmRaw !== "pnpm" && pmRaw !== "yarn") {
+    throw new GuidanceError(
+      "configuration_invalid",
+      `setup answers: unsupported packageManager ${JSON.stringify(
+        packageManager,
+      )} (expected npm|pnpm|yarn)`,
+      { recoverable: true },
+    );
+  }
+  const pm = PM_PROFILES[pmRaw];
   const proc = (
     description: string,
     executable: string,
@@ -529,9 +606,9 @@ function buildOperations(
   });
   const operations: Record<string, unknown> = {
     build: proc(
-      "Build the project.",
-      "npm",
-      ["run", "build"],
+      `Build the project via ${pm.runner}.`,
+      pm.runner,
+      pm.scripts.build,
       true,
       600,
       "workspace_write",
@@ -539,17 +616,17 @@ function buildOperations(
   };
   if (gates === "standard") {
     operations.lint = proc(
-      "Run the project lint script.",
-      "npm",
-      ["run", "lint"],
+      `Run the project lint script via ${pm.runner}.`,
+      pm.runner,
+      pm.scripts.lint,
       false,
       300,
       "read_only",
     );
     operations.test = proc(
-      "Run the automated test suite.",
-      "npm",
-      ["test"],
+      `Run the automated test suite via ${pm.runner}.`,
+      pm.runner,
+      pm.scripts.test,
       false,
       900,
       "read_only",
@@ -560,7 +637,11 @@ function buildOperations(
   // in the workspace root (OperationEngine cwd), so they are workspace-scoped.
   operations["deps-install"] = {
     description:
-      "Install Node dependencies: npm ci (clean semantics), with npm install as the firstAvailable fallback — the fallback runs whenever npm ci fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); npm ci removes node_modules before failing, so a masked failure leaves node_modules deleted. Runs in the workspace root; the result's via label records which strategy ran (audit note; visible in run history). riskClass workspace_write (subject to policies.approvals — default: allowed for unattended operation), exposure-filtered output (specs/015 FR-1211).",
+      `Install Node dependencies: ${pm.cleanLabel}, with ${pm.fallbackLabel} as the firstAvailable fallback — the fallback runs whenever the clean strategy fails for ANY reason (missing lockfile, lockfile out of sync, network error, dependency conflict, timeout). ` +
+      (pmRaw === "npm"
+        ? "npm ci removes node_modules before failing, so a masked failure leaves node_modules deleted. "
+        : "The clean strategy is sync-with-lockfile semantics (no destructive node_modules reset). ") +
+      "Runs in the workspace root; the result's via label records which strategy ran (audit note; visible in run history). riskClass workspace_write (subject to policies.approvals — default: allowed for unattended operation), exposure-filtered output (specs/015 FR-1211).",
     type: "composite",
     strategy: "firstAvailable",
     required: false,
@@ -570,28 +651,27 @@ function buildOperations(
     steps: [
       {
         type: "process",
-        capability: "npm-ci-lockfile",
-        executable: "npm",
-        args: ["ci"],
+        capability: pm.cleanInstall.capability,
+        executable: pm.runner,
+        args: pm.cleanInstall.args,
       },
       {
         type: "process",
-        capability: "npm-install-fallback",
-        executable: "npm",
-        args: ["install"],
+        capability: pm.install.capability,
+        executable: pm.runner,
+        args: pm.install.args,
       },
     ],
     validation: { protocolRequestMustSucceed: true, exitCodeMustBeZero: true },
     output: { returnToAgent: "summary_and_errors", retainRawResult: true },
   };
   operations["deps-reinstall"] = {
-    description:
-      "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. Platform note: spawns npm directly (no shell) — supported on Linux/container hosts (FR-1216); Windows hosts are not supported without shell adaptation. riskClass workspace_write (subject to policies.approvals — default: allowed for unattended operation), exposure-filtered output (specs/015 FR-1212).",
+    description: `Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall with ${pm.runner} — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. Platform note: spawns ${pm.runner} directly (no shell) — supported on Linux/container hosts (FR-1216); Windows hosts are not supported without shell adaptation. riskClass workspace_write (subject to policies.approvals — default: allowed for unattended operation), exposure-filtered output (specs/015 FR-1212).`,
     type: "process",
     executable: "node",
     args: [
       "-e",
-      "const cp=require('node:child_process'),fs=require('node:fs');fs.rmSync('node_modules',{recursive:true,force:true});const r=cp.spawnSync('npm',['install'],{stdio:'inherit'});process.exit(r.status??1)",
+      `const cp=require('node:child_process'),fs=require('node:fs');fs.rmSync('node_modules',{recursive:true,force:true});const r=cp.spawnSync('${pm.runner}',['install'],{stdio:'inherit'});process.exit(r.status??1)`,
     ],
     required: false,
     invocableByAgent: true,
@@ -903,7 +983,14 @@ export function generateFiles(answers: SetupAnswers): {
       freshOpsMap =
         (
           JSON.parse(
-            buildOperations(gates, gitnexus, insight, name, transport),
+            buildOperations(
+              String(answers.packageManager ?? "npm"),
+              gates,
+              gitnexus,
+              insight,
+              name,
+              transport,
+            ),
           ) as {
             operations?: Record<string, Record<string, unknown>>;
           }
@@ -1097,7 +1184,14 @@ export function generateFiles(answers: SetupAnswers): {
     },
     {
       path: "operations.json",
-      content: buildOperations(gates, gitnexus, insight, name, transport),
+      content: buildOperations(
+        String(answers.packageManager ?? "npm"),
+        gates,
+        gitnexus,
+        insight,
+        name,
+        transport,
+      ),
     },
     {
       path: "downstream-servers.json",

@@ -457,7 +457,7 @@ call. Flow (which tool when) — the full configuration reference follows in
 
 | Step | Tool                                  | Purpose                                                                                                     |
 | ---- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1    | `setup_guidance_start`                | Returns the question catalog (10 questions) and the first question with help text and options               |
+| 1    | `setup_guidance_start`                | Returns the question catalog (11 questions) and the first question with help text and options               |
 | 2    | `setup_guidance_answer` `{answers}`   | Takes the accumulated answers, validates them, and returns the next open question                           |
 | 3    | … repeat `setup_guidance_answer`      | Until `done: true` — then `nextTool` points to `setup_guidance_generate`                                    |
 | 4    | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload                             |
@@ -477,11 +477,24 @@ absolute container path where THIS repo is mounted, e.g.
 `GUIDANCE_WORKSPACE_ROOT` + the name hint), `registerWorkspace`
 (yes/no — emits a `workspaces[]` merge snippet, see below),
 `insight` and `gitnexus` (on/off — control the downstream entries and
-their gates) and the `gates` preset (`standard`: lint opt + test opt +
-build REQ · `minimal`: build REQ only). Generation returns all six config
+their gates), the `gates` preset (`standard`: lint opt + test opt +
+build REQ · `minimal`: build REQ only) and `packageManager`
+(optional, default `npm` — see below). Generation returns all six config
 files plus the seven submission schemas (from
 `examples/default-guidance/schemas`; if the directory is missing from the
 installation, the agent receives a copy hint instead of an error).
+
+**`packageManager` (npm / pnpm / yarn):** controls which package manager
+the generated operations use. The agent DETECTS it from the repo root —
+`pnpm-lock.yaml` or `pnpm-workspace.yaml` → pnpm, `yarn.lock` → yarn,
+`package-lock.json` or none → npm. Gates run via the PM's idiomatic script
+invocation (`npm run build` / `npm test`, `pnpm run build`, `yarn build`).
+The dependency operations use the PM's clean-install strategy with a plain
+install as `firstAvailable` fallback: npm `ci` → `install`, pnpm
+`install --frozen-lockfile` → `install`, yarn `install --immutable` →
+`install` (yarn target is yarn 4+). pnpm/yarn repos MUST answer this
+question — the npm default would generate `npm ci`, which fails on repos
+without a `package-lock.json`.
 
 **`projectName` default:** the same `workspaceNameHint` parameter
 also seeds the `projectName` question. The server normalizes the hint to a
