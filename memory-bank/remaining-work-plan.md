@@ -1567,3 +1567,7 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 ### Added 2026-10-05 (pm-assistant feature, session-b6820e9b)
 4. PM-F4 gate-op description wording drift vs scaffold/example ('... via npm.' vs 'build the project'): cosmetic, deps sync pins do not cover gates. Trigger: next scaffold/template lockstep scope. Action optional: unify wording or extend sync-pin FIELDS to descriptions.
 5. PM-NOTES accepted observations: pm detection is agent-side (statelessness); yarn target 4+ documented. No action unless users report yarn-1 repos.
+
+### Added 2026-10-05 (adopt deps-op presets, session: chat/fix-adopt-pm)
+6. REGENERATED notes for preset deps ops should include the DISCARDED reference args (custom registry flags etc.) so reviewers need not dig up the old operations.json. Trigger: next ConfigAssistant adoption-note scope (reviewer F1, MEDIUM-adjacent advisory).
+7. deps-op regression coverage: deps-reinstall + yarn + type-mismatch cases — deps-reinstall now covered (cf457f2); yarn/type-mismatch verified ad hoc by reviewer, not pinned. Trigger: next touch of config-assistant-extensions.test.ts.
