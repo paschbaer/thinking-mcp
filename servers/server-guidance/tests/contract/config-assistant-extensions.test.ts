@@ -1881,8 +1881,8 @@ describe("specs/014 + WIZ-1: merged wizard run — repo config + workspace regis
         const snippet = notes.find((n) =>
           n.includes("WIZ-1 workspace registration"),
         )!;
-        expect(snippet).toContain(`"name": "target-repo"`);
-        expect(snippet).toContain(`"root": "${repoRoot}"`);
+        expect(snippet).toContain(`name: "target-repo"`);
+        expect(snippet).toContain(`root: "${repoRoot}"`);
       } finally {
         rmSync(repoRoot, { recursive: true, force: true });
       }
@@ -1919,7 +1919,7 @@ describe("specs/014 + WIZ-1: merged wizard run — repo config + workspace regis
         const snippet = notes.find((n) =>
           n.includes("WIZ-1 workspace registration"),
         )!;
-        expect(snippet).toContain(`"root": "${repoRoot}"`);
+        expect(snippet).toContain(`root: "${repoRoot}"`);
         expect(snippet).not.toContain("/reference-root");
         expect(snippet).not.toContain("/reference-legacy");
       } finally {

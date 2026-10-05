@@ -475,7 +475,8 @@ and injected into EVERY phase instruction), `workspaceRoot` (the
 absolute container path where THIS repo is mounted, e.g.
 `/workspaces/Thinking-MCP` — auto-suggested from
 `GUIDANCE_WORKSPACE_ROOT` + the name hint), `registerWorkspace`
-(yes/no — emits a `workspaces[]` merge snippet, see below),
+(yes/no — instructs the agent to register via the `registry_register`
+MCP tool, with a manual merge fallback, see below),
 `insight` and `gitnexus` (on/off — control the downstream entries and
 their gates), the `gates` preset (`standard`: lint opt + test opt +
 build REQ · `minimal`: build REQ only) and `packageManager`
@@ -2586,11 +2587,11 @@ One guidance instance can serve multiple registered repositories.
 Two deployment modes; in both, the instance config and the repo configs own
 DIFFERENT concerns — they never compete:
 
-|                                                                 | **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`)                                                                                                               | **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`)                              |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Instance `.guidance/` (under `GUIDANCE_WORKSPACE_ROOT`)         | **Registry only** (`workspaces[]` in `guidance.json`) — nothing else                                                                                        | registry sits in the container; sessions are created per `init_session` |
-| Process config (workflow/operations/responses/schemas/policies) | **repo-level**, in each registered root's own `.guidance/`                                                                                                  | uploaded per session                                                    |
-| Adding a scope                                                  | edit the registry file manually, or run the config assistant in that repo (it emits a workspaces[] merge snippet — the agent edits the file on your behalf) | `init_session` manually, or the assistant prompts the agent to call it  |
+|                                                                 | **Workspace-Mode** (`GUIDANCE_REMOTE_MODE=0`)                                                                                                                                                                                                                 | **Remote-Mode** (`GUIDANCE_REMOTE_MODE=1`)                              |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Instance `.guidance/` (under `GUIDANCE_WORKSPACE_ROOT`)         | **Registry only** (`workspaces[]` in `guidance.json`) — nothing else                                                                                                                                                                                          | registry sits in the container; sessions are created per `init_session` |
+| Process config (workflow/operations/responses/schemas/policies) | **repo-level**, in each registered root's own `.guidance/`                                                                                                                                                                                                    | uploaded per session                                                    |
+| Adding a scope                                                  | `registry_register` (preferred — fail-closed, atomic, audited, idempotent re-run = verification), or run the config assistant in that repo: it instructs the agent to call `registry_register` (manual edit of the registry file only as documented fallback) | `init_session` manually, or the assistant prompts the agent to call it  |
 
 Normative truth statement: **process-config truth = the registered repo;
 registry truth = the serving instance; any other `.guidance/` copy is

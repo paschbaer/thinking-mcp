@@ -6,6 +6,9 @@
  * stays stateless and only validates the value.
  */
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   catalogOverview,
   generateFiles,
@@ -123,6 +126,41 @@ describe("packageManager wizard answer", () => {
     expect(() => operationsFor("bun")).toThrowError(
       /unsupported packageManager/,
     );
+  });
+
+  it("registration notes: registry_register is the PRIMARY path, manual merge only the fallback", () => {
+    const wsRoot = mkdtempSync(join(tmpdir(), "pm-ws-"));
+    try {
+      const { notes } = generateFiles({
+        ...BASE_ANSWERS,
+        registerWorkspace: "yes",
+        workspaceRoot: wsRoot,
+      });
+      const registration = notes.filter((n) =>
+        n.includes("WIZ-1 workspace registration"),
+      );
+      expect(registration).toHaveLength(1);
+      expect(registration[0]).toMatch(
+        /PRIMARY: register via the registry_register MCP tool/,
+      );
+      expect(registration[0]).toContain(`root: "${wsRoot}"`);
+      const fallback = notes.filter((n) => n.includes("WIZ-1 FALLBACK"));
+      expect(fallback).toHaveLength(1);
+      expect(fallback[0]).toMatch(
+        /merge this entry into the "workspaces" array/,
+      );
+      const verify = notes.find((n) => n.includes("VERIFY the registration"));
+      expect(verify).toMatch(/fallback only/i);
+      expect(
+        notes.some((n) =>
+          n.includes(
+            "registry_register MCP tool against the serving pool instance",
+          ),
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(wsRoot, { recursive: true, force: true });
+    }
   });
 
   it("pm values are normalized (case/whitespace); empty string falls back to npm", () => {

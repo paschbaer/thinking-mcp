@@ -178,10 +178,16 @@ describe("configuration assistant (stateless wizard)", () => {
     const snippet = notes.find((n) =>
       n.includes("WIZ-1 workspace registration"),
     )!;
-    expect(snippet).toContain(`"name": "my-project"`);
-    expect(snippet).toContain(`"root": "${REAL_DIR}"`);
-    expect(snippet).toContain(`"projectName": "my-project"`);
-    expect(snippet).toContain("workspaces");
+    // PRIMARY note carries the entry inline (registry_register args)
+    expect(snippet).toContain(`name: "my-project"`);
+    expect(snippet).toContain(`root: "${REAL_DIR}"`);
+    expect(snippet).toContain(`projectName: "my-project"`);
+    expect(snippet).toContain("registry_register");
+    // the pretty-printed JSON entry lives in the FALLBACK (manual merge) note
+    const fallback = notes.find((n) => n.includes("WIZ-1 FALLBACK"))!;
+    expect(fallback).toContain(`"name": "my-project"`);
+    expect(fallback).toContain(`"root": "${REAL_DIR}"`);
+    expect(fallback).toContain(`"projectName": "my-project"`);
     // decision 4: initial-creation branch is spelled out
     expect(notes.some((n) => n.includes("does not exist yet, CREATE it"))).toBe(
       true,

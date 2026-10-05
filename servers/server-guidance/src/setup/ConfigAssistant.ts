@@ -138,7 +138,7 @@ const QUESTIONS: SetupQuestion[] = [
     id: "registerWorkspace",
     question:
       "Register this repo in the Guidance instance workspace registry (workspaces[])?",
-    help: "yes = the generated payload carries a workspaces[] merge snippet ({ name, root, projectName }) that the AGENT merges into the instance's guidance.json (or creates the registry when none exists yet). no = repo runs outside a pool instance — no registry step. Remote mode: the registry step is replaced by a hint to register via init_session.",
+    help: "yes = the generated payload instructs the AGENT to register this repo via the registry_register MCP tool on the serving pool instance (primary; fail-closed, atomic, audited) — with a manual merge fallback for the workspaces[] entry when the tool is unavailable. no = repo runs outside a pool instance — no registry step. Remote mode: the registry step is replaced by a hint to register via init_session.",
     options: ["yes", "no"],
     required: true,
     default: "yes",
@@ -932,9 +932,11 @@ export function generateFiles(answers: SetupAnswers): {
       );
       const instanceConfigPath = `${wsRoot ?? "\${GUIDANCE_WORKSPACE_ROOT}"}/.guidance/guidance.json`;
       registryNotes.push(
-        `WIZ-1 workspace registration: merge this entry into the "workspaces" array of the instance's guidance.json (${instanceConfigPath}) — the AGENT performs the merge on the operator's behalf:\n${entryJson}`,
-        `WIZ-1: after merging, VERIFY the registration before reporting completion — re-run registry_register with the SAME entry (idempotent) and confirm the returned registry contains it, or read ${instanceConfigPath} directly. If the instance config path is OUTSIDE your writable project roots, do NOT skip the merge silently — report the exact blocking path to the operator.`,
-        `WIZ-1: if the instance registry does not exist yet, CREATE it: { "version": 2, "project": { "name": "<instance-name>" }, "workspaces": [${JSON.stringify(entry)}], "registryRegister": { "enabled": true }, "state": { "directory": "state", "persistAfterEveryOperation": true } } — confirm with the operator first (assistant question registerWorkspace covers the initial-creation case).`,
+        `WIZ-1 workspace registration — PRIMARY: register via the registry_register MCP tool against the serving pool instance: { name: "${name}", root: "${repoRoot}", projectName: "${name}" }. Fail-closed validation, atomic persist, audit event, live recomposition; re-running it with the same entry is idempotent and doubles as verification. No filesystem write access to the instance directory is needed.`,
+        `WIZ-1 FALLBACK (only when registry_register is unavailable, rejected, or disabled via registryRegister.enabled=false): manually merge this entry into the "workspaces" array of the instance's guidance.json (${instanceConfigPath}):
+${entryJson}`,
+        `WIZ-1 (fallback only): after merging, VERIFY the registration before reporting completion — re-run registry_register with the SAME entry (idempotent) and confirm the returned registry contains it, or read ${instanceConfigPath} directly. If the instance config path is OUTSIDE your writable project roots, do NOT skip the merge silently — report the exact blocking path to the operator.`,
+        `WIZ-1 (fallback only): if the instance registry does not exist yet, CREATE it: { "version": 2, "project": { "name": "<instance-name>" }, "workspaces": [${JSON.stringify(entry)}], "registryRegister": { "enabled": true }, "state": { "directory": "state", "persistAfterEveryOperation": true } } — confirm with the operator first (assistant question registerWorkspace covers the initial-creation case).`,
         `WIZ-1: workspace name "${name}" derives from projectName — the AGENT derives the projectName suggestion from the package manifest (or directory name) and the operator CONFIRMS/OVERRIDES it (do not answer on their behalf).`,
         `WIZ-1: start sessions for this repo via start_workflow { workspace: "${name}" }.`,
       );
