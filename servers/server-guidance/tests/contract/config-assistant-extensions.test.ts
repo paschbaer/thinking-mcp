@@ -1093,6 +1093,81 @@ describe("adopt genericity hardening (niyama incident class)", () => {
     expect(adoption.divergentOps).toEqual([]);
   });
 
+  it("deps ops are PM-parameterized presets: adopt regenerates them for the answered packageManager (second niyama incident)", () => {
+    void ws;
+    const ref = makeGenericityRef({
+      lint: { type: "process", executable: "pnpm", args: ["run", "lint"] },
+      "deps-install": {
+        type: "composite",
+        strategy: "firstAvailable",
+        steps: [
+          {
+            type: "process",
+            capability: "npm-ci-lockfile",
+            executable: "npm",
+            args: ["ci"],
+          },
+          {
+            type: "process",
+            capability: "npm-install-fallback",
+            executable: "npm",
+            args: ["install"],
+          },
+        ],
+      },
+      "deps-reinstall": {
+        type: "process",
+        executable: "node",
+        args: [
+          "-e",
+          "const cp=require('node:child_process');const r=cp.spawnSync('npm',['install'],{stdio:'inherit'});process.exit(r.status??1)",
+        ],
+      },
+    });
+    try {
+      const r = generateFiles({
+        configSource: "adopt",
+        registerWorkspace: "no",
+        referencePath: ref,
+        projectName: "t",
+        transport: "stdio",
+        packageManager: "pnpm",
+      });
+      const { adoption, ops } = readAdoptionBlock(r);
+      // preset ops are ALWAYS regenerated — the npm-based reference deps ops
+      // must NOT be copied verbatim
+      expect(adoption.nonGenericOps ?? []).not.toContain("deps-install");
+      expect(adoption.adaptedOps).toContain("deps-install");
+      // the npm reference steps diverge from the pnpm fresh generation and
+      // must be surfaced loudly (advisory), then discarded
+      expect(adoption.divergentOps).toContain("deps-install");
+      expect(r.notes.some((n) => n.includes("REGENERATED"))).toBe(true);
+      const steps = (
+        ops.operations["deps-install"] as unknown as {
+          steps: Array<{ capability?: string; executable?: string }>;
+        }
+      ).steps;
+      expect(steps[0]).toMatchObject({
+        capability: "pnpm-install-frozen",
+        executable: "pnpm",
+      });
+      expect(steps[1]).toMatchObject({
+        capability: "pnpm-install-fallback",
+        executable: "pnpm",
+      });
+      // deps-reinstall (process op) is regenerated for the PM as well
+      const reinstall = ops.operations["deps-reinstall"] as unknown as {
+        description?: string;
+        args?: string[];
+      };
+      expect(adoption.adaptedOps).toContain("deps-reinstall");
+      expect(reinstall.description).toMatch(/reinstall with pnpm/);
+      expect(reinstall.args![1]).toMatch(/spawnSync\('pnpm'/);
+    } finally {
+      rmSync(ref, { recursive: true, force: true });
+    }
+  });
+
   it("mcpTool op with divergent arguments is regenerated and surfaced in the adoption block", () => {
     void ws;
     // capture-session-lessons in the reference derives insight=true (mounted

@@ -200,3 +200,11 @@ agent-side from the repo-root lockfiles). Generated semantics per PM:
   npm keeps the idiomatic bare `npm test`).
 
 Unknown `packageManager` values fail closed with `configuration_invalid`.
+
+### Amendment (adopt-mode genericity, 2026-10-05)
+
+`deps-install` and `deps-reinstall` are preset operations: adopt mode
+ALWAYS regenerates them from the PM-parameterized template (per the
+`packageManager` answer) instead of copying npm-based reference ops.
+Reference divergence (e.g. custom registry args) is surfaced via
+`divergentOps` + REGENERATED notes, never copied silently.

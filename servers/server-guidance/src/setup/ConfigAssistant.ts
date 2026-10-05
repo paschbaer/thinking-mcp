@@ -975,6 +975,13 @@ export function generateFiles(answers: SetupAnswers): {
       "repository-analysis",
       "query-project-insights",
       "capture-session-lessons",
+      // Dependency operations are PM-parameterized presets (packageManager
+      // answer): regenerating them keeps adopt-mode configs consistent with
+      // the target repo's package manager instead of copying npm-based
+      // reference ops (second Niyama incident). Reference divergence is
+      // surfaced via divergentOps + REGENERATED notes, never copied.
+      "deps-install",
+      "deps-reinstall",
     ]);
     // Structural genericity (Niyama incident class): preset operations are
     // ALWAYS regenerated from the target-fresh template — never copied from
