@@ -13,8 +13,7 @@ import { GuidanceError } from "../types/errors.js";
 /** Matches transport failures that mean "the downstream session expired and
  *  the request never reached the tool" (HTTP 404 / JSON-RPC -32001 from the
  *  stale-session gate). Safe to replay on a fresh connection. */
-const sessionExpiryPattern =
-  /\b404\b|unknown or expired MCP session id/i;
+const sessionExpiryPattern = /\b404\b|unknown or expired MCP session id/i;
 
 export interface DownstreamToolInfo {
   name: string;

@@ -135,7 +135,10 @@ app.post(
         if (typeof sessionId === "string" && sessionId.length > 0) {
           res.status(404).json({
             jsonrpc: "2.0",
-            error: { code: -32001, message: "unknown or expired MCP session id" },
+            error: {
+              code: -32001,
+              message: "unknown or expired MCP session id",
+            },
             id: null,
           });
           return;

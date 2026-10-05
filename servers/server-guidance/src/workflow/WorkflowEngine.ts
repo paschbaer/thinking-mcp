@@ -1080,19 +1080,21 @@ export class WorkflowEngine {
       try {
         const cfg = loadConfig(cfgDir, { workspaceRoot: w.root });
         const servers =
-          (cfg.downstreamServers as
-            | {
-                servers?: Record<
-                  string,
-                  {
-                    enabled?: boolean;
-                    required?: boolean;
-                    trustLevel?: string;
-                    transport?: { type?: string };
-                  }
-                >;
-              }
-            | undefined)?.servers ?? {};
+          (
+            cfg.downstreamServers as
+              | {
+                  servers?: Record<
+                    string,
+                    {
+                      enabled?: boolean;
+                      required?: boolean;
+                      trustLevel?: string;
+                      transport?: { type?: string };
+                    }
+                  >;
+                }
+              | undefined
+          )?.servers ?? {};
         const declaredServers = Object.entries(servers)
           .filter(([, v]) => v.enabled !== false)
           .map(([id, v]) => ({

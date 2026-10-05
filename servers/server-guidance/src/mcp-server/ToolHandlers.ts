@@ -361,9 +361,9 @@ export class WorkflowTools {
     return this.engine.getDownstreamStatus();
   }
 
-  getDownstreamStatusReport(sessionId?: string): ReturnType<
-    WorkflowEngine["getDownstreamStatusReport"]
-  > {
+  getDownstreamStatusReport(
+    sessionId?: string,
+  ): ReturnType<WorkflowEngine["getDownstreamStatusReport"]> {
     return this.engine.getDownstreamStatusReport(sessionId);
   }
 
