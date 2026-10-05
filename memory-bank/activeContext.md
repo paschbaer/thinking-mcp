@@ -1370,3 +1370,8 @@
 - server-insight: same /mcp 404 gate as clear-thought (unknown session id -> 404/-32001; missing header stays 400). Live-verified on :3002.
 - server-guidance: HTTP transport is stateless (no fix needed there); downstream ClientManager now detects stale downstream sessions (StreamableHTTPError .code===404 — the status is NOT in its message — or -32001 body) and replays ONCE on a fresh connection even without an explicit reconnect policy (side-effect-safe: the request never reached the tool). HD-3 test now asserts recovery. Guidance + insight suites green (616/616; insight 121/133 with pre-existing better-sqlite3 worker-teardown crashes — baseline-verified same loss without the change).
 - Containers rebuilt: clear-thought/insight/guidance all healthy; /health checks green.
+
+## 2026-10-04 — Feature: pool-mode downstream status visibility (feature/downstream-status-visibility, 66b0851+998bfdc, session-7de6e13f)
+- get_downstream_status now: sessionId-routed live status + instance-level declared-state per registered workspace (read-only, redacted declaredError, disabled servers omitted); monolith wire contract preserved (flat array).
+- Independent review verdict: approve, 0 HIGH/CRITICAL. Fixed: F1 monolith envelope compat, F3 routed-session test, F4 redaction, F7 README/test disabled-filter. Tracked below: F2, F5, F6.
+- Guidance suite 78/621 green; typecheck clean (except pre-existing F6).
