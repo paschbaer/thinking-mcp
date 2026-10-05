@@ -690,3 +690,5 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 ### 2026-10-04 — StreamableHTTPError hides the HTTP status in its message
 - **Issue:** session-expiry detection failed silently — the SDK error message is only "Streamable HTTP error: <response body>"; the status code lives on the error's `code` property.
 - **Prevention:** when classifying HTTP transport failures from the MCP SDK client, always read `err.code`, never parse the message alone. Also: guidance's reconnect only runs when `connection.reconnect.enabled` is configured — session-expiry is now exempt (minAttempts=1).
+
+- **UNAUFGEFORDERTE FIXES sind Regelverstoß (2026-10-05):** Nach Befunden/Analysen nur Beobachtung + Optionen; jeden Fix (Config, Registry, Dateien außerhalb des Auftrags) VORHER konkret anfragen und auf Bestätigung warten. Zweiter Vorfall (Registry-Register + Niyama-operations.json ohne Auftrag). Ambiguität löst zu NICHT-Handeln auf.
