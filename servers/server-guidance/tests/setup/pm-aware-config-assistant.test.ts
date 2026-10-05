@@ -124,4 +124,13 @@ describe("packageManager wizard answer", () => {
       /unsupported packageManager/,
     );
   });
+
+  it("pm values are normalized (case/whitespace); empty string falls back to npm", () => {
+    const yarn = operationsFor("yarn");
+    expect(operationsFor(" YARN ").build!.executable).toBe(
+      yarn.build!.executable,
+    );
+    expect(operationsFor("PNPM").build!.executable).toBe("pnpm");
+    expect(operationsFor("")).toEqual(operationsFor("npm"));
+  });
 });

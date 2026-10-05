@@ -5,6 +5,7 @@
 **Namespace:** neue FRs ab FR-1201 (keine Kollision mit FR-1101… aus specs/014, FR-001…995 davor)
 **Status:** Implemented (SDD 2026-09-30; Umsetzung 2026-10-01 — US1 feature/015-us1-registry-register, US2 feature/015-us2-deps-operations)
 <!-- docs-drift: status ok -->
+
 **Date:** 2026-09-30
 
 ## Overview
@@ -128,11 +129,11 @@ Container-Kommandos.
   FR-1208 Pool-Onboarding ohne Restart; FR-1209 specs/008-Konformität
   (ein enges, fail-closed-Tool); FR-1210 Entfernen einer Root (`remove?`).
 - **Requirements-Mapping US2:** FR-1211 `deps-install` (npm ci Clean-Semantik
-  + Lockfile-Fallback mit Audit-Vermerk); FR-1212 `deps-reinstall`
-  (workspace-scoped); FR-1213 reaktive Erkennung über Gate-Fehlermuster;
-  FR-1214 optionale proaktive Sonde; FR-1215 riskClass workspace_write +
-  FR-053-Approval + Egress-Filterung; FR-1216 Container-Installation
-  (Linux-ABI).
+  - Lockfile-Fallback mit Audit-Vermerk); FR-1212 `deps-reinstall`
+    (workspace-scoped); FR-1213 reaktive Erkennung über Gate-Fehlermuster;
+    FR-1214 optionale proaktive Sonde; FR-1215 riskClass workspace_write +
+    FR-053-Approval + Egress-Filterung; FR-1216 Container-Installation
+    (Linux-ABI).
 - **Plattform-Fallstricke (US2):** Native Addons müssen im Container
   gebaut werden (Linux-ABI); Windows-Host-`node_modules` sind unbrauchbar —
   genau deshalb installieren die Operationen **im Container**.

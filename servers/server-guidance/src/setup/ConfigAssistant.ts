@@ -576,7 +576,12 @@ function buildOperations(
   const pmRaw = String(packageManager ?? "npm")
     .trim()
     .toLowerCase();
-  if (pmRaw !== "npm" && pmRaw !== "pnpm" && pmRaw !== "yarn") {
+  const effectivePm = pmRaw === "" ? "npm" : pmRaw;
+  if (
+    effectivePm !== "npm" &&
+    effectivePm !== "pnpm" &&
+    effectivePm !== "yarn"
+  ) {
     throw new GuidanceError(
       "configuration_invalid",
       `setup answers: unsupported packageManager ${JSON.stringify(
@@ -585,7 +590,7 @@ function buildOperations(
       { recoverable: true },
     );
   }
-  const pm = PM_PROFILES[pmRaw];
+  const pm = PM_PROFILES[effectivePm as "npm" | "pnpm" | "yarn"];
   const proc = (
     description: string,
     executable: string,
@@ -638,7 +643,7 @@ function buildOperations(
   operations["deps-install"] = {
     description:
       `Install Node dependencies: ${pm.cleanLabel}, with ${pm.fallbackLabel} as the firstAvailable fallback — the fallback runs whenever the clean strategy fails for ANY reason (missing lockfile, lockfile out of sync, network error, dependency conflict, timeout). ` +
-      (pmRaw === "npm"
+      (effectivePm === "npm"
         ? "npm ci removes node_modules before failing, so a masked failure leaves node_modules deleted. "
         : "The clean strategy is sync-with-lockfile semantics (no destructive node_modules reset). ") +
       "Runs in the workspace root; the result's via label records which strategy ran (audit note; visible in run history). riskClass workspace_write (subject to policies.approvals — default: allowed for unattended operation), exposure-filtered output (specs/015 FR-1211).",
@@ -995,7 +1000,16 @@ export function generateFiles(answers: SetupAnswers): {
             operations?: Record<string, Record<string, unknown>>;
           }
         ).operations ?? {};
-    } catch {
+    } catch (err) {
+      // Answer-validation errors from buildOperations (e.g. an unsupported
+      // packageManager value) must fail closed — swallowing them here would
+      // silently ignore the PM answer and copy npm-based reference ops.
+      if (
+        err instanceof GuidanceError &&
+        err.code === "configuration_invalid"
+      ) {
+        throw err;
+      }
       freshOpsMap = {};
     }
     for (const [opId, op] of Object.entries(refOpsMap)) {
