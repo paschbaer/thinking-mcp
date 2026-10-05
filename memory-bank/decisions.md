@@ -76,3 +76,9 @@
 - **Explizit NICHT:** W8-Transitionsautomation (Task-Events als Phasentreiber) — Agent-Judgment + Severity-Gates bleiben.
 - **Offene Mikro-Entscheidungen (in Spec 017 zu klären):** Clarify-Exit-Signal; Convergence-Report-Artefaktname für das Verify-Gate; Review-Loop-Ziele nach Phasen-Split (minor→tasks, major→plan als Vorschlag); Feature-Nummerierung durch Discovery.
 - **Status:** Entscheidung getroffen im Brainstorming (2026-10-04); Spec 017 ausstehend.
+
+### DEC-SKM-1 Refinements (2026-10-04, nach Brainstorming-Abschluss; gehalten bis ADOPT-Completion, jetzt nachgetragen)
+
+- **Converge-Loop (verify ↔ speckit.converge):** "Converged" → Exit nach complete; Gaps (Tasks werden an tasks.md angehängt) → verification_failed-Muster zurück nach implement. Loop-Reihenfolge: Convergence-Report (Evidence, Pfad im submit_verification-Payload) → refresh_spec_kit_artifacts (Re-Import, kein stale Task-Snapshot) → implement. Max-Pass-Zähler pro Session (analog maxChainDepth); Überschreitung → report_blocker (requiresUserDecision).
+- **Strenge Batch-Review-Kadenz (Option B, HARD):** implement → review_and_fix_implementation läuft PRO BATCH. Drei Review-Ausgänge: implementation_changes_required (Fix, Resubmit), batch_approved_more_pending (neu, zurück zu implement für den nächsten Batch), submission_valid (nur wenn ALLE Batches einen approvierten Review-Pass haben — Gate über Task-Review-Status). Batch-scoped submit_implementation-Payload (Batch-Task-IDs). Max-Runden-Zähler pro Batch mit Blocker-Eskalation. Angehängte Converge-Tasks durchlaufen dieselbe Kadenz. Nicht konfigurierbar (bewusste Nutzer-Entscheidung).
+- **Spezifizierungsstand:** specs/017-spec-kit-mode/spec.md (Draft) — 9 US, 9 FR, 7 AC, OQ-1..3 (Converge-Report-Konvention, Include-Syntax, Feature-Nummerierung).
