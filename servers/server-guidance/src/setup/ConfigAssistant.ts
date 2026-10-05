@@ -488,7 +488,7 @@ export function buildResponses(shell: string): string {
     understand: {
       title: "Understand the Request",
       instruction:
-        "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least one sequential_thinking pass to structure the analysis and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas." +
+        "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least two sequential_thinking calls to structure the analysis (a single call is pointless — use the second to challenge or refine the first) and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas." +
         idempotency +
         " Do not create an implementation plan yet." +
         shellSentence +
@@ -496,7 +496,7 @@ export function buildResponses(shell: string): string {
         questionsSentence("openQuestions"),
       requiredActions: [
         "Inspect the relevant repository context.",
-        "Run at least one Clear-Thought sequential_thinking pass and reference its conclusions in the submission.",
+        "Run at least two Clear-Thought sequential_thinking calls (a single call is pointless — use the second to challenge or refine the first) and reference their conclusions in the submission.",
         "Distinguish confirmed facts from assumptions.",
         "Identify blocking questions explicitly.",
       ],
@@ -509,7 +509,7 @@ export function buildResponses(shell: string): string {
         timeoutPolicy +
         questionsSentence("openQuestions"),
       requiredActions: [
-        "Run at least one Clear-Thought sequential_thinking or decision_framework pass for decomposition/prioritization and reference its results in the plan submission.",
+        "Run at least two Clear-Thought reasoning passes (sequential_thinking or decision_framework) for decomposition/prioritization and reference its results in the plan submission.",
       ],
     },
     review_and_adjust_plan: {
@@ -520,7 +520,7 @@ export function buildResponses(shell: string): string {
         timeoutPolicy +
         questionsSentence("remainingConcerns"),
       requiredActions: [
-        "Run at least one Clear-Thought stress-test pass (assumption_xray, socratic_method, or argument_map) and reference its results in the findings.",
+        "Run at least two Clear-Thought stress-test passes (assumption_xray, socratic_method, or argument_map) and reference its results in the findings.",
       ],
     },
     implement: {
