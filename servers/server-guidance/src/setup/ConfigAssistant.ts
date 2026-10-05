@@ -115,7 +115,7 @@ const QUESTIONS: SetupQuestion[] = [
     id: "referencePath",
     question:
       "Adopt: path to the reference .guidance/ directory (container path, e.g. /workspace/.guidance)?",
-    help: "Required when configSource=adopt. Set to 'builtin' (or leave empty) to use the template shipped with the guidance package (examples/default-guidance, override via GUIDANCE_BUILTIN_TEMPLATE_DIR). Otherwise: container path to the reference .guidance/ directory (e.g. /workspace/.guidance). Validated fail-closed (all files present + parseable). Adopt locks insight/gitnexus/gates to the reference. Note: builtin is the generic baseline, not the Thinking-MCP reference.",
+    help: "Required when configSource=adopt. Set to 'builtin' (or leave empty) to use the template shipped with the guidance package (examples/default-guidance, override via GUIDANCE_BUILTIN_TEMPLATE_DIR). Otherwise: container path to the reference .guidance/ directory (e.g. /workspace/.guidance). Validated fail-closed (all files present + parseable). Adopt locks insight/gitnexus/gates to the reference. Note: builtin is the generic baseline.",
     required: false,
   },
   {
@@ -130,7 +130,7 @@ const QUESTIONS: SetupQuestion[] = [
     id: "workspaceRoot",
     question:
       "Absolute container path of THIS repo (optional, needed for workspace registration)?",
-    help: "WIZ-1: the container path where THIS repo is mounted (e.g. /workspaces/Thinking-MCP) — used as the root of the workspaces[] registry entry emitted when registerWorkspace is yes. The AGENT must be able to access this path later, so existence is validated before the payload is emitted. Leave empty only with registerWorkspace=no.",
+    help: "The container path where THIS repo is mounted (e.g. /workspaces/<repo's name>) — used as the root of the workspaces[] registry entry emitted when registerWorkspace is yes. The AGENT must be able to access this path later, so existence is validated before the payload is emitted. Leave empty only with registerWorkspace=no.",
     required: false,
     default: "",
   },
@@ -885,7 +885,7 @@ export function generateFiles(answers: SetupAnswers): {
     if (repoRoot === "") {
       throw new GuidanceError(
         "configuration_invalid",
-        "registerWorkspace=yes requires workspaceRoot — the absolute container path where THIS repo is mounted (e.g. /workspaces/Thinking-MCP). Set registerWorkspace=no when the repo runs outside a pool instance.",
+        "registerWorkspace=yes requires workspaceRoot — the absolute container path where THIS repo is mounted (e.g. /workspaces/<repo's name>). Set registerWorkspace=no when the repo runs outside a pool instance.",
         { recoverable: true },
       );
     }
