@@ -109,6 +109,9 @@ describe("get_downstream_status under pool composition", () => {
     expect(alphaEntry.declaredError).toBeUndefined();
     const ids = (alphaEntry.declaredServers ?? []).map((s) => s.id);
     expect(ids).toContain("gitnexus");
+    // disabled servers are excluded from the declared list (fixture has
+    // a disabled "memory" server)
+    expect(ids).not.toContain("memory");
     const betaEntry = report.workspaces!.find((w) => w.name === "beta")!;
     expect(betaEntry.declaredError).toMatch(/no process config/);
     // read-only guarantee: engine composition would mkdir state dirs
@@ -150,6 +153,31 @@ describe("get_downstream_status under pool composition", () => {
     expect(report.mode).toBe("monolith");
     expect(Array.isArray(report.live)).toBe(true);
     expect(report.workspaces).toBeUndefined();
+  });
+
+  it("a sessionId routed to a workspace session returns the child engine's live status", async () => {
+    const alpha = join(pool, "alpha");
+    const beta = join(pool, "beta");
+    mkdirSync(alpha, { recursive: true });
+    mkdirSync(beta, { recursive: true });
+    scaffoldFullConfig(alpha);
+    writeRegistry(pool, [
+      { name: "alpha", root: alpha, projectName: "alpha" },
+      { name: "beta", root: beta, projectName: "beta" },
+    ]);
+    const engine = compose();
+    // simulate a persisted session in alpha's state dir so probeWorkspaceRoutes
+    // routes to the composed alpha child engine
+    const sessionsDir = join(alpha, ".guidance", "state", "sessions");
+    mkdirSync(sessionsDir, { recursive: true });
+    writeFileSync(join(sessionsDir, "session-alpha-1.json"), "{}\n");
+    const report = await engine.getDownstreamStatusReport("session-alpha-1");
+    expect(report.mode).toBe("pool");
+    // live comes from the CHILD's ClientManager (alpha declares gitnexus et
+    // al.) — not from the parent, whose live list is empty in pool mode
+    expect(report.live.length).toBeGreaterThan(0);
+    expect(report.live.map((s) => s.id)).toContain("gitnexus");
+    expect(report.live.every((s) => typeof s.status === "string")).toBe(true);
   });
 
   it("an unrouted sessionId degrades to the instance-level report (no error)", async () => {

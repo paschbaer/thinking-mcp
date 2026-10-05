@@ -410,16 +410,16 @@ export function registerWorkflowTools(
     "get_downstream_status",
     "Gesundheitsstatus der Downstream-Server",
     { sessionId: z.string().optional() },
-    async ({ sessionId }) => ({
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(
-            await tools.getDownstreamStatusReport(sessionId),
-          ),
-        },
-      ],
-    }),
+    async ({ sessionId }) => {
+      const report = await tools.getDownstreamStatusReport(sessionId);
+      // Backward compatibility: in monolith mode the tool historically
+      // returned the flat live-status array — keep that wire contract and
+      // only introduce the envelope { mode, live, workspaces } for pools.
+      const payload = report.mode === "monolith" ? report.live : report;
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+      };
+    },
   );
   // specs/015 US1 (FR-1201..1210): flag-gated runtime registration
   // (default ON, opt-out via registryRegister.enabled: false — profile-

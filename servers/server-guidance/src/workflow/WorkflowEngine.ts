@@ -1106,7 +1106,9 @@ export class WorkflowEngine {
         workspaces.push({
           name: w.name,
           root: w.root,
-          declaredError: String(err).slice(0, 200),
+          // Redacted: loadConfig error messages could carry config-derived
+          // strings; never expose them unfiltered to the agent surface.
+          declaredError: this.redactor.redact(String(err)).slice(0, 200),
         });
       }
     }
