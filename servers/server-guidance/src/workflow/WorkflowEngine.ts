@@ -13,8 +13,9 @@ import {
   rmSync,
   statSync,
 } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import { GuidanceError } from "../types/errors.js";
+import { warnDormantGuidanceConfigs } from "../config-truth.js";
 import { loadConfig, type ChainConfig, type LoadedConfig } from "../config.js";
 import { WorkspaceRegistry } from "../workspace-registry.js";
 import type {
@@ -788,6 +789,12 @@ export class WorkflowEngine {
         configurationVersion: this.config.configVersion,
       },
     });
+    // Dormancy hint not only at boot (FR-1106): every registry change can
+    // turn a repo dormant (remove) or newly registered (add) — re-scan so
+    // agents see the current dormancy state without a container restart.
+    if (!this.isChild && this.config.registryOnly) {
+      warnDormantGuidanceConfigs(this.config, dirname(this.config.configDir));
+    }
     return {
       configurationVersion: this.config.configVersion,
       registry: entries,

@@ -2596,9 +2596,11 @@ Normative truth statement: **process-config truth = the registered repo;
 registry truth = the serving instance; any other `.guidance/` copy is
 inert.** A registry-only instance config (no `workflow`/`operations`/...
 file references) loads with `registryOnly: true`; a full config at the
-instance root keeps working unchanged (legacy monolith) with a boot warning
-when additional workspaces are registered. Boot also warns about **dormant**
-`.guidance/` directories under the workspace root that are not registered.
+instance root keeps working unchanged (legacy monolith) with a warning when
+additional workspaces are registered. **Dormant** `.guidance/` directories
+under the workspace root that are not registered are warned about at boot
+AND after every registry change (`registry_register` add/remove) — matching
+is case-insensitive, so alias-cased roots do not produce false positives.
 Sessions in a registered workspace are composed from that root's own
 config — the former silent copy-on-first-use was REMOVED: a workspace
 without `.guidance/guidance.json` fails with

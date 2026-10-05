@@ -110,8 +110,10 @@ export function warnNodeDeps(
 /**
  * FR-1106 (dormancy hint): in registry-only deployments, repos under the
  * workspace root that carry their own .guidance/guidance.json but are NOT
- * registered in workspaces[] cannot start sessions — surface them once at
- * boot instead of failing obscurely later. Log-only (no fail).
+ * registered in workspaces[] cannot start sessions — surface them at boot
+ * AND after every registry change (registerWorkspaceLocked re-invokes this)
+ * instead of failing obscurely later. Log-only (no fail). Matching is
+ * case-insensitive (drvfs/9p realpath keeps the caller's casing).
  */
 export function warnDormantGuidanceConfigs(
   config: LoadedConfig,
@@ -130,9 +132,9 @@ export function warnDormantGuidanceConfigs(
   const registered = new Set(
     config.workspaces.list().map((w) => {
       try {
-        return realpathSync(w.root);
+        return realpathSync(w.root).toLowerCase();
       } catch {
-        return w.root;
+        return w.root.toLowerCase();
       }
     }),
   );
@@ -145,7 +147,11 @@ export function warnDormantGuidanceConfigs(
     } catch {
       // keep lexical dir for the comparison
     }
-    if (registered.has(real)) continue;
+    // Case-insensitive: on case-insensitive mounts (drvfs/9p) realpath keeps
+    // the CALLER's casing, so a root registered as "/workspaces/Thinking-MCP"
+    // must match a directory named "thinking-mcp" — casing differences here
+    // produced false-positive dormancy warnings that eroded trust in them.
+    if (registered.has(real.toLowerCase())) continue;
     out(
       `[guidance] warning: dormant .guidance at ${dir} (not registered in workspaces[]) — sessions cannot start for it. Register it in ${config.configDir}/guidance.json (or run the config assistant in that repo — it emits a workspaces[] merge snippet) or remove the directory.`,
     );

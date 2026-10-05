@@ -922,10 +922,20 @@ export function generateFiles(answers: SetupAnswers): {
       );
     } else {
       const entryJson = JSON.stringify(entry, null, 2);
+      // Resolve the instance config path server-side when the env is present —
+      // agents outside the instance root otherwise cannot map the
+      // ${GUIDANCE_WORKSPACE_ROOT} placeholder to a writable path, which has
+      // silently dropped the merge step before (niyama registration gap).
+      const wsRoot = process.env.GUIDANCE_WORKSPACE_ROOT?.trim().replace(
+        /\/+$/,
+        "",
+      );
+      const instanceConfigPath = `${wsRoot ?? "\${GUIDANCE_WORKSPACE_ROOT}"}/.guidance/guidance.json`;
       registryNotes.push(
-        `WIZ-1 workspace registration: merge this entry into the \"workspaces\" array of the instance's guidance.json (\${GUIDANCE_WORKSPACE_ROOT}/.guidance/guidance.json) — the AGENT performs the merge on the operator's behalf:\n${entryJson}`,
+        `WIZ-1 workspace registration: merge this entry into the "workspaces" array of the instance's guidance.json (${instanceConfigPath}) — the AGENT performs the merge on the operator's behalf:\n${entryJson}`,
+        `WIZ-1: after merging, VERIFY the registration before reporting completion — re-run registry_register with the SAME entry (idempotent) and confirm the returned registry contains it, or read ${instanceConfigPath} directly. If the instance config path is OUTSIDE your writable project roots, do NOT skip the merge silently — report the exact blocking path to the operator.`,
         `WIZ-1: if the instance registry does not exist yet, CREATE it: { "version": 2, "project": { "name": "<instance-name>" }, "workspaces": [${JSON.stringify(entry)}], "registryRegister": { "enabled": true }, "state": { "directory": "state", "persistAfterEveryOperation": true } } — confirm with the operator first (assistant question registerWorkspace covers the initial-creation case).`,
-        `WIZ-1: workspace name \"${name}\" derives from projectName — the AGENT derives the projectName suggestion from the package manifest (or directory name) and the operator CONFIRMS/OVERRIDES it (do not answer on their behalf).`,
+        `WIZ-1: workspace name "${name}" derives from projectName — the AGENT derives the projectName suggestion from the package manifest (or directory name) and the operator CONFIRMS/OVERRIDES it (do not answer on their behalf).`,
         `WIZ-1: start sessions for this repo via start_workflow { workspace: "${name}" }.`,
       );
     }

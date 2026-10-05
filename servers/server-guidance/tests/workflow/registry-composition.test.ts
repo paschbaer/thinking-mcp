@@ -3,7 +3,7 @@
  * composition (no cpSync), fail-closed missing process configs, legacy
  * monolith + dormancy warnings.
  */
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   mkdtempSync,
   rmSync,
@@ -197,13 +197,7 @@ describe("specs/014: registry-only composition (FR-1101/FR-1102)", () => {
     // the session must live in the workspace's own state dir
     expect(
       existsSync(
-        join(
-          alpha,
-          ".guidance",
-          "state",
-          "sessions",
-          `${res.sessionId}.json`,
-        ),
+        join(alpha, ".guidance", "state", "sessions", `${res.sessionId}.json`),
       ),
     ).toBe(true);
   });
@@ -354,6 +348,68 @@ describe("specs/014: legacy monolith + dormancy boot diagnostics", () => {
     expect(joined).toMatch(/dormant .guidance/);
     expect(joined).toMatch(/other/);
     expect(joined).not.toMatch(/dormant .guidance at .*zed/); // registered → no warning
+  });
+
+  it("FR-1106 hardening: dormancy matching is case-insensitive (drvfs keeps caller casing)", () => {
+    const zed = join(pool, "zed");
+    mkdirSync(zed, { recursive: true });
+    scaffoldFullConfig(zed);
+    // fabricate a config whose registered root casing differs from the on-disk
+    // directory name (what drvfs/9p realpath produces for alias-cased calls)
+    const fake = {
+      registryOnly: true,
+      configDir: join(pool, ".guidance"),
+      workspaces: {
+        list: () => [
+          { name: "zed", root: join(pool, "ZED"), projectName: "zed" },
+        ],
+      },
+    } as unknown as Parameters<typeof warnDormantGuidanceConfigs>[0];
+    const out: string[] = [];
+    warnDormantGuidanceConfigs(fake, pool, (m) => out.push(m));
+    expect(out.join("\n")).not.toMatch(/dormant .guidance at .*zed/);
+  });
+
+  it("FR-1106 hardening: the dormancy warning is re-emitted after every registry change (not only at boot)", async () => {
+    const alpha = join(pool, "alpha");
+    const dormantA = join(pool, "dormant-a");
+    const dormantB = join(pool, "dormant-b");
+    mkdirSync(alpha, { recursive: true });
+    for (const d of [dormantA, dormantB]) {
+      mkdirSync(join(d, ".guidance"), { recursive: true });
+      writeFileSync(
+        join(d, ".guidance", "guidance.json"),
+        JSON.stringify({ version: 2, project: { name: "d" } }),
+      );
+    }
+    writeRegistry(pool, [{ name: "alpha", root: alpha, projectName: "alpha" }]);
+    const cfg = loadConfig(join(pool, ".guidance"), { workspaceRoot: pool });
+    const engine = new WorkflowEngine({
+      config: cfg,
+      stateDir: join(pool, ".guidance", "state"),
+    });
+    const errWrites: string[] = [];
+    const spy = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation((chunk: unknown) => {
+        errWrites.push(String(chunk));
+        return true;
+      });
+    try {
+      // registering dormant-b resolves ITS dormancy; dormant-a must still be
+      // reported — proving the scan re-runs after registry changes
+      await engine.registerWorkspace({
+        name: "dormant-b",
+        root: dormantB,
+        projectName: "dormant-b",
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(errWrites.join("")).toMatch(/dormant .guidance at .*dormant-a/);
+    expect(errWrites.join("")).not.toMatch(
+      /dormant-a.*dormant-b|dormant-b.*dormant/,
+    );
   });
 });
 
