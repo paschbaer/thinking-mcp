@@ -876,7 +876,7 @@ für Umsetzungs-Planning.
 - server-guidance: consumes shared copies behavior-identically; 615/615.
 
 ### What's left
-- Merge of feature/016-adopt-async-sse into develop (review approved, 0 open HIGH/CRIT) + branch cleanup.
+- Merge DONE: feature/016-adopt-async-sse fast-forward-merged into develop (aaffb81), pushed to origin, branch deleted. Review approved, 0 open HIGH/CRIT.
 - Tracked: S016-ENV-SQLITE (pre-existing insight test crashes, Node 24/WSL), S016-REVIEW-RESIDUEN F4/F6 (accepted), S016-RETRY-OP, S016-TYPECHECK (pre-existing), S016-CHAIN-PROGRESS.
 
 ### Current state
