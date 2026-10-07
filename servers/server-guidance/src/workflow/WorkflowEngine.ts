@@ -997,6 +997,18 @@ export class WorkflowEngine {
           );
         }
       }
+      // specs/017 Final#1: observable degradation check — resolve the variant
+      // definition (if any) so a file that disappeared or broke after creation
+      // marks the session degraded on the first state read after a restart.
+      // Resolve errors are already flagged+audited by variantFor; the read
+      // path itself stays non-throwing (mutating paths remain fail-closed).
+      if (session.variantResolved && !session.variantDegraded) {
+        try {
+          this.variantFor(session);
+        } catch {
+          // degradation flagged; surface the failure on the next submit
+        }
+      }
       return session;
     });
   }
@@ -2027,15 +2039,18 @@ export class WorkflowEngine {
     // byte-identical default); a variant id loads from the per-workspace
     // registry and fails closed on unknown/unresolvable ids (F4).
     let definition: WorkflowDefinition = this.definition;
+    let variantResolved = false;
     if (input.workflowId && input.workflowId !== this.definition.workflowId) {
       definition = this.workflowRegistry.resolve(
         this.config.configDir,
         input.workflowId,
       ).definition as unknown as WorkflowDefinition;
+      variantResolved = true;
     }
     const session: WorkflowSession = {
       sessionId,
       workflowId: input.workflowId ?? this.definition.workflowId,
+      variantResolved,
       configurationVersion: this.config.configVersion,
       configDir: this.config.configDir,
       workspaceRoot: input.workspaceRoot!,
@@ -3348,14 +3363,15 @@ export class WorkflowEngine {
     // and fail closed on unknown ids instead of silently using the boot def.
     const successorWorkflowId = step.workflowId ?? session.workflowId;
     let successorDefinition: WorkflowDefinition = this.definition;
+    let successorVariantResolved = false;
     if (
       successorWorkflowId &&
       successorWorkflowId !== this.definition.workflowId
     ) {
-      successorDefinition = this.workflowRegistry.resolve(
-        this.config.configDir,
-        successorWorkflowId,
-      ).definition as unknown as WorkflowDefinition;
+      successorDefinition = this.workflowRegistry
+        .resolve(this.config.configDir, successorWorkflowId)
+        .definition as unknown as WorkflowDefinition;
+      successorVariantResolved = true;
     }
     const succNow = new Date().toISOString();
     const successorSpec =
@@ -3372,6 +3388,7 @@ export class WorkflowEngine {
     const successor: WorkflowSession = {
       sessionId: `session-${randomUUID()}`,
       workflowId: step.workflowId ?? session.workflowId,
+      variantResolved: successorVariantResolved,
       configurationVersion: session.configurationVersion,
       configDir: session.configDir,
       workspaceRoot: session.workspaceRoot,
@@ -3761,6 +3778,27 @@ export class WorkflowEngine {
         session.workflowId,
       );
     } catch (err) {
+      // specs/017 Final#1: a session that legitimately resolved its variant
+      // at creation but whose file is now unresolvable runs degraded on the
+      // boot definition — make that visible (sticky flag + one audit event)
+      // instead of silently dropping all variant semantics. Applies to ANY
+      // resolve error (missing file AND corrupt file); non-not_found errors
+      // still rethrow afterwards so mutating paths stay fail-closed.
+      if (session.variantResolved && !session.variantDegraded) {
+        session.variantDegraded = true;
+        this.sessions.update(session.sessionId, (s) => {
+          s.variantDegraded = true;
+        });
+        this.audit.append({
+          sessionId: session.sessionId,
+          eventType: "variant_degraded",
+          phase: session.currentPhase,
+          data: {
+            workflowId: session.workflowId,
+            reason: err instanceof Error ? err.message : String(err),
+          },
+        });
+      }
       if (err instanceof GuidanceError && err.code === "workflow_not_found") {
         return null;
       }
@@ -4311,6 +4349,13 @@ export class WorkflowEngine {
     // batch/review-round state, skips and convergence progress are surfaced
     // in the phase guidance of variant sessions.
     const specKitNote = this.specKitGuidanceNote(session, key);
+    // specs/017 Final#1: a degraded variant session runs on the boot
+    // definition — say so loudly, including the sticky-flag caveat.
+    const degradedNote = session.variantDegraded
+      ? "\n VARIANT DEGRADED: the workflow definition file for \"" +
+        session.workflowId +
+        "\" is missing or unresolvable — this session runs on the default workflow semantics (no variant gates, no batch cadence, no artifact/convergence enforcement). Restore the definition file or restart with a valid one; the session REMAINS marked degraded for its lifetime."
+      : "";
     // Amendment 002 (FR-118): Form-B successors are scoped to exactly one
     // spec-kit task — the annex is appended to EVERY phase instruction.
     const scope = session.chainTaskScope
@@ -4350,7 +4395,8 @@ export class WorkflowEngine {
         scope +
         headScope +
         gateNote +
-        specKitNote,
+        specKitNote +
+        degradedNote,
       requiredActions: configured?.requiredActions ?? [],
     };
   }

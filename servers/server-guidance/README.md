@@ -1154,6 +1154,12 @@ Behavioral rules of the variant:
   exists and imports cleanly is skipped (`artifacts_present`, recorded in
   session state) — this also yields crash-resume mid-SDD-flow and lets a
   session start at `plan` when `spec.md` already exists.
+- **Visible degradation:** if a variant definition file becomes missing or
+  unresolvable AFTER a session started, the session is marked degraded
+  (`variantDegraded` in `get_workflow_state`, a `variant_degraded` audit
+  event, and a note in the phase guidance) and continues on the default
+  workflow semantics; mutating operations against a corrupt definition still
+  fail closed with a classified error.
 
 All loop limits and counters are visible in `get_workflow_state` (`specKit`
 block) and in the per-phase guidance.

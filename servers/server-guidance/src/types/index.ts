@@ -180,6 +180,12 @@ export interface WorkflowSession {
    *  gate-triggered loop-backs, surfaced in phase guidance (Option A —
    *  counter only, no hard cap). */
   reviewGateLoops?: Record<string, number>;
+  /** specs/017 Final#1: variant definition lifecycle. variantResolved is set
+   *  at creation when the registry resolve succeeded (fail-closed);
+   *  variantDegraded marks a session whose variant file later became
+   *  unresolvable (boot-definition fallback with an audit signal). */
+  variantResolved?: boolean;
+  variantDegraded?: boolean;
   /** specs/017: spec-kit variant state — artifacts_present skips, strict
    *  batch cadence (review rounds per batch) and the converge-loop snapshot. */
   specKit?: {
