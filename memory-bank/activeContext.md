@@ -1385,3 +1385,4 @@
 - Implemented FR-1..FR-10 on feature/017-spec-kit-mode (see progress.md entry); guidance suite 667/668 green (baseline: speckit-pool-mode.test.ts typecheck, 7884ba4).
 - Open follow-ups recorded in remaining-work-plan.md (include-cycle spec amendment note; FR-10 helper wiring).
 - Pending: commits, independent review, GitNexus reindex, merge.
+- 2026-10-07: session-c4ddeb4d in complete phase; all HIGH/CRITICAL findings fixed (9be7c2e); remaining-work-plan carries 3 tracked follow-ups (include-cycle spec note, FR-10 wiring, R-B5 accepted lows).
