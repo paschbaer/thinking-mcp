@@ -3,6 +3,13 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-07: GBEA-SPEC-001 reviewed and fixed (SDD, uncommitted)
+
+- **Was:** Review of `SDD/guidance-beads-adapter-specification-en.md` produced 13 findings (F1–F13); user confirmed decisions: F2 = Option A (no acceptance revocation), F11 = define stealth from real Beads feature (`bd init --stealth` → `no-git-ops: true`), F1 = full Appendix A, F13 = verify URLs online. All fixes applied to the spec in place; version bumped to 0.2.0-draft.
+- **Verification:** grep confirms no stale references (`reopenOnAcceptanceRevocation`, optional `sequence?`, old §25.6 wording); Beads URLs fetched and verified (github.com/gastownhall/beads active, beads.gascity.com at v1.3.0, stealth semantics confirmed from README).
+- **Status:** Spec updated, not committed (doc-only change, no branch created — user did not request commit).
+- **Next:** User decision on commit/branch; §28 ADRs remain open for the implementation project.
+
 ## 2026-10-02: MCP HTTP Keep-Alive-Timeout raised from 5 s to 65 s (feature/mcp-keep-alive-timeout)
 
 - **Symptom:** All MCP HTTP servers advertised `Keep-Alive: timeout=5`; client/agent connections stalled and dropped constantly.
