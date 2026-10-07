@@ -1589,3 +1589,4 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 ## 2026-10-07 — Chained run (session-3a03faf2): baseline typecheck RESOLVED
 - [RESOLVED] Baseline typecheck speckit-pool-mode.test.ts TS2739 (tracked since 7884ba4, labeled baseline in 017 run): fixture now carries maxTasks: 3, maxEntities: 2000, maxExcerptBytes: 65536 (commit 01071e9, branch feature/017-final-review-mediums); typecheck 0 errors, targeted test 4/4 green. Final#1/Final#2 remain OPEN — owned by chain successors of this session.
+- [OPEN][low] Final-review-baseline obs (session 11f1fef2): maxTasks: 3 in the pool-mode fixture would silently slice task release if a future test in that file exercises batching with >3 ready tasks (release path slices at config.maxTasks; maxEntities/maxExcerptBytes currently reserved, not enforced). Trigger point: any new task-release test in speckit-pool-mode.test.ts — use a non-capping maxTasks there.

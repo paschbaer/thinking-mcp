@@ -1386,3 +1386,4 @@
 - Open follow-ups recorded in remaining-work-plan.md (include-cycle spec amendment note; FR-10 helper wiring).
 - Pending: commits, independent review, GitNexus reindex, merge.
 - 2026-10-07: session-c4ddeb4d in complete phase; all HIGH/CRITICAL findings fixed (9be7c2e); remaining-work-plan carries 3 tracked follow-ups (include-cycle spec note, FR-10 wiring, R-B5 accepted lows).
+- 2026-10-07: chain session-3a03faf2 (head) resolved the tracked baseline typecheck (01071e9); Final#1/Final#2 owned by chain successors. Final review 11f1fef2: 0 HIGH/CRITICAL.
