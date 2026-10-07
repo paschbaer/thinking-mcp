@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-07: GBEA review round 4 (CHANGES REQUIRED) applied → v0.6.0-draft
+
+- **Was:** External reviewer findings (4 Critical, 9 High, 11 Medium) verified against v0.5.0 with evidence table; user approved one-round implementation incl. H-009 method renames, and M-010 deferral. All 24 findings resolved (details in progress.md); spec at v0.6.0-draft, 1.974 lines.
+- **Note:** Two reviewer claims were partially pre-addressed (C-002 crash-safety detection, H-03 inspect_drift existed) — residual mechanism gaps closed via claim markers and resolve API.
+- **Status:** Spec updated, uncommitted. **Next:** user decision on commit (pattern: direct on develop). GBEA-F016 (partitioning deferral) remains the only tracked follow-up.
+
 ## 2026-10-07: GBEA external review round 3 applied → v0.5.0-draft
 
 - **Was:** External reviewer findings for v0.4.0 (F-013–F-018 + M-001/M-002; all non-blocking) verified against v0.4.1 and applied per user decisions: F-013 version negotiation (§19 + `transport.supportedBackendVersionRange`), F-014 mapping migration procedure (§9.7, receipts immutable), F-017 policySetDigest (package/receipt/readiness/validation), F-015 snapshot chaining SHOULD + anchoring caveat, F-018 **Variant A** (receipts bind to acceptance event, no full chain), F-016 scalability targets §21.2 + partitioning deferred (tracked as GBEA-F016 in remaining-work-plan.md), M-001/M-002 deferred to v1.0 editorial pass (noted §28).

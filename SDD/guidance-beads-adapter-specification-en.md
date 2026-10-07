@@ -1,7 +1,7 @@
 # Guidance Beads Execution Adapter Specification
 
 **Document ID:** GBEA-SPEC-001  
-**Version:** 0.5.0-draft  
+**Version:** 0.6.0-draft  
 **Status:** Draft for review  
 **Language:** English  
 **Normative keywords:** MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY
@@ -120,8 +120,8 @@ interface WorkExecutionAdapter {
   reportBlocker(request: BlockerReport): Promise<BlockerReceipt>;
 
   submitCompletion(request: CompletionSubmission): Promise<CompletionReceipt>;
-  rejectCompletion(request: CompletionRejection): Promise<CompletionState>;
-  acceptCompletion(request: CompletionAcceptance): Promise<CompletionState>;
+  recordCompletionRejection(request: CompletionRejection): Promise<CompletionState>;
+  closeAcceptedWork(request: CompletionAcceptance): Promise<CompletionState>;
 
   getExecutionSnapshot(request: ExecutionSnapshotRequest): Promise<ExecutionSnapshot>;
   collectEvents(request: EventCursorRequest): Promise<ExecutionEventBatch>;
@@ -277,6 +277,12 @@ Beyond the completion lifecycle (Section 15.3), each work item has an operationa
 
 These states are Guidance-canonical; Section 9.6.7 defines their projection to Beads statuses. `BLOCKED` and `SUSPENDED` overlay rather than replace the underlying completion-lifecycle state.
 
+### 6.8 Timestamp and Clock Rules
+
+- All timestamps MUST be RFC 3339 UTC with the `Z` designator.
+- Correctness MUST NOT depend on wall-clock synchronization: lease and proof expiries are computed from monotonic durations issued by the authority (Guidance); received timestamps — including backend timestamps — are treated as untrusted hints.
+- Guidance MUST tolerate a configured clock-skew bound when interpreting agent-supplied timestamps; expiry decisions use Guidance-side time only.
+
 ## 7. Identifier and Binding Model
 
 ```typescript
@@ -286,7 +292,8 @@ interface ExternalWorkBinding {
   backend: "beads";
   backendInstanceId: string;
   backendWorkId: string;
-  sourceDigest: string;
+  originPackageDigest: string;
+  currentPackageDigest: string;
   projectionRevision: number;
   mappingVersion: "guidance.beads-mapping/v1";
   backendRevision?: string;
@@ -372,7 +379,8 @@ The canonicalization algorithm MUST satisfy all of the following, independent of
 - input MUST be encoded as UTF-8 without insignificant whitespace;
 - all excluded or normalized non-deterministic fields MUST be enumerated explicitly by the canonicalization profile;
 - the algorithm MUST be versioned, and its identifier MUST be recorded in `ProvenanceRecord.canonicalizationAlgorithm`; and
-- a change of algorithm or profile MUST change the identifier and MUST invalidate equality comparisons between digests produced under different identifiers.
+- a change of algorithm or profile MUST change the identifier and MUST invalidate equality comparisons between digests produced under different identifiers; and
+- all content digests MUST use the format `sha256:<lowercase-hex>`; producers MUST emit and consumers MUST validate this format.
 
 ## 9. Execution Opening and Work-Graph Projection
 
@@ -403,7 +411,7 @@ The adapter MUST:
 
 1. validate package authorization and schema compatibility;
 2. resolve the execution binding;
-3. verify that the submitted package digest equals the currently authorized package digest for the execution; a stale or superseded package MUST be rejected with `STALE_PACKAGE` without modifying backend state;
+3. verify that the submitted package digest equals the `currentPackageDigest` of the execution binding; a stale or superseded package MUST be rejected with `STALE_PACKAGE` without modifying backend state;
 4. topologically validate the work graph;
 5. detect unsupported edge types;
 6. calculate per-node projection digests;
@@ -414,6 +422,8 @@ The adapter MUST:
 11. validate the resulting backend graph;
 12. persist bindings and projection revisions; and
 13. return created, updated, unchanged, skipped, and conflicted counts.
+
+Publication atomicity: where the backend supports multi-operation transactions (capability `batchTransaction`, Section 19), the adapter MUST publish all items and dependencies of one publication in a single backend transaction. Otherwise it MUST use staged publication: items are created with the label `guidance.staged`, the resulting graph is validated in place, and activation removes the staging label in deterministic order. Reconciliation MUST complete or roll back incomplete staged publications (Section 16).
 
 ### 9.4 Dry Run
 
@@ -452,7 +462,8 @@ interface GuidanceBeadsMetadata {
   executionId: string;
   workId: string;
   kind: WorkNode["kind"];
-  packageDigest: string;
+  originPackageDigest: string;
+  currentPackageDigest: string;
   projectionRevision: number;
   policyDecisionId: string;
   priorityOrdinal?: number;
@@ -507,7 +518,7 @@ Evidence is stored by reference only: evidence requirements and submissions appe
 
 #### 9.6.6 Immutability and Round-Trip
 
-`policyDecisionId` and `packageDigest` are immutable correlation metadata: once written, the adapter MUST NOT rewrite them for an existing binding. Canonical fields MUST be losslessly recoverable from the Beads representation (native fields, labels, and `guidance` metadata), with the exception of virtual approval gates, which have no Beads representation and are recoverable from Guidance state only. This round-trip property is verified by the golden tests in Section 26.3.
+`policyDecisionId` and `originPackageDigest` are immutable correlation metadata: once written, the adapter MUST NOT rewrite them for an existing binding. `currentPackageDigest` advances only through authorized amendments (new package revision, Section 14.2) and MUST otherwise remain unchanged. Canonical fields MUST be losslessly recoverable from the Beads representation (native fields, labels, and `guidance` metadata), with the exception of virtual approval gates, which have no Beads representation and are recoverable from Guidance state only. This round-trip property is verified by the golden tests in Section 26.3.
 
 ### 9.6.7 Normative Status Mapping
 
@@ -518,8 +529,8 @@ The adapter MUST use the following status projection over the operational work s
 | `READY` | `open` | Projection only. The item is agent-visible only after Section 10.2 filtering. |
 | `CLAIMED`, `IN_PROGRESS` | `in_progress` | Bidirectional shared field under compare-and-swap. A Beads-side change without a matching governed claim is high drift. |
 | `BLOCKED` | `blocked` | Projection from an accepted blocker. A backend-only transition is high drift until Guidance validates the blocker. |
-| `COMPLETION_SUBMITTED`, `VALIDATING_COMPLETION`, `COMPLETION_REJECTED` | `in_progress` | Guidance-only substates. `COMPLETION_REJECTED` returns operational execution to `in_progress`. |
-| `COMPLETION_ACCEPTED`, `BACKEND_CLOSING` | `in_progress` | Adapter-managed closure interval. Beads MUST remain non-closed until the acceptance receipt is durable. |
+| `SUBMITTED`, `VALIDATING`, `REJECTED` (acceptanceState) | `in_progress` | Guidance-only substates. `REJECTED` returns operational execution to `in_progress`. |
+| `ACCEPTED` (acceptanceState) with any `backendClosureState` except `CLOSED` | `in_progress` | Adapter-managed closure interval. Beads MUST remain non-closed until the acceptance receipt is durable. |
 | `CLOSED` | `closed` | Set only by the adapter after durable Guidance acceptance. A backend-only `closed` transition is high drift and MUST NOT imply acceptance. |
 | `SUSPENDED` | unchanged | Guidance-only authorization overlay; the current Beads status is retained and the item is excluded from governed-ready results. |
 
@@ -591,13 +602,15 @@ Cache entries MUST be invalidated on policy, approval, claim, capability, contex
 
 1. Guidance authenticates the agent.
 2. Guidance authorizes the agent for the selected work item.
-3. Guidance issues a short-lived execution token bound to execution, work, agent, policy decision, and expiry.
-4. The adapter validates the token context supplied by Guidance.
-5. The adapter atomically claims the backend item.
+3. Guidance issues a signed, short-lived `AdapterAuthorizationProof` bound to execution, work, agent, policy decision, scope, audience, and expiry (Section 11.5).
+4. The adapter verifies the proof per Section 11.5 — it acts as verification authority only, never as decision authority.
+5. The adapter atomically claims the backend item, recording a claim marker where the backend supports attribution (Section 11.6).
 6. Guidance persists the governed claim and lease.
 7. Guidance returns an execution context envelope.
 
-Crash-safety: if Guidance fails between the backend claim (step 5) and governed lease persistence (step 6), the resulting orphaned backend claim MUST be detected by startup or periodic reconciliation, recorded as an audit event, and resolved according to the configured stale-claim policy. While an unresolved orphaned claim exists for an execution, further claims for that execution MUST be suspended (fail closed).
+Crash-safety: if Guidance fails between the backend claim (step 5) and governed lease persistence (step 6), the resulting orphaned backend claim MUST be detected by startup or periodic reconciliation, recorded as an audit event, and resolved according to the configured stale-claim policy. Claim markers (Section 11.6) MUST be used to attribute backend claims unambiguously. While an unresolved orphaned claim exists for an execution, further claims for that execution MUST be suspended (fail closed).
+
+Revision guard: a claim MUST present `expectedRevision` equal to the ready candidate's `candidateRevision` (Section 10.3); a claim against a stale candidate revision MUST be rejected with `WORK_NOT_READY`.
 
 ### 11.2 Claim Request
 
@@ -608,10 +621,11 @@ interface ClaimWorkRequest {
   agentId: string;
   authorization: {
     policyDecisionId: string;
-    executionToken: string;
+    authorizationProof: AdapterAuthorizationProof;
   };
   requestedLeaseSeconds: number;
   fencingToken: number; // assigned by Guidance during claim-intent acquisition (Section 11.4)
+  expectedRevision: string; // the ready candidate revision this claim is based on (Section 10.3)
   idempotencyKey: string;
   correlationId: string;
   expectedRevision?: string;
@@ -645,7 +659,51 @@ The claim protocol MUST be:
 3. Transactionally convert the intent to an active governed lease and emit `work.claimed`.
 4. If step 2 fails, release or expire the intent idempotently. If step 2 succeeds but step 3 fails, reconciliation treats the backend claim as orphaned under Section 11.1.
 
-Every heartbeat, release, completion submission, and administrative repair MUST present the current fencing token. A stale owner or lower token MUST be rejected with `REVISION_CONFLICT`. When Beads cannot store or compare fencing tokens, Guidance MUST serialize claim mutations through the transactional claim-intent record and MUST verify backend assignment after each mutation. Split-brain tests across at least two Guidance instances are mandatory.
+Every heartbeat, release, progress report, blocker report, completion submission, and administrative repair MUST present the current fencing token. A stale owner or lower token MUST be rejected with `REVISION_CONFLICT`. When Beads cannot store or compare fencing tokens, Guidance MUST serialize claim mutations through the transactional claim-intent record and MUST verify backend assignment after each mutation. Split-brain tests across at least two Guidance instances are mandatory.
+
+### 11.5 Authorization Proofs
+
+Guidance is the decision authority for all governance; the adapter is the verification authority. Every adapter operation that mutates backend state on behalf of a governed flow MUST be authorized by a signed `AdapterAuthorizationProof` issued by Guidance:
+
+```typescript
+interface AdapterAuthorizationProof {
+  proofId: string;
+  executionId: string;
+  workId?: string;
+  agentId?: string;
+  policyDecisionId: string;
+  scope: OperationId[]; // operations this proof authorizes
+  audience: string; // adapterId + backendInstanceId
+  issuedAt: string;
+  expiresAt: string;
+  nonce: string; // single-use replay protection
+  signature: string; // Guidance signing key; algorithm documented in the implementation contract
+}
+```
+
+The adapter MUST verify only: signature authenticity and key trust, audience match against its own identity, scope coverage of the requested operation, expiry, and single-use nonce. A replayed proof MUST be rejected with `OPERATION_NOT_AUTHORIZED`. The adapter MUST NOT re-evaluate policy, risk, or approval state: verification failure fails closed; verification success authorizes exactly the scoped operation. Proof validation MUST be audited.
+
+### 11.6 Backend Claim Markers
+
+Whenever the backend supports claim attribution, the adapter MUST atomically record a claim marker with every backend claim:
+
+```typescript
+interface BackendClaimMarker {
+  claimId: string;
+  claimIntentId: string;
+  fencingToken: number;
+  agentId: string;
+}
+```
+
+Attribution support is negotiated as the `claimCorrelation` capability (Section 19):
+
+- `native`: the backend stores structured claim metadata atomically with the claim.
+- `metadata-cas`: the marker is written into claim metadata via compare-and-swap within the claim transaction.
+- `single-writer-only`: only one Guidance writer exists; attribution falls back to comparing backend claims against persisted governed leases.
+- `unsupported`: the adapter MUST disable claiming (fail closed) unless claiming is explicitly disabled in configuration.
+
+Orphaned-claim detection (Section 11.1) MUST use markers when available: a backend claim whose marker references a claim intent without an active governed lease is orphaned; a backend claim on a Guidance-managed item without any marker under `native` or `metadata-cas` is out-of-band drift (Section 16).
 
 ## 12. Execution Context Delivery
 
@@ -670,7 +728,7 @@ interface ExecutionContextEnvelope {
   };
   provenance: {
     specificationDigest: string;
-    executionPackageDigest: string;
+    currentPackageDigest: string;
     policyDecisionId: string;
   };
   expiresAt: string;
@@ -687,7 +745,8 @@ interface ProgressReport {
   workId: string;
   claimId: string;
   agentId: string;
-  sequence: number;
+  fencingToken: number;
+  claimReportSequence: number;
   timestamp: string;
   state:
     | "started"
@@ -704,8 +763,9 @@ interface ProgressReport {
 
 Requirements:
 
-- Sequence numbers MUST increase monotonically per claim.
+- Claim report sequences MUST increase monotonically per claim, starting at 1; the sequence resets to 1 for each new claim (the claim ID accompanies every report).
 - Duplicate reports MUST be safely ignored or return the original receipt.
+- Progress reports MUST present the current fencing token; reports under a stale or superseded token MUST be rejected with `REVISION_CONFLICT`.
 - Guidance MUST detect sequence gaps per claim; a gap MUST NOT be silently ignored.
 - Out-of-order or future-sequence reports MUST be buffered in a bounded pending set; if the gap is not closed within a configured timeout, the report stream MUST be marked suspect and the claim MUST be re-synchronized before further reports are accepted.
 - Progress summaries MUST be treated as untrusted text.
@@ -729,9 +789,12 @@ Requirements:
 - Existing work blockers MAY create a new dependency after validation.
 - Policy blockers MUST remain Guidance-owned.
 - Specification blockers MUST suspend affected work and return to the Spec-Kit lifecycle.
-- New-scope blockers MUST create an amendment request, not an immediate executable task.
-- A work-graph amendment MUST create a new package revision and digest.
+- New-scope blockers MUST create a structured amendment request (`AmendmentRequest`, Appendix A), not an immediate executable task.
+- A work-graph amendment MUST create a new package revision and advance the `currentPackageDigest` (Section 7); the `originPackageDigest` of existing bindings remains unchanged.
+- Accepted work items are semantically immutable: amendments MUST NOT modify accepted items; changes are expressed as new work items that supersede the accepted original, keeping acceptance receipts valid indefinitely.
 - Reconciliation MUST preserve previously accepted work and identify newly affected readiness.
+
+Blocker lifecycle: every reported blocker progresses through `REPORTED -> VALIDATING -> ACCEPTED | REJECTED`, and an accepted blocker through `RESOLVED | SUPERSEDED`. Transitions are Guidance-owned operations (`guidance.blockers.accept`, `guidance.blockers.reject`, `guidance.blockers.resolve`, Section 24.2) and MUST be audited. Agent reports create blockers in `REPORTED`; only Guidance validation moves them to `ACCEPTED`.
 
 ## 15. Evidence-Gated Completion
 
@@ -783,39 +846,40 @@ The evaluated `policySetDigest` MUST be persisted with every validation result a
 ### 15.3 State Machine
 
 ```text
-IN_PROGRESS
-  -> COMPLETION_SUBMITTED               (agent submits under a valid claim)
-COMPLETION_SUBMITTED
-  -> VALIDATING_COMPLETION              (validation starts)
-  -> IN_PROGRESS                        (submission withdrawn before validation)
-VALIDATING_COMPLETION
-  -> COMPLETION_ACCEPTED                (all checks pass)
-  -> COMPLETION_REJECTED                (a check fails or validation times out)
-COMPLETION_REJECTED
-  -> IN_PROGRESS                        (after remediation; resubmission requires a valid claim)
-COMPLETION_ACCEPTED
-  -> BACKEND_CLOSING                    (closure operation starts)
-BACKEND_CLOSING
-  -> CLOSED                             (backend item closed)
-  -> BACKEND_CLOSING                    (idempotent retry, bounded by maxClosureAttempts)
-CLOSED                                  (terminal)
+acceptanceState (business decision, Guidance-owned):
+IN_PROGRESS      -> SUBMITTED               (agent submits under a valid claim)
+SUBMITTED        -> VALIDATING              (validation starts)
+SUBMITTED        -> IN_PROGRESS             (submission withdrawn before validation)
+VALIDATING       -> ACCEPTED                (all checks pass)
+VALIDATING       -> REJECTED                (a check fails or validation times out)
+REJECTED         -> IN_PROGRESS             (after remediation; resubmission requires a valid claim)
+ACCEPTED                                   (terminal)
+
+backendClosureState (technical process, adapter-executed):
+NOT_STARTED      -> PENDING                 (closure dispatched; entered only after ACCEPTED)
+PENDING          -> CLOSED                 (backend item closed)
+PENDING          -> RETRYING               (closure failed)
+RETRYING         -> PENDING                 (idempotent retry, bounded by maxClosureAttempts)
+RETRYING         -> REPAIR_REQUIRED         (retry bound reached: stop, alert, administrative repair)
+REPAIR_REQUIRED  -> CLOSED                 (after audited repair)
 ```
 
 Rules:
 
-- These states govern the work item's completion lifecycle. The claim lifecycle (claimed, heartbeat, release, expiry) is governed independently by Section 11; a completion submission is only valid under a non-expired, non-superseded claim.
-- `VALIDATING_COMPLETION` MUST have a configured timeout (`completion.validationTimeoutSeconds`); expiry transitions to `COMPLETION_REJECTED` with reason code `VALIDATION_TIMEOUT`.
-- Transient validation failures (infrastructure errors during validation, not failed checks) MUST be retried up to `completion.validationRetryAttempts` times before the submission transitions to `COMPLETION_REJECTED` with reason code `VALIDATION_ERROR`; every retry MUST be auditable.
-- When closure retries reach `completion.maxClosureAttempts`, retries stop, an operational alert MUST be raised, and administrative repair tooling (Section 21) takes over; Guidance state remains `COMPLETION_ACCEPTED` (Section 15.4).
-- `CLOSED` is terminal. Acceptance and closure are final; redoing accepted work requires the amendment process (Section 14.2).
+- The two state vectors are independent: acceptance is the final business decision; backend closure is a recoverable technical process that never alters `acceptanceState`. A closure failure leaves `acceptanceState` at `ACCEPTED` and moves `backendClosureState` to `RETRYING`.
+- A completion submission is valid only under a non-expired, non-superseded claim with a valid fencing token (Section 11).
+- `VALIDATING` MUST have a configured timeout (`completion.validationTimeoutSeconds`); expiry transitions to `REJECTED` with reason code `VALIDATION_TIMEOUT`.
+- Transient validation failures (infrastructure errors during validation, not failed checks) MUST be retried up to `completion.validationRetryAttempts` times before the submission transitions to `REJECTED` with reason code `VALIDATION_ERROR`; every retry MUST be auditable.
+- When `backendClosureState` reaches `REPAIR_REQUIRED`, retries stop, an operational alert MUST be raised, and administrative repair tooling (Section 21) takes over.
+- `ACCEPTED` and `CLOSED` are terminal. Acceptance is final (Section 15.4); redoing accepted work requires the amendment process (Section 14.2).
 
 ### 15.4 Acceptance
 
 - Guidance MUST persist an immutable acceptance receipt before backend closure.
-- The receipt MUST contain evidence references, policy decision ID, policy set digest, package digest, source revision, and acceptance digest.
+- The receipt MUST contain evidence references, policy decision ID, policy set digest, origin and current package digests, source revision, and acceptance digest.
 - Every acceptance receipt MUST reference the `work.completion.accepted` event (`eventId` and `integrity.payloadDigest`) that recorded it; receipt verification MUST verify this binding against the append-only event log (Section 18).
 - The adapter MUST close only the matching bound backend work item.
-- A backend closure failure MUST leave Guidance state at `COMPLETION_ACCEPTED` with a recoverable `BACKEND_CLOSING` operation.
+- A backend closure failure MUST leave `acceptanceState` at `ACCEPTED` and transition `backendClosureState` to `RETRYING` (Section 15.3).
 - Retry MUST be idempotent.
 - Acceptance is final. This specification defines no acceptance revocation: receipts are immutable and backend closure is not reversed. Work that must be redone after acceptance is raised as a `new-scope` blocker (Section 14.1) and handled through the amendment process (Section 14.2).
 
@@ -881,19 +945,19 @@ High and critical drift MUST be resolved through the following procedure before 
 1. **Detection:** reconciliation classifies each finding per Section 16.4 and records it as a `DriftFinding` (Appendix A).
 2. **Suspension:** affected work enters the suspended state at the scope determined per Section 16.4; the suspension reason MUST reference the finding.
 3. **Inspection:** an administrator inspects findings via `guidance.adapters.inspect_drift` (Section 24.2).
-4. **Resolution action:** the administrator selects exactly one action per finding:
+4. **Resolution action:** the administrator selects exactly one action per finding via `guidance.adapters.resolve_drift` (Section 24.2); the call is idempotent per `findingId`, and the finding state MUST move `OPEN -> RESOLVING -> RESOLVED` with the recorded resolution:
    - `accept-backend`: adopt the backend value into the canonical package; this requires a package amendment and produces a new package digest (Section 14.2).
    - `restore-canonical`: re-project the canonical value to the backend under a new projection revision.
    - `quarantine`: leave the item suspended and escalate, for cases where neither adoption nor restoration is safe.
-5. **Audit and resume:** every resolution MUST be audited and emitted as a reconciliation event; suspended mutations resume only after all blocking findings have a recorded resolution.
+5. **Audit and resume:** every resolution MUST be audited and emitted as a reconciliation event; suspended mutations resume only after all blocking findings are `RESOLVED`.
 
 Agents MUST NOT resolve high or critical drift. Informational, low, and medium drift MAY be resolved automatically by the reconciliation rules configured per Section 16.3.
 
 ### 16.6 Incremental and Full Reconciliation
 
-Steady-state reconciliation MUST be incremental. Each execution MUST persist a `ReconciliationCheckpoint` containing the mapping version, package digest, projection revision, last backend revision or change token, last processed event sequence, last full-snapshot digest, and completion time. The adapter SHOULD request only items changed after the checkpoint and MUST include transitively affected dependency endpoints.
+Steady-state reconciliation MUST be incremental. Each execution MUST persist a `ReconciliationCheckpoint` containing the mapping version, current package digest, projection revision, last backend revision or change token, last processed event execution sequence, last full-snapshot digest, backend instance identity, adapter and backend versions, and completion time. The adapter SHOULD request only items changed after the checkpoint and MUST include transitively affected dependency endpoints.
 
-A full reconciliation is REQUIRED when no valid checkpoint exists; the mapping MAJOR version or package digest changes; the backend change token is missing, regresses, or is invalid; an event gap is detected; a critical drift finding affects execution-wide state; or the configured full-reconciliation interval expires. The default full interval is 24 hours.
+A full reconciliation is REQUIRED when no valid checkpoint exists; the mapping MAJOR version or `currentPackageDigest` changes; the backend change token is missing, regresses, or is invalid; an event gap is detected; a critical drift finding affects execution-wide state; or the configured full-reconciliation interval expires. The default full interval is 24 hours.
 
 Incremental reconciliation MUST produce the same decisions as a full reconciliation for the affected subgraph. Checkpoint advancement MUST be atomic with applied resolutions and emitted reconciliation events. Failed or partial runs MUST NOT advance the checkpoint. Implementations MUST avoid full scans for unchanged executions in steady state and MUST publish scanned-item, changed-item, and fallback-to-full metrics.
 
@@ -944,13 +1008,13 @@ interface ExecutionEventEnvelope<T> {
   };
   correlationId: string;
   causationId?: string;
-  sequence: number;
+  executionSequence: number;
   payload: T;
   integrity: { payloadDigest: string };
 }
 ```
 
-The normalized event log MUST assign a strictly increasing, gap-free `sequence` per execution. `collectEvents` MUST deliver events in ascending sequence order; cursors (`EventCursorRequest.afterSequence`, Appendix A) resume exactly after the given sequence. Delivery is at-least-once; consumers remain idempotent by `eventId`.
+The normalized event log MUST assign a strictly increasing, gap-free `executionSequence` per execution. `collectEvents` MUST deliver events in ascending `executionSequence` order; cursors (`EventCursorRequest.afterExecutionSequence`, Appendix A) resume exactly after the given sequence. Delivery is at-least-once; consumers remain idempotent by `eventId`.
 
 Required event types include:
 
@@ -977,8 +1041,8 @@ Events MUST be append-only in the Guidance audit log. Consumers MUST be idempote
 Ordering guarantees are defined at three levels:
 
 1. **Global (across executions): none.** There is no defined ordering between events of different executions. Consumers MUST NOT infer cross-execution order from timestamps, delivery order, or sequence numbers.
-2. **Per execution: total order.** The normalized event log assigns a strictly increasing, gap-free `sequence` per execution (Section 18). All events of one execution — governance decisions, claim lifecycle, progress, completion — share this single order.
-3. **Per claim: monotonic report sequence.** Progress reports carry their own per-claim `sequence` (Section 13). The report is mapped into the execution order at the position where Guidance accepts it.
+2. **Per execution: total order.** The normalized event log assigns a strictly increasing, gap-free `executionSequence` per execution (Section 18). All events of one execution — governance decisions, claim lifecycle, progress, completion — share this single order.
+3. **Per claim: monotonic report sequence.** Progress reports carry their own per-claim `claimReportSequence` (Section 13). The report is mapped into the execution order at the position where Guidance accepts it.
 
 Causality rules:
 
@@ -994,13 +1058,13 @@ Lifecycle ordering rule: agent reports are valid only while the referenced claim
 
 The append-only event log remains authoritative. To bound replay cost, Guidance MUST create an immutable execution snapshot after every 10,000 accepted execution events by default and SHOULD also snapshot after terminal execution closure. The threshold MUST be configurable and MUST be at least 1,000 events.
 
-Each snapshot MUST contain `executionId`, snapshot schema version, package and mapping versions, last included sequence, aggregate state, active claims, bindings, completion states, drift suspensions, created timestamp, an integrity digest, and the predecessor snapshot digest (`previousSnapshotDigest`; genesis snapshots omit it). Snapshot creation and publication of its checkpoint MUST be atomic: readers either observe the previous valid snapshot or the complete new snapshot.
+Each snapshot MUST contain `executionId`, snapshot schema version, package and mapping versions, last included execution sequence, aggregate state, active claims, bindings, completion states, drift suspensions, created timestamp, an integrity digest, and the predecessor snapshot digest (`previousSnapshotDigest`; genesis snapshots omit it). Snapshot creation and publication of its checkpoint MUST be atomic: readers either observe the previous valid snapshot or the complete new snapshot.
 
 Snapshots SHOULD be cryptographically chained through `previousSnapshotDigest`. Replay verification SHOULD validate the chain, and a broken chain MUST raise an integrity failure and trigger the fallback rules of this section. A hash chain detects partial-history tampering only; deployments with elevated forensic requirements SHOULD additionally anchor snapshot digests externally (for example by periodic digest publication to an append-only or WORM store).
 
-Replay MUST load the latest integrity-verified compatible snapshot and resume at `lastIncludedSequence + 1`. If verification or schema compatibility fails, replay MUST fall back to an earlier valid snapshot or the complete event stream and raise an operational diagnostic. Snapshots MUST NOT create sequence numbers or replace audit events.
+Replay MUST load the latest integrity-verified compatible snapshot and resume at `lastIncludedExecutionSequence + 1`. If verification or schema compatibility fails, replay MUST fall back to an earlier valid snapshot or the complete event stream and raise an operational diagnostic. Snapshots MUST NOT create sequence numbers or replace audit events.
 
-Online event pruning is permitted only when an immutable audit archive retains the pruned events, archive integrity and cursor continuity are verified, applicable retention policy permits deletion from the hot store, and no acceptance receipt or legal hold depends on unavailable data. Event cursors older than the hot-store boundary MUST return an archive locator or `CURSOR_EXPIRED`; they MUST NOT silently skip events.
+Online event pruning is permitted only when an immutable audit archive retains the pruned events, archive integrity and cursor continuity are verified, applicable retention policy permits deletion from the hot store, and no acceptance receipt or legal hold depends on unavailable data. Event cursors older than the hot-store boundary MUST return an archive locator or `CURSOR_EXPIRED`; they MUST NOT silently skip events. Cursor responses MUST carry the current `retentionEpoch`; a changed epoch invalidates prior cursors, and archive locators point into the immutable audit archive (ADR 7).
 
 ## 19. Capability Negotiation
 
@@ -1020,6 +1084,8 @@ interface CapabilityProbeResult {
     crossMachineSync: boolean;
     compareAndSwap?: boolean;
     nativeEvents?: boolean;
+    batchTransaction?: boolean;
+    claimCorrelation: "native" | "metadata-cas" | "single-writer-only" | "unsupported";
   };
   limitations: string[];
   probedAt: string;
@@ -1048,7 +1114,7 @@ interface NegotiatedCompatibility {
 4. User-controlled values MUST NOT be interpolated into shell commands.
 5. CLI invocation MUST use argument arrays without a shell.
 6. Environment variables passed to the backend MUST be allowlisted.
-7. Execution tokens MUST be short-lived, audience-bound, and non-replayable where practical.
+7. Authorization proofs MUST be short-lived, audience-bound, signed by Guidance, and replay-protected via single-use nonces (Section 11.5).
 8. Sensitive fields MUST be redacted from logs.
 9. Backend output MUST be size-limited and schema-validated.
 10. Timeouts and process termination MUST be enforced.
@@ -1074,9 +1140,9 @@ The persistence technology is selected by ADR 4 (Section 28). Whatever technolog
 
 - **Durability:** external bindings, governed claims and leases, acceptance receipts, the event log, and snapshots MUST be durably persisted before the corresponding operation is reported as successful, and MUST survive process crash and restart.
 - **Atomicity:** a state transition and its events and receipts MUST be committed atomically where the store supports multi-record transactions; otherwise the implementation MUST use a write-ahead journal with a documented recovery procedure that yields equivalent crash-consistency.
-- **Sequence allocation:** event `sequence` values (Section 18) MUST be allocated transactionally; a crash MUST NOT cause sequence reuse or gaps.
+- **Sequence allocation:** event `executionSequence` values (Section 18) MUST be allocated transactionally; a crash MUST NOT cause sequence reuse or gaps.
 - **Coupled writes:** bindings and projection results MUST be committed atomically with successful projection results where possible (Section 21, Reliability).
-- **Required query patterns:** lookup by `executionId`; lookup by `workId`; event cursor reads by `(executionId, afterSequence)`; claim sweeps by lease expiry; and drift inspection by execution. Implementations MUST NOT require full scans for these paths in steady state.
+- **Required query patterns:** lookup by `executionId`; lookup by `workId`; event cursor reads by `(executionId, afterExecutionSequence)`; claim sweeps by lease expiry; and drift inspection by execution. Implementations MUST NOT require full scans for these paths in steady state.
 - **Retention:** retention policy for snapshots, events, receipts, and diagnostics follows ADR 7 and MUST be enforceable without violating append-only audit requirements.
 
 ### 21.2 Scalability Targets
@@ -1088,6 +1154,29 @@ The adapter MUST support executions with at least 100,000 work items. At that sc
 - governed-readiness evaluation MUST return within 2 seconds at the 95th percentile under the readiness cache rules of Section 10.4.
 
 Conformance is demonstrated by the scale tests in Milestone 5 (Section 27). Independently reconcilable execution partitions are deliberately NOT part of this version: partitioning is a tracked follow-up to be adopted only if these targets are demonstrably missed in production, and any partitioning design MUST preserve the per-execution total event order (Section 18.1) and the suspension scopes of Section 16.4.
+
+### 21.3 Durable Backend Operations
+
+Every external backend mutation dispatched by the adapter MUST be journaled as a durable backend operation before dispatch:
+
+```typescript
+interface DurableBackendOperation {
+  operationId: string;
+  operationType: string;
+  target: { executionId: string; workId?: string; backendWorkId?: string };
+  idempotencyKey: string;
+  correlationId: string;
+  state:
+    | "PREPARED"
+    | "DISPATCHED"
+    | "OUTCOME_UNKNOWN"
+    | "CONFIRMED"
+    | "FINALIZED"
+    | "REPAIR_REQUIRED";
+}
+```
+
+Rules: the record MUST be persisted in state `PREPARED` before dispatch and moved to `DISPATCHED` atomically with dispatch. If the process fails or times out before the outcome is known, the record is `OUTCOME_UNKNOWN` and MUST be resolved by backend read-back or idempotent re-execution into `CONFIRMED`; operations that cannot be resolved transition to `REPAIR_REQUIRED` and raise an operational alert. The governed audit event for the mutation MUST be emitted atomically with `FINALIZED` (Section 21.1). Operation journals MUST be replayable after restart and are covered by the fault-injection suite (Section 26.8).
 
 ## 22. Observability
 
@@ -1222,7 +1311,13 @@ guidance.adapters.capabilities
 guidance.adapters.health
 guidance.adapters.reconcile
 guidance.adapters.inspect_drift
+guidance.adapters.resolve_drift
+guidance.blockers.accept
+guidance.blockers.reject
+guidance.blockers.resolve
 ```
+
+Execution closure preconditions: `guidance.execution.close` MUST be denied while any work item of the execution has an active claim, an open high or critical drift finding, or a quarantined (suspended, unresolved) item, unless an explicitly authorized administrative override is presented and audited. Closure requires an `AdapterAuthorizationProof` scoped to the close operation.
 
 Every method MUST define authentication, authorization, request schema, response schema, idempotency behavior, error codes, and audit events in the implementation contract.
 
@@ -1245,6 +1340,7 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - A stale or superseded package revision is rejected with `STALE_PACKAGE` and does not modify backend state.
 - Partial failures are recoverable by reconciliation.
 - Publication exceeding backend metadata size limits fails per item with an actionable diagnostic; silent truncation is not permitted.
+- Publication is atomic via backend transactions (`batchTransaction`) or staged activation; incomplete staged publications are completed or rolled back deterministically.
 - Mapping version changes are detected and breaking mapping changes require an explicit migration.
 - Mapping major-version migrations follow Section 9.7 and produce a verifiable migration receipt without rewriting existing receipts.
 - Status mapping is deterministic; unknown statuses fail closed and backend-only closure never implies Guidance acceptance.
@@ -1257,7 +1353,8 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - Two simultaneous claim attempts result in at most one successful claim.
 - Concurrent claim attempts through two or more Guidance instances produce one active governed lease and reject stale fencing tokens.
 - Workspaces or git worktrees sharing one Beads store resolve to the same backend instance identity and cannot double-claim the same backend item.
-- Expired tokens cannot claim work.
+- Expired or replayed authorization proofs cannot claim work.
+- Claims against stale candidate revisions are rejected with `WORK_NOT_READY`.
 - Heartbeat and release operations are idempotent.
 - A stale lease follows configured policy and is auditable.
 
@@ -1269,12 +1366,14 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - Acceptance receipts store the evaluated policy set digest and reference their acceptance event (Section 15.4).
 - Backend close occurs only after acceptance persistence.
 - Closure retry does not duplicate acceptance.
+- Acceptance state and backend closure state evolve independently; a closure failure never alters acceptance, and repair-required closures raise an operational alert.
 
 ### 25.5 Drift
 
 - Direct dependency removal is detected.
 - Governance metadata change is classified as critical drift.
 - Critical drift on execution-wide governance fields suspends the execution; item-local drift suspends the minimum required scope, not the entire execution.
+- Drift findings are addressable by `findingId` and resolution is idempotent.
 - Non-semantic backend metadata changes do not block execution.
 
 ### 25.6 Security
@@ -1357,7 +1456,7 @@ The implementation project MUST resolve and record ADRs for the remaining choice
 7. Retention and immutable-archive policy for snapshots, events, receipts, and backend diagnostics.
 8. Backend upgrade policy and maintenance of the supported version range (enforced via `transport.supportedBackendVersionRange`, Section 19).
 
-Editorial restructuring deferred to the v1.0 pass (external review M-001/M-002): regrouping Section 9.6 and splitting Appendix A into thematic appendices. No normative content is attached to this note.
+Editorial restructuring deferred to the v1.0 pass (external review M-001/M-002): regrouping Section 9.6 and splitting Appendix A into thematic appendices. Structured capability guarantee profiles (external review M-010) are likewise deliberately deferred: boolean capability flags are retained for v1 because they are directly contract-testable; profiles may be introduced once a second backend implementation demonstrates the need.
 
 ## 29. Definition of Done
 
@@ -1414,7 +1513,10 @@ interface AcceptanceCriterion {
   criterionId: string;
   statement: string;
   verificationMethod: "test" | "review" | "inspection" | "demonstration";
-  verificationCommand?: string;
+  verificationCommand?: {
+    executable: string;
+    args: string[];
+  }; // invoked without a shell (Section 20)
   severity: "critical" | "high" | "medium" | "low";
   waivable: boolean;
 }
@@ -1481,6 +1583,7 @@ interface ReadyWorkResult {
     guidanceWorkId: string;
     backendWorkId: string;
     backendStatus: string;
+    candidateRevision: string;
     blockedBy: string[];
   }>;
 }
@@ -1589,7 +1692,7 @@ interface BlockerReport {
     | "new-scope";
   description: string;
   suggestedDependencyWorkId?: string;
-  proposedAmendment?: string;
+  proposedAmendment?: AmendmentRequest;
   idempotencyKey: string;
   correlationId: string;
 }
@@ -1597,6 +1700,13 @@ interface BlockerReport {
 interface BlockerReceipt {
   receiptId: string;
   blockerId: string;
+  lifecycleState:
+    | "REPORTED"
+    | "VALIDATING"
+    | "ACCEPTED"
+    | "REJECTED"
+    | "RESOLVED"
+    | "SUPERSEDED";
   disposition:
     | "recorded"
     | "dependency-created"
@@ -1615,11 +1725,11 @@ interface ValidationFinding {
 interface CompletionReceipt {
   receiptId: string;
   workId: string;
-  state:
-    | "COMPLETION_SUBMITTED"
-    | "VALIDATING_COMPLETION"
-    | "COMPLETION_REJECTED"
-    | "COMPLETION_ACCEPTED";
+  acceptanceState:
+    | "SUBMITTED"
+    | "VALIDATING"
+    | "REJECTED"
+    | "ACCEPTED";
   findings: ValidationFinding[];
   receivedAt: string;
 }
@@ -1647,16 +1757,50 @@ interface CompletionAcceptance {
   correlationId: string;
 }
 
+interface AcceptanceReceipt {
+  receiptId: string;
+  executionId: string;
+  workId: string;
+  agentId: string;
+  policyDecisionId: string;
+  policySetDigest: string;
+  originPackageDigest: string;
+  currentPackageDigest: string;
+  sourceRevision?: { vcs: "git"; commit: string; treeDigest?: string };
+  evidenceRefs: string[];
+  acceptanceDigest: string;
+  acceptanceEvent: {
+    eventId: string;
+    payloadDigest: string;
+  };
+  acceptedAt: string;
+}
+
+interface AmendmentRequest {
+  amendmentId: string;
+  executionId: string;
+  sourceBlockerId?: string;
+  rationale: string;
+  proposedNodes: WorkNode[];
+  proposedEdges: WorkEdge[];
+  submittedBy: string;
+  submittedAt: string;
+}
+
 interface CompletionState {
   executionId: string;
   workId: string;
-  state:
+  acceptanceState:
     | "IN_PROGRESS"
-    | "COMPLETION_SUBMITTED"
-    | "VALIDATING_COMPLETION"
-    | "COMPLETION_REJECTED"
-    | "COMPLETION_ACCEPTED"
-    | "BACKEND_CLOSING"
+    | "SUBMITTED"
+    | "VALIDATING"
+    | "ACCEPTED"
+    | "REJECTED";
+  backendClosureState:
+    | "NOT_STARTED"
+    | "PENDING"
+    | "RETRYING"
+    | "REPAIR_REQUIRED"
     | "CLOSED";
   updatedAt: string;
   backendRevision?: string;
@@ -1687,7 +1831,7 @@ interface OpenExecutionRequest {
   packageDigest: string;
   authorizationContext: {
     policyDecisionId: string;
-    executionToken?: string;
+    authorizationProof?: AdapterAuthorizationProof;
   };
   idempotencyKey: string;
   correlationId: string;
@@ -1739,6 +1883,9 @@ interface ReconcileWorkGraphRequest {
 type DriftResolutionAction = "accept-backend" | "restore-canonical" | "quarantine";
 
 interface DriftFinding {
+  findingId: string;
+  findingRevision: number;
+  state: "OPEN" | "RESOLVING" | "RESOLVED";
   workId?: string;
   field: string;
   severity: "informational" | "low" | "medium" | "high" | "critical";
@@ -1750,12 +1897,15 @@ interface DriftFinding {
 
 interface ReconciliationCheckpoint {
   executionId: string;
+  backendInstanceId: string;
+  adapterVersion: string;
+  backendVersion: string;
   mappingVersion: string;
-  packageDigest: string;
+  currentPackageDigest: string;
   projectionRevision: number;
   backendRevision?: string;
   backendChangeToken?: string;
-  lastProcessedEventSequence: number;
+  lastProcessedExecutionSequence: number;
   lastFullSnapshotDigest?: string;
   completedAt: string;
 }
@@ -1791,15 +1941,17 @@ interface ExecutionSnapshot {
 
 interface EventCursorRequest {
   executionId: string;
-  afterSequence?: number;
+  afterExecutionSequence?: number;
   maxEvents: number;
   correlationId: string;
 }
 
 interface ExecutionEventBatch {
   events: Array<ExecutionEventEnvelope<unknown>>;
-  nextAfterSequence?: number;
+  nextAfterExecutionSequence?: number;
   hasMore: boolean;
+  retentionEpoch?: number;
+  archiveLocator?: string;
 }
 
 interface CloseExecutionRequest {
