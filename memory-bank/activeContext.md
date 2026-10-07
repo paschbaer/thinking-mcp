@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-07: GBEA review round 5 (minor corrections) applied → v0.6.1-draft
+
+- **Was:** External review of v0.6.0 verdict READY FOR IMPLEMENTATION WITH MINOR CHANGES (0 Critical, 2 High, 6 Medium remaining). Evidence-verified: 6 fixed, M-002 false positive (mermaid fence exists), M-006 = documented §28 deferral. Spec at v0.6.1-draft.
+- **Lesson (round-4 residue):** H-001 showed that a normative text addition ("blocker reports MUST present fencing token") without the corresponding interface field slips through — when adding requirements to prose, always update the matching TypeScript interface in the same edit.
+- **Status:** Spec updated, uncommitted. **Next:** user decision on commit.
+
 ## 2026-10-07: GBEA review round 4 (CHANGES REQUIRED) applied → v0.6.0-draft
 
 - **Was:** External reviewer findings (4 Critical, 9 High, 11 Medium) verified against v0.5.0 with evidence table; user approved one-round implementation incl. H-009 method renames, and M-010 deferral. All 24 findings resolved (details in progress.md); spec at v0.6.0-draft, 1.974 lines.

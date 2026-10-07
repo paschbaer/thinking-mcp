@@ -1,10 +1,10 @@
 # Guidance Beads Execution Adapter Specification
 
-**Document ID:** GBEA-SPEC-001  
-**Version:** 0.6.0-draft  
-**Status:** Draft for review  
-**Language:** English  
-**Normative keywords:** MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY
+- **Document ID:** GBEA-SPEC-001
+- **Version:** 0.6.1-draft
+- **Status:** Draft for review
+- **Language:** English
+- **Normative keywords:** MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY
 
 ## 1. Purpose
 
@@ -628,7 +628,6 @@ interface ClaimWorkRequest {
   expectedRevision: string; // the ready candidate revision this claim is based on (Section 10.3)
   idempotencyKey: string;
   correlationId: string;
-  expectedRevision?: string;
 }
 ```
 
@@ -878,6 +877,7 @@ Rules:
 - Guidance MUST persist an immutable acceptance receipt before backend closure.
 - The receipt MUST contain evidence references, policy decision ID, policy set digest, origin and current package digests, source revision, and acceptance digest.
 - Every acceptance receipt MUST reference the `work.completion.accepted` event (`eventId` and `integrity.payloadDigest`) that recorded it; receipt verification MUST verify this binding against the append-only event log (Section 18).
+- `acceptanceDigest` MUST be computed by canonicalizing the receipt content (all fields except the digest itself) with the canonicalization profile of Section 8.3 and hashing as `sha256:<lowercase-hex>`. The profile identifier MUST be recorded with the receipt; verification recomputes the digest and MUST reject mismatches.
 - The adapter MUST close only the matching bound backend work item.
 - A backend closure failure MUST leave `acceptanceState` at `ACCEPTED` and transition `backendClosureState` to `RETRYING` (Section 15.3).
 - Retry MUST be idempotent.
@@ -1275,8 +1275,8 @@ Configuration MUST be schema-validated at startup. Invalid security-sensitive co
 
 - **`workspace.mode: stealth`** refers to Beads stealth mode (`bd init --stealth`): Beads state is kept under the workspace-local `.beads/` database directory, git operations and git hook installation are disabled (`no-git-ops: true`), and no Beads-managed files are committed to the host repository. When stealth mode is configured, the adapter MUST NOT install git hooks, MUST NOT perform git operations through Beads, and MUST NOT require Beads-managed files to be committed to the repository. Stealth mode MUST NOT weaken binding durability (Section 7): bindings are persisted by Guidance, not in Beads-managed files.
 - **`capabilityProbeIntervalSeconds`** is the recurring interval for capability probing per Section 19.
-- **`completion.maxClosureAttempts`** bounds the idempotent closure retries in state `BACKEND_CLOSING` (Section 15.3); reaching the bound stops retries and raises an operational alert.
-- **`completion.validationTimeoutSeconds`** bounds state `VALIDATING_COMPLETION` (Section 15.3).
+- **`completion.maxClosureAttempts`** bounds the idempotent closure retries in `backendClosureState` `RETRYING` (Section 15.3); reaching the bound stops retries and raises an operational alert.
+- **`completion.validationTimeoutSeconds`** bounds `acceptanceState` `VALIDATING` (Section 15.3).
 - **`completion.validationRetryAttempts`** bounds retries of transient validation failures before rejection (Section 15.3).
 - **`synchronization.fullReconciliationIntervalSeconds`** is the full-reconciliation interval (Section 16.6; default 24 hours).
 - **`readiness.cacheTtlSeconds`** bounds the governed-readiness evaluation cache (Section 10.4); `0` disables caching.
@@ -1577,6 +1577,8 @@ interface ReadyWorkRequest {
 
 interface ReadyWorkResult {
   executionId: string;
+  backendInstanceId: string;
+  mappingVersion: string;
   fetchedAt: string;
   backendRevision?: string;
   candidates: Array<{
@@ -1683,6 +1685,7 @@ interface BlockerReport {
   workId: string;
   claimId: string;
   agentId: string;
+  fencingToken: number;
   blockerType:
     | "work"
     | "policy"
