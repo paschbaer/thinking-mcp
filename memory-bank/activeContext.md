@@ -3,6 +3,34 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-07: Phase 0 (M0) ABGESCHLOSSEN — alle Entscheidungen genehmigt (DEC-GBEA-M0)
+
+- **Was:** User hat alle M0-Vorschläge unverändert genehmigt (nach ADR-1-Erläuterung im Chat). Entscheidungen hinterlegt als **DEC-GBEA-M0** in `memory-bank/decisions.md` (ADR 1–8 + Proof-Signing Ed25519 + Config-Default). Die drei M0-Dokumente in `specs/018-guidance-beads-execution-adapter/` von PROPOSED auf **ACCEPTED** geflippt (m0-adr-proposals.md, m0-implementation-contract.md — jetzt bindend für AC-A3, m0-beads-v1.3-baseline.md — bindend für Mapping v1 + Golden-Fixtures). Tasks T001–T005 in tasks.md abgehakt. M0-Exit erreicht: ⏳ADR-Gates (T013/T024/T066) entblockt, Phase 1 (WP-01 Adapter Core) kann starten.
+- **Status:** Phase 0 komplett, alles uncommitted. **Next:** Commit-Entscheidung (SDD-Trilogie + M0-Dokumente + decisions.md); dann Phase 1 Start (feature branch `feature/018-wp01-adapter-core`).
+
+## 2026-10-07: Phase 0 (M0) gestartet — Entscheidungsvorlagen erstellt, auf User-Approval wartend
+
+- **Was:** Phase 0 der specs/018-Tasks gestartet. Drei M0-Artefakte unter `specs/018-guidance-beads-execution-adapter/`: (1) `m0-adr-proposals.md` — ADR 1–8 + Proof-Signing (Ed25519, SQLite-Nonce-Store) + Config-Default, je mit Optionen, RFC-Constraints, Empfehlung und Repo-Evidenz; (2) `m0-implementation-contract.md` — Shared Rules + 22 Methoden (9 agent-facing, 13 admin) mit Authn/Authz/Idempotency/Error-Codes/Audit-Events und WP-Ownership; (3) `m0-beads-v1.3-baseline.md` — Beads-1.3.0-Konformitäts-Baseline (Statuses/Types/Priorities/Dependencies/Metadata/Store/Stealth) + Golden-Fixture-Checks.
+- **Evidenz gesammelt:** server-guidance persistiert JSON-Dateien (SessionRepository/AuditRepository), kein SQLite/Crypto/Canonicalization vorhanden; `bd` ist auf dem Host NICHT installiert (Real-Backend-Tests brauchen gepinnte 1.3.x-Installation).
+- **Status:** alle drei Dokumente PROPOSED; T001 wartet auf User-Approval der ADR-Entscheidungsmatrix, dann Übernahme in `memory-bank/decisions.md` + Statusflip ACCEPTED. **Next:** User-Entscheidung zu ADR 1–8/T003/T005.
+
+## 2026-10-07: specs/018 tasks.md erstellt — Task-Breakdown (speckit.tasks)
+
+- **Was:** `/speckit.tasks` für Spec 018: `specs/018-guidance-beads-execution-adapter/tasks.md`. 74 Tasks (T001–T074) in 6 Phasen (M0–M5), vollständige 1:1-Abbildung aller Plan-Tasks (WP-00..WP-10, T00.1–T10.11); jede Task mit `[WP-x.y]`-Rückverweis, RFC-§-Anker und `Verify:`-Gate (§26-Suite/§25-Kriterium). ⏳ADR-Gates: T013 (ADR-6), T024 (ADR-3), T066 (ADR-7). Completion Gate = RFC §29 DoD.
+- **Status:** SDD-Trilogie spec.md/plan.md/tasks.md komplett, uncommitted. **Next:** User-Review; dann Start mit Phase 0 (WP-00, ADR-Entscheidungen mit User-Approval) — z. B. über Guidance-Workflow (`start_workflow` workspace `thinking-mcp`) mit Batch-Release pro Phase.
+
+## 2026-10-07: specs/018 plan.md erstellt — Implementierungsplan (speckit.plan)
+
+- **Was:** `/speckit.plan` für Spec 018: `specs/018-guidance-beads-execution-adapter/plan.md`. 11 Work Packages: WP-00 (M0-Entscheidungen: ADR 1–8, Implementation Contract, Proof-Signing, Beads-v1.3-Baseline) + die 10 geforderten Pakete — Adapter Core, Mapping Engine, Bindings (inkl. Persistenz + Operation Journal), Projection (inkl. Ingestion-Delta), Claim Coordination (inkl. Readiness/Cache/Proofs/Marker), Validation Workflow (Completion-State-Machines, Receipts, Blocker/Amendments), Reconciliation (M2-Detection + M5-Resolution-Workflow), Snapshots (Event-Log, Ordnung, Cursor, Retention), Observability, Testing (Fake-Backend, zweiter Test-Adapter, alle 10 RFC-§26-Suiten + Scale-Tier).
+- **Traceability:** MUST/SHALL-Compliance-Matrix (Plan §4) ordnet jedes RFC-Gebiet (§4–§29) genau einem Primary-Paket + Tasks zu; Milestone-Mapping (Plan §3) auf M1–M5 gemäß Spec 018 §4; ⏳ADR-Marker für ADR-abhängige Tasks (T02.1, T03.1, T08.5).
+- **Status:** plan.md geschrieben, uncommitted. **Next:** User-Review des Plans; dann speckit-Breakdown (tasks) bzw. Start mit WP-00 (ADR-Entscheidungen).
+
+## 2026-10-07: specs/018 created — GBEA implementation spec (speckit.specify)
+
+- **Was:** `/speckit.specify` for the Guidance Beads Execution Adapter per RFC GBEA-SPEC-001 v0.6.1-draft. New spec at `specs/018-guidance-beads-execution-adapter/spec.md`: implementation scope (S1–S6), milestones M0–M5 (M0 added as ADR/implementation-contract gate in front of RFC §27 M1), 27 deliverables, acceptance-criteria traceability table (RFC §25.1–25.7 + additive AC-A1..A4), testing strategy mapping all ten RFC §26 suites to vitest layers, 8-stage rollout plan (R0–R5, disabled-by-default, config-reversible), risks (GBEA-F016, Beads version drift, Windows/WSL store-root canonicalization). Precedence rule: RFC wins on any conflict; no normative restatement.
+- **WF-1 incident (evidence table):** all three clear-thought routes failed once each in this session — (1) direct MCP tool: "MCP session no longer valid (HTTP 404)" (stale session, known); (2) container route structurally unavailable (no Guidance sessionId in this ad-hoc specify task); (3) direct HTTP `localhost:3000/mcp`: "initialize required". Structured planning continued with documented internal reasoning.
+- **Status:** spec.md written, uncommitted. **Next:** user review/approval of spec 018; then speckit plan phase (M0 ADR decisions first).
+
 ## 2026-10-07: GBEA review round 5 (minor corrections) applied → v0.6.1-draft
 
 - **Was:** External review of v0.6.0 verdict READY FOR IMPLEMENTATION WITH MINOR CHANGES (0 Critical, 2 High, 6 Medium remaining). Evidence-verified: 6 fixed, M-002 false positive (mermaid fence exists), M-006 = documented §28 deferral. Spec at v0.6.1-draft.
