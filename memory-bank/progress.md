@@ -924,3 +924,6 @@ Implementation complete on feature branch; session session-c4ddeb4d in verify/co
 - Verify gates lint+build green; convergence converged (tasks.md hash unchanged across the pass).
 - Independent reviews (A: registry/config, B: engine) executed; 1 HIGH + 4 medium/low fixed in 9be7c2e, full suite 668/668 green afterwards; 2 low findings classified accepted with trigger points.
 - Commits: 1380da2 (feature), 9be7c2e (review fixes). Branch feature/017-spec-kit-mode ready for merge review.
+
+### 2026-10-07 (Merge): specs/017 spec-kit mode merged to develop
+Fast-forward 6455cc7..80069f1 (5 commits), feature branch deleted, develop ahead of origin/develop by 5 — push pending (user-side, known SSH-key trap). Guidance suite 668/668 green post-merge; GitNexus index covers new HEAD.
