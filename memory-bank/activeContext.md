@@ -3,6 +3,11 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-07: GBEA external review round 3 applied → v0.5.0-draft
+
+- **Was:** External reviewer findings for v0.4.0 (F-013–F-018 + M-001/M-002; all non-blocking) verified against v0.4.1 and applied per user decisions: F-013 version negotiation (§19 + `transport.supportedBackendVersionRange`), F-014 mapping migration procedure (§9.7, receipts immutable), F-017 policySetDigest (package/receipt/readiness/validation), F-015 snapshot chaining SHOULD + anchoring caveat, F-018 **Variant A** (receipts bind to acceptance event, no full chain), F-016 scalability targets §21.2 + partitioning deferred (tracked as GBEA-F016 in remaining-work-plan.md), M-001/M-002 deferred to v1.0 editorial pass (noted §28).
+- **Status:** Spec v0.5.0-draft, uncommitted. **Next:** user decision on commit.
+
 ## 2026-10-07: GBEA-SPEC-001 v0.4.0 reviewed, fixed → v0.4.1, file replaced
 
 - **Was:** Review of the externally revised v0.4.0 draft (13 findings, evidence-verified against Beads v1.3 docs incl. fresh `bd statuses` fetch); user approved all fixes + file replacement. All fixes applied, version bumped to 0.4.1-draft, the version-suffixed file was moved over the canonical `SDD/guidance-beads-adapter-specification-en.md` (old v0.3.0 content deleted; SDD now has exactly one GBEA file).

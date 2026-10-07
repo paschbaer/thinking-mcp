@@ -1,7 +1,7 @@
 # Guidance Beads Execution Adapter Specification
 
 **Document ID:** GBEA-SPEC-001  
-**Version:** 0.4.1-draft  
+**Version:** 0.5.0-draft  
 **Status:** Draft for review  
 **Language:** English  
 **Normative keywords:** MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY
@@ -160,6 +160,7 @@ interface GovernedExecutionPackage {
   governance: {
     policySetId: string;
     policySetRevision: string;
+    policySetDigest: string; // canonical content digest of the evaluated policy set (Section 8.3)
     policyDecisionId: string;
     approvalId?: string;
     riskClass: "low" | "medium" | "high" | "critical";
@@ -524,6 +525,23 @@ The adapter MUST use the following status projection over the operational work s
 
 Beads `open`, `in_progress`, `blocked`, and `closed` are the only statuses supported by mapping v1 (`closed` is the terminal status in the `done` category). Beads custom statuses configured via `status.custom` are outside mapping v1 and MUST be rejected as unknown backend statuses. Status synchronization MUST compare both the mapped status and the active claim or blocker record. Closing, reopening, or assigning a Guidance-managed item directly in Beads is an out-of-band mutation handled under Section 16.
 
+### 9.7 Mapping Migration Procedure
+
+Breaking mapping changes (Section 9.6) require a new mapping MAJOR version and MUST be executed through the following migration procedure:
+
+1. **Freeze:** suspend affected executions; no publication, claiming, or completion mutations while the migration is in flight.
+2. **Validate:** confirm every affected binding, snapshot, and receipt records the current mapping version, and that backend state is reconciled and drift-free at the old mapping version.
+3. **Plan:** generate a migration plan covering bindings, snapshots, receipts, and event-stream compatibility, and record it as an audit event before any mutation.
+4. **Upgrade bindings:** rewrite mapping versions and any re-mapped backend references transactionally.
+5. **Upgrade snapshots:** re-derive or re-validate snapshots under the new mapping; unverifiable snapshots MUST be rebuilt from the event log.
+6. **Upgrade receipts:** receipts are immutable; migration MUST NOT rewrite receipt content. Receipt verification MUST gain a compatibility rule for the new mapping version instead.
+7. **Verify event-stream compatibility:** historical events recorded under the old mapping MUST remain interpretable; replay under the new mapping MUST reproduce the same decisions or a documented, auditable difference report.
+8. **Reconcile backend state:** run a full reconciliation (Section 16.6) under the new mapping version.
+9. **Publish migration receipt:** record mapping versions, execution scope, verification results, and the plan reference as an immutable audit artifact.
+10. **Resume:** lift the freeze only after the migration receipt is durable.
+
+Every mapping MAJOR version MUST document migration prerequisites, a rollback strategy, and a compatibility matrix (supported adapter, backend, and previous mapping versions). Migration is covered by the migration test suite (Section 26.10).
+
 ## 10. Ready-Work Discovery
 
 ### 10.1 Backend Ready Set
@@ -555,6 +573,7 @@ interface GovernedReadyWorkResult {
   exclusions: ReadyWorkExclusion[];
   evaluatedAt: string;
   policyDecisionId: string;
+  policySetDigest: string;
 }
 ```
 
@@ -759,6 +778,8 @@ Guidance MUST verify:
 10. authorized scope compliance; and
 11. current policy validity.
 
+The evaluated `policySetDigest` MUST be persisted with every validation result and every readiness decision for audit reproducibility; policy revision numbers alone do not prove which policy content was evaluated.
+
 ### 15.3 State Machine
 
 ```text
@@ -791,7 +812,8 @@ Rules:
 ### 15.4 Acceptance
 
 - Guidance MUST persist an immutable acceptance receipt before backend closure.
-- The receipt MUST contain evidence references, policy decision ID, package digest, source revision, and acceptance digest.
+- The receipt MUST contain evidence references, policy decision ID, policy set digest, package digest, source revision, and acceptance digest.
+- Every acceptance receipt MUST reference the `work.completion.accepted` event (`eventId` and `integrity.payloadDigest`) that recorded it; receipt verification MUST verify this binding against the append-only event log (Section 18).
 - The adapter MUST close only the matching bound backend work item.
 - A backend closure failure MUST leave Guidance state at `COMPLETION_ACCEPTED` with a recoverable `BACKEND_CLOSING` operation.
 - Retry MUST be idempotent.
@@ -972,7 +994,9 @@ Lifecycle ordering rule: agent reports are valid only while the referenced claim
 
 The append-only event log remains authoritative. To bound replay cost, Guidance MUST create an immutable execution snapshot after every 10,000 accepted execution events by default and SHOULD also snapshot after terminal execution closure. The threshold MUST be configurable and MUST be at least 1,000 events.
 
-Each snapshot MUST contain `executionId`, snapshot schema version, package and mapping versions, last included sequence, aggregate state, active claims, bindings, completion states, drift suspensions, created timestamp, and an integrity digest. Snapshot creation and publication of its checkpoint MUST be atomic: readers either observe the previous valid snapshot or the complete new snapshot.
+Each snapshot MUST contain `executionId`, snapshot schema version, package and mapping versions, last included sequence, aggregate state, active claims, bindings, completion states, drift suspensions, created timestamp, an integrity digest, and the predecessor snapshot digest (`previousSnapshotDigest`; genesis snapshots omit it). Snapshot creation and publication of its checkpoint MUST be atomic: readers either observe the previous valid snapshot or the complete new snapshot.
+
+Snapshots SHOULD be cryptographically chained through `previousSnapshotDigest`. Replay verification SHOULD validate the chain, and a broken chain MUST raise an integrity failure and trigger the fallback rules of this section. A hash chain detects partial-history tampering only; deployments with elevated forensic requirements SHOULD additionally anchor snapshot digests externally (for example by periodic digest publication to an append-only or WORM store).
 
 Replay MUST load the latest integrity-verified compatible snapshot and resume at `lastIncludedSequence + 1`. If verification or schema compatibility fails, replay MUST fall back to an earlier valid snapshot or the complete event stream and raise an operational diagnostic. Snapshots MUST NOT create sequence numbers or replace audit events.
 
@@ -1003,6 +1027,18 @@ interface CapabilityProbeResult {
 ```
 
 Capability probing MUST occur at startup and SHOULD recur after backend upgrade, an incompatible error, or the configured `capabilityProbeIntervalSeconds` interval. Missing REQUIRED capabilities MUST mark the adapter unavailable. Optional capabilities MAY select fallback strategies.
+
+Adapter initialization MUST validate the triple of adapter version, mapping version (Section 9.6), and backend version against the configured supported backend version range (`transport.supportedBackendVersionRange`); an out-of-range backend version MUST fail closed with `BACKEND_VERSION_UNSUPPORTED`. The validated result MUST be recorded as `NegotiatedCompatibility` and persisted in the audit log; every re-negotiation triggered by probing MUST update it.
+
+```typescript
+interface NegotiatedCompatibility {
+  adapterVersion: string;
+  mappingVersion: string;
+  backendVersion: string;
+  backendInstanceId: string;
+  negotiatedAt: string;
+}
+```
 
 ## 20. Security Requirements
 
@@ -1041,7 +1077,17 @@ The persistence technology is selected by ADR 4 (Section 28). Whatever technolog
 - **Sequence allocation:** event `sequence` values (Section 18) MUST be allocated transactionally; a crash MUST NOT cause sequence reuse or gaps.
 - **Coupled writes:** bindings and projection results MUST be committed atomically with successful projection results where possible (Section 21, Reliability).
 - **Required query patterns:** lookup by `executionId`; lookup by `workId`; event cursor reads by `(executionId, afterSequence)`; claim sweeps by lease expiry; and drift inspection by execution. Implementations MUST NOT require full scans for these paths in steady state.
-- **Retention:** retention policy for snapshots, events, receipts, and diagnostics follows ADR 8 and MUST be enforceable without violating append-only audit requirements.
+- **Retention:** retention policy for snapshots, events, receipts, and diagnostics follows ADR 7 and MUST be enforceable without violating append-only audit requirements.
+
+### 21.2 Scalability Targets
+
+The adapter MUST support executions with at least 100,000 work items. At that scale:
+
+- a full reconciliation MUST complete within 30 minutes;
+- an incremental reconciliation of a bounded changed subgraph MUST complete within 5 minutes; and
+- governed-readiness evaluation MUST return within 2 seconds at the 95th percentile under the readiness cache rules of Section 10.4.
+
+Conformance is demonstrated by the scale tests in Milestone 5 (Section 27). Independently reconcilable execution partitions are deliberately NOT part of this version: partitioning is a tracked follow-up to be adopted only if these targets are demonstrably missed in production, and any partitioning design MUST preserve the per-execution total event order (Section 18.1) and the suspension scopes of Section 16.4.
 
 ## 22. Observability
 
@@ -1086,6 +1132,7 @@ executionBackends:
       executable: bd
       timeoutSeconds: 30
       maxOutputBytes: 1048576
+      supportedBackendVersionRange: ">=1.3.0 <2.0.0"
 
     workspace:
       discovery: repository-root
@@ -1145,6 +1192,7 @@ Configuration MUST be schema-validated at startup. Invalid security-sensitive co
 - **`synchronization.fullReconciliationIntervalSeconds`** is the full-reconciliation interval (Section 16.6; default 24 hours).
 - **`readiness.cacheTtlSeconds`** bounds the governed-readiness evaluation cache (Section 10.4); `0` disables caching.
 - **`events.snapshotEveryEvents`** is the event-snapshot threshold (Section 18.2; minimum 1,000 events).
+- **`transport.supportedBackendVersionRange`** is the supported Beads version range enforced at adapter initialization (Section 19); violations fail closed with `BACKEND_VERSION_UNSUPPORTED`.
 
 ## 24. Guidance MCP Methods
 
@@ -1198,6 +1246,7 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - Partial failures are recoverable by reconciliation.
 - Publication exceeding backend metadata size limits fails per item with an actionable diagnostic; silent truncation is not permitted.
 - Mapping version changes are detected and breaking mapping changes require an explicit migration.
+- Mapping major-version migrations follow Section 9.7 and produce a verifiable migration receipt without rewriting existing receipts.
 - Status mapping is deterministic; unknown statuses fail closed and backend-only closure never implies Guidance acceptance.
 - Virtual approval gates prevent readiness without creating independently mutable Beads gate items.
 - Projected items round-trip losslessly: canonical fields are fully recoverable from the Beads representation (golden tests, Section 26.3).
@@ -1217,6 +1266,7 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - Completion submission does not close backend work.
 - Missing evidence causes deterministic rejection.
 - Accepted evidence creates an immutable acceptance receipt.
+- Acceptance receipts store the evaluated policy set digest and reference their acceptance event (Section 15.4).
 - Backend close occurs only after acceptance persistence.
 - Closure retry does not duplicate acceptance.
 
@@ -1242,6 +1292,7 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - Incremental reconciliation is equivalent to full reconciliation for affected subgraphs and falls back safely when checkpoints are invalid.
 - Event replay from the latest valid snapshot produces the same state as full replay.
 - Capability mismatch produces actionable health diagnostics.
+- Adapter initialization fails closed on out-of-range backend versions and audit-records the negotiated compatibility (Section 19).
 
 ## 26. Required Test Suites
 
@@ -1304,7 +1355,9 @@ The implementation project MUST resolve and record ADRs for the remaining choice
 5. Whether status synchronization is polling-only or hook-assisted.
 6. Canonical JSON algorithm used for digests; normative requirements are fixed in Section 8.3.
 7. Retention and immutable-archive policy for snapshots, events, receipts, and backend diagnostics.
-8. Supported Beads version range and upgrade policy.
+8. Backend upgrade policy and maintenance of the supported version range (enforced via `transport.supportedBackendVersionRange`, Section 19).
+
+Editorial restructuring deferred to the v1.0 pass (external review M-001/M-002): regrouping Section 9.6 and splitting Appendix A into thematic appendices. No normative content is attached to this note.
 
 ## 29. Definition of Done
 
@@ -1587,6 +1640,10 @@ interface CompletionAcceptance {
   workId: string;
   acceptanceReceiptId: string;
   acceptedAt: string;
+  acceptanceEvent: {
+    eventId: string;
+    payloadDigest: string;
+  };
   correlationId: string;
 }
 
