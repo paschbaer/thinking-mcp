@@ -1,7 +1,7 @@
 # Guidance Beads Execution Adapter Specification
 
 **Document ID:** GBEA-SPEC-001  
-**Version:** 0.3.0-draft  
+**Version:** 0.4.1-draft  
 **Status:** Draft for review  
 **Language:** English  
 **Normative keywords:** MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY
@@ -54,7 +54,26 @@ The integration SHALL preserve the following invariant:
 - **Evidence Store:** Stores or resolves immutable evidence artifacts and digests.
 - **Other Downstream Servers:** GitNexus, Insight, and ClearThought, selected and governed by Guidance.
 
-### 3.2 Trust Boundaries
+### 3.2 Logical Flow
+
+```mermaid
+flowchart LR
+    SK[Spec-Kit] -->|validated artifacts| G[Guidance Core]
+    G -->|authorized canonical package| P[WorkExecutionAdapter Port]
+    P --> BA[Beads Adapter]
+    BA -->|projected operational graph| B[Beads Backend]
+    G -->|governed ready work and context| A[Execution Agent]
+    A -->|progress, blockers, completion claims| G
+    G -->|evidence resolution and integrity checks| E[Evidence Store]
+    G -->|governed queries| D[GitNexus / Insight / ClearThought]
+    B -->|snapshot, revision, operational events| BA
+    BA --> P
+    P --> G
+```
+
+The arrows do not transfer governance ownership. Guidance remains the sole authority for authorization, acceptance, and policy decisions.
+
+### 3.3 Trust Boundaries
 
 1. Spec-Kit artifacts enter Guidance as untrusted inputs until validated.
 2. Guidance-to-adapter requests are trusted only when accompanied by valid internal authorization context.
@@ -144,8 +163,8 @@ interface GovernedExecutionPackage {
     policyDecisionId: string;
     approvalId?: string;
     riskClass: "low" | "medium" | "high" | "critical";
-    allowedOperations: string[];
-    prohibitedOperations: string[];
+    allowedOperations: OperationId[];
+    prohibitedOperations: OperationId[];
     authorizationExpiresAt?: string;
   };
 
@@ -242,8 +261,20 @@ All versioned Guidance schemas follow the format `guidance.<name>/vMAJOR` (for e
 - Producers MUST emit `schemaVersion` on every envelope that defines one; consumers MUST reject an envelope whose MAJOR version they do not support — with `BACKEND_SCHEMA_INCOMPATIBLE` for backend-facing schemas and `INVALID_REQUEST` for agent-facing envelopes.
 - Within the same MAJOR version, evolution is additive only: producers MUST NOT remove or rename fields and MUST NOT change field semantics; consumers MUST ignore unknown additional fields (tolerant reader).
 - Any breaking change (removal, rename, semantic change, type narrowing) requires a new MAJOR version.
-- Producers SHOULD support the previous MAJOR version (N-1) for at least one adapter minor version to allow staged upgrades; the supported range and upgrade path MUST be documented per ADR 10.
+- Producers SHOULD support the previous MAJOR version (N-1) for at least one adapter minor version to allow staged upgrades; the supported range and upgrade path MUST be documented per ADR 8 (Section 28).
 - Schema migrations are covered by the migration test suite (Section 26.10).
+
+### 6.7 Operational Work States
+
+Beyond the completion lifecycle (Section 15.3), each work item has an operational state:
+
+- `READY`: projected, dependency-unblocked, and eligible for governed-readiness evaluation (Section 10.2).
+- `CLAIMED`: an active governed claim exists (Section 11); claiming sets the projected Beads status to `in_progress`.
+- `IN_PROGRESS`: claimed and being executed; entry state of the completion lifecycle (Section 15.3).
+- `BLOCKED`: an accepted blocker suspends execution pending resolution (Section 14).
+- `SUSPENDED`: a governance suspension (drift scope, authorization suspension, or specification defect) withholds the item from governed-ready results (Sections 8.2, 16.4).
+
+These states are Guidance-canonical; Section 9.6.7 defines their projection to Beads statuses. `BLOCKED` and `SUSPENDED` overlay rather than replace the underlying completion-lifecycle state.
 
 ## 7. Identifier and Binding Model
 
@@ -256,6 +287,7 @@ interface ExternalWorkBinding {
   backendWorkId: string;
   sourceDigest: string;
   projectionRevision: number;
+  mappingVersion: "guidance.beads-mapping/v1";
   backendRevision?: string;
   createdAt: string;
   lastReconciledAt: string;
@@ -270,6 +302,17 @@ Requirements:
 - A deleted backend item MUST NOT cause reuse of its binding for unrelated work.
 - Re-creation after authorized recovery MUST increment `projectionRevision`.
 - Evidence and audit events MUST refer to Guidance IDs and MAY additionally include backend IDs.
+
+### 7.1 Backend Instance Identity
+
+`backendInstanceId` MUST be deterministic, stable across process restarts, and distinct for independently claimable Beads stores. It MUST be derived as follows:
+
+1. Resolve the canonical Beads store root: the `.beads` database directory actually backing the workspace — resolved through `BEADS_DIR` configuration, worktree sharing, or repository-root discovery — canonicalized as an absolute, symlink-resolved path with platform-normalized separators. Workspaces and git worktrees that share one `.beads` store resolve to the same store root and therefore to the same identity.
+2. When a configured sharing scope maps multiple workspace roots to one shared store, the sharing scope's canonical store root replaces the per-workspace resolution.
+3. Read the persistent Beads store identifier when the backend exposes one. If none exists, Guidance MUST create and durably persist a random 128-bit `guidanceBackendStoreId` keyed by the canonical store root, beside the Guidance binding store, not in mutable repository content.
+4. Calculate `backendInstanceId = "beads:" + base64url(sha256(identityProfileVersion + "\n" + canonicalStoreRoot + "\n" + backendStoreId))`.
+
+The initial `identityProfileVersion` is `guidance.beads-instance-identity/v1`. A monorepo with multiple Beads stores receives one identity per store. Multiple repositories intentionally sharing one Beads store receive the same identity. Moving a store MUST NOT silently create a new logical instance: an administrator MUST authorize rebinding or migration. Identity collision, missing persisted fallback identity, or a changed store identifier MUST fail closed with `BINDING_CONFLICT`. Loss of the persisted fallback identity (for example after a Guidance store rebuild) MUST fail closed the same way; recovery is a deliberate administrative rebinding that re-issues identities and updates affected bindings.
 
 ## 8. Spec-Kit Ingestion and Authorization Handoff
 
@@ -322,7 +365,7 @@ Rules:
 
 Given byte-identical source artifacts, policy revisions, and configuration, Guidance SHOULD generate the same canonical work graph and package digest. Non-deterministic fields such as timestamps MUST be excluded from the canonical digest or normalized by the canonicalization algorithm.
 
-The canonicalization algorithm MUST satisfy all of the following, independent of the concrete algorithm selected by ADR 7 (Section 28):
+The canonicalization algorithm MUST satisfy all of the following, independent of the concrete algorithm selected by ADR 6 (Section 28):
 
 - object keys MUST be sorted deterministically (lexicographic by Unicode code point);
 - input MUST be encoded as UTF-8 without insignificant whitespace;
@@ -345,7 +388,7 @@ The canonicalization algorithm MUST satisfy all of the following, independent of
 | Task | Standard work item |
 | Validation | Work item labeled `guidance.kind=validation` |
 | Review | Work item labeled `guidance.kind=review` |
-| Approval | Blocking gate work item or adapter-managed virtual gate |
+| Approval | Adapter-managed virtual gate; no independently mutable Beads work item |
 | Blocks | Blocking dependency |
 | Parent-of | Hierarchical relation |
 | Acceptance criteria | Structured metadata and human-readable body |
@@ -381,14 +424,14 @@ Reusing an idempotency key with an identical request MUST return the original lo
 
 ### 9.6 Canonical → Beads Mapping Specification
 
-This subsection is the normative mapping from canonical work nodes to Beads issues, grounded on the Beads v1.3 issue schema (References). Two conforming adapter implementations MUST produce equivalent backend state for the same execution package.
+This subsection is the normative mapping from canonical work nodes to Beads issues, grounded on the Beads v1.3 issue schema (References). Two conforming adapter implementations MUST produce equivalent backend state for the same execution package. The mapping profile is versioned independently as `guidance.beads-mapping/v1`. Every projection result, binding, and projected metadata envelope MUST record this mapping version. Within one mapping MAJOR version, changes MUST be additive and behavior-preserving. Any change that can alter native field selection, dependency semantics, priority conversion, gate representation, or round-trip results requires a new mapping MAJOR version and an explicit migration.
 
 #### 9.6.1 Projected Item Shape
 
 ```typescript
 interface BeadsProjectedItem {
   backendWorkId: string; // Beads issue id, e.g. "bd-a1b2"
-  issueType: "epic" | "task" | "chore" | "gate";
+  issueType: "epic" | "task";
   title: string;
   description: string;
   priority: 0 | 1 | 2 | 3;
@@ -404,6 +447,7 @@ interface BeadsProjectedItem {
 
 interface GuidanceBeadsMetadata {
   schemaVersion: "guidance.beads-metadata/v1";
+  mappingVersion: "guidance.beads-mapping/v1";
   executionId: string;
   workId: string;
   kind: WorkNode["kind"];
@@ -414,8 +458,8 @@ interface GuidanceBeadsMetadata {
   acceptanceCriteria?: AcceptanceCriterion[]; // when projection.includeAcceptanceCriteria
   evidenceRequirements?: EvidenceRequirement[]; // references only, see 9.6.5
   governance?: {
-    allowedOperations?: string[];
-    prohibitedOperations?: string[];
+    allowedOperations?: OperationId[];
+    prohibitedOperations?: OperationId[];
     executionConstraints?: WorkNode["executionConstraints"];
   }; // when projection.includeGovernanceMetadata
 }
@@ -430,7 +474,7 @@ interface GuidanceBeadsMetadata {
 | Work node kind `validation` | `issueType: "task"` + label `guidance.kind=validation` |
 | Work node kind `review` | `issueType: "task"` + label `guidance.kind=review` |
 | Work node kind `evidence` | `issueType: "task"` + label `guidance.kind=evidence`; created only when `projection.includeEvidenceTasks`, otherwise metadata-only |
-| Work node kind `approval` | `issueType: "gate"` with human gate semantics (manual resolution by Guidance only) |
+| Work node kind `approval` | Adapter-managed virtual gate stored in Guidance; it MUST NOT be projected as an independently mutable Beads item. Dependents remain non-ready until Guidance records approval satisfaction. |
 | Priority `critical` / `high` / `normal` / `low` | Beads priority `0` / `1` / `2` / `3` (Beads `4` = backlog MUST NOT be assigned) |
 | `priority.ordinal` | Metadata field `priorityOrdinal`; MUST NOT be encoded in the Beads priority |
 | `title`, `description` | Beads `title`, `description`; titles MUST NOT embed mutable state (status, assignee, claim) |
@@ -448,8 +492,8 @@ Guidance-controlled data beyond native Beads fields MUST be stored in the issue 
 |---|---|---|
 | `blocks` | `blocks` | yes |
 | `parent-of` | `parent-child` | no (structural) |
-| `requires-evidence-from` | `blocks` onto the projected evidence item (or gate) | yes |
-| `requires-approval-from` | `blocks` onto the projected approval gate | yes |
+| `requires-evidence-from` | `blocks` onto the projected evidence item | yes |
+| `requires-approval-from` | Virtual Guidance gate recorded in mapping metadata; no Beads dependency is created | yes, enforced by Guidance readiness filtering |
 | `relates-to` | `related` | no |
 
 Other Beads dependency types (`conditional-blocks`, `waits-for`, `tracks`, `discovered-from`, `caused-by`, `validates`, `supersedes`) MUST NOT be produced by the adapter and, when detected in Guidance-managed items during reconciliation, are classified as drift per Section 16.4.
@@ -462,7 +506,23 @@ Evidence is stored by reference only: evidence requirements and submissions appe
 
 #### 9.6.6 Immutability and Round-Trip
 
-`policyDecisionId` and `packageDigest` are immutable correlation metadata: once written, the adapter MUST NOT rewrite them for an existing binding. Canonical fields MUST be losslessly recoverable from the Beads representation (native fields, labels, and `guidance` metadata); this round-trip property is verified by the golden tests in Section 26.3.
+`policyDecisionId` and `packageDigest` are immutable correlation metadata: once written, the adapter MUST NOT rewrite them for an existing binding. Canonical fields MUST be losslessly recoverable from the Beads representation (native fields, labels, and `guidance` metadata), with the exception of virtual approval gates, which have no Beads representation and are recoverable from Guidance state only. This round-trip property is verified by the golden tests in Section 26.3.
+
+### 9.6.7 Normative Status Mapping
+
+The adapter MUST use the following status projection over the operational work states defined in Section 6.7. Unknown backend statuses MUST be rejected as `BACKEND_SCHEMA_INCOMPATIBLE`; they MUST NOT be guessed or passed through. Guidance completion substates remain canonical and are not independently writable in Beads.
+
+| Guidance work state | Beads status | Direction and rule |
+|---|---|---|
+| `READY` | `open` | Projection only. The item is agent-visible only after Section 10.2 filtering. |
+| `CLAIMED`, `IN_PROGRESS` | `in_progress` | Bidirectional shared field under compare-and-swap. A Beads-side change without a matching governed claim is high drift. |
+| `BLOCKED` | `blocked` | Projection from an accepted blocker. A backend-only transition is high drift until Guidance validates the blocker. |
+| `COMPLETION_SUBMITTED`, `VALIDATING_COMPLETION`, `COMPLETION_REJECTED` | `in_progress` | Guidance-only substates. `COMPLETION_REJECTED` returns operational execution to `in_progress`. |
+| `COMPLETION_ACCEPTED`, `BACKEND_CLOSING` | `in_progress` | Adapter-managed closure interval. Beads MUST remain non-closed until the acceptance receipt is durable. |
+| `CLOSED` | `closed` | Set only by the adapter after durable Guidance acceptance. A backend-only `closed` transition is high drift and MUST NOT imply acceptance. |
+| `SUSPENDED` | unchanged | Guidance-only authorization overlay; the current Beads status is retained and the item is excluded from governed-ready results. |
+
+Beads `open`, `in_progress`, `blocked`, and `closed` are the only statuses supported by mapping v1 (`closed` is the terminal status in the `done` category). Beads custom statuses configured via `status.custom` are outside mapping v1 and MUST be rejected as unknown backend statuses. Status synchronization MUST compare both the mapped status and the active claim or blocker record. Closing, reopening, or assigning a Guidance-managed item directly in Beads is an out-of-band mutation handled under Section 16.
 
 ## 10. Ready-Work Discovery
 
@@ -500,6 +560,12 @@ interface GovernedReadyWorkResult {
 
 Exclusion details exposed to agents MUST avoid leaking protected policy information. Administrative diagnostics MAY contain full reasons.
 
+### 10.4 Governed-Readiness Evaluation Cache
+
+Guidance MAY cache intermediate readiness decisions, but MUST NOT cache the final authorization result beyond the shortest validity boundary of the inputs. The cache key MUST include `executionId`, `workId`, agent identity and role digest, capability digest, policy decision ID and revision, approval revision, claim revision, context digest, and backend revision.
+
+Cache entries MUST be invalidated on policy, approval, claim, capability, context, dependency, suspension, drift, or backend-revision changes. The maximum cache TTL is 30 seconds by default and MUST be configurable; `0` disables caching. Claiming MUST always perform a non-cached final authorization and compare-and-swap check. Cache diagnostics MUST expose hit, miss, invalidation, and stale-prevention counts without leaking protected policy information.
+
 ## 11. Governed Claiming and Leases
 
 ### 11.1 Claim Flow
@@ -526,6 +592,7 @@ interface ClaimWorkRequest {
     executionToken: string;
   };
   requestedLeaseSeconds: number;
+  fencingToken: number; // assigned by Guidance during claim-intent acquisition (Section 11.4)
   idempotencyKey: string;
   correlationId: string;
   expectedRevision?: string;
@@ -548,6 +615,19 @@ Restart semantics:
 - Agents MUST re-authenticate after a reconnect; heartbeats for still-valid leases then extend normally within policy limits.
 - Startup MUST run orphaned-claim detection (Section 11.1) before serving new claim requests.
 
+### 11.4 Distributed Claim Coordination
+
+Guidance MAY run as multiple active instances. The durable Guidance persistence layer is the consensus source of truth for governed claims and leases; process-local locks are insufficient. Before calling the backend, a Guidance instance MUST create a transactional claim-intent record keyed by `(backendInstanceId, executionId, workId)` with a unique constraint, fencing token, owner instance ID, expiry, and request digest.
+
+The claim protocol MUST be:
+
+1. Transactionally authorize and insert or acquire the claim intent, incrementing its monotonic fencing token.
+2. Invoke the backend atomic claim with the same claim ID and fencing token where supported.
+3. Transactionally convert the intent to an active governed lease and emit `work.claimed`.
+4. If step 2 fails, release or expire the intent idempotently. If step 2 succeeds but step 3 fails, reconciliation treats the backend claim as orphaned under Section 11.1.
+
+Every heartbeat, release, completion submission, and administrative repair MUST present the current fencing token. A stale owner or lower token MUST be rejected with `REVISION_CONFLICT`. When Beads cannot store or compare fencing tokens, Guidance MUST serialize claim mutations through the transactional claim-intent record and MUST verify backend assignment after each mutation. Split-brain tests across at least two Guidance instances are mandatory.
+
 ## 12. Execution Context Delivery
 
 ```typescript
@@ -560,8 +640,8 @@ interface ExecutionContextEnvelope {
   objective: string;
   acceptanceCriteria: AcceptanceCriterion[];
   requiredEvidence: EvidenceRequirement[];
-  allowedOperations: string[];
-  prohibitedOperations: string[];
+  allowedOperations: OperationId[];
+  prohibitedOperations: OperationId[];
   inputs: ResolvedArtifactReference[];
   expectedOutputs: ExpectedArtifact[];
   relatedKnowledge: {
@@ -647,6 +727,7 @@ interface CompletionSubmission {
   summary: string;
   outputs: ArtifactReference[];
   evidence: EvidenceSubmission[];
+  fencingToken: number;
   assertions: Array<{
     criterionId: string;
     result: "satisfied" | "not-satisfied" | "not-applicable";
@@ -702,7 +783,8 @@ CLOSED                                  (terminal)
 Rules:
 
 - These states govern the work item's completion lifecycle. The claim lifecycle (claimed, heartbeat, release, expiry) is governed independently by Section 11; a completion submission is only valid under a non-expired, non-superseded claim.
-- `VALIDATING_COMPLETION` MUST have a configured timeout; expiry transitions to `COMPLETION_REJECTED` with reason code `VALIDATION_TIMEOUT`.
+- `VALIDATING_COMPLETION` MUST have a configured timeout (`completion.validationTimeoutSeconds`); expiry transitions to `COMPLETION_REJECTED` with reason code `VALIDATION_TIMEOUT`.
+- Transient validation failures (infrastructure errors during validation, not failed checks) MUST be retried up to `completion.validationRetryAttempts` times before the submission transitions to `COMPLETION_REJECTED` with reason code `VALIDATION_ERROR`; every retry MUST be auditable.
 - When closure retries reach `completion.maxClosureAttempts`, retries stop, an operational alert MUST be raised, and administrative repair tooling (Section 21) takes over; Guidance state remains `COMPLETION_ACCEPTED` (Section 15.4).
 - `CLOSED` is terminal. Acceptance and closure are final; redoing accepted work requires the amendment process (Section 14.2).
 
@@ -785,6 +867,14 @@ High and critical drift MUST be resolved through the following procedure before 
 
 Agents MUST NOT resolve high or critical drift. Informational, low, and medium drift MAY be resolved automatically by the reconciliation rules configured per Section 16.3.
 
+### 16.6 Incremental and Full Reconciliation
+
+Steady-state reconciliation MUST be incremental. Each execution MUST persist a `ReconciliationCheckpoint` containing the mapping version, package digest, projection revision, last backend revision or change token, last processed event sequence, last full-snapshot digest, and completion time. The adapter SHOULD request only items changed after the checkpoint and MUST include transitively affected dependency endpoints.
+
+A full reconciliation is REQUIRED when no valid checkpoint exists; the mapping MAJOR version or package digest changes; the backend change token is missing, regresses, or is invalid; an event gap is detected; a critical drift finding affects execution-wide state; or the configured full-reconciliation interval expires. The default full interval is 24 hours.
+
+Incremental reconciliation MUST produce the same decisions as a full reconciliation for the affected subgraph. Checkpoint advancement MUST be atomic with applied resolutions and emitted reconciliation events. Failed or partial runs MUST NOT advance the checkpoint. Implementations MUST avoid full scans for unchanged executions in steady state and MUST publish scanned-item, changed-item, and fallback-to-full metrics.
+
 ## 17. Error Model
 
 ```typescript
@@ -808,7 +898,8 @@ type AdapterErrorCode =
   | "PROJECTION_FAILED"
   | "RECONCILIATION_REQUIRED"
   | "STALE_PACKAGE"
-  | "OPERATION_NOT_AUTHORIZED";
+  | "OPERATION_NOT_AUTHORIZED"
+  | "CURSOR_EXPIRED";
 ```
 
 Each error MUST include a stable code, operation, retryability, correlation ID, safe message, optional backend diagnostic, and remediation hint. Secrets and sensitive paths MUST be redacted.
@@ -876,6 +967,16 @@ Causality rules:
 Delivery model: at-least-once, ordered ascending by `sequence` per execution; consumers are idempotent by `eventId`.
 
 Lifecycle ordering rule: agent reports are valid only while the referenced claim is active. A report arriving after the corresponding `work.completion.accepted` event (for example, a late `work.progressed`) MUST be rejected with `INVALID_STATE_TRANSITION` and recorded as an unsequenced diagnostic drop — it MUST NOT enter the execution sequence. This makes the case "`completion.accepted` precedes `work.progressed`" deterministic: the late report is dropped, never reordered before the acceptance.
+
+### 18.2 Event Snapshots, Checkpoints, and Retention
+
+The append-only event log remains authoritative. To bound replay cost, Guidance MUST create an immutable execution snapshot after every 10,000 accepted execution events by default and SHOULD also snapshot after terminal execution closure. The threshold MUST be configurable and MUST be at least 1,000 events.
+
+Each snapshot MUST contain `executionId`, snapshot schema version, package and mapping versions, last included sequence, aggregate state, active claims, bindings, completion states, drift suspensions, created timestamp, and an integrity digest. Snapshot creation and publication of its checkpoint MUST be atomic: readers either observe the previous valid snapshot or the complete new snapshot.
+
+Replay MUST load the latest integrity-verified compatible snapshot and resume at `lastIncludedSequence + 1`. If verification or schema compatibility fails, replay MUST fall back to an earlier valid snapshot or the complete event stream and raise an operational diagnostic. Snapshots MUST NOT create sequence numbers or replace audit events.
+
+Online event pruning is permitted only when an immutable audit archive retains the pruned events, archive integrity and cursor continuity are verified, applicable retention policy permits deletion from the hot store, and no acceptance receipt or legal hold depends on unavailable data. Event cursors older than the hot-store boundary MUST return an archive locator or `CURSOR_EXPIRED`; they MUST NOT silently skip events.
 
 ## 19. Capability Negotiation
 
@@ -958,6 +1059,9 @@ At minimum:
 - closure retry count;
 - drift count by severity;
 - reconciliation duration and result;
+- reconciliation mode with scanned-item, changed-item, and fallback-to-full counts (Section 16.6);
+- readiness cache hit, miss, invalidation, and stale-prevention counts (Section 10.4);
+- event snapshot creation and replay-fallback counts (Section 18.2);
 - backend availability and capability status.
 
 ### 22.2 Logs
@@ -1008,11 +1112,20 @@ executionBackends:
       strategy: poll
       pollIntervalSeconds: 10
       reconciliationIntervalSeconds: 300
+      fullReconciliationIntervalSeconds: 86400
       conflictPolicy: fail-on-semantic-drift
 
     completion:
       closeOnlyAfterGuidanceAcceptance: true
+      validationTimeoutSeconds: 900
+      validationRetryAttempts: 3
       maxClosureAttempts: 10
+
+    readiness:
+      cacheTtlSeconds: 30
+
+    events:
+      snapshotEveryEvents: 10000
 
     security:
       allowDirectAgentAccess: false
@@ -1027,6 +1140,11 @@ Configuration MUST be schema-validated at startup. Invalid security-sensitive co
 - **`workspace.mode: stealth`** refers to Beads stealth mode (`bd init --stealth`): Beads state is kept under the workspace-local `.beads/` database directory, git operations and git hook installation are disabled (`no-git-ops: true`), and no Beads-managed files are committed to the host repository. When stealth mode is configured, the adapter MUST NOT install git hooks, MUST NOT perform git operations through Beads, and MUST NOT require Beads-managed files to be committed to the repository. Stealth mode MUST NOT weaken binding durability (Section 7): bindings are persisted by Guidance, not in Beads-managed files.
 - **`capabilityProbeIntervalSeconds`** is the recurring interval for capability probing per Section 19.
 - **`completion.maxClosureAttempts`** bounds the idempotent closure retries in state `BACKEND_CLOSING` (Section 15.3); reaching the bound stops retries and raises an operational alert.
+- **`completion.validationTimeoutSeconds`** bounds state `VALIDATING_COMPLETION` (Section 15.3).
+- **`completion.validationRetryAttempts`** bounds retries of transient validation failures before rejection (Section 15.3).
+- **`synchronization.fullReconciliationIntervalSeconds`** is the full-reconciliation interval (Section 16.6; default 24 hours).
+- **`readiness.cacheTtlSeconds`** bounds the governed-readiness evaluation cache (Section 10.4); `0` disables caching.
+- **`events.snapshotEveryEvents`** is the event-snapshot threshold (Section 18.2; minimum 1,000 events).
 
 ## 24. Guidance MCP Methods
 
@@ -1079,12 +1197,17 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - A stale or superseded package revision is rejected with `STALE_PACKAGE` and does not modify backend state.
 - Partial failures are recoverable by reconciliation.
 - Publication exceeding backend metadata size limits fails per item with an actionable diagnostic; silent truncation is not permitted.
+- Mapping version changes are detected and breaking mapping changes require an explicit migration.
+- Status mapping is deterministic; unknown statuses fail closed and backend-only closure never implies Guidance acceptance.
+- Virtual approval gates prevent readiness without creating independently mutable Beads gate items.
 - Projected items round-trip losslessly: canonical fields are fully recoverable from the Beads representation (golden tests, Section 26.3).
 
 ### 25.3 Readiness and Claims
 
 - Backend-ready but unauthorized work is not returned to the agent.
 - Two simultaneous claim attempts result in at most one successful claim.
+- Concurrent claim attempts through two or more Guidance instances produce one active governed lease and reject stale fencing tokens.
+- Workspaces or git worktrees sharing one Beads store resolve to the same backend instance identity and cannot double-claim the same backend item.
 - Expired tokens cannot claim work.
 - Heartbeat and release operations are idempotent.
 - A stale lease follows configured policy and is auditable.
@@ -1116,6 +1239,8 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - Metrics, logs, and traces correlate a complete work lifecycle.
 - Backend outage leaves Guidance state consistent.
 - Restart during publication or closure is recoverable.
+- Incremental reconciliation is equivalent to full reconciliation for affected subgraphs and falls back safely when checkpoints are invalid.
+- Event replay from the latest valid snapshot produces the same state as full replay.
 - Capability mismatch produces actionable health diagnostics.
 
 ## 26. Required Test Suites
@@ -1142,46 +1267,44 @@ The adapter is implementation-ready when all criteria below are satisfied.
 
 ### Milestone 2: Controlled Projection
 
-- Implement execution bindings and node bindings.
+- Implement execution bindings, backend-instance identity, node bindings, and mapping-version persistence.
 - Implement dry-run and idempotent publication.
 - Implement dependency projection and validation.
-- Add drift detection and reconciliation reports.
+- Add drift detection, incremental reconciliation checkpoints, and reconciliation reports.
 
 ### Milestone 3: Governed Execution
 
 - Implement ready-work filtering integration.
-- Implement atomic claim, leases, heartbeats, and release.
+- Implement distributed atomic claim intents, fencing tokens, leases, heartbeats, and release.
 - Implement execution context envelopes.
 - Add claim concurrency and recovery tests.
 
 ### Milestone 4: Evidence-Gated Completion
 
-- Implement completion submission and validation workflow.
+- Implement completion submission and bounded validation workflow.
 - Persist acceptance receipts.
 - Close backend work only after acceptance.
 - Add rejection and remediation behavior.
 
 ### Milestone 5: Hardening
 
-- Implement full observability.
+- Implement full observability, readiness caching, event snapshots, archive-aware cursors, and scale tests.
 - Complete security and fault-injection suites.
 - Add administrative drift inspection and repair workflow.
 - Produce operational runbooks and upgrade documentation.
 
 ## 28. Open Design Decisions
 
-The implementation project MUST resolve and record ADRs for:
+The implementation project MUST resolve and record ADRs for the remaining choices below. Approval gates are normatively virtual (Section 9.6), distributed claim coordination is fixed by Section 11.4, mapping versioning is fixed by Section 9.6, and backend-instance identity is fixed by Section 7.1:
 
 1. Whether the first transport is CLI, MCP, API, or a combination.
 2. Exact Beads metadata size limits and backend constraints beyond the normative mapping in Section 9.6.
-3. Representation of approval and evidence gates as physical or virtual work items.
-4. Source of truth and persistence technology for external bindings (any choice MUST satisfy Section 21.1).
-5. Lease recovery timing and tooling after Guidance restart (restart semantics are fixed in Section 11.3).
-6. Whether status synchronization is polling-only or hook-assisted.
-7. Canonical JSON algorithm used for digests (normative requirements are fixed in Section 8.3; the ADR selects the concrete algorithm).
-8. Retention policy for snapshots, events, receipts, and backend diagnostics.
-9. Multi-repository and monorepo backend-instance identity.
-10. Supported Beads version range and upgrade policy.
+3. Persistence technology for the Guidance coordination and binding store; any choice MUST satisfy Sections 11.4 and 21.1.
+4. Lease recovery timing and tooling after Guidance restart; restart semantics are fixed in Section 11.3.
+5. Whether status synchronization is polling-only or hook-assisted.
+6. Canonical JSON algorithm used for digests; normative requirements are fixed in Section 8.3.
+7. Retention and immutable-archive policy for snapshots, events, receipts, and backend diagnostics.
+8. Supported Beads version range and upgrade policy.
 
 ## 29. Definition of Done
 
@@ -1193,6 +1316,7 @@ The integration is complete when:
 - recovery exercises demonstrate publication, claim, and closure recovery;
 - operational dashboards and alerts are available;
 - compatibility and upgrade policies are documented;
+- mapping, status, distributed-claim, snapshot, reconciliation-checkpoint, and backend-instance-identity conformance tests pass;
 - an end-to-end execution demonstrates Spec-Kit ingestion, Guidance authorization, Beads projection, governed claiming, progress reporting, evidence rejection, remediation, acceptance, backend closure, and release of dependent work.
 
 ## 30. References
@@ -1200,7 +1324,7 @@ The integration is complete when:
 - Beads repository: https://github.com/gastownhall/beads (verified 2026-10-07)
 - Beads documentation: https://beads.gascity.com/ (verified 2026-10-07; current release 1.3.0)
 
-## Appendix A: Shared Type Definitions
+## Appendix A: Core and Shared Type Definitions
 
 This appendix defines the request, result, and shared domain types referenced by
 Sections 5 through 18. All types are normative. `GovernedExecutionPackage`,
@@ -1209,7 +1333,28 @@ Sections 5 through 18. All types are normative. `GovernedExecutionPackage`,
 `GovernedReadyWorkResult`, `CapabilityProbeResult`, and `ExecutionEventEnvelope` are
 defined inline in their sections and are not repeated here.
 
-### A.1 Criteria and Evidence
+### A.1 Operation Catalog
+
+```ts
+type CoreOperationId =
+  | "workspace.read"
+  | "workspace.write"
+  | "workspace.delete"
+  | "process.execute"
+  | "network.read"
+  | "network.write"
+  | "vcs.read"
+  | "vcs.write"
+  | "evidence.read"
+  | "evidence.write";
+
+type ExtensionOperationId = `${string}.${string}`;
+type OperationId = CoreOperationId | ExtensionOperationId;
+```
+
+Extension operation IDs MUST be namespaced by provider or capability, MUST be registered in the implementation contract, and MUST NOT redefine a core operation. Unknown operation IDs fail closed during authorization.
+
+### A.2 Criteria and Evidence
 
 ```typescript
 interface AcceptanceCriterion {
@@ -1266,7 +1411,7 @@ interface ExpectedArtifact {
 }
 ```
 
-### A.2 Ready Work and Claims
+### A.3 Ready Work and Claims
 
 ```typescript
 interface ReadyWorkRequest {
@@ -1326,6 +1471,7 @@ interface WorkClaim {
   backendWorkId: string;
   agentId: string;
   policyDecisionId: string;
+  fencingToken: number;
   issuedAt: string;
   expiresAt: string;
   lease: {
@@ -1341,6 +1487,7 @@ interface ClaimHeartbeatRequest {
   claimId: string;
   agentId: string;
   requestedExtensionSeconds?: number;
+  fencingToken: number;
   idempotencyKey: string;
   correlationId: string;
 }
@@ -1351,6 +1498,7 @@ interface ReleaseClaimRequest {
   claimId: string;
   agentId: string;
   reason: "completed" | "abandoned" | "error" | "administrative";
+  fencingToken: number;
   idempotencyKey: string;
   correlationId: string;
 }
@@ -1363,7 +1511,7 @@ interface ReleaseClaimResult {
 }
 ```
 
-### A.3 Reporting and Completion
+### A.4 Reporting and Completion
 
 ```typescript
 interface ProgressReceipt {
@@ -1458,7 +1606,7 @@ interface CompletionState {
 }
 ```
 
-### A.4 Execution Lifecycle Requests and Results
+### A.5 Execution Lifecycle Requests and Results
 
 ```typescript
 interface CapabilityProbeRequest {
@@ -1494,6 +1642,7 @@ interface ExecutionBinding {
   backendInstanceId: string;
   backendExecutionRef: string;
   projectionRevision: number;
+  mappingVersion: "guidance.beads-mapping/v1";
   createdAt: string;
 }
 
@@ -1509,6 +1658,7 @@ interface PublishWorkGraphRequest {
 interface PublishWorkGraphResult {
   dryRun: boolean;
   projectionRevision: number;
+  mappingVersion: "guidance.beads-mapping/v1";
   counts: {
     created: number;
     updated: number;
@@ -1541,6 +1691,17 @@ interface DriftFinding {
   resolution?: DriftResolutionAction;
 }
 
+interface ReconciliationCheckpoint {
+  executionId: string;
+  mappingVersion: string;
+  packageDigest: string;
+  projectionRevision: number;
+  backendRevision?: string;
+  backendChangeToken?: string;
+  lastProcessedEventSequence: number;
+  lastFullSnapshotDigest?: string;
+  completedAt: string;
+}
 interface ReconciliationResult {
   executionId: string;
   completedAt: string;

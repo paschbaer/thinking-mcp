@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-07: GBEA-SPEC-001 v0.4.0 reviewed, fixed → v0.4.1, file replaced
+
+- **Was:** Review of the externally revised v0.4.0 draft (13 findings, evidence-verified against Beads v1.3 docs incl. fresh `bd statuses` fetch); user approved all fixes + file replacement. All fixes applied, version bumped to 0.4.1-draft, the version-suffixed file was moved over the canonical `SDD/guidance-beads-adapter-specification-en.md` (old v0.3.0 content deleted; SDD now has exactly one GBEA file).
+- **Key facts verified:** Beads statuses are `open/in_progress/blocked/closed` (`done` is a category); worktrees share one `.beads` store; `BEADS_DIR` supports external/shared stores — both broke the v0.4.0 identity formula that hashed the workspace root.
+- **Status:** Spec v0.4.1-draft in place, uncommitted. **Next:** user decision on commit (pattern so far: direct on develop).
+
 ## 2026-10-07: GBEA-SPEC-001 review round 2 (external reviewer) fixed → v0.3.0-draft
 
 - **Was:** External review (6 findings) verified against v0.2.0 with evidence table; user approved fixes incl. Finding 3 = Option A (technology-neutral persistence requirements, tech choice stays ADR 4). Mapping grounded against real Beads v1.3 docs (issues/metadata/labels/dependencies/events-journal pages fetched; facts: types bug/feature/task/epic/chore/gate, priorities 0–4, dependency types incl. blocking vs non-blocking, human gates, metadata reserved prefixes `bd:`/`_`, per-replica at-least-once journal).
