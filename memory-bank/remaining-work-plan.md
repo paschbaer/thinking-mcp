@@ -1586,3 +1586,6 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 - [OPEN][low] Final#6: WorkflowRegistry cache never invalidated mid-process. Trigger point: next touch of workflow-registry.ts.
 - [OPEN][info] Final#7: invalid limits values silently default to 5 instead of failing closed. Trigger point: next touch of workflow-registry.ts.
 - [OPEN][info] Final#12: main.ts specKitArtifactCheck catch masks non-artifact errors with a misleading reason string. Trigger point: next touch of main.ts bridges.
+
+## 2026-10-07 — Chained run (session-3a03faf2): baseline typecheck RESOLVED
+- [RESOLVED] Baseline typecheck speckit-pool-mode.test.ts TS2739 (tracked since 7884ba4, labeled baseline in 017 run): fixture now carries maxTasks: 3, maxEntities: 2000, maxExcerptBytes: 65536 (commit 01071e9, branch feature/017-final-review-mediums); typecheck 0 errors, targeted test 4/4 green. Final#1/Final#2 remain OPEN — owned by chain successors of this session.
