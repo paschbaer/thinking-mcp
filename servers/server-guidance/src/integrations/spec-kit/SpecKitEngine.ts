@@ -309,7 +309,18 @@ export function checkArtifactPattern(
   if (discovered.length === 0) {
     return { present: false, reason: `no file matches "${pattern}"` };
   }
-  const content = readFileSync(discovered[0]!.path, "utf-8");
+  // Deterministic candidate: sort so the hashed/compared file is stable
+  // across discovery-order (relevant for the converge-loop hash, Review A F3).
+  discovered.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  let content: string;
+  try {
+    content = readFileSync(discovered[0]!.path, "utf-8");
+  } catch (err) {
+    return {
+      present: false,
+      reason: `artifact matching "${pattern}" unreadable: ${String(err)}`,
+    };
+  }
   if (content.trim() === "") {
     return {
       present: false,

@@ -7,7 +7,7 @@
  * See workflow-registry.design.md for the full contract.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { GuidanceError } from "../types/errors.js";
 
 export interface PhaseBinding {
@@ -74,13 +74,16 @@ function readJsonAt(configDir: string, file: string): unknown {
   const base = resolve(configDir);
   const primary = resolve(configDir, file);
   const fallback = resolve(configDir, "workflows", file);
-  let path: string;
-  if (
-    !primary.startsWith(base) ||
-    (existsSync(fallback) && !fallback.startsWith(base))
-  ) {
+  // Boundary-safe containment check (Review A F1): raw startsWith(base)
+  // would admit sibling directories (base=/cfg, target=/cfgworkflows/...).
+  const inside = (p: string) => {
+    const rel = relative(base, p);
+    return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+  };
+  if (!inside(primary) || (existsSync(fallback) && !inside(fallback))) {
     throw configurationInvalid(`$include target escapes configDir: ${file}`);
   }
+  let path: string;
   if (existsSync(primary)) {
     path = primary;
   } else if (existsSync(fallback)) {
@@ -257,6 +260,13 @@ export function loadWorkflowFile(
       ) {
         throw configurationInvalid(
           `workflow file ${workflowId}: phase ${key} transitions to unknown phase ${String(t.to)}`,
+        );
+      }
+      // A transition with NEITHER when NOR reason is a dead/ambiguous entry
+      // (never selectable) — reject at load time instead (Review A F4).
+      if (typeof t.when !== "string" && typeof t.reason !== "string") {
+        throw configurationInvalid(
+          `workflow file ${workflowId}: phase ${key} has a transition to ${String(t.to)} with neither 'when' nor 'reason'`,
         );
       }
     }

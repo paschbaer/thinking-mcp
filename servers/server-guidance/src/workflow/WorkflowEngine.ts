@@ -2948,19 +2948,7 @@ export class WorkflowEngine {
     // (before the agent runs speckit.converge) — never at submission time,
     // otherwise the classification races the agent's run (lesson #10).
     if (variant && target === "verify") {
-      const sk = (session.specKit ??= {
-        skips: [],
-        batches: [],
-        convergence: null,
-      });
-      const check = this.artifactCheck(session, "tasks.md");
-      sk.convergence = {
-        snapshotSha256: check.sha256 ?? "",
-        passes: sk.convergence?.passes ?? 0,
-      };
-      this.sessions.update(sessionId, (s) => {
-        s.specKit = session.specKit;
-      });
+      this.takeConvergenceSnapshot(session);
     }
     // specs/017 FR-8: crash-resume — entering a bound phase whose artifact
     // already exists skips it via artifacts_present (recorded).
@@ -2968,6 +2956,12 @@ export class WorkflowEngine {
       this.applyArtifactSkips(session, def);
     }
     const finalPhase = session.currentPhase;
+    // A skip chain can land directly ON verify (custom variants may bind it):
+    // ensure the convergence snapshot exists for that entry path too
+    // (Review B F3).
+    if (variant && finalPhase === "verify" && !session.specKit?.convergence) {
+      this.takeConvergenceSnapshot(session);
+    }
     this.audit.append({
       sessionId,
       eventType: "transition_accepted",
@@ -3081,6 +3075,11 @@ export class WorkflowEngine {
         // specs/017 FR-8: session-start skip applies to chain successors too
         // (bound phase artifact already present → artifacts_present skip).
         this.applyArtifactSkips(successor, this.definitionFor(successor));
+        // A skip chain can land the successor directly on verify: take the
+        // convergence snapshot for that entry path (Review B F3).
+        if (this.variantFor(successor) && successor.currentPhase === "verify") {
+          this.takeConvergenceSnapshot(successor);
+        }
         const activation = await this.activateSession(
           successor.sessionId,
           successor.currentPhase,
@@ -3744,7 +3743,11 @@ export class WorkflowEngine {
   }
 
   /** specs/017 FR-1: the variant definition of a session, or null when the
-   *  session runs the boot workflow (standard-development — untouched, FR-2). */
+   *  session runs the boot workflow (standard-development — untouched, FR-2).
+   *  A workflowId that does not resolve as a registry file is treated as a
+   *  legacy free-form label (pre-017 sessions used it as a chain label) and
+   *  falls back to the boot definition; a CORRUPT resolvable variant file
+   *  still fails closed (non-workflow_not_found errors rethrow). */
   private variantFor(session: WorkflowSession): LoadedWorkflow | null {
     if (
       !session.workflowId ||
@@ -3752,10 +3755,17 @@ export class WorkflowEngine {
     ) {
       return null;
     }
-    return this.workflowRegistry.resolve(
-      this.config.configDir,
-      session.workflowId,
-    );
+    try {
+      return this.workflowRegistry.resolve(
+        this.config.configDir,
+        session.workflowId,
+      );
+    } catch (err) {
+      if (err instanceof GuidanceError && err.code === "workflow_not_found") {
+        return null;
+      }
+      throw err;
+    }
   }
 
   /** Session-scoped definition lookup: variant definition when the session
@@ -3830,6 +3840,29 @@ export class WorkflowEngine {
     }
     this.sessions.update(session.sessionId, (s) => {
       s.currentPhase = session.currentPhase;
+      s.specKit = session.specKit;
+    });
+  }
+
+  /** specs/017 FR-7: snapshot tasks.md when the verify phase is ENTERED
+   *  (before the agent runs speckit.converge) — never at submission time,
+   *  otherwise the classification races the agent's run (lesson #10). */
+  private takeConvergenceSnapshot(session: WorkflowSession): void {
+    const sk = (session.specKit ??= {
+      skips: [],
+      batches: [],
+      convergence: null,
+    });
+    const check = this.artifactCheck(session, "tasks.md");
+    // No importable tasks.md (or bridge unwired) => no snapshot; the
+    // convergence gate then degrades to the standard flow instead of
+    // comparing against an empty hash (Review B F4).
+    if (!check.present || !check.sha256) return;
+    sk.convergence = {
+      snapshotSha256: check.sha256,
+      passes: sk.convergence?.passes ?? 0,
+    };
+    this.sessions.update(session.sessionId, (s) => {
       s.specKit = session.specKit;
     });
   }
@@ -3933,6 +3966,11 @@ export class WorkflowEngine {
 
     // review_and_fix_implementation: strict batch cadence outcome.
     if (phase === "review_and_fix_implementation") {
+      const persistSpecKit = () => {
+        this.sessions.update(session.sessionId, (s) => {
+          s.specKit = session.specKit;
+        });
+      };
       const outcome = payload.outcome;
       const current = [...sk.batches].reverse().find((b) => !b.approved);
       if (outcome === "implementation_changes_required") {
@@ -3947,6 +3985,10 @@ export class WorkflowEngine {
               ),
             };
           }
+          // Persist immediately: the round counter must survive reject paths
+          // (beforeEnter/ops failures) — otherwise the outcome is replayable
+          // and session state diverges from the audit trail (Review B F1).
+          persistSpecKit();
         }
         return { reason: "implementation_changes_required" };
       }
@@ -3964,12 +4006,14 @@ export class WorkflowEngine {
         // them; the task list tells the agent whether more are pending).
         current.approved = true;
         current.reviewRounds += 1;
+        persistSpecKit();
         return { reason: "batch_approved_more_pending" };
       }
       if (outcome === "submission_valid") {
         if (current) current.approved = true;
         const unapproved = sk.batches.filter((b) => !b.approved);
         if (unapproved.length > 0) {
+          persistSpecKit();
           return {
             reject: fail(
               "spec_kit_batch_gate",
@@ -3977,6 +4021,7 @@ export class WorkflowEngine {
             ),
           };
         }
+        persistSpecKit();
         return {};
       }
       // No outcome: fall through to the standard severity gate / selection.
