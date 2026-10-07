@@ -756,6 +756,8 @@ All registered `ERROR_CODES` (exact-surface snapshot):
 | `spec_kit_feature_ambiguous`               | Spec Kit Feature Ambiguous                                                                                                            |
 | `spec_kit_feature_outside_workspace`       | Spec Kit Feature Outside Workspace                                                                                                    |
 | `spec_kit_artifact_missing`                | Spec Kit Artifact Missing                                                                                                             |
+| `spec_kit_batch_gate`                      | Spec Kit Batch Gate                                                                                                                   |
+| `spec_kit_convergence_unclassified`        | Spec Kit Convergence Unclassified                                                                                                     |
 | `spec_kit_artifact_unreadable`             | Spec Kit Artifact Unreadable                                                                                                          |
 | `spec_kit_artifact_empty`                  | Spec Kit Artifact Empty                                                                                                               |
 | `spec_kit_artifact_invalid`                | Spec Kit Artifact Invalid                                                                                                             |
