@@ -932,3 +932,6 @@ Fast-forward 6455cc7..80069f1 (5 commits), feature branch deleted, develop ahead
 - Chain session-3a03faf2 (head: baseline typecheck, RESOLVED 01071e9) -> successor Final#1 (session-012866f1, variant degradation marker, 0babcc6/68e5b1a) -> successor Final#2 (session-1c9082e9, convergence snapshot signal, 02a09cf/92718c8). All sessions completed with green gates (docs-drift, final-review, index-freshness, repository-analysis, capture-session-lessons).
 - Suite 674/674 green; typecheck fully clean (baseline eliminated). Open tracked follow-ups: 2 low (Final#1 final review) + 3 low/1 info (Final#2 final review) + FR-10 wiring + include-cycle spec note — all with trigger points in remaining-work-plan.md.
 - Next: merge review of feature/017-final-review-mediums into develop, push (user-side SSH).
+
+### 2026-10-07 (Merge): 017 follow-ups chain merged to develop
+Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degradation marker, Final#2 convergence snapshot signal, memory-bank lifecycle), feature branch deleted, develop ahead of origin/develop by 7 — push pending (user-side SSH). Suite 674/674 green, typecheck fully clean (baseline eliminated), index covers new HEAD.
