@@ -3,6 +3,14 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-07: GBEA-SPEC-001 review round 2 (external reviewer) fixed → v0.3.0-draft
+
+- **Was:** External review (6 findings) verified against v0.2.0 with evidence table; user approved fixes incl. Finding 3 = Option A (technology-neutral persistence requirements, tech choice stays ADR 4). Mapping grounded against real Beads v1.3 docs (issues/metadata/labels/dependencies/events-journal pages fetched; facts: types bug/feature/task/epic/chore/gate, priorities 0–4, dependency types incl. blocking vs non-blocking, human gates, metadata reserved prefixes `bd:`/`_`, per-replica at-least-once journal).
+- **Added:** §6.6 (schema versioning), §9.6 (mapping spec), §11.3 restart semantics, §16.4/16.5 suspension scopes, §18.1 (event ordering model), §21.1 (persistence requirements); §25.2/25.5 criteria; ADR 2/4/5 narrowed.
+- **Bug fixed:** stray code fence in §18 (from round-1 edit) had unbalanced the markdown and hidden §19 from the outline parser — removed; lesson: edit_file old_text must include the full fence context when inserting blocks after code.
+- **Note:** grep tool does not index `SDD/` (local exclude) — verify spec content via read_file outline, not grep.
+- **Status:** Spec updated to 0.3.0-draft, uncommitted. **Next:** user decision on commit (previous rounds: direct on develop).
+
 ## 2026-10-07: GBEA-SPEC-001 reviewed and fixed (SDD, uncommitted)
 
 - **Was:** Review of `SDD/guidance-beads-adapter-specification-en.md` produced 13 findings (F1–F13); user confirmed decisions: F2 = Option A (no acceptance revocation), F11 = define stealth from real Beads feature (`bd init --stealth` → `no-git-ops: true`), F1 = full Appendix A, F13 = verify URLs online. All fixes applied to the spec in place; version bumped to 0.2.0-draft.

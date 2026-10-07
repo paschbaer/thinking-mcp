@@ -1,7 +1,7 @@
 # Guidance Beads Execution Adapter Specification
 
 **Document ID:** GBEA-SPEC-001  
-**Version:** 0.2.0-draft  
+**Version:** 0.3.0-draft  
 **Status:** Draft for review  
 **Language:** English  
 **Normative keywords:** MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY
@@ -235,6 +235,16 @@ interface ProvenanceRecord {
 }
 ```
 
+### 6.6 Schema Versioning and Compatibility
+
+All versioned Guidance schemas follow the format `guidance.<name>/vMAJOR` (for example `guidance.execution-package/v1`, `guidance.execution-context/v1`, `guidance.execution-event/v1`, `guidance.beads-metadata/v1`).
+
+- Producers MUST emit `schemaVersion` on every envelope that defines one; consumers MUST reject an envelope whose MAJOR version they do not support — with `BACKEND_SCHEMA_INCOMPATIBLE` for backend-facing schemas and `INVALID_REQUEST` for agent-facing envelopes.
+- Within the same MAJOR version, evolution is additive only: producers MUST NOT remove or rename fields and MUST NOT change field semantics; consumers MUST ignore unknown additional fields (tolerant reader).
+- Any breaking change (removal, rename, semantic change, type narrowing) requires a new MAJOR version.
+- Producers SHOULD support the previous MAJOR version (N-1) for at least one adapter minor version to allow staged upgrades; the supported range and upgrade path MUST be documented per ADR 10.
+- Schema migrations are covered by the migration test suite (Section 26.10).
+
 ## 7. Identifier and Binding Model
 
 ```typescript
@@ -369,6 +379,91 @@ The adapter MUST:
 
 Reusing an idempotency key with an identical request MUST return the original logical result. Reusing it with a different request digest MUST return `IDEMPOTENCY_CONFLICT`.
 
+### 9.6 Canonical → Beads Mapping Specification
+
+This subsection is the normative mapping from canonical work nodes to Beads issues, grounded on the Beads v1.3 issue schema (References). Two conforming adapter implementations MUST produce equivalent backend state for the same execution package.
+
+#### 9.6.1 Projected Item Shape
+
+```typescript
+interface BeadsProjectedItem {
+  backendWorkId: string; // Beads issue id, e.g. "bd-a1b2"
+  issueType: "epic" | "task" | "chore" | "gate";
+  title: string;
+  description: string;
+  priority: 0 | 1 | 2 | 3;
+  labels: string[];
+  metadata: {
+    guidance: GuidanceBeadsMetadata; // namespaced key, see 9.6.3
+  };
+  dependencies: Array<{
+    targetBackendWorkId: string;
+    type: "blocks" | "parent-child" | "related";
+  }>;
+}
+
+interface GuidanceBeadsMetadata {
+  schemaVersion: "guidance.beads-metadata/v1";
+  executionId: string;
+  workId: string;
+  kind: WorkNode["kind"];
+  packageDigest: string;
+  projectionRevision: number;
+  policyDecisionId: string;
+  priorityOrdinal?: number;
+  acceptanceCriteria?: AcceptanceCriterion[]; // when projection.includeAcceptanceCriteria
+  evidenceRequirements?: EvidenceRequirement[]; // references only, see 9.6.5
+  governance?: {
+    allowedOperations?: string[];
+    prohibitedOperations?: string[];
+    executionConstraints?: WorkNode["executionConstraints"];
+  }; // when projection.includeGovernanceMetadata
+}
+```
+
+#### 9.6.2 Field and Type Mapping
+
+| Canonical concept | Normative Beads representation |
+|---|---|
+| Work node kind `epic` | `issueType: "epic"` (root epic per execution when `projection.rootEpicPerExecution`) |
+| Work node kind `task` | `issueType: "task"` |
+| Work node kind `validation` | `issueType: "task"` + label `guidance.kind=validation` |
+| Work node kind `review` | `issueType: "task"` + label `guidance.kind=review` |
+| Work node kind `evidence` | `issueType: "task"` + label `guidance.kind=evidence`; created only when `projection.includeEvidenceTasks`, otherwise metadata-only |
+| Work node kind `approval` | `issueType: "gate"` with human gate semantics (manual resolution by Guidance only) |
+| Priority `critical` / `high` / `normal` / `low` | Beads priority `0` / `1` / `2` / `3` (Beads `4` = backlog MUST NOT be assigned) |
+| `priority.ordinal` | Metadata field `priorityOrdinal`; MUST NOT be encoded in the Beads priority |
+| `title`, `description` | Beads `title`, `description`; titles MUST NOT embed mutable state (status, assignee, claim) |
+| Acceptance criteria (human-readable) | Rendered into the Beads `description` body when `projection.includeAcceptanceCriteria` |
+
+#### 9.6.3 Labels and Metadata Encoding
+
+Every projected item MUST carry the label `guidance.managed` and SHOULD carry the label `guidance.execution=<executionId>` for filterability. Kind labels follow Section 9.6.2. The adapter MUST NOT remove or alter these labels during updates of shared fields.
+
+Guidance-controlled data beyond native Beads fields MUST be stored in the issue `metadata` field under the single namespaced key `guidance`, encoded as canonical JSON per Section 8.3. The adapter MUST NOT use Beads-reserved key prefixes (`bd:`, `_`). The encoded `guidance` value MUST NOT exceed 32768 bytes; a package whose encoded metadata exceeds the limit MUST fail per item with `PROJECTION_FAILED` and an actionable diagnostic — silent truncation is not permitted.
+
+#### 9.6.4 Dependency Mapping
+
+| Canonical relation | Beads dependency type | Blocking |
+|---|---|---|
+| `blocks` | `blocks` | yes |
+| `parent-of` | `parent-child` | no (structural) |
+| `requires-evidence-from` | `blocks` onto the projected evidence item (or gate) | yes |
+| `requires-approval-from` | `blocks` onto the projected approval gate | yes |
+| `relates-to` | `related` | no |
+
+Other Beads dependency types (`conditional-blocks`, `waits-for`, `tracks`, `discovered-from`, `caused-by`, `validates`, `supersedes`) MUST NOT be produced by the adapter and, when detected in Guidance-managed items during reconciliation, are classified as drift per Section 16.4.
+
+#### 9.6.5 Notes and Evidence Storage
+
+Progress reports MAY be projected into Beads notes as append-only entries (conflict class: progress notes, Section 16.3). Notes are a Beads-side projection; the governed event record remains in Guidance (Section 13).
+
+Evidence is stored by reference only: evidence requirements and submissions appear as references (URI plus content digest) in metadata. Evidence artifacts MUST NOT be stored in Beads issue bodies, descriptions, or notes beyond these references. The Evidence Store (Section 3.1) remains the resolution point for evidence integrity.
+
+#### 9.6.6 Immutability and Round-Trip
+
+`policyDecisionId` and `packageDigest` are immutable correlation metadata: once written, the adapter MUST NOT rewrite them for an existing binding. Canonical fields MUST be losslessly recoverable from the Beads representation (native fields, labels, and `guidance` metadata); this round-trip property is verified by the golden tests in Section 26.3.
+
 ## 10. Ready-Work Discovery
 
 ### 10.1 Backend Ready Set
@@ -445,6 +540,13 @@ interface ClaimWorkRequest {
 - Claim release MUST be idempotent.
 - Reassignment after failure MUST produce a new claim ID.
 - Completion submitted under an expired or superseded claim MUST be rejected.
+
+Restart semantics:
+
+- Governed claims and leases MUST be persisted and MUST survive a Guidance restart.
+- Restart downtime counts against lease expiry: on restart, leases with remaining validity remain active; leases that expired during downtime are handled by the configured stale-claim policy and the handling MUST be auditable.
+- Agents MUST re-authenticate after a reconnect; heartbeats for still-valid leases then extend normally within policy limits.
+- Startup MUST run orphaned-claim detection (Section 11.1) before serving new claim requests.
 
 ## 12. Execution Context Delivery
 
@@ -654,14 +756,26 @@ Backend metadata        -> backend-wins
 - **High:** assignment, status, or ordinary dependency changed.
 - **Critical:** governance gate, security constraint, evidence requirement, binding, or package digest changed.
 
-High and critical drift MUST suspend affected mutations until resolved. Critical drift SHOULD suspend affected execution.
+Suspension scope — drift suspension is scoped, not execution-wide by default:
+
+- `item`: only the affected work item is suspended.
+- `subtree`: the affected item plus all items transitively depending on it.
+- `execution`: the whole execution is suspended.
+
+Classification rules:
+
+- Drift on item-local shared fields (assignment, status, description, priority, ordinary dependency) suspends at `item` or `subtree` scope.
+- Drift on node-scoped governance fields (governance gate, security constraint, evidence requirement, binding) suspends at `subtree` scope.
+- Drift on execution-wide governance fields (package digest, policy metadata) suspends at `execution` scope.
+
+The default is the minimum scope that restores safety; policy MAY tighten (never widen) the computed scope. Suspended work is excluded from governed-ready results (Section 10.2). High and critical drift MUST suspend affected mutations at the determined scope until resolved.
 
 ### 16.5 Drift Resolution
 
 High and critical drift MUST be resolved through the following procedure before affected mutations resume:
 
 1. **Detection:** reconciliation classifies each finding per Section 16.4 and records it as a `DriftFinding` (Appendix A).
-2. **Suspension:** affected work items and, for critical drift, the execution enter the suspended state; the suspension reason MUST reference the finding.
+2. **Suspension:** affected work enters the suspended state at the scope determined per Section 16.4; the suspension reason MUST reference the finding.
 3. **Inspection:** an administrator inspects findings via `guidance.adapters.inspect_drift` (Section 24.2).
 4. **Resolution action:** the administrator selects exactly one action per finding:
    - `accept-backend`: adopt the backend value into the canonical package; this requires a package amendment and produces a new package digest (Section 14.2).
@@ -724,7 +838,6 @@ interface ExecutionEventEnvelope<T> {
 ```
 
 The normalized event log MUST assign a strictly increasing, gap-free `sequence` per execution. `collectEvents` MUST deliver events in ascending sequence order; cursors (`EventCursorRequest.afterSequence`, Appendix A) resume exactly after the given sequence. Delivery is at-least-once; consumers remain idempotent by `eventId`.
-```
 
 Required event types include:
 
@@ -745,6 +858,24 @@ Required event types include:
 - `reconciliation.completed`
 
 Events MUST be append-only in the Guidance audit log. Consumers MUST be idempotent by `eventId`.
+
+### 18.1 Event Ordering Model
+
+Ordering guarantees are defined at three levels:
+
+1. **Global (across executions): none.** There is no defined ordering between events of different executions. Consumers MUST NOT infer cross-execution order from timestamps, delivery order, or sequence numbers.
+2. **Per execution: total order.** The normalized event log assigns a strictly increasing, gap-free `sequence` per execution (Section 18). All events of one execution — governance decisions, claim lifecycle, progress, completion — share this single order.
+3. **Per claim: monotonic report sequence.** Progress reports carry their own per-claim `sequence` (Section 13). The report is mapped into the execution order at the position where Guidance accepts it.
+
+Causality rules:
+
+- `causationId` MUST reference the `eventId` of the event that caused this event, whenever the event is a direct reaction to another event (for example, `work.completion.rejected` caused by a validation failure on `work.completion.submitted`).
+- Within one execution, an event MUST be sequenced after the event referenced by its `causationId`.
+- Independent events have no ordering guarantee beyond their assigned sequence.
+
+Delivery model: at-least-once, ordered ascending by `sequence` per execution; consumers are idempotent by `eventId`.
+
+Lifecycle ordering rule: agent reports are valid only while the referenced claim is active. A report arriving after the corresponding `work.completion.accepted` event (for example, a late `work.progressed`) MUST be rejected with `INVALID_STATE_TRANSITION` and recorded as an unsequenced diagnostic drop — it MUST NOT enter the execution sequence. This makes the case "`completion.accepted` precedes `work.progressed`" deterministic: the late report is dropped, never reordered before the acceptance.
 
 ## 19. Capability Negotiation
 
@@ -799,6 +930,17 @@ Capability probing MUST occur at startup and SHOULD recur after backend upgrade,
 - Accepted completion with failed backend closure MUST be retried without repeating acceptance.
 - Dead-letter handling MUST exist for repeatedly failing normalized events.
 - Administrative tooling MUST support snapshot inspection and controlled repair.
+
+### 21.1 Persistence Requirements
+
+The persistence technology is selected by ADR 4 (Section 28). Whatever technology is chosen MUST satisfy all of the following, and conformance is verified by the fault-injection suite (Section 26.8):
+
+- **Durability:** external bindings, governed claims and leases, acceptance receipts, the event log, and snapshots MUST be durably persisted before the corresponding operation is reported as successful, and MUST survive process crash and restart.
+- **Atomicity:** a state transition and its events and receipts MUST be committed atomically where the store supports multi-record transactions; otherwise the implementation MUST use a write-ahead journal with a documented recovery procedure that yields equivalent crash-consistency.
+- **Sequence allocation:** event `sequence` values (Section 18) MUST be allocated transactionally; a crash MUST NOT cause sequence reuse or gaps.
+- **Coupled writes:** bindings and projection results MUST be committed atomically with successful projection results where possible (Section 21, Reliability).
+- **Required query patterns:** lookup by `executionId`; lookup by `workId`; event cursor reads by `(executionId, afterSequence)`; claim sweeps by lease expiry; and drift inspection by execution. Implementations MUST NOT require full scans for these paths in steady state.
+- **Retention:** retention policy for snapshots, events, receipts, and diagnostics follows ADR 8 and MUST be enforceable without violating append-only audit requirements.
 
 ## 22. Observability
 
@@ -937,6 +1079,7 @@ The adapter is implementation-ready when all criteria below are satisfied.
 - A stale or superseded package revision is rejected with `STALE_PACKAGE` and does not modify backend state.
 - Partial failures are recoverable by reconciliation.
 - Publication exceeding backend metadata size limits fails per item with an actionable diagnostic; silent truncation is not permitted.
+- Projected items round-trip losslessly: canonical fields are fully recoverable from the Beads representation (golden tests, Section 26.3).
 
 ### 25.3 Readiness and Claims
 
@@ -958,7 +1101,7 @@ The adapter is implementation-ready when all criteria below are satisfied.
 
 - Direct dependency removal is detected.
 - Governance metadata change is classified as critical drift.
-- Critical drift suspends affected execution.
+- Critical drift on execution-wide governance fields suspends the execution; item-local drift suspends the minimum required scope, not the entire execution.
 - Non-semantic backend metadata changes do not block execution.
 
 ### 25.6 Security
@@ -1030,10 +1173,10 @@ The adapter is implementation-ready when all criteria below are satisfied.
 The implementation project MUST resolve and record ADRs for:
 
 1. Whether the first transport is CLI, MCP, API, or a combination.
-2. Exact Beads metadata encoding and size limits.
+2. Exact Beads metadata size limits and backend constraints beyond the normative mapping in Section 9.6.
 3. Representation of approval and evidence gates as physical or virtual work items.
-4. Source of truth and persistence technology for external bindings.
-5. Lease recovery timing and tooling after Guidance restart (the crash-window detection requirement is fixed in Section 11.1).
+4. Source of truth and persistence technology for external bindings (any choice MUST satisfy Section 21.1).
+5. Lease recovery timing and tooling after Guidance restart (restart semantics are fixed in Section 11.3).
 6. Whether status synchronization is polling-only or hook-assisted.
 7. Canonical JSON algorithm used for digests (normative requirements are fixed in Section 8.3; the ADR selects the concrete algorithm).
 8. Retention policy for snapshots, events, receipts, and backend diagnostics.
