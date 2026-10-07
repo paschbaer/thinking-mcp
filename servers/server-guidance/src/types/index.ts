@@ -197,6 +197,9 @@ export interface WorkflowSession {
       approved: boolean;
     }[];
     convergence: { snapshotSha256: string; passes: number } | null;
+    /** specs/017 Final#2: reason why no convergence snapshot could be taken
+     *  at verify entry (tasks.md missing/unreadable with a wired bridge). */
+    convergenceUnavailable?: string;
   };
   downstream: {
     servers: Record<

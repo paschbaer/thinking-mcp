@@ -2973,8 +2973,14 @@ export class WorkflowEngine {
     const finalPhase = session.currentPhase;
     // A skip chain can land directly ON verify (custom variants may bind it):
     // ensure the convergence snapshot exists for that entry path too
-    // (Review B F3).
-    if (variant && finalPhase === "verify" && !session.specKit?.convergence) {
+    // (Review B F3) — but not twice within the same entry when the first
+    // attempt already recorded its unavailability.
+    if (
+      variant &&
+      finalPhase === "verify" &&
+      !session.specKit?.convergence &&
+      !session.specKit?.convergenceUnavailable
+    ) {
       this.takeConvergenceSnapshot(session);
     }
     this.audit.append({
@@ -3368,9 +3374,10 @@ export class WorkflowEngine {
       successorWorkflowId &&
       successorWorkflowId !== this.definition.workflowId
     ) {
-      successorDefinition = this.workflowRegistry
-        .resolve(this.config.configDir, successorWorkflowId)
-        .definition as unknown as WorkflowDefinition;
+      successorDefinition = this.workflowRegistry.resolve(
+        this.config.configDir,
+        successorWorkflowId,
+      ).definition as unknown as WorkflowDefinition;
       successorVariantResolved = true;
     }
     const succNow = new Date().toISOString();
@@ -3898,8 +3905,27 @@ export class WorkflowEngine {
     const check = this.artifactCheck(session, "tasks.md");
     // No importable tasks.md (or bridge unwired) => no snapshot; the
     // convergence gate then degrades to the standard flow instead of
-    // comparing against an empty hash (Review B F4).
-    if (!check.present || !check.sha256) return;
+    // comparing against an empty hash (Review B F4). With a WIRED bridge the
+    // failure is SIGNALLED (Final#2): audit + visible flag + guidance note —
+    // and the verify gate rejects the submission instead of silently
+    // completing (unwired engines keep the historical behavior).
+    if (!check.present || !check.sha256) {
+      if (typeof this.deps.specKitArtifactCheck === "function") {
+        const reason = check.reason ?? "tasks.md missing or unreadable";
+        sk.convergenceUnavailable = reason;
+        this.sessions.update(session.sessionId, (s) => {
+          s.specKit = session.specKit;
+        });
+        this.audit.append({
+          sessionId: session.sessionId,
+          eventType: "convergence_snapshot_unavailable",
+          phase: session.currentPhase,
+          data: { reason },
+        });
+      }
+      return;
+    }
+    sk.convergenceUnavailable = undefined;
     sk.convergence = {
       snapshotSha256: check.sha256,
       passes: sk.convergence?.passes ?? 0,
@@ -3954,7 +3980,10 @@ export class WorkflowEngine {
       convergence: null,
     });
     const fail = (
-      code: "spec_kit_batch_gate" | "spec_kit_convergence_unclassified",
+      code:
+        | "spec_kit_batch_gate"
+        | "spec_kit_convergence_unclassified"
+        | "convergence_snapshot_unavailable",
       message: string,
     ) => {
       const err = new GuidanceError(code, message, {
@@ -4072,8 +4101,34 @@ export class WorkflowEngine {
 
     // verify: hash-based convergence classification (DQ-1).
     if (phase === "verify") {
-      const snapshot = sk.convergence;
-      if (!snapshot) return {}; // no snapshot (bridge unwired): standard flow
+      let snapshot = sk.convergence;
+      if (!snapshot) {
+        // specs/017 Final#2: with a wired bridge a missing snapshot means
+        // tasks.md was missing/unreadable at verify entry. Recovery-first:
+        // if tasks.md is importable NOW, retake the snapshot instead of
+        // rejecting (the agent restored the file after the entry failure);
+        // otherwise reject with the classified recoverable error instead of
+        // silently bypassing the converge loop. Unwired bridge: historical
+        // standard flow.
+        if (typeof this.deps.specKitArtifactCheck === "function") {
+          const nowCheck = this.artifactCheck(session, "tasks.md");
+          if (nowCheck.present && nowCheck.sha256) {
+            this.takeConvergenceSnapshot(session);
+            snapshot = sk.convergence;
+          }
+        }
+      }
+      if (!snapshot) {
+        if (typeof this.deps.specKitArtifactCheck === "function") {
+          return {
+            reject: fail(
+              "convergence_snapshot_unavailable",
+              `no convergence snapshot was taken at verify entry (${sk.convergenceUnavailable ?? "tasks.md missing or unreadable"}) — restore tasks.md (e.g. import_spec_kit_artifacts) and resubmit`,
+            ),
+          };
+        }
+        return {}; // bridge unwired: historical standard flow
+      }
       const check = this.artifactCheck(session, "tasks.md");
       if (!check.present || !check.sha256) return {};
       if (check.sha256 === snapshot.snapshotSha256) {
@@ -4188,6 +4243,11 @@ export class WorkflowEngine {
       lines.push(
         '- Converge loop: run speckit.converge; byte-identical tasks.md = converged (submit_verification proceeds to complete); a new "## Phase N: Convergence" section loops back to implement — call refresh_spec_kit_artifacts first, then implement the gap tasks (they re-enter the batch cadence).',
       );
+      if (session.specKit?.convergenceUnavailable) {
+        lines.push(
+          `- CONVERGENCE SNAPSHOT UNAVAILABLE: ${session.specKit.convergenceUnavailable} — restore tasks.md and re-enter verify; submissions are rejected until a snapshot exists.`,
+        );
+      }
     }
     const sk = session.specKit;
     if (sk?.skips.length) {
@@ -4356,9 +4416,9 @@ export class WorkflowEngine {
     // specs/017 Final#1: a degraded variant session runs on the boot
     // definition — say so loudly, including the sticky-flag caveat.
     const degradedNote = session.variantDegraded
-      ? "\n VARIANT DEGRADED: the workflow definition file for \"" +
+      ? '\n VARIANT DEGRADED: the workflow definition file for "' +
         session.workflowId +
-        "\" is missing or unresolvable — this session runs on the default workflow semantics (no variant gates, no batch cadence, no artifact/convergence enforcement). Restore the definition file or restart with a valid one; the session REMAINS marked degraded for its lifetime."
+        '" is missing or unresolvable — this session runs on the default workflow semantics (no variant gates, no batch cadence, no artifact/convergence enforcement). Restore the definition file or restart with a valid one; the session REMAINS marked degraded for its lifetime.'
       : "";
     // Amendment 002 (FR-118): Form-B successors are scoped to exactly one
     // spec-kit task — the annex is appended to EVERY phase instruction.

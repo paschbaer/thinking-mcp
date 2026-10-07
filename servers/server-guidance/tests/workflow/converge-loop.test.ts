@@ -107,6 +107,81 @@ afterEach(() => {
   rmSync(ws, { recursive: true, force: true });
 });
 
+describe("convergence snapshot availability (specs/017 Final#2)", () => {
+  it("unwired bridge: existing snapshot still classifies via standard flow (documented baseline)", async () => {
+    const res = await startVariant();
+    await reachVerify(res.sessionId);
+    // An engine WITHOUT the artifact bridge cannot enforce variant gates at
+    // all (its artifactCheck always reports absent). With a snapshot already
+    // taken by the wired engine, the verify gate degrades to the standard
+    // flow instead of crashing — the historical behavior.
+    const bare = new WorkflowEngine({
+      config: loadConfig(FIXTURE),
+      stateDir: join(ws, "state"),
+    });
+    const out = await bare.submit(res.sessionId, "verify", {
+      verificationSummary: ["no bridge, existing snapshot"],
+    });
+    expect(out.accepted).toBe(true);
+    expect(out.currentPhase).toBe("complete");
+  });
+
+  it("wired bridge + unreadable tasks.md at verify entry: flagged, audited, and verify submissions rejected (Final#2)", async () => {
+    // tasks.md exists through the tasks-phase exit gate, then disappears —
+    // so verify is entered without an importable tasks.md.
+    const res = await startVariant();
+    const analyze = await engine.submit(
+      res.sessionId,
+      "review_and_adjust_plan",
+      {
+        findings: [],
+      },
+    );
+    if (!analyze.accepted) throw new Error(analyze.error?.message);
+    const impl = await engine.submit(res.sessionId, "implement", {
+      implementedTasks: ["T1"],
+      batch: { id: "batch-1", taskIds: ["T1"] },
+    });
+    if (!impl.accepted) throw new Error(impl.error?.message);
+    rmSync(join(featureDir, "tasks.md"));
+    const review = await engine.submit(
+      res.sessionId,
+      "review_and_fix_implementation",
+      { findings: [], outcome: "submission_valid" },
+    );
+    if (!review.accepted) throw new Error(review.error?.message);
+    const s = engine.getSession(res.sessionId);
+    expect(s.currentPhase).toBe("verify");
+    expect(s.specKit?.convergence).toBeNull();
+    expect(s.specKit?.convergenceUnavailable).toBeTruthy();
+    expect(
+      engine.audit
+        .read(res.sessionId)
+        .filter((e) => e.eventType === "convergence_snapshot_unavailable"),
+    ).toHaveLength(1);
+    const verifyOut = await engine.submit(res.sessionId, "verify", {
+      verificationSummary: ["attempt"],
+    });
+    expect(verifyOut.accepted).toBe(false);
+    expect(verifyOut.error?.code).toBe("convergence_snapshot_unavailable");
+    expect(verifyOut.error?.recoverable).toBe(true);
+
+    // Recovery: restore tasks.md and RESUBMIT verify — the gate retakes the
+    // snapshot submission-time when the file is importable again.
+    syncTasksFile();
+    const s2 = engine.getSession(res.sessionId);
+    expect(s2.currentPhase).toBe("verify");
+    const out = await engine.submit(res.sessionId, "verify", {
+      verificationSummary: ["✅ Converged after recovery"],
+    });
+    expect(out.accepted).toBe(true);
+    expect(out.currentPhase).toBe("complete");
+    const s3 = engine.getSession(res.sessionId);
+    expect(s3.specKit?.convergence).not.toBeNull();
+    expect(s3.specKit?.convergenceUnavailable).toBeUndefined();
+  });
+});
+
 describe("converge loop (specs/017 FR-7)", () => {
   it("tasks.md byte-identical after converge => complete path (AC5)", async () => {
     const res = await startVariant();

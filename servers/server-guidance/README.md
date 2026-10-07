@@ -758,6 +758,7 @@ All registered `ERROR_CODES` (exact-surface snapshot):
 | `spec_kit_artifact_missing`                | Spec Kit Artifact Missing                                                                                                             |
 | `spec_kit_batch_gate`                      | Spec Kit Batch Gate                                                                                                                   |
 | `spec_kit_convergence_unclassified`        | Spec Kit Convergence Unclassified                                                                                                     |
+| `convergence_snapshot_unavailable`         | Convergence Snapshot Unavailable                                                                                                      |
 | `spec_kit_artifact_unreadable`             | Spec Kit Artifact Unreadable                                                                                                          |
 | `spec_kit_artifact_empty`                  | Spec Kit Artifact Empty                                                                                                               |
 | `spec_kit_artifact_invalid`                | Spec Kit Artifact Invalid                                                                                                             |
@@ -1098,7 +1099,7 @@ start_workflow { request: "...", workflowId: "spec-kit-development" }
 ```
 
 - Workflow definitions are loaded from `<workspace-root>/.guidance/workflows/
-  <workflowId>.json` — each workspace carries its own set (pool-compatible);
+<workflowId>.json` — each workspace carries its own set (pool-compatible);
   a workspace without the file cannot start the variant (fail-closed
   `workflow_not_found`).
 - Sessions without `workflowId` are byte-identical to previous behavior; the
@@ -1121,16 +1122,16 @@ fail-closed artifact gate blocks the phase exit until the bound artifact
 exists and imports cleanly (enforcement layer, using the same artifact
 discovery as the spec-kit tools):
 
-| Phase | Command(s) | Exit gate |
-|---|---|---|
-| `understand` | `/speckit-specify`, `/speckit-clarify` | `spec.md` |
-| `plan` | `/speckit-plan` | `plan.md` |
-| `checklist` | `/speckit-checklist` | `checklists/**` |
-| `tasks` | `/speckit-tasks` | `tasks.md` |
-| `review_and_adjust_plan` | `/speckit-analyze` | review submission |
-| `implement` | `/speckit-implement` | per-batch review (see below) |
-| `review_and_fix_implementation` | — (agent-driven) | review submission |
-| `verify` | `speckit.converge` | convergence (see below) |
+| Phase                           | Command(s)                             | Exit gate                    |
+| ------------------------------- | -------------------------------------- | ---------------------------- |
+| `understand`                    | `/speckit-specify`, `/speckit-clarify` | `spec.md`                    |
+| `plan`                          | `/speckit-plan`                        | `plan.md`                    |
+| `checklist`                     | `/speckit-checklist`                   | `checklists/**`              |
+| `tasks`                         | `/speckit-tasks`                       | `tasks.md`                   |
+| `review_and_adjust_plan`        | `/speckit-analyze`                     | review submission            |
+| `implement`                     | `/speckit-implement`                   | per-batch review (see below) |
+| `review_and_fix_implementation` | — (agent-driven)                       | review submission            |
+| `verify`                        | `speckit.converge`                     | convergence (see below)      |
 
 Behavioral rules of the variant:
 
