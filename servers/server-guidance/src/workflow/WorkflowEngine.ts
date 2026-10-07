@@ -3785,6 +3785,10 @@ export class WorkflowEngine {
       // resolve error (missing file AND corrupt file); non-not_found errors
       // still rethrow afterwards so mutating paths stay fail-closed.
       if (session.variantResolved && !session.variantDegraded) {
+        // Both writes are intentional: the local flag short-circuits the
+        // remaining variantFor call sites of THIS operation (same object),
+        // sessions.update persists it for other callers/engines. Plain
+        // load-mutate-save, no lock (SessionRepository.update).
         session.variantDegraded = true;
         this.sessions.update(session.sessionId, (s) => {
           s.variantDegraded = true;
