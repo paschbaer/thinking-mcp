@@ -167,10 +167,18 @@ describe("convergence snapshot availability (specs/017 Final#2)", () => {
     expect(verifyOut.error?.recoverable).toBe(true);
 
     // Recovery: restore tasks.md and RESUBMIT verify — the gate retakes the
-    // snapshot submission-time when the file is importable again.
+    // snapshot at submission time and rejects ONCE with "resubmit" so the
+    // next submission classifies honestly against the NEW snapshot (no
+    // tautological auto-complete, final review F1).
     syncTasksFile();
     const s2 = engine.getSession(res.sessionId);
     expect(s2.currentPhase).toBe("verify");
+    const retake = await engine.submit(res.sessionId, "verify", {
+      verificationSummary: ["restored"],
+    });
+    expect(retake.accepted).toBe(false);
+    expect(retake.error?.code).toBe("convergence_snapshot_unavailable");
+    expect(retake.error?.message).toContain("snapshot retaken");
     const out = await engine.submit(res.sessionId, "verify", {
       verificationSummary: ["✅ Converged after recovery"],
     });
@@ -179,6 +187,27 @@ describe("convergence snapshot availability (specs/017 Final#2)", () => {
     const s3 = engine.getSession(res.sessionId);
     expect(s3.specKit?.convergence).not.toBeNull();
     expect(s3.specKit?.convergenceUnavailable).toBeUndefined();
+  });
+
+  it("unwired bridge + null snapshot falls back to the standard flow (Final#2 baseline branch)", async () => {
+    const res = await startVariant();
+    await reachVerify(res.sessionId);
+    const bare = new WorkflowEngine({
+      config: loadConfig(FIXTURE),
+      stateDir: join(ws, "state"),
+    });
+    // Force the null-snapshot state on the persisted session, then submit
+    // verify through the UNWIRED engine: the gate must take the documented
+    // standard-flow fallback (return {}), not reject.
+    engine.sessions.update(res.sessionId, (s) => {
+      s.specKit!.convergence = null;
+      s.specKit!.convergenceUnavailable = undefined;
+    });
+    const out = await bare.submit(res.sessionId, "verify", {
+      verificationSummary: ["unwired fallback"],
+    });
+    expect(out.accepted).toBe(true);
+    expect(out.currentPhase).toBe("complete");
   });
 });
 

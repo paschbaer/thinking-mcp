@@ -1600,3 +1600,5 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 ## 2026-10-07 — Chained successor 2 (Final#2 RESOLVED)
 - [RESOLVED] Final#2 (convergence snapshot silent bypass): snapshot failure with a wired bridge now emits convergence_snapshot_unavailable (audit + sk.convergenceUnavailable + verify guidance note) and the verify gate rejects submit_verification with the classified recoverable error; submission-time retake when tasks.md became importable (recovery without phase ping-pong); unwired bridge keeps the historical standard flow (documented baseline test). Tests in converge-loop.test.ts; full suite 673/673 green.
+- [RESOLVED][amended] Final#2 F1 (reviewer 02ab1802, medium): recovery retake initially classified tautologically against the fresh snapshot — fixed: retake now rejects once with "snapshot retaken; resubmit" so classification runs honestly against the new snapshot (test extended).
+- [RESOLVED] Final#2 F3 (medium): unwired null-snapshot fallback branch now covered by a dedicated test (forced null snapshot + unwired engine => standard flow to complete).

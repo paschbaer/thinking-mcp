@@ -4101,7 +4101,7 @@ export class WorkflowEngine {
 
     // verify: hash-based convergence classification (DQ-1).
     if (phase === "verify") {
-      let snapshot = sk.convergence;
+      const snapshot = sk.convergence;
       if (!snapshot) {
         // specs/017 Final#2: with a wired bridge a missing snapshot means
         // tasks.md was missing/unreadable at verify entry. Recovery-first:
@@ -4113,8 +4113,18 @@ export class WorkflowEngine {
         if (typeof this.deps.specKitArtifactCheck === "function") {
           const nowCheck = this.artifactCheck(session, "tasks.md");
           if (nowCheck.present && nowCheck.sha256) {
+            // Retake the snapshot, but do NOT classify against it in the same
+            // submission — that would make the gate tautological (any
+            // restored file would trivially "converge"). Force one more
+            // submission so the agent reports convergence against the NEW
+            // snapshot (final review F1).
             this.takeConvergenceSnapshot(session);
-            snapshot = sk.convergence;
+            return {
+              reject: fail(
+                "convergence_snapshot_unavailable",
+                "tasks.md is importable again — convergence snapshot retaken; resubmit the verification results (speckit.converge classification runs against the new snapshot)",
+              ),
+            };
           }
         }
       }
