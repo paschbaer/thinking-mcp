@@ -36,6 +36,9 @@ const specKitConfig = {
   strategy: "singleCandidate" as const,
   requireUniqueMatch: false,
   artifactPatterns: {},
+  maxTasks: 3,
+  maxEntities: 2000,
+  maxExcerptBytes: 65536,
 };
 
 function start(getSessionWorkspace?: (sid: string) => string | undefined): void {
