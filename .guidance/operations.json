@@ -126,25 +126,14 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": false }
     },
     "repository-analysis": {
-      "description": "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh via analyze --no-stats). The index REFRESH itself stays a host-side pre-complete step (AGENTS.md): the HTTP server exposes no analyze tool.",
-      "type": "composite",
-      "strategy": "firstAvailable",
+      "description": "Verify the GitNexus index for this repo is present and queryable via the MCP check tool of the compose-managed gitnexus-server container. The index REFRESH itself stays a host-side pre-complete step (docker compose exec gitnexus-server gitnexus analyze --no-stats, AGENTS.md): the MCP server exposes no analyze tool, and the guidance container has no gitnexus binary — a local process fallback cannot work by design.",
+      "type": "mcpTool",
+      "server": "gitnexus",
+      "capability": "check",
+      "arguments": { "mode": "template", "value": { "repo": "thinking-mcp" } },
       "required": true,
       "timeoutSeconds": 900,
       "riskClass": "read_only",
-      "steps": [
-        {
-          "type": "mcpTool",
-          "server": "gitnexus",
-          "capability": "check",
-          "arguments": { "mode": "template", "value": { "repo": "thinking-mcp" } }
-        },
-        {
-          "type": "process",
-          "executable": "gitnexus",
-          "args": ["analyze", "--no-stats"]
-        }
-      ],
       "validation": {
         "protocolRequestMustSucceed": true,
         "toolResultMustNotBeError": true,

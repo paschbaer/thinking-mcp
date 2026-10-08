@@ -6,6 +6,25 @@
 
 ## Avoid These Mistakes
 
+- **Zwei GitNexus-Index-Welten: CLI-Registry ≠ MCP-Server-Registry (2026-10-08, GN-Migration):** Der
+  gitnexus-MCP-Server (:4747, eigener Container) resolvierte Repos ausschließlich über seine EIGENE
+  Registry — ein WSL-CLI-`gitnexus analyze` schrieb nur in-repo `.gitnexus` + WSL-Registry und blieb
+  für den Server unsichtbar („Repository not found. Available: thinking-mcp"); Behebung erzwang
+  docker-cp des Repos IN DEN Server-Container (/tmp, ephemeral). Gate-Blindheit: repository-analysis
+  prüfte Queryability des Container-Index, index-freshness die WSL-meta.json — beide grün, obwohl
+  der servierte Index eine Woche stale war. → Prevention: EIN Index-Writer (seit der Migration der
+  Compose-gitnexus-server-Container), und bei „Index nicht verfügbar"-Symptomen IMMER beide
+  Registry-Dateien vergleichen (Server-Registry vs. `~/.gitnexus/registry.json`), bevor irgendwo
+  kopiert oder gelöscht wird. Pfad-Identität ist String-Vergleich: `/mnt/d/...` vs `/workspaces/...`
+  ist foreign — `--force` übernimmt den Storage.
+
+- **git `safe.directory` wird aus Env/Local-Config ignoriert (2026-10-08):** `GIT_CONFIG_COUNT/_KEY_/_VALUE_`
+  mit `safe.directory` zeigte im Container KEINE Wirkung — git respektiert safe.directory nur in
+  protected (system/global) config; Folge: still leere `lastCommit`-Werte im Index, weil analyze
+  `dubious ownership`-Fehler verschluckte. → Prevention: in Containern mit Root-Ownership-Mounts
+  den Command-Wrapper nutzen (`git config --global --add safe.directory '*' && exec <cmd>`); leere
+  lastCommit-Werte in meta.json sind das Symptom, nicht der Fehler.
+
 - **start_workflow ohne registrierten Workspace-Namen (SKP-1-Session, 2026-10-03):** `start_workflow` im Pool-Betrieb MUSS explizit `workspace: "thinking-mcp"` (bzw. den jeweiligen registrierten Namen) übergeben — ohne den Namen landet die Session unter dem generischen Default-Workspace (Pool-Root), mit anderem Antwort-Schema (z.B. Pflicht-`summary` bei submit_implementation statt Repo-Schema) und Registry-Pfaden. → Prevention: future sessions immer mit dem registrierten Workspace-Namen starten; Schema-Abweichungen (fehlende Pflicht-Felder) sind ein Symptom dafür, nicht ein Server-Bug.
 
 - **GitNexus Storage-„foreign" durch Pfad-Casing-Drift (2026-10-02):** `gitnexus analyze` aus

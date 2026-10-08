@@ -19,7 +19,7 @@
  *   1  stale/missing — details on stderr
  */
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, basename } from "node:path";
 
 const repoRoot = process.argv[2] ?? process.cwd();
 // WF-5: SKIP_DIRS applies at EVERY path depth (nested node_modules, e.g.
@@ -45,13 +45,15 @@ function fail(message) {
   console.error(`INDEX NOT FRESH: ${message}`);
   // Agent-facing remedy (house pattern per nodeDepsHints): stderr is surfaced
   // VERBATIM in the exposed operation result (errors[0].message), so a
-  // chain-driving agent gets the exact host-side heal command without
-  // recalling the AGENTS.md rule. The reindex MUST run host-side — the
-  // guidance container has no gitnexus binary and would hit the storage
-  // case-mismatch (KA-4: registered lowercase /mnt/d/repos/thinking-mcp).
-  // After healing, retry_operation re-runs this gate.
+  // chain-driving agent gets the exact heal command without recalling the
+  // AGENTS.md rule. The reindex runs host-side against the compose-managed
+  // gitnexus-server container (the guidance container has no gitnexus
+  // binary); the exec workdir must match the on-disk repo directory name
+  // exactly (derived from the checked repoRoot, so the remedy is always
+  // repo-specific). After healing, retry_operation re-runs this gate.
+  const repoName = basename(resolve(repoRoot));
   console.error(
-    "REMEDY: run host-side: wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats' (exact lowercase cwd), then retry_operation",
+    `REMEDY: run host-side: docker compose -f D:/repos/thinking-mcp/docker-compose.yml exec -w /workspaces/${repoName} gitnexus-server gitnexus analyze --no-stats (workdir case must match the on-disk directory name), then retry_operation`,
   );
   process.exit(1);
 }

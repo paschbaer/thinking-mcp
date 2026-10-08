@@ -124,34 +124,23 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "repository-analysis": {
-      "description": "Analyze the repository using GitNexus (fallback: local CLI).",
-      "type": "composite",
-      "strategy": "firstAvailable",
+      "description": "Verify the GitNexus index for this repo is present and queryable via the MCP check tool of the compose-managed gitnexus-server container. The index REFRESH itself stays a host-side pre-complete step (docker compose exec gitnexus-server gitnexus analyze --no-stats): the MCP server exposes no analyze tool, and a local process fallback cannot work in the guidance container by design.",
+      "type": "mcpTool",
+      "server": "gitnexus",
+      "capability": "check",
+      "arguments": {
+        "mode": "fixed",
+        "value": { "repo": "${project.name}" }
+      },
       "required": true,
       "timeoutSeconds": 900,
-      "riskClass": "workspace_write",
-      "steps": [
-        {
-          "type": "mcpTool",
-          "server": "gitnexus",
-          "capability": "check",
-          "arguments": {
-            "mode": "fixed",
-            "value": { "repo": "${project.name}" }
-          }
-        },
-        {
-          "type": "process",
-          "executable": "gitnexus",
-          "args": ["analyze", "--no-stats"]
-        }
-      ],
+      "riskClass": "read_only",
       "validation": {
         "protocolRequestMustSucceed": true,
         "toolResultMustNotBeError": true,
         "requiredContent": true
       },
-      "output": { "returnToAgent": "normalized", "retainRawResult": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true },
       "failure": {
         "remainInPhase": true,
         "allowManualRetry": true,

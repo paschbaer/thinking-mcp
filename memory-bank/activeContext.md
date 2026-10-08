@@ -3,6 +3,11 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-08: GN-MIGRATION IMPLEMENTIERT (Option A+D) — Guidance-Session session-67baca0b, feature/gn-gitnexus-compose-integration
+
+- **Umgesetzt:** gitnexus-server + gitnexus-web als Compose-Services (Root-docker-compose.yml, voller `/workspaces`-Mount, Registry host-seitig unter `D:\repos\.gitnexus-home`); Standalone-Container stillgelegt; alle drei Pool-Repos per `docker compose exec gitnexus analyze` mit in-repo-Storage registriert (thinking-mcp 10.380 Nodes/480 Flows, Niyama 8.782/156, copilot 262/255); Live-Pickup ohne Restart bewiesen (AC-6); Legacy-Volume gelöscht (Q3); REMEDY/Responses/Generator/Template auf docker-exec-Reindex umgestellt (CHFIX-6+GN-3 mitgelöst); safe.directory-Command-Wrapper gegen git-dubious-ownership; Tests 684/684 grün, tsc clean.
+- **Vorher dokumentiert (siehe Eintrag unten):** Zwei-Registry-Divergenz als Root Cause des copilot-Gate-Fiaskos.
+
 ## 2026-10-08: GITNEXUS-INTEGRATIONSANALYSE — Zwei-Registry-Divergenz aufgedeckt (GN-1..GN-4)
 
 - **Was passiert ist:** Beim copilot-repo-template-Onboarding schlug das `repository-analysis`-Gate zweimal fehl (zuerst Server unreachable, dann `Repository not found. Available: thinking-mcp`), obwohl WSL-seitig `gitnexus analyze` lief. Behebung war `docker cp` des Repos IN DEN gitnexus-server-Container (/tmp — ephemeral) + In-Container-Index.

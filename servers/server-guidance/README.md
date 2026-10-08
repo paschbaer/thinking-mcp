@@ -143,9 +143,10 @@ From a bare machine to a running multi-workspace instance:
 
 1. **Prerequisites**: Docker Desktop (with file sharing for the drive that
    hosts the checkout), git, Node ≥ 18 (host-side builds/tests optional —
-   the container brings its own toolchain). Optional: a host-side
-   `gitnexus` CLI (e.g. via WSL) for index refreshes, and the
-   experience-memory + clear-thought downstream services if you use them.
+   the container brings its own toolchain). Optional: the
+   experience-memory + clear-thought downstream services and the
+   gitnexus-server container if you use them (all orchestrated by the
+   root compose file).
 2. **Clone & build** (see above) — then start HTTP via
    `docker compose -f docker-compose.yml -f docker-compose.override.yml up -d`.
    The override mounts the **repos pool** via a relative path (`../../../` →
@@ -164,36 +165,39 @@ From a bare machine to a running multi-workspace instance:
    create each repo's own `.guidance/` (config assistant, target
    `repo-config`). **Restart the container afterwards** — the registry is
    read at boot. **Add `.guidance/state/` to each repo's `.gitignore`.**
-5. **Per-repo analysis index**: run `gitnexus analyze --no-stats` inside
-   each registered repo (host-side pre-complete step; the freshness gate
-   checks `<root>/.gitnexus/meta.json` against git HEAD). The freshness
-   scan ignores build/test-tooling artifacts (`node_modules`, `dist`,
-   `coverage` — at any depth, so `.vite` vitest results under a nested
-   `node_modules` do not count): a test run after a reindex no longer
-   makes the index look stale. Deterministic ordering still applies:
-   reindex after the last test run, immediately before
-   `complete_workflow`.
+5. **Per-repo analysis index**: the gitnexus MCP server runs as a
+   **compose-managed container** (image
+   `ghcr.io/abhigyanpatwari/gitnexus:latest`) with the same repos mount as
+   the guidance container (`/workspaces`). Each registered repo is indexed
+   **in-repo** (`<root>/.gitnexus`) by the container itself — one index
+   world shared by the MCP server and the freshness gate, which checks
+   `<root>/.gitnexus/meta.json`/mtimes against the working tree. The
+   freshness scan ignores build/test-tooling artifacts (`node_modules`,
+   `dist`, `coverage` — at any depth, so `.vite` vitest results under a
+   nested `node_modules` do not count): a test run after a reindex no
+   longer makes the index look stale. Deterministic ordering still applies:
+   reindex after the last test run, immediately before `complete_workflow`.
 
-   **Dual-index procedure**: the index-freshness gate reads the
-   **repo-local** `.gitnexus/` storage, which is owned by the exact path
-   identity it was created with (e.g. `/mnt/d/repos/thinking-mcp` —
-   lowercase). Deterministic refresh:
+   **Reindex procedure** (host-side, container is the single index writer):
 
    ```bash
-   wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && \
-     cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats --skip-skills'
+   docker compose -f <compose-root>/docker-compose.yml \
+     exec -w /workspaces/<repo-dir> gitnexus-server \
+     gitnexus analyze --no-stats
    ```
 
-   - Run it from the **exact registered path** (case-sensitive) — a
-     different case yields `StorageRequirementError: storage "foreign"`.
-   - `gitnexus-server` (container, `GITNEXUS_HOME=/data/gitnexus`) refreshes
-     only its **own** storage — it does NOT update the repo-local index the
-     gate reads.
+   - `<repo-dir>` must match the on-disk directory name exactly (case).
+   - The MCP server picks up a refreshed index **live** — no container
+     restart needed after a reindex.
+   - A first-time registration of a repo whose `.gitnexus/` was written
+     from a different path identity (e.g. by a host CLI) reports storage
+     `foreign`; re-run once with `--force` to rebuild under the container
+     path prefix.
    - If analyze reports `Already up to date` it writes nothing; when only
      file mtimes moved (e.g. a `git checkout` of identical content), re-run
      with `--force`.
-   - Never omit `--skip-skills`: a plain analyze rewrites `AGENTS.md`/
-     `CLAUDE.md` (skill-template refresh) and dirties the tree.
+   - Add `--skip-skills` when the tree contains generated `AGENTS.md`/
+     `CLAUDE.md` skill blocks a plain analyze would refresh.
 
 6. **Hardening (optional)**: set `GUIDANCE_AUTH_TOKEN` for bearer auth on
    `/mcp`; keep `GUIDANCE_BIND_HOST` at loopback unless the instance must
@@ -2142,7 +2146,7 @@ as a blueprint: copy it to your project root and adapt the operations.
 | `guidance.json`           | Entry point: `project.name: "thinking-mcp"`, profile `spec-kit`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`)                   |
 | `workflow.json`           | The state machine — see the phase walkthrough below                                                                                                                                                                                                                        |
 | `responses.json`          | Per-phase agent instruction: title, instruction, `requiredActions`                                                                                                                                                                                                         |
-| `operations.json`         | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, composite), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
+| `operations.json`         | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, MCP `check`), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
 | `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight                                                    |
 | `policies.json`           | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3000`, `:3002`, `:4747`), redaction patterns, review-blocking severities `high\|critical`    |
 | `schemas/*.schema.json`   | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission                                                                                                                                                                                 |

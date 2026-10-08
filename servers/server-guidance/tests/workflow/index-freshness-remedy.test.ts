@@ -1,8 +1,11 @@
 /**
  * CHFIX-2 regression: the index-freshness gate must fail LOUDLY — every
- * failure prints an agent-facing REMEDY line (exact host-side reindex
- * command) to stderr, which the OperationEngine surfaces VERBATIM in
- * exposedOpResult.errors[0].message. Success must NOT print the remedy.
+ * failure prints an agent-facing REMEDY line (exact reindex command against
+ * the compose-managed gitnexus-server container) to stderr, which the
+ * OperationEngine surfaces VERBATIM in exposedOpResult.errors[0].message.
+ * Success must NOT print the remedy. The remedy is REPO-SPECIFIC (CHFIX-6):
+ * the exec workdir is derived from the checked repoRoot's basename, so a
+ * stale gate in workspace B never recommends reindexing workspace A.
  */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { execFile } from "node:child_process";
@@ -14,7 +17,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -53,17 +56,30 @@ async function runScript(): Promise<{ code: number; stderr: string }> {
   );
 }
 
-describe("check-index-freshness remedy output (CHFIX-2)", () => {
-  it("stale index (no .gitnexus): exit 1, stderr carries INDEX NOT FRESH and the exact host-side REMEDY command", async () => {
+describe("check-index-freshness remedy output (CHFIX-2 + CHFIX-6)", () => {
+  it("stale index (no .gitnexus): exit 1, stderr carries INDEX NOT FRESH and the exact docker compose exec REMEDY command", async () => {
     initRepo();
     const run = await runScript();
     expect(run.code).toBe(1);
     expect(run.stderr).toContain("INDEX NOT FRESH");
     expect(run.stderr).toContain("REMEDY:");
-    expect(run.stderr).toContain("wsl.exe");
+    expect(run.stderr).toContain("docker compose");
+    expect(run.stderr).toContain("gitnexus-server");
     expect(run.stderr).toContain("gitnexus analyze --no-stats");
-    expect(run.stderr).toContain("/mnt/d/repos/thinking-mcp");
     expect(run.stderr).toContain("retry_operation");
+  }, 30_000);
+
+  it("remedy is repo-specific (CHFIX-6): the exec workdir derives from the checked repoRoot basename", async () => {
+    initRepo();
+    const run = await runScript();
+    expect(run.code).toBe(1);
+    // tmpdir basename (guidance-freshness-XXXX) must appear as /workspaces/<basename>
+    const repoName = basename(repo);
+    expect(run.stderr).toContain(`-w /workspaces/${repoName} `);
+    // ... and must NOT name a different repo directory
+    expect(run.stderr).not.toContain("-w /workspaces/thinking-mcp ");
+    expect(run.stderr).not.toContain("wsl.exe");
+    expect(run.stderr).not.toContain("NVM_DIR");
   }, 30_000);
 
   it("not a git repository: still fails loudly with the REMEDY line", async () => {

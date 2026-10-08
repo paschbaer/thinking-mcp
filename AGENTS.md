@@ -3,8 +3,7 @@
 ## Architecture Map
 - Before answering architecture or codebase questions, use the GitNexus graph tools to analyze the codebase (skill: gitnexus-workflow.md).
 - Do not make blind edits or assumptions about execution pathways. Always query the precomputed knowledge graph for context.
-- Type `gitnexus analyze --no-stats` in Terminal to build or update the knowledge graph. The `--no-stats` flag is mandatory in this repo: it keeps AGENTS.md/CLAUDE.md free of volatile symbol/relationship counts so code changes don't dirty these files.
-- **GitNexus path case matters (KA-4, resolved 2026-10-02):** the index storage is registered as `/mnt/d/repos/thinking-mcp` (all lowercase). Run every reindex with `cd /mnt/d/repos/thinking-mcp` (exact case) — a mixed-case cwd (`/mnt/d/repos/Thinking-MCP`) makes the storage validate as `foreign` and aborts the analysis (`StorageRequirementError`). Read-only checks (`detect-changes`) tolerate the mismatch; a `foreign` warning there is cosmetic.
+- Build or update the knowledge graph with the compose-managed gitnexus-server container: `docker compose -f D:/repos/thinking-mcp/docker-compose.yml exec -w /workspaces/thinking-mcp gitnexus-server gitnexus analyze --no-stats` (exact on-disk dir case; `--force` only on storage-foreign messages). The `--no-stats` flag is mandatory in this repo: it keeps AGENTS.md/CLAUDE.md free of volatile symbol/relationship counts so code changes don't dirty these files. The WSL gitnexus CLI (`cd /mnt/d/repos/thinking-mcp && gitnexus analyze`) is LEGACY since the GN migration (2026-10-08): it writes a diverging storage prefix — use it only with `--force` follow-up via the container.
 
 ## Agent Working Rules
 - Always break down complex tasks into a plan first. See Reasoning & Planning Rules.
@@ -497,32 +496,39 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
 - Downstream-Server: gitnexus (MCP :4747) und insight (:3002) verbinden
   **lazy**: `get_downstream_status` zeigt `disconnected`, bis eine Operation
   sie das erste Mal nutzt — das ist normal und kein Fehler.
-- **GitNexus-Topologie — Container präzise benennen (GN-Reihe im
-  remaining-work-plan, 2026-10-08):** :4747 wird vom **gitnexus-server-
-  Container** bedient (Docker, Image `ghcr.io/abhigyanpatwari/gitnexus:latest`,
-  Mount NUR `D:\repos\Thinking-MCP → /workspace`, eigene Registry
-  `/data/gitnexus/registry.json` im Volume `gitnexus_gitnexus-data`). Die
-  **gitnexus-CLI** läuft dagegen in **WSL** (hinter nvm) und schreibt den Index
-  in-repo (`<repo>/.gitnexus`) plus eine EIGENE Registry
-  `~/.gitnexus/registry.json`. Diese zwei Welten divergieren: WSL-Reindex
-  aktualisiert NICHT den Index, den der gitnexus-server-Container serviert.
+- **GitNexus-Topologie (NEU, GN-Migration 2026-10-08 — eine Welt):** :4747
+  wird vom **gitnexus-server-Container** bedient, der jetzt Teil der Root-
+  `docker-compose.yml` ist (Image `ghcr.io/abhigyanpatwari/gitnexus:latest`,
+  Mount `../:/workspaces` = kompletter Repo-Pool wie der guidance-Container,
+  Registry host-seitig unter `D:\repos\.gitnexus-home` via
+  `GITNEXUS_HOME=/workspaces/.gitnexus-home`). Der Container ist der
+  **einzige primäre Index-Writer**: Repos liegen mit IN-REPO-Storage
+  (`<repo>/.gitnexus`) in der Container-Registry, und der Server liest
+  Registry/Index **live** (kein Restart nach Reindex nötig, verifiziert).
+  Die **WSL-gitnexus-CLI ist LEGACY** (alte Registry `~/.gitnexus/registry.json`
+  bleibt als Historie liegen): ein WSL-Reindex schreibt zwar in-repo, aber mit
+  abweichendem Storage-Pfad-Präfix (`/mnt/d/...` vs `/workspaces/...`) — der
+  nächste Container-Analyze mit `--force` übernimmt den Storage wieder
+  (Foreign-State-Falle, KA-4-Nachfolger). 
+- **Reindex-Befehl (kanonisch, host-seitig):** `docker compose -f
+  D:/repos/thinking-mcp/docker-compose.yml exec -w /workspaces/<repo-dir>
+  gitnexus-server gitnexus analyze --no-stats` — `<repo-dir>` mit EXAKTEM
+  On-Disk-Case (thinking-mcp lowercase). `--force` nur bei Storage-Foreign-
+  Meldung. Inkrementell ~60 s, Voll-Rebuild (thinking-mcp) ~2 h über DrvFs.
 - Das `repository-analysis`-Gate (Phase complete) verifiziert nur, dass der
   GitNexus-Index im **gitnexus-server-Container** vorhanden und queryable ist
   (`check`) — er **erkennt keine Staleness und aktualisiert nichts**.
   Deterministische Frische-Prüfung:
   `node servers/server-guidance/scripts/check-index-freshness.mjs` (läuft im
-  **guidance-Container**, liest die WSL-geschriebene `.gitnexus/meta.json` auf
-  dem `/workspaces`-Mount — die zwei Gates prüfen also zwei unterschiedliche
-  Indizes). Der Agent MUSS daher VOR `complete_workflow` den Index selbst
-  aktualisieren — im Terminal (gitnexus-CLI in WSL hinter nvm):
-  `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd
-  /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats'` (lowercase-Cwd,
-  KA-4) — und das Ergebnis im Abschlussbericht nennen. Achtung: das frischt
-  nur die WSL-Welt; für Repos außer Thinking-MCP sieht der
-  gitnexus-server-Container den Index trotzdem nicht (GN-2).
+  **guidance-Container** auf demselben in-repo Index über den `/workspaces`-
+  Mount — seit der Migration prüfen beide Gates denselben Indexbestand).
+  Der Agent MUSS daher VOR `complete_workflow` den Index selbst aktualisieren
+  (kanonischer Reindex-Befehl oben; die REMEDY-Zeile des Gates nennt ihn
+  repo-spezifisch) — und das Ergebnis im Abschlussbericht nennen.
 - **Container-Start via `docker compose up -d`** — entweder aus
   `servers/server-guidance` oder aus der Repo-Wurzel (Root-`docker-compose.yml`
-  orchestriert alle drei Server). Beide Files müssen den Mount
+  orchestriert alle Server: guidance, insight, clear-thought,
+  gitnexus-server, gitnexus-web). Beide Files müssen den Mount
   `D:\repos` → `/workspaces` korrekt auflösen (Root-File: `- ../:/workspaces`,
   Server-File: `- ../../../:/workspaces`) — bei Pfad-Änderungen gegenseitig
   im Sync halten. Einen Container, der aus einem anderen Kontext/WSL-Pfad

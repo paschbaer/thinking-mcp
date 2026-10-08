@@ -554,7 +554,7 @@ export function buildResponses(shell: string): string {
     complete: {
       title: "Complete the Workflow",
       instruction:
-        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (0) write `.guidance/state/final-review.json` FRESH for THIS session — strict schema per the check-final-review.mjs gate script (ships with the guidance server under scripts/; run it from the repo root): formatVersion 1; keys formatVersion, sessionId, reviewerRef, reviewScope, baseCommit, headCommit, commits, reviewedAt, openHighCritical, findings — each finding carries {id, severity, status, evidence}; headCommit MUST equal the current HEAD as a full 40-hex hash and every commit entry is a full 40-hex hash; write it AFTER the last commit — any commit after the review invalidates the gate, so after late commits re-run the review (or re-bless the delta with the same reviewer) and rewrite the file; validate it with that script BEFORE completing. (1) refresh the GitNexus index host-side by running gitnexus analyze --no-stats in the terminal (the gate only verifies index availability, not freshness) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to .guidance/state/session-lessons.json as [{slug, observation, cause, fix}] — ALWAYS create the file (an empty array is the explicit no-op success); a MISSING file FAILS the capture-session-lessons gate, so the lessons review step must not be skipped." +
+        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (0) write `.guidance/state/final-review.json` FRESH for THIS session — strict schema per the check-final-review.mjs gate script (ships with the guidance server under scripts/; run it from the repo root): formatVersion 1; keys formatVersion, sessionId, reviewerRef, reviewScope, baseCommit, headCommit, commits, reviewedAt, openHighCritical, findings — each finding carries {id, severity, status, evidence}; headCommit MUST equal the current HEAD as a full 40-hex hash and every commit entry is a full 40-hex hash; write it AFTER the last commit — any commit after the review invalidates the gate, so after late commits re-run the review (or re-bless the delta with the same reviewer) and rewrite the file; validate it with that script BEFORE completing. (1) refresh the GitNexus index by running the docker compose exec reindex command for this repo in the terminal (the compose-managed gitnexus-server container is the single index writer; the repository-analysis gate only verifies availability, the index-freshness gate verifies freshness of the in-repo index) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to .guidance/state/session-lessons.json as [{slug, observation, cause, fix}] — ALWAYS create the file (an empty array is the explicit no-op success); a MISSING file FAILS the capture-session-lessons gate, so the lessons review step must not be skipped." +
         longTransitions +
         idempotency +
         timeoutPolicy +
@@ -688,25 +688,14 @@ function buildOperations(
   if (gitnexus) {
     operations["repository-analysis"] = {
       description:
-        "Verify the GitNexus index for this repo is present and queryable (HTTP mode: mcpTool check; stdio mode: local CLI refresh). The index REFRESH itself stays a host-side pre-complete step: the HTTP server exposes no analyze tool.",
-      type: "composite",
-      strategy: "firstAvailable",
+        "Verify the GitNexus index for this repo is present and queryable via the MCP check tool of the compose-managed gitnexus-server container. The index REFRESH itself stays a host-side pre-complete step (docker compose exec gitnexus-server gitnexus analyze --no-stats): the MCP server exposes no analyze tool, and a local process fallback cannot work in the guidance container by design.",
+      type: "mcpTool",
+      server: "gitnexus",
+      capability: "check",
+      arguments: { mode: "fixed", value: { repo: projectName } },
       required: true,
       timeoutSeconds: 900,
       riskClass: "read_only",
-      steps: [
-        {
-          type: "mcpTool",
-          server: "gitnexus",
-          capability: "check",
-          arguments: { mode: "fixed", value: { repo: projectName } },
-        },
-        {
-          type: "process",
-          executable: "gitnexus",
-          args: ["analyze", "--no-stats"],
-        },
-      ],
       validation: {
         protocolRequestMustSucceed: true,
         toolResultMustNotBeError: true,
