@@ -468,6 +468,11 @@ export class WorkflowEngine {
         downstreamEngine.setDownstreamInvoker({
           invokeTool: this.agentInvoker,
         });
+        // GN-D1: three-valued gates — inject the optional-capability server
+        // set derived from the workspace config (see optionalCapabilityServerIds).
+        downstreamEngine.setOptionalCapabilityServers(
+          this.optionalCapabilityServerIds(),
+        );
         // spec 005 F3/M2 (final review feature 007): Lifecycle-Pfade laufen
         // über executeRequired — Metrics auch dort aufzeichnen, sonst zählt
         // remote nur der direkte execute-Pfad (run_operation).
@@ -609,6 +614,10 @@ export class WorkflowEngine {
       this.operationEngine.setDownstreamInvoker({
         invokeTool: this.agentInvoker,
       });
+      // GN-D1: three-valued gates — same injection on the local engine path.
+      this.operationEngine.setOptionalCapabilityServers(
+        this.optionalCapabilityServerIds(),
+      );
     }
     // spec 005 FR-403: metrics recording wrapper — records every operation
     // execution (lifecycle + runOperation + composite steps) without touching
@@ -1324,6 +1333,7 @@ export class WorkflowEngine {
             runs: 0,
             succeeded: 0,
             failed: 0,
+            skipped: 0,
             cancelled: 0,
             timedOut: 0,
             durationMs: { count: 0, sum: 0, max: 0 },
@@ -1331,6 +1341,7 @@ export class WorkflowEngine {
           agg.runs += m.runs;
           agg.succeeded += m.succeeded;
           agg.failed += m.failed;
+          agg.skipped += m.skipped;
           agg.cancelled += m.cancelled;
           agg.timedOut += m.timedOut;
           agg.durationMs.count += m.durationMs.count;
@@ -1381,6 +1392,178 @@ export class WorkflowEngine {
    *  dem bisherigen Konstruktor-Inline (Allowlist → Egress → ensureReady →
    *  Pins → invoke), als Methode, damit lokal und remote denselben Code
    *  nutzen. */
+  /** GN-D1 hybrid capability probe + three-valued gates: the serverId the
+   *  generated config uses for the GitNexus downstream server. The engine
+   *  stays product-generic — this is the ONLY place the product name is
+   *  mapped to a serverId. */
+  private static readonly GITNEXUS_SERVER_ID = "gitnexus";
+
+  /** GN-D1 minimal additive read path for the gitnexus capability block:
+   *  a workspace declaring gitnexus.state=optional gets its gitnexus
+   *  mcpTool gates classified capability-absent (skipped) when the server
+   *  is unreachable — instead of a tolerated failure. required/off behave
+   *  exactly as before (fail-closed / not generated). */
+  private optionalCapabilityServerIds(): Set<string> {
+    return this.config.main.gitnexus?.state === "optional"
+      ? new Set([WorkflowEngine.GITNEXUS_SERVER_ID])
+      : new Set();
+  }
+
+  /** GN-D1 hybrid probe: the DECLARED capability state from guidance.json
+   *  (null when the workspace declares no gitnexus block at all — legacy
+   *  configs are fully unaffected by probe and skip semantics). */
+  private declaredGitnexusState(): "required" | "optional" | "off" | null {
+    return this.config.main.gitnexus?.state ?? null;
+  }
+
+  /** GN-D1: capability deviations already audited (per session + kind) —
+   *  probe and gate-time signal share one guard so a deviation is audited
+   *  exactly once per session no matter which detector fires first. */
+  private capabilityDeviationsNoted = new Set<string>();
+
+  /** Hard upper bound for the hybrid probe ping (read-only initialize via
+   *  ClientManager.ensureReady; the server's own handshake timeout applies
+   *  too — this race guarantees the probe can never linger beyond this). */
+  private static readonly CAPABILITY_PROBE_TIMEOUT_MS = 5_000;
+
+  /** GN-D1 hybrid probe (session start): declared state vs live availability.
+   *  Deviations (configured-required but unreachable; configured-off but
+   *  reachable via a leftover server entry) are audited as
+   *  capability_state_deviation — once per session per kind. Read-only,
+   *  non-blocking by contract (callers fire-and-forget). */
+  private async probeCapabilityState(sessionId: string): Promise<void> {
+    const declared = this.declaredGitnexusState();
+    if (declared === null || declared === "optional") return; // nothing to compare
+    let reachable: boolean | null;
+    try {
+      reachable = await this.pingGitnexusServer();
+    } catch {
+      // best-effort contract: the probe NEVER rejects (its caller
+      // fire-and-forgets, but tests and future callers may await it)
+      return;
+    }
+    if (reachable === null) return; // no server entry to ping (see off-case note)
+    if (declared === "required" && !reachable) {
+      this.noteCapabilityDeviation(sessionId, "required-unreachable", "probe");
+    }
+    if (declared === "off" && reachable) {
+      this.noteCapabilityDeviation(sessionId, "off-reachable", "probe");
+    }
+  }
+
+  /** Read-only liveness ping for the gitnexus downstream server via the
+   *  shared ClientManager (initialize handshake only — no tool call).
+   *  Returns null when no gitnexus server entry is configured (a clean
+   *  off-config is undetectable by design: nothing to ping), true/false for
+   *  reachable/unreachable. Bounded by CAPABILITY_PROBE_TIMEOUT_MS. */
+  private async pingGitnexusServer(): Promise<boolean | null> {
+    const id = WorkflowEngine.GITNEXUS_SERVER_ID;
+    const serverCfg = this.downstreamServers?.get(id) as
+      | {
+          transport?: {
+            type?: string;
+            command?: { executable: string; args: string[]; cwd?: string };
+            http?: { url: string; headers?: Record<string, string> };
+          };
+          connection?: {
+            startupTimeoutSeconds?: number;
+            reconnect?: {
+              enabled?: boolean;
+              maximumAttempts?: number;
+              delayMilliseconds?: number;
+            };
+          };
+        }
+      | undefined;
+    if (!this.clientManager || !serverCfg?.transport) return null;
+    const conn = serverCfg.connection;
+    const connectionOpts =
+      conn &&
+      (conn.startupTimeoutSeconds !== undefined || conn.reconnect !== undefined)
+        ? {
+            ...(conn.startupTimeoutSeconds !== undefined
+              ? { handshakeTimeoutSeconds: conn.startupTimeoutSeconds }
+              : {}),
+            ...(conn.reconnect !== undefined
+              ? { reconnect: conn.reconnect }
+              : {}),
+          }
+        : undefined;
+    const transport = serverCfg.transport;
+    const config =
+      transport.type === "http" && transport.http
+        ? {
+            type: "http" as const,
+            url: transport.http.url,
+            headers: transport.http.headers,
+          }
+        : transport.command
+          ? {
+              type: "stdio" as const,
+              executable: transport.command.executable ?? "",
+              args: transport.command.args ?? [],
+              cwd: transport.command.cwd,
+            }
+          : undefined;
+    const status = await Promise.race([
+      this.clientManager.ensureReady(id, config, connectionOpts),
+      new Promise<null>((resolve) =>
+        setTimeout(
+          () => resolve(null),
+          WorkflowEngine.CAPABILITY_PROBE_TIMEOUT_MS,
+        ).unref?.(),
+      ),
+    ]);
+    return status === null ? false : status.status === "ready";
+  }
+
+  /** Audits one capability_state_deviation event, at most once per session
+   *  per deviation kind (probe and gate-time signal share the guard). */
+  private noteCapabilityDeviation(
+    sessionId: string,
+    kind: "required-unreachable" | "off-reachable",
+    source: "probe" | "gate",
+  ): void {
+    const key = `${sessionId}:${kind}`;
+    if (this.capabilityDeviationsNoted.has(key)) return;
+    this.capabilityDeviationsNoted.add(key);
+    const [configured, live] =
+      kind === "required-unreachable"
+        ? ["required", "unreachable"]
+        : ["off", "reachable"];
+    this.audit.append({
+      sessionId,
+      eventType: "capability_state_deviation",
+      data: {
+        server: WorkflowEngine.GITNEXUS_SERVER_ID,
+        configured,
+        live,
+        kind,
+        source,
+      },
+    });
+  }
+
+  /** GN-D1 gate-time deviation signal: a gitnexus-targeting mcpTool gate
+   *  that failed with a transport-level error while the workspace declares
+   *  gitnexus.state=required means declared≠live — audit it (once per
+   *  session; the probe guard is shared). Called from every gate loop next
+   *  to recordDownstreamState. */
+  private noteGateTransportFailure(
+    sessionId: string,
+    op: OperationConfig,
+    result: { status: string; errors?: { code?: string; message?: string }[] },
+  ): void {
+    if (op.server !== WorkflowEngine.GITNEXUS_SERVER_ID) return;
+    if (this.declaredGitnexusState() !== "required") return;
+    if (result.status !== "failed") return;
+    const transportFailure = (result.errors ?? []).some(
+      (e) => e.code === "downstream_connection_failed",
+    );
+    if (!transportFailure) return;
+    this.noteCapabilityDeviation(sessionId, "required-unreachable", "gate");
+  }
+
   private buildInvokerClosure(
     servers: Record<
       string,
@@ -2126,6 +2309,13 @@ export class WorkflowEngine {
         : {}),
     };
     this.sessions.save(session);
+    // GN-D1 hybrid probe: compare the DECLARED capability state
+    // (guidance.json gitnexus.state) with LIVE availability — fire-and-forget,
+    // timeout-bounded, read-only; audits a capability_state_deviation event
+    // when they diverge. Never blocks session creation (void + swallow).
+    void this.probeCapabilityState(sessionId).catch(() => {
+      /* probe is best-effort; never fails session creation */
+    });
     // specs/017 FR-8: skip bound phases whose exit artifact already exists
     // (understand at session start when spec.md is present; crash-resume for
     // every other bound phase). Recorded in session state + audit.
@@ -2465,6 +2655,7 @@ export class WorkflowEngine {
       this.consumeApprovals(this.sessions.load(sessionId), [op], run.results);
       for (const r of run.results) {
         opResultsStart.push(this.exposeOpResult(r, op));
+        this.noteGateTransportFailure(sessionId, op, r);
         this.recordDownstreamState(
           sessionId,
           r.operationId,
@@ -2949,6 +3140,8 @@ export class WorkflowEngine {
         this.exposeOpResult(r, opById.get(r.operationId)),
       );
       for (const r of run.results) {
+        const gateOp = opById.get(r.operationId);
+        if (gateOp) this.noteGateTransportFailure(sessionId, gateOp, r);
         this.recordDownstreamState(
           sessionId,
           r.operationId,
@@ -3026,6 +3219,7 @@ export class WorkflowEngine {
       this.consumeApprovals(session, [op], run.results);
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));
+        this.noteGateTransportFailure(sessionId, op, r);
         this.recordDownstreamState(
           sessionId,
           r.operationId,
@@ -3130,6 +3324,7 @@ export class WorkflowEngine {
       this.consumeApprovals(session, [op], run.results);
       for (const r of run.results) {
         opResults.push(this.exposeOpResult(r, op));
+        this.noteGateTransportFailure(sessionId, op, r);
         this.recordDownstreamState(
           sessionId,
           r.operationId,
@@ -3339,6 +3534,10 @@ export class WorkflowEngine {
     );
     this.consumeApprovals(session, ops, run.results);
     const opById = new Map(ops.map((op) => [op.operationId, op]));
+    for (const r of run.results) {
+      const gateOp = opById.get(r.operationId);
+      if (gateOp) this.noteGateTransportFailure(sessionId, gateOp, r);
+    }
     const opResults = run.results.map((r) =>
       this.exposeOpResult(r, opById.get(r.operationId)),
     );
@@ -3655,6 +3854,10 @@ export class WorkflowEngine {
       );
       this.consumeApprovals(session, ops, run.results);
       const opById = new Map(ops.map((op) => [op.operationId, op]));
+      for (const r of run.results) {
+        const gateOp = opById.get(r.operationId);
+        if (gateOp) this.noteGateTransportFailure(sessionId, gateOp, r);
+      }
       const opResults = run.results.map((r) =>
         this.exposeOpResult(r, opById.get(r.operationId)),
       );

@@ -17,6 +17,11 @@ export type OperationStatus =
   | "running"
   | "succeeded"
   | "failed"
+  /** Three-valued gates: the operation did not run because its capability is
+   *  declared optional and the downstream server was unreachable
+   *  (capability-absent). Only ever produced for NON-required operations —
+   *  required operations keep failing closed. */
+  | "skipped"
   | "timed_out"
   | "cancelled"
   | "input_required"

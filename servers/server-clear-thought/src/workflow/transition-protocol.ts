@@ -20,9 +20,14 @@ export interface GateEvent {
   index: number;
   /** Total number of gates configured for this transition. */
   total: number;
-  phase: "started" | "succeeded" | "failed";
-  /** Normalized op status when phase is "succeeded"/"failed" (status only —
-   *  never gate output; FR-8 keeps progress messages credential-free). */
+  /** "skipped" (three-valued gates): the gate did not run because its
+   *  capability is declared optional and the server was unreachable
+   *  (capability-absent) — distinct from "failed" and never emitted for
+   *  required gates (those keep failing closed). */
+  phase: "started" | "succeeded" | "failed" | "skipped";
+  /** Normalized op status when phase is "succeeded"/"failed"/"skipped"
+   *  (status only — never gate output; FR-8 keeps progress messages
+   *  credential-free). */
   status?: string;
 }
 
@@ -58,6 +63,13 @@ export interface TransitionContext {
   progress?: ProgressChannel;
 }
 
+/** Progress-message outcome word for a finished gate event (three-valued:
+ * succeeded / skipped (capability-absent, optional gates only) / failed). */
+function gateOutcomeWord(event: GateEvent): string {
+  if (event.phase === "skipped" || event.status === "skipped") return "skipped";
+  return event.status === "succeeded" ? "succeeded" : "failed";
+}
+
 export function hooksFromContext(ctx?: TransitionContext): TransitionHooks {
   if (!ctx?.progress) return {};
   const { progress } = ctx;
@@ -71,7 +83,7 @@ export function hooksFromContext(ctx?: TransitionContext): TransitionHooks {
       const message =
         event.phase === "started"
           ? `gate ${event.operationId} started`
-          : `gate ${event.operationId} ${event.status === "succeeded" ? "succeeded" : "failed"}`;
+          : `gate ${event.operationId} ${gateOutcomeWord(event)}`;
       void progress
         .send({ progress: value, total: event.total, message })
         .catch(() => {
@@ -109,7 +121,7 @@ export function createCumulativeGateObserver(
     const message =
       event.phase === "started"
         ? `gate ${event.operationId} started`
-        : `gate ${event.operationId} ${event.status === "succeeded" ? "succeeded" : "failed"}`;
+        : `gate ${event.operationId} ${gateOutcomeWord(event)}`;
     void progress
       .send({ progress: value, total: cumulativeTotal, message })
       .catch(() => {

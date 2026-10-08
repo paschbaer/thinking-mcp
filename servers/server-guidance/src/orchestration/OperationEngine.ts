@@ -155,8 +155,54 @@ export class OperationEngine {
 
   private downstreamInvoker: DownstreamInvoker | null = null;
 
+  /** GN-D1 three-valued gates: serverIds whose capability the workspace
+   *  declared OPTIONAL (e.g. gitnexus.state=optional). Transport failures
+   *  of NON-required mcpTool operations on these servers are classified as
+   *  capability-absent (status "skipped") instead of failed. Required
+   *  operations are NEVER skipped — they keep failing closed. */
+  private optionalCapabilityServers: Set<string> | null = null;
+
   setDownstreamInvoker(invoker: DownstreamInvoker): void {
     this.downstreamInvoker = invoker;
+  }
+
+  /** Injects the set of serverIds declared as optional capabilities
+   *  (derived from the workspace config, e.g. guidance.json gitnexus.state).
+   *  The engine itself stays product-generic — it only knows serverIds. */
+  setOptionalCapabilityServers(serverIds: Iterable<string>): void {
+    this.optionalCapabilityServers = new Set(serverIds);
+  }
+
+  /** GN-D1: builds the skipped(capability-absent) result for a NON-required
+   *  mcpTool operation on an optional-capability server, or null when the
+   *  skip precondition (optional server + non-required op) does not hold. */
+  private skippedCapabilityAbsent(
+    config: OperationConfig,
+  ): NormalizedResult | null {
+    if (
+      this.optionalCapabilityServers?.has(config.server ?? "") &&
+      config.required !== true
+    ) {
+      return {
+        operationId: config.operationId,
+        capabilityType: config.type,
+        capabilityName: config.capability ?? config.executable,
+        status: "skipped",
+        summary: `${config.operationId} skipped — capability absent (optional server ${config.server} unreachable)`,
+        data: { reason: "capability-absent", server: config.server },
+        content: [],
+        warnings: [
+          {
+            code: "capability_absent_skipped",
+            message: `optional server ${config.server} is unreachable — gate skipped as capability-absent. A reachable server that reports an error is NOT skipped (configured-but-broken fails visibly); a REQUIRED server that is unreachable still fails closed.`,
+          },
+        ],
+        errors: [],
+        protocolMetadata: {},
+        validated: false,
+      };
+    }
+    return null;
   }
 
   async executeRequired(
@@ -168,7 +214,7 @@ export class OperationEngine {
       operationId: string;
       index: number;
       total: number;
-      phase: "started" | "succeeded" | "failed";
+      phase: "started" | "succeeded" | "failed" | "skipped";
       status?: string;
     }) => void,
   ): Promise<{ allSucceeded: boolean; results: NormalizedResult[] }> {
@@ -188,7 +234,12 @@ export class OperationEngine {
         operationId: config.operationId,
         index,
         total,
-        phase: result.status === "succeeded" ? "succeeded" : "failed",
+        phase:
+          result.status === "succeeded"
+            ? "succeeded"
+            : result.status === "skipped"
+              ? "skipped"
+              : "failed",
         status: result.status,
       });
       if (config.required && result.status !== "succeeded") {
@@ -285,6 +336,10 @@ export class OperationEngine {
     if (config.type === "mcpTool") {
       const invoker = this.downstreamInvoker;
       if (!invoker) {
+        // GN-D1: no downstream client at all — for a non-required op on an
+        // optional-capability server this is capability-absent, not failure.
+        const skipped = this.skippedCapabilityAbsent(config);
+        if (skipped) return skipped;
         return {
           ...base,
           errors: [
@@ -358,6 +413,14 @@ export class OperationEngine {
         };
       }
       if (outcome.kind === "transport") {
+        // GN-D1 three-valued gates: a transport failure on a server whose
+        // capability is declared optional classifies the capability as
+        // ABSENT (best-effort: "unreachable" is operationally
+        // indistinguishable from "never installed"). Only NON-required
+        // operations may skip — required gates keep failing closed, and a
+        // reachable-but-erroring server is NEVER skipped (see below).
+        const skipped = this.skippedCapabilityAbsent(config);
+        if (skipped) return skipped;
         return {
           ...base,
           errors: [
@@ -367,12 +430,25 @@ export class OperationEngine {
         };
       }
       if (outcome.kind === "tool_reported") {
+        // GN-D1: a reachable optional server that reports an error is
+        // configured-but-broken, not capability-absent — keep the failure
+        // AND warn loudly so the tolerated optional outcome stays visible.
+        const brokenWarnings: NormalizedResult["warnings"] =
+          this.optionalCapabilityServers?.has(config.server ?? "")
+            ? [
+                {
+                  code: "optional_capability_broken",
+                  message: `optional server ${config.server} is reachable but reported an error — configured-but-broken, gate NOT skipped`,
+                },
+              ]
+            : [];
         return {
           ...base,
           errors: [
             { code: "operation_result_invalid", message: outcome.message },
           ],
           summary: "tool reported an error",
+          warnings: brokenWarnings,
           content: redactUnknown(outcome.content) as typeof base.content,
         };
       }

@@ -30,13 +30,17 @@ export interface GuidanceMainConfig {
    *  enabled: false; profile-independent since runtime registration is an
    *  instance-level concern, not a process/workflow-type concern). */
   registryRegister?: { enabled?: boolean };
-  /** GitNexus capability declaration (optional-decoupling phase 1): the
+  /** GitNexus capability declaration (optional-decoupling): the
    *  workspace states whether/how it uses GitNexus. Consumed by the config
-   *  assistant renderers and by check-index-freshness.mjs (reindexCommand
-   *  remedy); the engine itself does NOT read this block — gates derive from
-   *  the generated operations/workflow files as before.
+   *  assistant renderers, by check-index-freshness.mjs (reindexCommand
+   *  remedy) and — minimally, since the three-valued gates (GN-D1) — by the
+   *  WorkflowEngine: state=optional classifies unreachable gitnexus gates
+   *  as skipped(capability-absent) and drives the hybrid capability probe
+   *  (capability_state_deviation audit events); required gates still fail
+   *  closed, off generates nothing GitNexus-related.
    *  state: required = blocking gates (fail-closed), optional = advisory
-   *  gates (tolerated failure), off = nothing GitNexus-related is generated.
+   *  gates (unreachable → skipped/capability-absent, broken → loud warning),
+   *  off = nothing GitNexus-related is generated.
    *  mode/reindexCommand: how the index is refreshed — local CLI or a
    *  compose-managed container with the exact operator-provided command. */
   gitnexus?: {

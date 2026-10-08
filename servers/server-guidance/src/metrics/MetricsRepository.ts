@@ -8,12 +8,15 @@
 import { existsSync, appendFileSync, readFileSync } from "node:fs";
 
 export type OperationOutcome =
-  "succeeded" | "failed" | "cancelled" | "timed_out";
+  "succeeded" | "failed" | "skipped" | "cancelled" | "timed_out";
 
 export interface OperationMetrics {
   runs: number;
   succeeded: number;
   failed: number;
+  /** Three-valued gates: runs that did not execute because the capability
+   *  is optional and the server was unreachable (capability-absent). */
+  skipped: number;
   cancelled: number;
   timedOut: number;
   durationMs: { count: number; sum: number; max: number };
@@ -65,6 +68,7 @@ function emptyBucket(): OperationMetrics {
     runs: 0,
     succeeded: 0,
     failed: 0,
+    skipped: 0,
     cancelled: 0,
     timedOut: 0,
     durationMs: { count: 0, sum: 0, max: 0 },
@@ -96,6 +100,7 @@ export class MetricsRepository {
     bucket.runs += 1;
     if (outcome === "succeeded") bucket.succeeded += 1;
     else if (outcome === "failed") bucket.failed += 1;
+    else if (outcome === "skipped") bucket.skipped += 1;
     else if (outcome === "cancelled") bucket.cancelled += 1;
     else if (outcome === "timed_out") bucket.timedOut += 1;
     bucket.durationMs.count += 1;

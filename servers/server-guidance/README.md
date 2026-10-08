@@ -170,7 +170,17 @@ From a bare machine to a running multi-workspace instance:
    `state` required|optional|off, `mode` local-cli|compose-container,
    `reindexCommand`). The config assistant renders gates, instructions and
    remedies from that declaration; `off` produces a configuration with zero
-   GitNexus references. When enabled, each registered repo is indexed
+   GitNexus references. Gate outcomes are three-valued for optional
+   capabilities: when `state` is `optional` and the GitNexus server is
+   unreachable, a non-required GitNexus gate reports `skipped
+   (capability-absent)` with a loud warning instead of a tolerated failure —
+   a reachable server that reports an error still fails visibly
+   (configured-but-broken), and `required` gates always fail closed. At
+   session start a non-blocking, timeout-bounded probe compares the declared
+   state with live availability and audits a `capability_state_deviation`
+   event when they diverge (declared required but unreachable, or declared
+   off but a leftover server entry is reachable). When enabled, each
+   registered repo is indexed
    **in-repo** (`<root>/.gitnexus`) by its single index writer — a host CLI
    (`gitnexus analyze --no-stats`, local-cli mode) or a compose-managed
    gitnexus-server container (overlay `docker-compose.gitnexus.yml`, full
