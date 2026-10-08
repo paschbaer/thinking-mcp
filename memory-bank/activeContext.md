@@ -5,6 +5,8 @@
 
 ## 2026-10-08: GITNEXUS OPTIONAL-DECOUPLING PHASE 1 — Guidance-Session session-791af4dc, feature/gitnexus-optional-decoupling
 
+- **FINAL:** 4 Commits 3ec9b88→ff2177a; FINAL REVIEW PASS (0 HIGH/CRITICAL; Mid-Session-Review 1H+3M gefixt, Final-Review GN-FR-1/3/4/5 gefixt, GN-FR-2/6/7 → GN-D4, F-6 → GN-D3). Suite 693/693, tsc clean, Gates grün (final-review + index-freshness).
+
 - **Ziel erreicht:** Guidance ist als Produkt GitNexus-agnostisch — Tri-State-Deklaration (`gitnexus.state` required|optional|off + `mode` local-cli|compose-container + `reindexCommand`) in guidance.json, vom Config-Assistenten gefragt/gesehen; alle Renderings (Responses-Schritt, Gates, Downstream, Workflow) conditional; Alone-Test pinnt `off` = null GitNexus-Referenzen; Basis-Compose nur 3 Services, GitNexus im opt-in Overlay `docker-compose.gitnexus.yml`.
 - **Deviation vom Plan:** Der Generator emittiert keine index-freshness-Op (war nie Teil des Generators — Workspace-Handzusatz); Allein-Test bezieht sich auf die vier Generator-Artefakte.
 - **Incident (Lesson!):** DrvFs-Partial-Write-Inkohärenz — sed -i von Git Bash erzeugte eine Datei mit GEMISCHTEN Seiten (Deklaration neu, Nutzung alt); tsc/vitest sahen die Inkohärenz, esbuild-Output war korrekt. Lösung: EIN Writer (edit_file) + Verifikation mit dem Verbraucher-Toolchain.
