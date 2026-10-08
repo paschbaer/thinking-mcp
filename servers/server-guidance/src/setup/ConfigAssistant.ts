@@ -218,7 +218,9 @@ export interface GitNexusSetup {
   reindexCommand: string;
 }
 
-/** Maps raw answers (tri-state or legacy yes/no/boolean) to the setup. */
+/** Maps raw answers (tri-state or legacy yes/no/boolean) to the setup.
+ *  Fail-closed on unknown non-empty values (a typo like "reqiured" must not
+ *  silently weaken gates); an absent answer falls back to the safe default. */
 export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
   const raw = answers.gitnexus;
   let state: GitNexusSetup["state"];
@@ -226,11 +228,26 @@ export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
   else if (raw === "no" || raw === false) state = "off";
   else if (raw === "required" || raw === "optional" || raw === "off")
     state = raw;
-  else state = "optional"; // absent answer -> safe default
+  else if (raw === undefined || raw === "") state = "optional"; // absent -> safe default
+  else
+    throw new GuidanceError(
+      "configuration_invalid",
+      `setup answers: unsupported gitnexus value ${JSON.stringify(
+        raw,
+      )} (expected required|optional|off, legacy yes/no)`,
+      { recoverable: true },
+    );
   const mode = answers.gitnexusMode === "compose-container"
     ? "compose-container"
     : "local-cli";
   const reindexCommand = String(answers.gitnexusReindexCommand ?? "").trim();
+  if (state !== "off" && mode === "compose-container" && reindexCommand === "") {
+    throw new GuidanceError(
+      "configuration_invalid",
+      "setup answers: gitnexusReindexCommand is required when gitnexusMode=compose-container (the deployment-specific exec command is rendered into instructions and the freshness-gate remedy)",
+      { recoverable: true },
+    );
+  }
   return { state, mode, reindexCommand };
 }
 
@@ -1050,20 +1067,31 @@ ${entryJson}`,
         "query-project-insights" in refOpsMap ||
         "capture-session-lessons" in refOpsMap
       : "capture-session-lessons" in refOpsMap;
-    // Adopt derivation: the reference ops map decides enabled/off; a required
-    // reference gate maps to "required" (fail-closed preserved); the gitnexus
-    // block of the reference guidance.json carries mode + reindexCommand
-    // forward when present.
+    // Adopt derivation: the reference ops map decides enabled/off when the
+    // reference declares no explicit state; a declared reference state
+    // (required|optional|off) is PRESERVED so an advisory reference does not
+    // silently upgrade to blocking. The gitnexus block of the reference
+    // guidance.json carries mode + reindexCommand forward when present.
+    const refGn = (
+      refGuidance as {
+        gitnexus?: {
+          state?: string;
+          mode?: string;
+          reindexCommand?: string;
+        };
+      }
+    ).gitnexus;
+    const refState = refGn?.state;
     gn = {
-      state: "repository-analysis" in refOpsMap ? "required" : "off",
+      state:
+        refState === "required" || refState === "optional" || refState === "off"
+          ? refState
+          : "repository-analysis" in refOpsMap
+            ? "required"
+            : "off",
       mode: gn.mode,
       reindexCommand: gn.reindexCommand,
     };
-    const refGn = (
-      refGuidance as {
-        gitnexus?: { mode?: string; reindexCommand?: string };
-      }
-    ).gitnexus;
     if (refGn) {
       if (refGn.mode === "compose-container" || refGn.mode === "local-cli") {
         gn.mode = refGn.mode;
@@ -1071,6 +1099,19 @@ ${entryJson}`,
       if (typeof refGn.reindexCommand === "string" && refGn.reindexCommand) {
         gn.reindexCommand = refGn.reindexCommand;
       }
+    }
+    // Fail closed on an incomplete compose-container declaration AFTER the
+    // reference merge (same invariant as parseGnSetup for fresh answers).
+    if (
+      gn.state !== "off" &&
+      gn.mode === "compose-container" &&
+      gn.reindexCommand === ""
+    ) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        "adopt: reference declares gitnexus mode compose-container without a reindexCommand — add gitnexus.reindexCommand to the reference guidance.json",
+        { recoverable: true },
+      );
     }
     gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
     const genericPreset = new Set([

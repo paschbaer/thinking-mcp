@@ -70,7 +70,7 @@
   "gitnexus": {
     "state": "required",
     "mode": "compose-container",
-    "reindexCommand": "docker compose -f D:/repos/thinking-mcp/docker-compose.yml -f D:/repos/thinking-mcp/docker-compose.gitnexus.yml exec -w /workspaces/thinking-mcp gitnexus-server gitnexus analyze --no-stats (workdir case must match the on-disk directory name)"
+    "reindexCommand": "docker compose -f D:/repos/thinking-mcp/docker-compose.yml -f D:/repos/thinking-mcp/docker-compose.gitnexus.yml exec -w /workspaces/thinking-mcp gitnexus-server gitnexus analyze --no-stats"
   },
   "workspaces": [
     {

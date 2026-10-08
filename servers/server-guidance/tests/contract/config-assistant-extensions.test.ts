@@ -1571,6 +1571,7 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
         "CLEARTHOUGHT_URL",
         "INSIGHT_URL",
         "GITNEXUS_URL",
+        "GITNEXUS_REINDEX_CMD",
         "PROJECT_NAME",
       ]).toContain(t);
     const blocks = [
