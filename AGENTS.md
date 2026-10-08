@@ -493,9 +493,13 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   WSL-Notation `/mnt/d/…` und der frühere Root `/workspace` werden mit
   „workspace_not_registered“ bzw. „escapes the configured workspace“
   abgelehnt.
-- Downstream-Server: gitnexus (MCP :4747) und insight (:3002) verbinden
+- Downstream-Server: gitnexus (MCP, compose-DNS `http://gitnexus-server:4747`
+  innerhalb des Compose-Netzwerks; Host-Zugriff Editor/Tooling via
+  `127.0.0.1:4747`), insight (:3002), clear-thought (:3000) verbinden
   **lazy**: `get_downstream_status` zeigt `disconnected`, bis eine Operation
-  sie das erste Mal nutzt — das ist normal und kein Fehler.
+  sie das erste Mal nutzt — das ist normal und kein Fehler. Die Egress-
+  Allowlist nennt `gitnexus-server:4747` (Compose-DNS), nicht mehr
+  host.docker.internal.
 - **GitNexus-Topologie (NEU, GN-Migration 2026-10-08 — eine Welt):** :4747
   wird vom **gitnexus-server-Container** bedient, der als **optionales Overlay**
   `docker-compose.gitnexus.yml` Teil der Root-Orchestrierung ist (Image

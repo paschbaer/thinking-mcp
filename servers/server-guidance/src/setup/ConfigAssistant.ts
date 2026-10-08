@@ -218,8 +218,9 @@ export interface GitNexusSetup {
 }
 
 /** Maps raw answers (tri-state or legacy yes/no/boolean) to the setup.
- *  Fail-closed on unknown non-empty values (a typo like "reqiured" must not
- *  silently weaken gates); an absent answer falls back to the safe default. */
+ *  Answer-level validation only (unknown values fail closed); the
+ *  mode/command cross-check lives in validateGnSetup so the adopt derivation
+ *  can complete before validation fires (leftover answers cannot misfire). */
 export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
   const raw = answers.gitnexus;
   let state: GitNexusSetup["state"];
@@ -242,18 +243,23 @@ export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
       ? "compose-container"
       : "local-cli";
   const reindexCommand = String(answers.gitnexusReindexCommand ?? "").trim();
+  return { state, mode, reindexCommand };
+}
+
+/** Cross-field validation, applied AFTER parsing AND after the adopt
+ *  derivation (single site, both paths). Fail-closed. */
+export function validateGnSetup(gn: GitNexusSetup): void {
   if (
-    state !== "off" &&
-    mode === "compose-container" &&
-    reindexCommand === ""
+    gn.state !== "off" &&
+    gn.mode === "compose-container" &&
+    gn.reindexCommand.trim() === ""
   ) {
     throw new GuidanceError(
       "configuration_invalid",
-      "setup answers: gitnexusReindexCommand is required when gitnexusMode=compose-container (the deployment-specific exec command is rendered into instructions and the freshness-gate remedy)",
+      "gitnexus: reindexCommand is required when mode=compose-container (the deployment-specific command is rendered into instructions and the freshness-gate remedy)",
       { recoverable: true },
     );
   }
-  return { state, mode, reindexCommand };
 }
 
 /** Renders the reindex command text embedded in instructions/remedies. */
@@ -1087,6 +1093,24 @@ ${entryJson}`,
       }
     ).gitnexus;
     const refState = refGn?.state;
+    // Fail closed on an UNKNOWN non-empty reference state — a typo must not
+    // silently fall back to the op-map derivation (which could weaken an
+    // advisory reference to off).
+    if (
+      refState !== undefined &&
+      refState !== "" &&
+      refState !== "required" &&
+      refState !== "optional" &&
+      refState !== "off"
+    ) {
+      throw new GuidanceError(
+        "configuration_invalid",
+        `adopt: reference guidance.json declares an unknown gitnexus state ${JSON.stringify(
+          refState,
+        )} (expected required|optional|off)`,
+        { recoverable: true },
+      );
+    }
     gn = {
       state:
         refState === "required" || refState === "optional" || refState === "off"
@@ -1101,22 +1125,11 @@ ${entryJson}`,
       if (refGn.mode === "compose-container" || refGn.mode === "local-cli") {
         gn.mode = refGn.mode;
       }
-      if (typeof refGn.reindexCommand === "string" && refGn.reindexCommand) {
-        gn.reindexCommand = refGn.reindexCommand;
+      if (typeof refGn.reindexCommand === "string") {
+        // trimmed: a whitespace-only reference value must not pass the
+        // cross-check below as truthy while rendering as empty
+        gn.reindexCommand = refGn.reindexCommand.trim();
       }
-    }
-    // Fail closed on an incomplete compose-container declaration AFTER the
-    // reference merge (same invariant as parseGnSetup for fresh answers).
-    if (
-      gn.state !== "off" &&
-      gn.mode === "compose-container" &&
-      gn.reindexCommand === ""
-    ) {
-      throw new GuidanceError(
-        "configuration_invalid",
-        "adopt: reference declares gitnexus mode compose-container without a reindexCommand — add gitnexus.reindexCommand to the reference guidance.json",
-        { recoverable: true },
-      );
     }
     gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
     const genericPreset = new Set([
@@ -1292,6 +1305,9 @@ ${entryJson}`,
     // coherence check below would reject (configuration_invalid).
     nonGenericRefOps = refOpsMap;
   }
+  // Single cross-field validation site — runs for fresh AND adopt paths,
+  // after any reference merge (parse-only above, validate here).
+  validateGnSetup(gn);
   // specs/014 + WIZ-1: the repo process config never carries the workspaces
   // registry itself — registration data flows through registryNotes (merge
   // snippet for the AGENT to apply to the instance's guidance.json).

@@ -4,7 +4,7 @@
     "httpHostAllowlist": [
       "host.docker.internal:3000",
       "host.docker.internal:3002",
-      "host.docker.internal:4747"
+      "gitnexus-server:4747"
     ]
   },
   "trustLevels": {

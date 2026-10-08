@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   generateFiles,
   parseGnSetup,
+  validateGnSetup,
 } from "../../src/setup/ConfigAssistant.js";
 
 const BASE_ANSWERS = {
@@ -50,6 +51,7 @@ function generate(overrides: Record<string, unknown>) {
     guidance: JSON.parse(file("guidance.json")) as {
       gitnexus?: { state: string; mode: string; reindexCommand?: string };
     },
+    guidanceRaw: file("guidance.json"),
   };
 }
 
@@ -86,6 +88,8 @@ describe("gitnexus optional-decoupling (phase 1)", () => {
       "GitNexus",
     );
     expect(countGitnexusMentions(g)).toBe(0);
+    // full-blob scan: the guidance.json itself must be reference-free too
+    expect(g.guidanceRaw.toLowerCase()).not.toContain("gitnexus");
   });
 
   it("legacy answers stay compatible: yes->required, no->off", () => {
@@ -155,15 +159,69 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
     );
   });
 
-  it("compose-container without a reindexCommand is rejected (fresh answers)", () => {
+  it("validateGnSetup: compose-container without a reindexCommand is rejected; complete setups pass; off never rejects", () => {
+    expect(() =>
+      validateGnSetup({
+        state: "required",
+        mode: "compose-container",
+        reindexCommand: "",
+      }),
+    ).toThrowError(/reindexCommand is required when mode=compose-container/);
+    expect(() =>
+      validateGnSetup({
+        state: "optional",
+        mode: "compose-container",
+        reindexCommand: "  ",
+      }),
+    ).toThrowError(/reindexCommand is required/);
+    expect(() =>
+      validateGnSetup({
+        state: "required",
+        mode: "compose-container",
+        reindexCommand: "docker compose exec ...",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateGnSetup({ state: "off", mode: "compose-container", reindexCommand: "" }),
+    ).not.toThrow();
+    expect(() =>
+      validateGnSetup({ state: "required", mode: "local-cli", reindexCommand: "" }),
+    ).not.toThrow();
+  });
+
+  it("parse/validate split: leftover adopt answers cannot misfire during parsing", () => {
+    // compose-container + empty command PARSES fine (validation deferred to
+    // validateGnSetup after the adopt derivation) ...
     expect(() =>
       parseGnSetup({
-        gitnexus: "required",
+        gitnexus: "yes",
         gitnexusMode: "compose-container",
         gitnexusReindexCommand: "",
       }),
+    ).not.toThrow();
+    // ... and the cross-check still fires via the single validation site
+    expect(() =>
+      validateGnSetup(
+        parseGnSetup({
+          gitnexus: "yes",
+          gitnexusMode: "compose-container",
+          gitnexusReindexCommand: "",
+        }),
+      ),
+    ).toThrowError(/reindexCommand is required/);
+  });
+
+  it("compose-container without a reindexCommand is rejected (fresh answers, parse+validate)", () => {
+    expect(() =>
+      validateGnSetup(
+        parseGnSetup({
+          gitnexus: "required",
+          gitnexusMode: "compose-container",
+          gitnexusReindexCommand: "",
+        }),
+      ),
     ).toThrowError(
-      /gitnexusReindexCommand is required when gitnexusMode=compose-container/,
+      /reindexCommand is required when mode=compose-container/,
     );
   });
 

@@ -14,11 +14,11 @@ services:
     # The registry persists on the host pool root (e.g. D:/repos/.gitnexus-home).
     image: ghcr.io/abhigyanpatwari/gitnexus:latest
     ports:
-      # 0.0.0.0 on purpose: the guidance container reaches this server via
-      # host.docker.internal:4747 (host-gateway), which does NOT land on
-      # loopback-only bindings. Tightening (compose-DNS + 127.0.0.1) is a
-      # tracked hardening follow-up.
-      - "4747:4747"
+      # Loopback-only host binding (hardened): the editor and host tooling
+      # reach the server on 127.0.0.1:4747; the guidance container uses
+      # compose-DNS (http://gitnexus-server:4747) inside the project network
+      # — no host-gateway hop needed for this service anymore.
+      - "127.0.0.1:4747:4747"
     environment:
       - NODE_ENV=production
       - PORT=4747

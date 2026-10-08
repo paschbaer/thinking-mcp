@@ -1498,3 +1498,8 @@
 - 2026-10-07: session-c4ddeb4d in complete phase; all HIGH/CRITICAL findings fixed (9be7c2e); remaining-work-plan carries 3 tracked follow-ups (include-cycle spec note, FR-10 wiring, R-B5 accepted lows).
 - 2026-10-07: chain session-3a03faf2 (head) resolved the tracked baseline typecheck (01071e9); Final#1/Final#2 owned by chain successors. Final review 11f1fef2: 0 HIGH/CRITICAL.
 - 2026-10-07: chain successor 1 (Final#1) complete — degradation marker implemented + reviewed (0 HIGH/CRITICAL, final review 96ebe53c); successor 2 (Final#2) next in chain feature/017-final-review-mediums.
+
+## 2026-10-08: CHAIN STEP 1 — wsl-Writer-Formalisierung + GN-5/D3/D4 (session-83693944, feature/gn-chain-step1)
+
+- **Umgesetzt:** (1) Pool-weite Identitäts-Vereinheitlichung auf /mnt/d (Niyama + copilot per WSL --force + Registry-Rewrite; alle Checks/Queries grün); (2) GN-5 Port-Hardening: 127.0.0.1-Binding + Compose-DNS (Vorprobe 200), Egress + 3 Pool-Workspace-Konfigs umgestellt; (3) GN-D4: refGn.state-unbekannt-Throw, reindexCommand-Trim, parse/validate-Split; (4) GN-D3: guidance.json-Blob-Scan + AC-1b-Ops-Drift-Guard. Suite 696/696, tsc clean.
+- **Chain:** Head grün (session-928fa08c); Step 2 (Phase-2 dreiwertige Gates + Hybrid-Probe) und Step 3 (Doku-Konsolidierung) folgen automatisch.

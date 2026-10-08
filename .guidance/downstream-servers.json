@@ -8,7 +8,7 @@
       "trustLevel": "trusted",
       "transport": {
         "type": "http",
-        "http": { "url": "http://host.docker.internal:4747/api/mcp" }
+        "http": { "url": "http://gitnexus-server:4747/api/mcp" }
       },
       "capabilities": {
         "allow": { "tools": ["*"], "resources": [], "prompts": [] }
@@ -19,7 +19,7 @@
         "reconnect": { "enabled": true, "maximumAttempts": 2, "delayMilliseconds": 1000 }
       },
       "containerRoute": {
-        "url": "http://host.docker.internal:4747/api/mcp"
+        "url": "http://gitnexus-server:4747/api/mcp"
       }
     },
     "clearthought": {

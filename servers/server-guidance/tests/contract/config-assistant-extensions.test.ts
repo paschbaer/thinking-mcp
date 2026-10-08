@@ -17,11 +17,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { composeApplication } from "../../src/main.js";
 import {
+  buildOperations,
   buildResponses,
   catalogOverview,
   generateFiles,
   nextQuestion,
   resolveBuiltinReferencePath,
+  TEMPLATE_GN,
   validateAdoptReference,
 } from "../../src/setup/ConfigAssistant.js";
 
@@ -1542,6 +1544,36 @@ describe("wisdom baseline (specs/013 FR-991..995)", () => {
       "utf8",
     ).replace(/\r\n/g, "\n");
     expect(tpl).toBe(buildResponses(""));
+  });
+
+  it("AC-1b: template operations.json stays in lockstep with buildOperations for every generator-produced op (drift guard)", () => {
+    const tpl = JSON.parse(
+      readFileSync(
+        join(resolveBuiltinReferencePath(), "operations.json"),
+        "utf8",
+      ).replace(/\r\n/g, "\n"),
+    ) as { operations: Record<string, unknown> };
+    const fresh = JSON.parse(
+      buildOperations(
+        "npm",
+        "standard",
+        TEMPLATE_GN,
+        true,
+        "${project.name}",
+        "stdio",
+      ),
+    ) as { operations: Record<string, unknown> };
+    for (const [opId, freshOp] of Object.entries(fresh.operations)) {
+      const tplOp = tpl.operations[opId];
+      expect(tplOp, `template op missing or diverged: ${opId}`).toEqual(
+        freshOp,
+      );
+    }
+    // the template may carry hand-maintained non-generator ops — they must
+    // simply exist; generator ops are compared above
+    for (const opId of ["final-review-gate", "docs-drift"]) {
+      expect(tpl.operations[opId], `carry-over op missing: ${opId}`).toBeDefined();
+    }
   });
 
   it("FR-992: wisdom baseline exists, covers all phases, differs from generic, only defined tokens", () => {
