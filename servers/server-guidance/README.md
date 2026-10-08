@@ -2324,13 +2324,15 @@ recorded) or ends the run via `cancel_workflow`.
   warning flags mismatches).
 - **GitNexus index:** the HTTP server (:4747) exposes no `analyze` tool —
   the index refresh is the **agent's responsibility before calling
-  `complete_workflow`**: run `gitnexus analyze --no-stats` host-side (WSL
-  CLI, see the repo's `AGENTS.md`) and mention the refresh in the completion
-  report. Two gates cover the index deterministically: `index-freshness`
-  compares `.gitnexus/meta.json` (lastCommit + branch) against git HEAD — a
-  stale index fails the gate instead of passing silently (GUID-6) — and
-  `repository-analysis` verifies the index is queryable. The repo name in
-  the check op is hardcoded until template placeholder resolution is fixed.
+  `complete_workflow`**: run the reindex inside the compose-managed
+  gitnexus-server container (`docker compose exec -w /workspaces/<repo-dir>
+  gitnexus-server gitnexus analyze --no-stats`, see the repo's `AGENTS.md`)
+  and mention the refresh in the completion report. Two gates cover the index
+  deterministically: `index-freshness` compares the in-repo `.gitnexus`
+  state against the working tree — a stale index fails the gate instead of
+  passing silently (GUID-6) — and `repository-analysis` verifies the index
+  is queryable. The repo name in the check op is hardcoded until template
+  placeholder resolution is fixed.
 - **Clear-Thought duty in all four reasoning phases (`understand`, `plan`,
   both reviews):** each phase instructs the agent to use Clear-Thought
   reasoning tools via `requiredActions`, and submissions must reference the

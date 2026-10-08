@@ -6,7 +6,9 @@
 ## 2026-10-08: GN-MIGRATION IMPLEMENTIERT (Option A+D) — Guidance-Session session-67baca0b, feature/gn-gitnexus-compose-integration
 
 - **Umgesetzt:** gitnexus-server + gitnexus-web als Compose-Services (Root-docker-compose.yml, voller `/workspaces`-Mount, Registry host-seitig unter `D:\repos\.gitnexus-home`); Standalone-Container stillgelegt; alle drei Pool-Repos per `docker compose exec gitnexus analyze` mit in-repo-Storage registriert (thinking-mcp 10.380 Nodes/480 Flows, Niyama 8.782/156, copilot 262/255); Live-Pickup ohne Restart bewiesen (AC-6); Legacy-Volume gelöscht (Q3); REMEDY/Responses/Generator/Template auf docker-exec-Reindex umgestellt (CHFIX-6+GN-3 mitgelöst); safe.directory-Command-Wrapper gegen git-dubious-ownership; Tests 684/684 grün, tsc clean.
-- **Vorher dokumentiert (siehe Eintrag unten):** Zwei-Registry-Divergenz als Root Cause des copilot-Gate-Fiaskos.
+- **Reviews:** Mid-Session-Independent-Review 0 HIGH/CRITICAL (F1/F2/F3/F5 in bd283e1 gefixt, F4/F6 → GN-7/GN-8 getrackt); FINAL REVIEW (frischer Sub-Agent, develop..HEAD): **PASS, 0 HIGH/CRITICAL** — FR-1 (README Operating-notes WSL-Rest, MEDIUM) + FR-2/FR-3 (operations.json-Beschreibungen, LOW) direkt im Abschluss behoben. Metacognition 0.88 (4 dokumentierte Unsicherheiten). Verify-Gates lint+build serverseitig grün.
+- **Commits:** fb47d17 (GN-Doku) → 787571a (Migration) → bd283e1 (Review-Fixes) → Abschluss-Commit (FR-1..3).
+- **Offen nach Session-Ende:** GN-5 (Port-Hardening), GN-6 (lastCommit-Populate — verifiziert sich beim Abschluss-Reindex), GN-7 (nested-Worktree-REMEDY), GN-8 (ops-Drift-Guard), GN-9 (neu, aus Final Review: Rest-Wording in unveränderten README-Segmenten war prä-existent — mit FR-1-Fix erledigt; kein eigener Eintrag nötig).
 
 ## 2026-10-08: GITNEXUS-INTEGRATIONSANALYSE — Zwei-Registry-Divergenz aufgedeckt (GN-1..GN-4)
 
