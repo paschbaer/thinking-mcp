@@ -270,6 +270,59 @@ export function renderReindexCommand(gn: GitNexusSetup): string {
   return "gitnexus analyze --no-stats";
 }
 
+/** Adopt-mode derivation of the GitNexus setup from a reference config:
+ *  the ops map decides enabled/off when the reference declares no explicit
+ *  state; a DECLARED state (required|optional|off) is preserved so an
+ *  advisory reference never silently upgrades to blocking. An unknown
+ *  non-empty reference state fails closed. The reference gitnexus block
+ *  carries mode + reindexCommand forward (trimmed). Exported for tests. */
+export function deriveAdoptGn(
+  refGuidance: Record<string, unknown>,
+  refOpsMap: Record<string, Record<string, unknown>>,
+  base: GitNexusSetup,
+): GitNexusSetup {
+  const refGn = (
+    refGuidance as {
+      gitnexus?: { state?: string; mode?: string; reindexCommand?: string };
+    }
+  ).gitnexus;
+  const refState = refGn?.state;
+  if (
+    refState !== undefined &&
+    refState !== "" &&
+    refState !== "required" &&
+    refState !== "optional" &&
+    refState !== "off"
+  ) {
+    throw new GuidanceError(
+      "configuration_invalid",
+      `adopt: reference guidance.json declares an unknown gitnexus state ${JSON.stringify(
+        refState,
+      )} (expected required|optional|off)`,
+      { recoverable: true },
+    );
+  }
+  const gn: GitNexusSetup = {
+    state:
+      refState === "required" || refState === "optional" || refState === "off"
+        ? refState
+        : "repository-analysis" in refOpsMap
+          ? "required"
+          : "off",
+    mode: base.mode,
+    reindexCommand: base.reindexCommand,
+  };
+  if (refGn) {
+    if (refGn.mode === "compose-container" || refGn.mode === "local-cli") {
+      gn.mode = refGn.mode;
+    }
+    if (typeof refGn.reindexCommand === "string") {
+      gn.reindexCommand = refGn.reindexCommand.trim();
+    }
+  }
+  return gn;
+}
+
 function isAnswered(q: SetupQuestion, answers: SetupAnswers): boolean {
   const v = answers[q.id];
   return v !== undefined && v !== "";
@@ -401,10 +454,15 @@ function insightUrl(transport: string): string {
     : "http://localhost:3002/mcp";
 }
 
-function gitnexusUrl(transport: string): string {
-  return transport === "http-docker"
-    ? "http://host.docker.internal:4747/api/mcp"
-    : "http://localhost:4747/api/mcp";
+/** GitNexus MCP endpoint, keyed by transport AND deployment mode: a
+ *  compose-container gitnexus-server is reached over compose DNS inside the
+ *  project network (and may be loopback-bound on the host); a local-CLI
+ *  gitnexus runs host-side and is reached via the host gateway. */
+function gitnexusUrl(transport: string, mode?: string): string {
+  if (transport !== "http-docker") return "http://localhost:4747/api/mcp";
+  return mode === "compose-container"
+    ? "http://gitnexus-server:4747/api/mcp"
+    : "http://host.docker.internal:4747/api/mcp";
 }
 
 function emmsUrl(transport: string): string {
@@ -419,15 +477,17 @@ function clearthoughtUrl(transport: string): string {
     : "http://localhost:3000/mcp";
 }
 
-function buildPolicies(transport: string): string {
+function buildPolicies(transport: string, gnMode?: string): string {
+  const gnHost =
+    transport === "http-docker"
+      ? gnMode === "compose-container"
+        ? "gitnexus-server:4747"
+        : "host.docker.internal:4747"
+      : "localhost:4747";
   const hosts =
     transport === "http-docker"
-      ? [
-          "host.docker.internal:3000",
-          "host.docker.internal:3002",
-          "host.docker.internal:4747",
-        ]
-      : ["localhost:3000", "localhost:3002", "localhost:4747"];
+      ? ["host.docker.internal:3000", "host.docker.internal:3002", gnHost]
+      : ["localhost:3000", "localhost:3002", gnHost];
   const policies = {
     version: 2,
     egress: { httpHostAllowlist: hosts },
@@ -912,7 +972,10 @@ function buildDownstream(
       enabled: true,
       required: gn.state === "required",
       trustLevel: "trusted",
-      transport: { type: "http", http: { url: gitnexusUrl(transport) } },
+      transport: {
+        type: "http",
+        http: { url: gitnexusUrl(transport, gn.mode) },
+      },
       capabilities: {
         allow: {
           tools: ["check", "query", "detect_changes", "list_repos"],
@@ -923,7 +986,7 @@ function buildDownstream(
       connection: conn(300),
       // FR-035 amendment: read-only graph queries fall back over the same
       // endpoint when the primary transport times out (see REV-1).
-      containerRoute: { url: gitnexusUrl(transport) },
+      containerRoute: { url: gitnexusUrl(transport, gn.mode) },
     };
   }
   if (insight) {
@@ -1078,59 +1141,7 @@ ${entryJson}`,
         "query-project-insights" in refOpsMap ||
         "capture-session-lessons" in refOpsMap
       : "capture-session-lessons" in refOpsMap;
-    // Adopt derivation: the reference ops map decides enabled/off when the
-    // reference declares no explicit state; a declared reference state
-    // (required|optional|off) is PRESERVED so an advisory reference does not
-    // silently upgrade to blocking. The gitnexus block of the reference
-    // guidance.json carries mode + reindexCommand forward when present.
-    const refGn = (
-      refGuidance as {
-        gitnexus?: {
-          state?: string;
-          mode?: string;
-          reindexCommand?: string;
-        };
-      }
-    ).gitnexus;
-    const refState = refGn?.state;
-    // Fail closed on an UNKNOWN non-empty reference state — a typo must not
-    // silently fall back to the op-map derivation (which could weaken an
-    // advisory reference to off).
-    if (
-      refState !== undefined &&
-      refState !== "" &&
-      refState !== "required" &&
-      refState !== "optional" &&
-      refState !== "off"
-    ) {
-      throw new GuidanceError(
-        "configuration_invalid",
-        `adopt: reference guidance.json declares an unknown gitnexus state ${JSON.stringify(
-          refState,
-        )} (expected required|optional|off)`,
-        { recoverable: true },
-      );
-    }
-    gn = {
-      state:
-        refState === "required" || refState === "optional" || refState === "off"
-          ? refState
-          : "repository-analysis" in refOpsMap
-            ? "required"
-            : "off",
-      mode: gn.mode,
-      reindexCommand: gn.reindexCommand,
-    };
-    if (refGn) {
-      if (refGn.mode === "compose-container" || refGn.mode === "local-cli") {
-        gn.mode = refGn.mode;
-      }
-      if (typeof refGn.reindexCommand === "string") {
-        // trimmed: a whitespace-only reference value must not pass the
-        // cross-check below as truthy while rendering as empty
-        gn.reindexCommand = refGn.reindexCommand.trim();
-      }
-    }
+    gn = deriveAdoptGn(refGuidance, refOpsMap, gn);
     gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
     const genericPreset = new Set([
       "lint",
@@ -1223,7 +1234,7 @@ ${entryJson}`,
       wfText = JSON.stringify(wf, null, 2);
     }
     workflowOverride = wfText;
-    policiesOverride = buildPolicies(transport);
+    policiesOverride = buildPolicies(transport, gn.mode);
     downstreamOverride = buildDownstream(insight, gn, transport);
     // FR-981/FR-992..994 (specs/012+013): adopt the reference RESPONSES.
     // Builtin adopt renders the wisdom baseline (fail-closed if missing);
@@ -1273,6 +1284,7 @@ ${entryJson}`,
         ]),
         projectName: name,
         gitnexusReindexCommand: renderReindexCommand(gn),
+        gitnexusMode: gn.mode,
       },
       // FR-995: wisdom sources must render completely; mounted fallback
       // responses.json keeps the lenient 012 behavior.
@@ -1401,7 +1413,7 @@ ${entryJson}`,
     },
     {
       path: "policies.json",
-      content: policiesOverride ?? buildPolicies(transport),
+      content: policiesOverride ?? buildPolicies(transport, gn.mode),
     },
   ];
   // WIZ-3: the former spec-kit profile file emission is gone — integrations
@@ -1567,13 +1579,16 @@ export function renderAdoptedResponses(
     /** Optional-decoupling phase 1: rendered reindex command inside the
      *  {{#server:gitnexus}} block of wisdom baselines. */
     gitnexusReindexCommand?: string;
+    /** Deployment mode — decides the rendered GITNEXUS_URL topology
+     *  (compose DNS for compose-container, host gateway otherwise). */
+    gitnexusMode?: string;
   },
   opts?: { strictLeftovers?: boolean },
 ): string {
   const tokens: Record<string, string> = {
     CLEARTHOUGHT_URL: clearthoughtUrl(target.transport),
     INSIGHT_URL: insightUrl(target.transport),
-    GITNEXUS_URL: gitnexusUrl(target.transport),
+    GITNEXUS_URL: gitnexusUrl(target.transport, target.gitnexusMode),
     PROJECT_NAME: target.projectName,
     GITNEXUS_REINDEX_CMD:
       target.gitnexusReindexCommand ?? "gitnexus analyze --no-stats",

@@ -8,9 +8,11 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  deriveAdoptGn,
   generateFiles,
   parseGnSetup,
   validateGnSetup,
+  type GitNexusSetup,
 } from "../../src/setup/ConfigAssistant.js";
 
 const BASE_ANSWERS = {
@@ -43,10 +45,7 @@ function generate(overrides: Record<string, unknown>) {
       servers: Record<string, { required?: boolean }>;
     },
     workflow: JSON.parse(file("workflow.json")) as {
-      phases: Record<
-        string,
-        { lifecycle?: { beforeExit?: string[] } }
-      >;
+      phases: Record<string, { lifecycle?: { beforeExit?: string[] } }>;
     },
     guidance: JSON.parse(file("guidance.json")) as {
       gitnexus?: { state: string; mode: string; reindexCommand?: string };
@@ -126,19 +125,13 @@ describe("gitnexus optional-decoupling (phase 1)", () => {
     expect(g.ops["repository-analysis"]?.required).toBe(false);
     expect(g.downstream.servers.gitnexus?.required).toBe(false);
     expect(g.guidance.gitnexus?.state).toBe("optional");
-    expect(completeInstruction(g)).toContain(
-      "advisory in this configuration",
-    );
+    expect(completeInstruction(g)).toContain("advisory in this configuration");
   });
 
   it("mode=local-cli renders the plain shell command (no deployment paths)", () => {
     const g = generate({ gitnexus: "required" });
-    expect(completeInstruction(g)).toContain(
-      "'gitnexus analyze --no-stats'",
-    );
-    expect(completeInstruction(g)).not.toContain(
-      "docker compose",
-    );
+    expect(completeInstruction(g)).toContain("'gitnexus analyze --no-stats'");
+    expect(completeInstruction(g)).not.toContain("docker compose");
     expect(g.guidance.gitnexus?.mode).toBe("local-cli");
     expect(g.guidance.gitnexus?.reindexCommand).toBeUndefined();
   });
@@ -149,6 +142,39 @@ describe("gitnexus optional-decoupling (phase 1)", () => {
       state: "optional",
       mode: "local-cli",
     });
+  });
+
+  it("GENERATOR-URL TOPOLOGY: compose-container renders compose-DNS URL + egress entry; local-cli keeps the host gateway (http-docker)", () => {
+    const files = generateFiles({
+      ...BASE_ANSWERS,
+      gitnexus: "required",
+      gitnexusMode: "compose-container",
+      gitnexusReindexCommand: "docker compose exec ...",
+      transport: "http-docker",
+    }).files;
+    const byPath = new Map(files.map((f) => [f.path, f.content] as const));
+    const ds = JSON.parse(byPath.get("downstream-servers.json") ?? "{}");
+    expect(ds.servers.gitnexus.transport.http.url).toBe(
+      "http://gitnexus-server:4747/api/mcp",
+    );
+    expect(ds.servers.gitnexus.containerRoute.url).toBe(
+      "http://gitnexus-server:4747/api/mcp",
+    );
+    const pol = JSON.parse(byPath.get("policies.json") ?? "{}");
+    expect(pol.egress.httpHostAllowlist).toContain("gitnexus-server:4747");
+    expect(pol.egress.httpHostAllowlist).not.toContain(
+      "host.docker.internal:4747",
+    );
+    const local = generateFiles({
+      ...BASE_ANSWERS,
+      gitnexus: "required",
+      transport: "http-docker",
+    }).files;
+    const localBy = new Map(local.map((f) => [f.path, f.content] as const));
+    const localDs = JSON.parse(localBy.get("downstream-servers.json") ?? "{}");
+    expect(localDs.servers.gitnexus.transport.http.url).toBe(
+      "http://host.docker.internal:4747/api/mcp",
+    );
   });
 });
 
@@ -182,10 +208,18 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
       }),
     ).not.toThrow();
     expect(() =>
-      validateGnSetup({ state: "off", mode: "compose-container", reindexCommand: "" }),
+      validateGnSetup({
+        state: "off",
+        mode: "compose-container",
+        reindexCommand: "",
+      }),
     ).not.toThrow();
     expect(() =>
-      validateGnSetup({ state: "required", mode: "local-cli", reindexCommand: "" }),
+      validateGnSetup({
+        state: "required",
+        mode: "local-cli",
+        reindexCommand: "",
+      }),
     ).not.toThrow();
   });
 
@@ -220,9 +254,7 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
           gitnexusReindexCommand: "",
         }),
       ),
-    ).toThrowError(
-      /reindexCommand is required when mode=compose-container/,
-    );
+    ).toThrowError(/reindexCommand is required when mode=compose-container/);
   });
 
   it("REGRESSION (verbatim-executable reindexCommand): the generated command contains no prose parenthetical", () => {
@@ -236,8 +268,66 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
     // The rendered instruction embeds the command in single quotes: prose
     // would break copy-paste (the live-config HIGH fix).
     expect(cmd).not.toMatch(/\(workdir|\(note|\(case/i);
-    expect(completeInstruction(g)).toContain(
-      `'${cmd}'`,
+    expect(completeInstruction(g)).toContain(`'${cmd}'`);
+  });
+});
+
+describe("adopt derivation (deriveAdoptGn)", () => {
+  const base: GitNexusSetup = {
+    state: "optional",
+    mode: "local-cli",
+    reindexCommand: "",
+  };
+  const ops = { "repository-analysis": { type: "mcpTool" } };
+
+  it("unknown non-empty reference state fails closed instead of silently weakening", () => {
+    expect(() =>
+      deriveAdoptGn({ gitnexus: { state: "Required" } }, ops, base),
+    ).toThrowError(/unknown gitnexus state/);
+  });
+
+  it("declared reference state is preserved (advisory does not upgrade to blocking)", () => {
+    const gn = deriveAdoptGn({ gitnexus: { state: "optional" } }, ops, base);
+    expect(gn.state).toBe("optional");
+  });
+
+  it("absent reference state derives from the ops map (present -> required)", () => {
+    expect(deriveAdoptGn({}, ops, base).state).toBe("required");
+    expect(deriveAdoptGn({}, {}, base).state).toBe("off");
+  });
+
+  it("reference mode and reindexCommand carry forward, trimmed", () => {
+    const gn = deriveAdoptGn(
+      {
+        gitnexus: {
+          state: "required",
+          mode: "compose-container",
+          reindexCommand: "  docker compose exec ...  ",
+        },
+      },
+      ops,
+      base,
+    );
+    expect(gn.mode).toBe("compose-container");
+    expect(gn.reindexCommand).toBe("docker compose exec ...");
+    expect(() => validateGnSetup(gn)).not.toThrow();
+  });
+
+  it("whitespace-only reference reindexCommand trims to empty and fails validation in compose-container mode", () => {
+    const gn = deriveAdoptGn(
+      {
+        gitnexus: {
+          state: "required",
+          mode: "compose-container",
+          reindexCommand: "   ",
+        },
+      },
+      ops,
+      base,
+    );
+    expect(gn.reindexCommand).toBe("");
+    expect(() => validateGnSetup(gn)).toThrowError(
+      /reindexCommand is required/,
     );
   });
 });

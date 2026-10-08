@@ -523,13 +523,11 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   Storage-Pfad-Präfix (`/mnt/d/...` vs `/workspaces/...`) — der nächste
   Container-Analyze mit `--force` übernimmt den Storage wieder.
 - **Reindex-Befehl (kanonisch, aus `gitnexus.reindexCommand` in
-  guidance.json):** `docker compose -f
-  D:/repos/thinking-mcp/docker-compose.yml -f
-  D:/repos/thinking-mcp/docker-compose.gitnexus.yml exec -w
-  /workspaces/thinking-mcp gitnexus-server gitnexus analyze --no-stats` —
-  `<repo-dir>` mit EXAKTEM On-Disk-Case (thinking-mcp lowercase). `--force`
-  nur bei Storage-Foreign-Meldung. Inkrementell ~60 s, Voll-Rebuild
-  (thinking-mcp) ~2 h über DrvFs. Die REMEDY-Zeile des Frische-Gates druckt
+  guidance.json):** `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && .
+  $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze
+  --no-stats'` (lowercase-Cwd). `--force` nur bei Storage-Foreign-Meldung
+  (z. B. nach versehentlichem Container-Analyze). Inkrementell ~60 s,
+  Voll-Rebuild ~3 min über WSL. Die REMEDY-Zeile des Frische-Gates druckt
   diesen Befehl automatisch aus der Workspace-Konfiguration.
 - Das `repository-analysis`-Gate (Phase complete) verifiziert nur, dass der
   GitNexus-Index im **gitnexus-server-Container** vorhanden und queryable ist
