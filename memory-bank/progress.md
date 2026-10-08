@@ -1028,6 +1028,6 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 
 **What works:** Chained guidance workflow für 4 getrackte Follow-ups registriert und server-seitig verifiziert (chainSpec persistiert, 4 Steps in Reihenfolge): gn-d6-api-reindex → gn-d5-url-topology → gnd1-probe-residuals → chfix-9-session-persistence. Head-Zyklus lief als reiner Koordinations-/Verifikationsscope (understand/plan/review mit 4 sequential_thinking-Pässen + assumption_xray/argument_map, get_workflow_state-Nachweis) ohne Implementierung der Successor-Scopes; activeContext.md dokumentiert Kettenstart + Successor-Warnungen (Parallel-Agenten, Restart-Anfälligkeit bis CHFIX-9).
 
-**What's left:** Successor 1 (GN-D6) startet mit Head-Completion; danach GN-D5, GND1-TEST-1/RESIDUALS, CHFIX-9 (HIGH, letzter und größter Schritt). Offene getrackte Follow-ups GN-2 (lastCommit residual), GN-6/7/8, CHFIX-10 bleiben unberührt von dieser Kette.
+**What's left:** Successor 1 (GN-D6) startet mit Head-Completion; danach GN-D5, GND1-TEST-1/RESIDUALS, CHFIX-9 (HIGH, letzter und größter Schritt). Offene getrackte Follow-ups GN-6 (lastCommit residual), GN-7/8, CHFIX-10 bleiben unberührt von dieser Kette (Hinweis: lastCommit ist GN-6; GN-2 ist bereits gelöst).
 
 **Current State:** Checkout develop @ 3709b1c, Baum vor Head-Arbeit sauber; Head ändert ausschließlich memory-bank-Dateien (gezielter Commit). Kette anfällig für Guidance-Server-Restarts, bis CHFIX-9 implementiert ist.
