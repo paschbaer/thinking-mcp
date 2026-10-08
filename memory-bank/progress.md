@@ -986,3 +986,9 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 - Merge feature/form-b-chain-fix to develop (rebase) + guidance container rebuild.
 
 **Current State:** Form-B chains viable end-to-end (fix committed ba6ecc1) + hardened (this session); remaining long-chain risks are tracked, none blocking.
+
+## 2026-10-08 — Session 78776317 completion aftermath (update)
+
+**Correction:** The session could NOT be formally completed. After index-freshness healed (reindex + retry_operation, REMEDY verified live), repository-analysis failed with downstream_capability_changed (gitnexus:check pin drift after reindex/server-restart). Pin reset required a guidance container restart, which orphaned the session (sessions are workflow-run-scoped, do not survive server restarts despite on-disk JSON). All engineering work was already committed (6128cd8); the workflow completion itself is orphaned. Tracked as CHFIX-9 (HIGH). 4 lessons seeded to EMMS. Documentation deltas (CHFIX-9 README precision) are uncommitted, awaiting user decision.
+
+**Current State:** feature/form-b-chain-fix holds two commits (ba6ecc1 Form-B fix, 6128cd8 chain hardening), full suite green, 0 open HIGH/CRITICAL from independent review. Next candidates: CHFIX-9 (session persistence across restarts / in-process re-pinning), then merge to develop + container rebuild.
