@@ -993,13 +993,21 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 
 **Current State:** feature/form-b-chain-fix holds two commits (ba6ecc1 Form-B fix, 6128cd8 chain hardening), full suite green, 0 open HIGH/CRITICAL from independent review. Next candidates: CHFIX-9 (session persistence across restarts / in-process re-pinning), then merge to develop + container rebuild.
 
+## 2026-10-08 — Chain Step 3: Doku-Konsolidierung abgeschlossen (session-b5650a19)
+
+**What works:** Topologie-Doku überall konsistent auf wsl-writer (AGENTS.md + Backup + Widerspruchscheck, responses.json mit live verifiziertem Config-Rebind, Compose-Header, README Deployment-Block + Working-Sample); GND1-DOC-1 resolved; wsl-writer-Identity-Lesson dokumentiert; docs-drift + Vollsuite + frischer Index grün.
+
+**What's left:** Merge feature/gn-chain-step2 → develop (fast-forward-fähig, alle 6 Commits reviewed); Push nach origin (User-Entscheidung); offene getrackte Follow-ups unverändert (GN-D5, GN-2 residual lastCommit, GN-6/7/8, CHFIX-9, GND1-TEST-1/RESIDUALS).
+
+**Current State:** GN-Dreifach-Kette (Step 1 Identitäts-/Port-Härtung, Step 2 dreiwertige Gates + Hybrid-Probe, Step 3 Doku-Konsolidierung) vollständig abgeschlossen — alle Sessions completed, alle Gates grün, 0 offene HIGH/CRITICAL über alle drei Reviews.
+
 ## 2026-10-08 — GN-D1 Engine-Scope: dreiwertige Gates + Hybrid-Probe (session-11bb76a9, feature/gn-chain-step2)
 
 **What works:**
 - `skipped(capability-absent)` als dritter Gate-Zustand: connection-level Transport-Fehler auf optional deklarierten Servern → skipped + laute Warnung (nur non-required Ops; required fail-closed unverändert); erreichbare Server mit Tool-Fehler → failed + `optional_capability_broken` (never-installed und configured-but-broken unterscheidbar); Timeouts/expired Sessions zählen als erreichbar.
 - Hybrid-Probe (Session-Start + Chain-Successor): declared state vs Live-Ping, fire-and-forget, timeout-gebunden, off pingt nur http-Leftovers, `capability_state_deviation` exactly-once pro Session+Kind (Probe + Gate-Zeit-Signal teilen den Guard).
 - Additive Typ-Erweiterungen (OperationStatus/OperationOutcome/GateEvent.phase + `skipped`), vendored Kopien synchron; minimal-additiver Config-Read-Pfad für `gitnexus.state`; Generator-Texte auf neue Semantik aktualisiert.
-- Vollständige Review-Zeremonie: Independent Review + Re-Bless + frischer Final-Review, 0 offene HIGH/CRITICAL; Suite 722/722, tsc clean.
+- Vollständige Review-Zeremonie: Independent Review + Re-Bless + frischer Final-Review, 0 offene HIGH/CRITICAL; Suite 721/721, tsc clean.
 
 **What's left:**
 - GND1-DOC-1 (MEDIUM): Topologie-Doku-Drift (AGENTS.md-Bullet + responses.json Complete-Instruction noch Container-Writer-Wortlaut; Live = wsl-writer) — Chain Step 3.

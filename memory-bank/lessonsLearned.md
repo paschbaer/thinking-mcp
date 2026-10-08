@@ -3,6 +3,10 @@
 > Recurring bugs, traps, and best practices. Check BEFORE starting a new task;
 > update when resolving a recurring bug or making a strategic decision
 
+## 2026-10-08 — wsl-writer identity unification (GN chain step 1)
+- **Eine Storage-Identität pro Pool, sonst "foreign":** GitNexus validiert meta.repoPath gegen die Registry-Pfade — Writer und Reader MÜSSEN dieselbe Pfad-Identität nutzen. Im wsl-writer-Modus löst der Dual-Mount (`../:/mnt/d/repos` zusätzlich zu `../:/workspaces`) genau das: WSL-CLI schreibt `/mnt/d/repos/...`, Container liest denselben Index über denselben Präfix. Ein Container-Analyze in diesem Modus flippt die Identität auf `/workspaces/...` und der Server verliert das Repo (Heilung: WSL-Analyze mit `--force`). Preventive: Writer-Rolle pro Workspace EINMAL festlegen (gitnexus.mode), nie mischen.
+- **Docs folgen der Topologie, nicht umgekehrt:** nach jedem Topologie-Wechsel (Writer-Rolle, Ports, DNS-Namen) müssen ALLE Beschreibungsstellen synchron gehen — AGENTS.md-Topologie-Bullet, README-Deployment-Block, Compose-Kommentare UND die workspace-eigene responses.json (sie steuert künftige Agenten-Sessions). Ausgelassene Stellen erzeugen handlungsanleitende Fehlinstruktionen (z. B. verbotener Container-Analyze als Reindex).
+
 ## 2026-10-08 — GN-D1 Engine-Session lessons (feature/gn-chain-step2)
 - **README.md ist als Ganzes NICHT prettier-formatiert:** `prettier --write README.md` reformiert auch unbenannte, prä-existente Bereiche (Tabellen, JSON-Samples) — der Diff explodiert. Preventive: nur den eigenen Abschnitt editieren, README aus jedem `--write`-Batch rauslassen (der Repo-eigene Lint-Gate prüft prettier offenbar nicht über die ganze README).
 - **Stray character in großen edit_file-Inserts:** ein einziger Streubuchstabe (`n`) in einer eingefügten Methode erzeugt eine tsc-Fehlerkaskade von ~30 Meldungen, deren ERSTE erst NACH der Bruchstelle reported wird — bei Syntaxfehlern immer `head` der Fehlerliste nehmen und die früheste Zeile lesen, nicht `tail`.

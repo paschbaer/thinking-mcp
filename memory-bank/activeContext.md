@@ -3,10 +3,16 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-08: CHAIN STEP 3 — Doku-Konsolidierung wsl-writer-Architektur (session-b5650a19, feature/gn-chain-step2)
+
+- **Umgesetzt:** Topologie-Doku auf die live wsl-writer-Welt vereinheitlicht — AGENTS.md-Topologie-Bullet (WSL-CLI = single writer, Container = read-only Dual-Mount-Reader, Container-Analyze verboten; Backup + Widerspruchscheck gemäß Regel-Protokoll), .guidance/responses.json Complete-Instruction (wsl.exe-Reindex statt Container-Analyze; Rebind-Pfad live verifiziert), docker-compose.gitnexus.yml-Header, README (Deployment-Block + Working-Sample-Tabelle; generischer Container-Mode-Beispiel bleibt). GND1-DOC-1 resolved; lessonsLearned-Eintrag wsl-writer identity unification ergänzt; GN-D1/D3/D4/GN-5-Auflösungen waren bereits aus Step 2 committet.
+- **Verifikation:** docs-drift grün, Vollsuite grün, frischer wsl.exe-Reindex nach letztem Commit, Final-Review-Zeremonie mit frischem Sub-Agent.
+- **Chain:** Schritt 3 = Kettenende (keine Successors mehr). Merge feature/gn-chain-step2 → develop + Push stehen beim User an.
+
 ## 2026-10-08: CHAIN STEP 2 — GN-D1 dreiwertige Gates + Hybrid-Probe (session-11bb76a9, feature/gn-chain-step2)
 
 - **Umgesetzt (Commits a75a3a6, 44571ae + Review-Fix-Commits):** (1) `OperationStatus`/`OperationOutcome`/`GateEvent.phase` additiv um `skipped` erweitert (canonical shared-workflow + 3 vendored Kopien synchron, Hash-Tests grün); (2) OperationEngine: connection-level Transport-Fehler auf optional deklarierten Servern → `skipped(capability-absent)` mit lauter Warnung — nur NON-required (required fail-closed regression-gepinnt); Timeouts/expired Sessions bleiben failed (Review F2); erreichbare Server mit Tool-Fehler → failed + `optional_capability_broken`; (3) WorkflowEngine: minimal-additiver Read-Pfad `config.main.gitnexus.state` → `setOptionalCapabilityServers` (lokal + remote Engine); (4) Hybrid-Probe bei Session-Start UND Chain-Successor-Creation (fire-and-forget, max(5s, Handshake+1s), off pingt nur http-Leftovers, `capability_state_deviation` exactly-once, Gate-Time-Signal geteilt); (5) Generator-Texte (Wizard-Help, Advisory-Beschreibung, Reindex-Step) auf neue Semantik gebracht.
-- **Verifikation:** Suite 722/722 (18 neue Tests), tsc clean, detect_changes: CRITICAL erwartet (Engine-Kern) → Voll-Review: Independent Review 1b74ed1e (F1–F9, alle gefixt/dokumentiert/refuted) + Re-Bless VERIFIED + Final Review f0532eee **0 offene HIGH/CRITICAL**; metacognitive_monitoring 0.86.
+- **Verifikation:** Suite 721/721 (19 neue Tests: 9 Unit + 10 Engine-Level inkl. Real-Ping-Live-Test), tsc clean, detect_changes: CRITICAL erwartet (Engine-Kern) → Voll-Review: Independent Review 1b74ed1e (F1–F9, alle gefixt/dokumentiert/refuted) + Re-Bless VERIFIED + Final Review f0532eee **0 offene HIGH/CRITICAL**; metacognitive_monitoring 0.86.
 - **Wichtig für Step 3:** GND1-DOC-1 — AGENTS.md-Topologie-Bullet + responses.json-Complete-Instruction beschreiben noch die alte Container-Writer-Welt; Live ist wsl-writer (kanonischer Reindex: wsl.exe aus guidance.json). In Step 3 vereinheitlichen.
 - **Chain:** Step 2 complete → Engine spawnt Step 3 (Doku-Konsolidierung) automatisch.
 
