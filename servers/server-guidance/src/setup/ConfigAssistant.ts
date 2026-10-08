@@ -154,8 +154,7 @@ const QUESTIONS: SetupQuestion[] = [
   },
   {
     id: "gitnexus",
-    question:
-      "GitNexus integration: required, optional, or off?",
+    question: "GitNexus integration: required, optional, or off?",
     help: "Guidance itself is GitNexus-agnostic. required = blocking index gates (repository-analysis + index-freshness fail-closed). optional = advisory gates: absence degrades to a tolerated warning, presence is used fully — honest limitation: optional cannot distinguish never-installed from broken. off = no GitNexus references at all in the generated configuration. Legacy answers yes->required, no->off.",
     options: ["required", "optional", "off"],
     required: true,
@@ -228,7 +227,8 @@ export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
   else if (raw === "no" || raw === false) state = "off";
   else if (raw === "required" || raw === "optional" || raw === "off")
     state = raw;
-  else if (raw === undefined || raw === "") state = "optional"; // absent -> safe default
+  else if (raw === undefined || raw === "")
+    state = "optional"; // absent -> safe default
   else
     throw new GuidanceError(
       "configuration_invalid",
@@ -237,11 +237,16 @@ export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
       )} (expected required|optional|off, legacy yes/no)`,
       { recoverable: true },
     );
-  const mode = answers.gitnexusMode === "compose-container"
-    ? "compose-container"
-    : "local-cli";
+  const mode =
+    answers.gitnexusMode === "compose-container"
+      ? "compose-container"
+      : "local-cli";
   const reindexCommand = String(answers.gitnexusReindexCommand ?? "").trim();
-  if (state !== "off" && mode === "compose-container" && reindexCommand === "") {
+  if (
+    state !== "off" &&
+    mode === "compose-container" &&
+    reindexCommand === ""
+  ) {
     throw new GuidanceError(
       "configuration_invalid",
       "setup answers: gitnexusReindexCommand is required when gitnexusMode=compose-container (the deployment-specific exec command is rendered into instructions and the freshness-gate remedy)",
@@ -1344,9 +1349,7 @@ ${entryJson}`,
           gitnexus: {
             state: gn.state,
             mode: gn.mode,
-            ...(gn.reindexCommand
-              ? { reindexCommand: gn.reindexCommand }
-              : {}),
+            ...(gn.reindexCommand ? { reindexCommand: gn.reindexCommand } : {}),
           },
         }
       : {}),
@@ -1556,7 +1559,8 @@ export function renderAdoptedResponses(
     INSIGHT_URL: insightUrl(target.transport),
     GITNEXUS_URL: gitnexusUrl(target.transport),
     PROJECT_NAME: target.projectName,
-    GITNEXUS_REINDEX_CMD: target.gitnexusReindexCommand ?? "gitnexus analyze --no-stats",
+    GITNEXUS_REINDEX_CMD:
+      target.gitnexusReindexCommand ?? "gitnexus analyze --no-stats",
   };
   const renderText = (text: string): string => {
     let out = text.replace(
