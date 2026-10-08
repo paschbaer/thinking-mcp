@@ -1,4 +1,6 @@
-# Root-level orchestration: runs all three MCP servers as Docker containers.
+# Root-level orchestration: runs all MCP servers as Docker containers
+# (clear-thought, insight, guidance, plus the GitNexus analysis stack:
+# gitnexus-server and gitnexus-web).
 # The VS Code MCP config (User mcp.json) points at
 #   - http://localhost:3000/mcp  (clear-thought)
 #   - http://localhost:3002/mcp  (insight)
