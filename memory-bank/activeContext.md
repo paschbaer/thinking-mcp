@@ -1524,3 +1524,8 @@ Benutzerentscheidung: clear-thought-Tools werden wie ALLE anderen Tools initial 
 ## 2026-10-08: WF-1 vollständig entfernt (Benutzerentscheidung)
 
 Statt der Vereinfachung wurde die dedizierte Clear-Thought-Regel KOMPLETT gestrichen — clear-thought unterliegt nun dem Default-Tool-Routing wie jeder MCP-Server. Das valueable Wissen (404/-32001 = evictete Session, Reconnect heilt, Route nicht wiederholen) wurde als GENERISCHE MCP-Lesson in lessonsLearned.md gesichert (gilt für clear-thought, gitnexus und alle HTTP-MCP-Server gleichermaßen). Backup AGENTS.md.bak steht. Übergabeprompt entsprechend korrigiert.
+
+## 2026-10-08: GN-D6 getrackt — API-basiertes Reindexing (verifiziert), Agent-Rückzug vom Checkout
+
+- **GN-D6 (remaining-work-plan):** POST /api/analyze {\"path\":\"/mnt/d/repos/<repo>\"} + GET /api/analyze/<jobId> (Poll bis complete) — live verifiziert am 2026-10-08 (Job 0→100 %, Identität /mnt/d bleibt). Empfohlene Ablösung des wsl.exe-reindexCommand; Umstellung gehört der laufenden Chain (Step 3 oder nächster Trigger).
+- **Parallel-Work-Beobachtung:** WorkflowEngine.ts änderte sich um 19:06 durch eine andere Session (vermutlich Chain Step 2 mit Übergabeprompt aktiv). Dieser Agent (Sessions Head+Step1+Doku) zieht sich vom Checkout zurück — letzte Schreibaktion ist dieser Memory-Bank-Eintrag (gezielter Commit nur der zwei Memory-Bank-Dateien).
