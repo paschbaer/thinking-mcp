@@ -26,6 +26,10 @@ let configDir: string;
 interface Scenario {
   declared?: "required" | "optional" | "off";
   opRequired: boolean;
+  /** Where the gitnexus gate is bound (default beforeEnter). */
+  placement?: "beforeEnter" | "afterEnter";
+  /** Add a required noop process op alongside (afterEnter tests). */
+  withRequiredNoop?: boolean;
 }
 
 function readJson(p: string): Record<string, unknown> {
@@ -70,31 +74,55 @@ function buildConfig(scenario: Scenario): void {
       },
     },
   });
-  // Single gitnexus mcpTool gate bound to understand.beforeEnter.
+  // Single gitnexus mcpTool gate (+ optional noop) bound to understand.
+  const ops: Record<string, unknown> = {
+    "gitnexus-check": {
+      description: "Verify the GitNexus index is queryable.",
+      type: "mcpTool",
+      server: "gitnexus",
+      capability: "check",
+      required: scenario.opRequired,
+      timeoutSeconds: 10,
+      riskClass: "read_only",
+      arguments: { mode: "fixed", value: {} },
+      validation: {
+        protocolRequestMustSucceed: true,
+        toolResultMustNotBeError: true,
+      },
+      output: { returnToAgent: "raw", retainRawResult: false },
+    },
+  };
+  if (scenario.withRequiredNoop) {
+    ops["noop"] = {
+      description: "No-op required gate.",
+      type: "process",
+      executable: "node",
+      args: ["-e", "process.exit(0)"],
+      required: true,
+      timeoutSeconds: 30,
+      riskClass: "read_only",
+      validation: {
+        protocolRequestMustSucceed: true,
+        exitCodeMustBeZero: true,
+      },
+      output: { returnToAgent: "summary_and_errors", retainRawResult: false },
+    };
+  }
   writeJson(join(configDir, "operations.json"), {
     version: 2,
-    operations: {
-      "gitnexus-check": {
-        description: "Verify the GitNexus index is queryable.",
-        type: "mcpTool",
-        server: "gitnexus",
-        capability: "check",
-        required: scenario.opRequired,
-        timeoutSeconds: 10,
-        riskClass: "read_only",
-        arguments: { mode: "fixed", value: {} },
-        validation: {
-          protocolRequestMustSucceed: true,
-          toolResultMustNotBeError: true,
-        },
-        output: { returnToAgent: "raw", retainRawResult: false },
-      },
-    },
+    operations: ops,
   });
   const workflow = readJson(join(configDir, "workflow.json"));
   const phases = workflow.phases as Record<string, Record<string, unknown>>;
-  phases.understand!.lifecycle = { beforeEnter: ["gitnexus-check"] };
+  const gateList = scenario.withRequiredNoop
+    ? ["gitnexus-check", "noop"]
+    : ["gitnexus-check"];
+  phases.understand!.lifecycle =
+    scenario.placement === "afterEnter"
+      ? { afterEnter: gateList }
+      : { beforeEnter: gateList };
   delete phases.understand!.afterEnter;
+  delete phases.understand!.beforeEnter;
   writeJson(join(configDir, "workflow.json"), workflow);
 }
 
@@ -195,6 +223,28 @@ describe("three-valued gate outcomes through the engine (GN-D1)", () => {
       start.sessionId,
     );
     expect(deviationsOf(engine, start.sessionId)).toHaveLength(0);
+  });
+
+  it("optional gate in afterEnter skipping does NOT trip the requiredFailed heuristic (session stays active)", async () => {
+    buildConfig({
+      declared: "optional",
+      opRequired: false,
+      placement: "afterEnter",
+      withRequiredNoop: true,
+    });
+    const engine = makeEngine();
+    (engine as unknown as EngineInternals).pingGitnexusServer = async () =>
+      false;
+    const start = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+    });
+    const state = await engine.getWorkflowState(start.sessionId);
+    expect(state.status).toBe("active");
+    const gate = start.operations.find((o) => o.id === "gitnexus-check")!;
+    expect(gate.status).toBe("skipped");
+    const noop = start.operations.find((o) => o.id === "noop")!;
+    expect(noop.status).toBe("succeeded");
   });
 });
 

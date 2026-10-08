@@ -169,6 +169,59 @@ describe("three-valued gate outcomes (GN-D1)", () => {
     );
   });
 
+  it("request TIMEOUT on a reachable optional server → failed, NOT skipped (server is configured-but-broken/slow)", async () => {
+    const engine = new OperationEngine();
+    engine.setDownstreamInvoker({
+      invokeTool: async () => ({
+        kind: "transport",
+        message: "request timed out after 300s",
+        timedOut: true,
+      }),
+    });
+    engine.setOptionalCapabilityServers(["gitnexus"]);
+    const res = await engine.execute(
+      {
+        operationId: "gitnexus-check",
+        type: "mcpTool",
+        server: "gitnexus",
+        capability: "check",
+        required: false,
+      },
+      ctx,
+      1,
+    );
+    expect(res.status).toBe("failed");
+    expect(res.errors[0]).toEqual(
+      expect.objectContaining({ code: "downstream_connection_failed" }),
+    );
+    expect(res.warnings).toHaveLength(0);
+  });
+
+  it("expired downstream session (404/-32001) on a reachable optional server → failed, NOT skipped", async () => {
+    const engine = new OperationEngine();
+    engine.setDownstreamInvoker({
+      invokeTool: async () => ({
+        kind: "transport",
+        message: "session not found",
+        sessionExpired: true,
+      }),
+    });
+    engine.setOptionalCapabilityServers(["gitnexus"]);
+    const res = await engine.execute(
+      {
+        operationId: "gitnexus-check",
+        type: "mcpTool",
+        server: "gitnexus",
+        capability: "check",
+        required: false,
+      },
+      ctx,
+      1,
+    );
+    expect(res.status).toBe("failed");
+    expect(res.data.reason).toBeUndefined();
+  });
+
   it("no downstream invoker at all + optional server + non-required op → skipped(capability-absent)", async () => {
     const engine = new OperationEngine();
     engine.setOptionalCapabilityServers(["gitnexus"]);

@@ -131,7 +131,16 @@ function baseResult(config: OperationConfig): NormalizedResult {
 export type DownstreamInvokerResult =
   | { kind: "success"; content: unknown[]; structuredContent?: unknown }
   | { kind: "tool_reported"; message: string; content: unknown[] }
-  | { kind: "transport"; message: string };
+  | {
+      kind: "transport";
+      message: string;
+      /** Request timed out AFTER the connection was established (server
+       *  reachable) — not a capability-absent signal. */
+      timedOut?: boolean;
+      /** Stale downstream session (404/-32001): server reachable, the
+       *  request never reached the tool — not capability-absent either. */
+      sessionExpired?: boolean;
+    };
 
 export interface DownstreamInvoker {
   invokeTool(
@@ -413,13 +422,18 @@ export class OperationEngine {
         };
       }
       if (outcome.kind === "transport") {
-        // GN-D1 three-valued gates: a transport failure on a server whose
-        // capability is declared optional classifies the capability as
-        // ABSENT (best-effort: "unreachable" is operationally
-        // indistinguishable from "never installed"). Only NON-required
-        // operations may skip — required gates keep failing closed, and a
-        // reachable-but-erroring server is NEVER skipped (see below).
-        const skipped = this.skippedCapabilityAbsent(config);
+        // GN-D1 three-valued gates: a CONNECTION-level transport failure on
+        // a server whose capability is declared optional classifies the
+        // capability as ABSENT (best-effort: "unreachable" is operationally
+        // indistinguishable from "never installed"). Review F2: timeouts and
+        // expired sessions prove the server IS reachable — those stay failed
+        // (configured-but-broken/slow, never skipped). Only NON-required
+        // operations may skip — required gates keep failing closed.
+        const reachableButFailed =
+          outcome.timedOut === true || outcome.sessionExpired === true;
+        const skipped = reachableButFailed
+          ? null
+          : this.skippedCapabilityAbsent(config);
         if (skipped) return skipped;
         return {
           ...base,

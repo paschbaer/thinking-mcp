@@ -1418,12 +1418,17 @@ export class WorkflowEngine {
 
   /** GN-D1: capability deviations already audited (per session + kind) —
    *  probe and gate-time signal share one guard so a deviation is audited
-   *  exactly once per session no matter which detector fires first. */
+   *  exactly once per session no matter which detector fires first.
+   *  Per-PROCESS guarantee: a server restart loses the guard, so a
+   *  deviation can be re-audited once per process lifetime for the same
+   *  session (accepted — cosmetic duplicate events in the audit log). */
   private capabilityDeviationsNoted = new Set<string>();
 
-  /** Hard upper bound for the hybrid probe ping (read-only initialize via
-   *  ClientManager.ensureReady; the server's own handshake timeout applies
-   *  too — this race guarantees the probe can never linger beyond this). */
+  /** Lower bound for the hybrid probe ping race (read-only initialize via
+   *  ClientManager.ensureReady). Review F4: a server with a CONFIGURED
+   *  handshake timeout above this floor gets its configured budget — the
+   *  race cap is max(floor, configured handshake + 1s margin), so slow
+   *  cold starts are never misclassified as unreachable. */
   private static readonly CAPABILITY_PROBE_TIMEOUT_MS = 5_000;
 
   /** GN-D1 hybrid probe (session start): declared state vs live availability.
@@ -1434,6 +1439,19 @@ export class WorkflowEngine {
   private async probeCapabilityState(sessionId: string): Promise<void> {
     const declared = this.declaredGitnexusState();
     if (declared === null || declared === "optional") return; // nothing to compare
+    // Review F5: for the off-but-reachable check, never SPAWN a declared-off
+    // server — a leftover stdio entry is undetectable without starting its
+    // process, which exceeds the read-only ping contract. HTTP leftovers
+    // are pinged (no process is spawned for an http transport).
+    if (
+      declared === "off" &&
+      (
+        this.downstreamServers?.get(WorkflowEngine.GITNEXUS_SERVER_ID) as
+          { transport?: { type?: string } } | undefined
+      )?.transport?.type !== "http"
+    ) {
+      return;
+    }
     let reachable: boolean | null;
     try {
       reachable = await this.pingGitnexusServer();
@@ -1510,7 +1528,10 @@ export class WorkflowEngine {
       new Promise<null>((resolve) =>
         setTimeout(
           () => resolve(null),
-          WorkflowEngine.CAPABILITY_PROBE_TIMEOUT_MS,
+          Math.max(
+            WorkflowEngine.CAPABILITY_PROBE_TIMEOUT_MS,
+            (conn?.startupTimeoutSeconds ?? 0) * 1_000 + 1_000,
+          ),
         ).unref?.(),
       ),
     ]);
@@ -2701,9 +2722,13 @@ export class WorkflowEngine {
     const operations = [...opResultsStart, ...afterEnterResults];
     // requiredFailed must be computed over afterEnter results ONLY — failed
     // required beforeEnter start-ops already blocked the session above.
+    // Review F3 (GN-D1): skipped(capability-absent) results are NOT
+    // failures — an optional gate skipping must not trip the heuristic.
     const requiredFailed =
       afterEnterResults.length > 0 &&
-      afterEnterResults.some((o) => o.status !== "succeeded") &&
+      afterEnterResults.some(
+        (o) => o.status !== "succeeded" && o.status !== "skipped",
+      ) &&
       (def.phases[phase]?.lifecycle?.afterEnter ?? []).some(
         (id) => this.operations[id]?.required,
       );
@@ -3728,6 +3753,12 @@ export class WorkflowEngine {
         : {}),
     };
     this.sessions.save(successor);
+    // GN-D1 (review F1): chain successors are session starts too — the hybrid
+    // capability probe runs for them exactly as for startWorkflow creations
+    // (fire-and-forget, never blocking activation).
+    void this.probeCapabilityState(successor.sessionId).catch(() => {
+      /* probe is best-effort; never fails successor creation */
+    });
     // Chain fix (2026-10-08): inherit the spec-kit state so the FR-117 bridge
     // resolves Form-B candidates in EVERY successor session (a new sessionId
     // without a state file returned [] and silently ended the chain after one
