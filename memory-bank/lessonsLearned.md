@@ -2,6 +2,11 @@
 
 > Recurring bugs, traps, and best practices. Check BEFORE starting a new task;
 > update when resolving a recurring bug or making a strategic decision
+
+## 2026-10-08 — GN-D1 Engine-Session lessons (feature/gn-chain-step2)
+- **README.md ist als Ganzes NICHT prettier-formatiert:** `prettier --write README.md` reformiert auch unbenannte, prä-existente Bereiche (Tabellen, JSON-Samples) — der Diff explodiert. Preventive: nur den eigenen Abschnitt editieren, README aus jedem `--write`-Batch rauslassen (der Repo-eigene Lint-Gate prüft prettier offenbar nicht über die ganze README).
+- **Stray character in großen edit_file-Inserts:** ein einziger Streubuchstabe (`n`) in einer eingefügten Methode erzeugt eine tsc-Fehlerkaskade von ~30 Meldungen, deren ERSTE erst NACH der Bruchstelle reported wird — bei Syntaxfehlern immer `head` der Fehlerliste nehmen und die früheste Zeile lesen, nicht `tail`.
+- **Transport-Fehler-Taxonomie für „Capability absent“:** ein `kind:"transport"`-Ergebnis beweist KEINE Abwesenheit — Timeouts und expired Sessions (404/-32001) laufen über denselben Zweig, obwohl der Server erreichbar ist. Klassifikationen dürfen nur auf Connection-Level-Fehlern ohne `timedOut`/`sessionExpired`-Flags aufbauen (GN-D1 Review F2).
 > (AGENTS.md → Lessons Learned / Automatic Post-Bugfix Documentation).
 
 ## Avoid These Mistakes

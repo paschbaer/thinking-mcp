@@ -993,6 +993,21 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 
 **Current State:** feature/form-b-chain-fix holds two commits (ba6ecc1 Form-B fix, 6128cd8 chain hardening), full suite green, 0 open HIGH/CRITICAL from independent review. Next candidates: CHFIX-9 (session persistence across restarts / in-process re-pinning), then merge to develop + container rebuild.
 
+## 2026-10-08 — GN-D1 Engine-Scope: dreiwertige Gates + Hybrid-Probe (session-11bb76a9, feature/gn-chain-step2)
+
+**What works:**
+- `skipped(capability-absent)` als dritter Gate-Zustand: connection-level Transport-Fehler auf optional deklarierten Servern → skipped + laute Warnung (nur non-required Ops; required fail-closed unverändert); erreichbare Server mit Tool-Fehler → failed + `optional_capability_broken` (never-installed und configured-but-broken unterscheidbar); Timeouts/expired Sessions zählen als erreichbar.
+- Hybrid-Probe (Session-Start + Chain-Successor): declared state vs Live-Ping, fire-and-forget, timeout-gebunden, off pingt nur http-Leftovers, `capability_state_deviation` exactly-once pro Session+Kind (Probe + Gate-Zeit-Signal teilen den Guard).
+- Additive Typ-Erweiterungen (OperationStatus/OperationOutcome/GateEvent.phase + `skipped`), vendored Kopien synchron; minimal-additiver Config-Read-Pfad für `gitnexus.state`; Generator-Texte auf neue Semantik aktualisiert.
+- Vollständige Review-Zeremonie: Independent Review + Re-Bless + frischer Final-Review, 0 offene HIGH/CRITICAL; Suite 722/722, tsc clean.
+
+**What's left:**
+- GND1-DOC-1 (MEDIUM): Topologie-Doku-Drift (AGENTS.md-Bullet + responses.json Complete-Instruction noch Container-Writer-Wortlaut; Live = wsl-writer) — Chain Step 3.
+- GND1-TEST-1 (LOW): kein dedizierter Chain-Successor-Probe-Test; GND1-RESIDUALS (INFO): dokumentierte Rest-Grauzonen (Flag-lose Transport-Fehler, stdio-Spawn bei required, Restart-Duplikate, Composite-forced-required).
+- Merge feature/gn-chain-step2 → develop nach Chain-Abschluss (Step 3) + Push-Entscheidung beim User.
+
+**Current State:** Chain Step 2 (GN-D1) implementiert und reviewed; Step 3 (Doku-Konsolidierung) wird automatisch als Successor gespawnt. Branch feature/gn-chain-step2 hält alle Step-2-Commits auf Basis von develop @ b4a1b8b.
+
 ## 2026-10-08 — GitNexus-Integration: Migration + optionale Entkopplung gemerged
 
 **What works:** develop @ 3b0e631 enthält beide Scopes linear: (1) GN-Migration (gitnexus-server als Compose-Container, voller Pool-Mount, in-repo-Storage, Live-Pickup, single index writer, Legacy-Volume gelöscht); (2) Optional-Decoupling Phase 1 (gitnexus Tri-State-Deklaration required/optional/off + mode + reindexCommand in guidance.json, konditionale Renderings, Alone-Test, Produkt/Deployment-Split mit Overlay docker-compose.gitnexus.yml, deployment-agnostische REMEDY). Suite 693/693; zwei unabhängige Reviews pro Scope, 0 offene HIGH/CRITICAL; Feature-Branches nach Merge gelöscht.
