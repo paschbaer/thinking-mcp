@@ -504,8 +504,7 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   `docker-compose.gitnexus.yml` Teil der Root-Orchestrierung ist (Image
   `ghcr.io/abhigyanpatwari/gitnexus:latest`, DUAL-Mount `../:/workspaces` UND
   `../:/mnt/d/repos` = kompletter Repo-Pool wie der guidance-Container,
-  Registry host-seitig unter `D:
-epos\.gitnexus-home` via
+  Registry host-seitig unter `D:\repos\.gitnexus-home` via
   `GITNEXUS_HOME=/workspaces/.gitnexus-home`). Rollen: Die **WSL-gitnexus-CLI
   ist der SINGLE INDEX WRITER** — alle Pool-Repos liegen mit IN-REPO-Storage
   (`<repo>/.gitnexus`) auf der vereinheitlichten Storage-Identität
