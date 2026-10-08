@@ -1507,3 +1507,7 @@
 ## 2026-10-08: WF-1 vereinfacht — clear-thought zurück auf Default-Route
 
 Benutzerentscheidung: clear-thought-Tools werden wie ALLE anderen Tools initial DIREKT (Editor-MCP) gerufen; call_downstream/container-route/curl nur noch Fallback je einmalig pro Route. Die frühere WF-1-Spezialvorschrift (Primärroute + Kette) hatte in der Praxis dazu geführt, dass Agents call_downstream als Standard nutzten. Backup AGENTS.md.bak aktualisiert; Widerspruchscheck (Route 3) ohne Konflikte. Gilt auch für die laufende Chain (Step 2/3).
+
+## 2026-10-08: WF-1 vollständig entfernt (Benutzerentscheidung)
+
+Statt der Vereinfachung wurde die dedizierte Clear-Thought-Regel KOMPLETT gestrichen — clear-thought unterliegt nun dem Default-Tool-Routing wie jeder MCP-Server. Das valueable Wissen (404/-32001 = evictete Session, Reconnect heilt, Route nicht wiederholen) wurde als GENERISCHE MCP-Lesson in lessonsLearned.md gesichert (gilt für clear-thought, gitnexus und alle HTTP-MCP-Server gleichermaßen). Backup AGENTS.md.bak steht. Übergabeprompt entsprechend korrigiert.
