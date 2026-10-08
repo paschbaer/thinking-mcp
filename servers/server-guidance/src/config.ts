@@ -59,6 +59,9 @@ export interface GuidanceMainConfig {
   };
   chain?: {
     enabled?: boolean;
+    /** Chain fix (2026-10-08): cap raised 64 → 512 — specs/018 has 74 tasks
+     * (65 unchecked); 64 could not carry a full sequential Form-B chain even
+     * with the per-manifest override. */
     maxChainDepth?: number;
     maxStepsPerManifest?: number;
   };
@@ -260,7 +263,7 @@ Object.assign(mainConfigSchema, {
       additionalProperties: false,
       properties: {
         enabled: { type: "boolean" },
-        maxChainDepth: { type: "number", minimum: 1, maximum: 64 },
+        maxChainDepth: { type: "number", minimum: 1, maximum: 512 },
         maxStepsPerManifest: { type: "number", minimum: 1, maximum: 64 },
       },
     },

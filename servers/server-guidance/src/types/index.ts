@@ -162,6 +162,10 @@ export interface WorkflowSession {
     taskFilter?: { statuses?: string[] };
     /** Form B: task IDs already turned into chain steps (progress carried in the copy). */
     chainedTaskIds?: string[];
+    /** Chain fix (2026-10-08): per-manifest temporary depth override — the
+     * user decision surfaced by the start_workflow depth pre-check warning.
+     * Takes precedence over config chain.maxChainDepth; hard cap 512. */
+    maxChainDepthOverride?: number;
   };
   /** Index of the next chain step to execute (relative to chainSpec.steps). */
   chainUpNext?: number;

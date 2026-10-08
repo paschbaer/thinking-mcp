@@ -2,7 +2,7 @@
  * Composition root (Review Finding 1): verdrahtet config → engine → tools.
  * Einziger Ort, an dem Module zusammengebaut werden.
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig, type LoadedConfig } from "./config.js";
 import {
@@ -20,6 +20,7 @@ import { SpecKitStateStore } from "./mcp-server/register-spec-kit-tools.js";
 import { GuidanceError } from "./types/errors.js";
 import type { SpecKitState } from "./integrations/spec-kit/SpecKitEngine.js";
 import { checkArtifactPattern } from "./integrations/spec-kit/SpecKitEngine.js";
+import { parseTasks } from "./integrations/spec-kit/parser.js";
 
 export interface Composition {
   config: LoadedConfig;
@@ -64,37 +65,18 @@ export function ensureConfiguration(
   return result;
 }
 
-export function composeApplication(
+/** Chain fix (2026-10-08): spec-kit bridges, parameterized per workspace so
+ * the SAME factory serves the boot engine AND per-workspace child engines
+ * (engineForWorkspace.childBridges). Keeps spec-kit imports out of the
+ * WorkflowEngine (WIZ-3) while fixing the child-engine bridge drop. */
+export function createSpecKitBridges(
   workspaceRoot: string,
-  configDir: string,
   stateDir: string,
-  options?: {
-    operationEngine?: ConstructorParameters<
-      typeof WorkflowEngine
-    >[0]["operationEngine"];
-    /** spec 007 FR-701: client-side executor for remote sessions. */
-    clientOperationEngine?: ConstructorParameters<
-      typeof WorkflowEngine
-    >[0]["clientOperationEngine"];
-    skipScaffold?: boolean;
-  },
-): Composition {
-  if (!options?.skipScaffold) ensureConfiguration(configDir, workspaceRoot);
-  // specs/008 FR-806: registry default entry anchors on the real workspace root.
-  const config = loadConfig(configDir, { workspaceRoot });
-  // specs/014 FR-1103/FR-1106: config-truth boot diagnostics (stderr warns).
-  warnLegacyMonolith(config);
-  warnDormantGuidanceConfigs(config, workspaceRoot);
-  // specs/015 US2 (AC-10, FR-1214): when the proactive probe flag is ON, boot
-  // diagnostics reference the deps-install/deps-reinstall operations so the
-  // agent can heal node deps BEFORE gates run. OFF (default) = plain remedy text.
-  warnNodeDeps(config, workspaceRoot, undefined, undefined, {
-    operational: config.nodeDeps.proactiveProbe,
-  });
+  featureRoot: string,
+) {
   // Amendment 002 (FR-117 State-Brücke): pending spec-kit tasks in tasks.md
-  // order — inserted here so WorkflowEngine stays free of spec-kit imports.
-  // WIZ-3: wired UNCONDITIONALLY (no profile gate). Missing state file (head
-  // never imported artifacts) ⇒ [] ⇒ silent chain end.
+  // order. Missing state file (head never imported artifacts) ⇒ [] ⇒ silent
+  // chain end.
   const specKitTasks = (sessionId: string): PendingSpecKitTask[] => {
     try {
       const state = new SpecKitStateStore(stateDir).load(
@@ -139,11 +121,7 @@ export function composeApplication(
       const state = new SpecKitStateStore(stateDir).load(
         sessionId,
       ) as SpecKitState;
-      const featureDir = join(
-        workspaceRoot,
-        config.specKit?.discovery.featureRoot ?? "specs",
-        state.featureId,
-      );
+      const featureDir = join(workspaceRoot, featureRoot, state.featureId);
       return checkArtifactPattern(featureDir, workspaceRoot, pattern);
     } catch (err) {
       if (
@@ -160,13 +138,95 @@ export function composeApplication(
       };
     }
   };
+  // Chain fix (2026-10-08): copy the spec-kit state to a chain successor —
+  // successors get a NEW sessionId and would otherwise start without any
+  // state file (Form-B bridge ⇒ [] ⇒ silent chain end after one task).
+  // Best-effort by contract: errors are logged and swallowed so a failed
+  // copy degrades to the previous behavior instead of blocking completion.
+  const inheritSpecKitState = (
+    fromSessionId: string,
+    toSessionId: string,
+  ): void => {
+    try {
+      const store = new SpecKitStateStore(stateDir);
+      if (!store.exists(fromSessionId)) return; // head never imported — normal
+      store.save(toSessionId, store.load(fromSessionId));
+    } catch (err) {
+      process.stderr.write(
+        `[guidance] warning: spec-kit state inheritance ${fromSessionId} -> ${toSessionId} failed: ${String(err)}\n`,
+      );
+    }
+  };
+  // Chain fix (2026-10-08): UNCHECKED task count straight from tasks.md —
+  // feeds the Form-B depth pre-check at start_workflow time (no session
+  // state exists for the head yet). null = not determinable (pre-check skips).
+  const specKitPendingTaskCount = (featureId: string): number | null => {
+    try {
+      if (!featureId) return null;
+      const tasksFile = join(workspaceRoot, featureRoot, featureId, "tasks.md");
+      if (!existsSync(tasksFile)) return null;
+      const parsed = parseTasks(readFileSync(tasksFile, "utf-8"));
+      return parsed.tasks.filter((t) => !t.checkboxChecked).length;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    specKitTasks,
+    specKitArtifactCheck,
+    inheritSpecKitState,
+    specKitPendingTaskCount,
+  };
+}
+
+export function composeApplication(
+  workspaceRoot: string,
+  configDir: string,
+  stateDir: string,
+  options?: {
+    operationEngine?: ConstructorParameters<
+      typeof WorkflowEngine
+    >[0]["operationEngine"];
+    /** spec 007 FR-701: client-side executor for remote sessions. */
+    clientOperationEngine?: ConstructorParameters<
+      typeof WorkflowEngine
+    >[0]["clientOperationEngine"];
+    skipScaffold?: boolean;
+  },
+): Composition {
+  if (!options?.skipScaffold) ensureConfiguration(configDir, workspaceRoot);
+  // specs/008 FR-806: registry default entry anchors on the real workspace root.
+  const config = loadConfig(configDir, { workspaceRoot });
+  // specs/014 FR-1103/FR-1106: config-truth boot diagnostics (stderr warns).
+  warnLegacyMonolith(config);
+  warnDormantGuidanceConfigs(config, workspaceRoot);
+  // specs/015 US2 (AC-10, FR-1214): when the proactive probe flag is ON, boot
+  // diagnostics reference the deps-install/deps-reinstall operations so the
+  // agent can heal node deps BEFORE gates run. OFF (default) = plain remedy text.
+  warnNodeDeps(config, workspaceRoot, undefined, undefined, {
+    operational: config.nodeDeps.proactiveProbe,
+  });
+  // Chain fix (2026-10-08): spec-kit bridges via the shared factory —
+  // childBridges rebuilds them per workspace so pool deployments (registry-
+  // only boot + per-workspace child engines) keep Form B and the artifact
+  // gates working.
+  const featureRoot = config.specKit?.discovery.featureRoot ?? "specs";
+  const bridges = createSpecKitBridges(workspaceRoot, stateDir, featureRoot);
   const engine = new WorkflowEngine({
     config,
     stateDir,
     operationEngine: options?.operationEngine,
     clientOperationEngine: options?.clientOperationEngine,
-    specKitTasks,
-    specKitArtifactCheck,
+    specKitTasks: bridges.specKitTasks,
+    specKitArtifactCheck: bridges.specKitArtifactCheck,
+    inheritSpecKitState: bridges.inheritSpecKitState,
+    specKitPendingTaskCount: bridges.specKitPendingTaskCount,
+    childBridges: (childRoot, childStateDir, childConfig) =>
+      createSpecKitBridges(
+        childRoot,
+        childStateDir,
+        childConfig.specKit?.discovery.featureRoot ?? "specs",
+      ),
   });
   const tools = new WorkflowTools(engine, { stateDir });
   return {

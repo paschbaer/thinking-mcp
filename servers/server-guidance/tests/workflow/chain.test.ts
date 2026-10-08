@@ -36,6 +36,14 @@ function makeEngine(
   specKitTasks?: ConstructorParameters<
     typeof WorkflowEngine
   >[0]["specKitTasks"],
+  extra?: {
+    inheritSpecKitState?: ConstructorParameters<
+      typeof WorkflowEngine
+    >[0]["inheritSpecKitState"];
+    specKitPendingTaskCount?: ConstructorParameters<
+      typeof WorkflowEngine
+    >[0]["specKitPendingTaskCount"];
+  },
 ): WorkflowEngine {
   const opEngine = new OperationEngine();
   opEngine.setDownstreamInvoker({
@@ -46,6 +54,7 @@ function makeEngine(
     stateDir: join(ws, "state"),
     operationEngine: opEngine,
     specKitTasks,
+    ...extra,
   });
 }
 
@@ -770,5 +779,167 @@ describe("Amendment 002: workflow chaining", () => {
     );
     expect(replay.chain?.[0]?.sessionId).toBe(c.nextSessionId);
     expect(replay.chain?.[0]?.status).toBe("active");
+  });
+});
+
+describe("Chain fix (2026-10-08): Form-B depth pre-check, override, state inheritance", () => {
+  it("depth pre-check warns when unchecked tasks exceed the effective depth", async () => {
+    chainOn({ maxChainDepth: 4 });
+    engine = makeEngine(() => [], {
+      specKitPendingTaskCount: () => 5,
+    });
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: {
+        source: "spec_kit_tasks",
+        requestTemplate: "do ${chain.taskId}",
+        featureId: "001-feat",
+      },
+    });
+    expect(head.warnings).toHaveLength(1);
+    expect(head.warnings![0]).toContain("chain.maxChainDepth (4)");
+    expect(head.warnings![0]).toContain("5 unchecked spec-kit task(s)");
+    expect(head.warnings![0]).toContain("depth >= 6");
+    expect(head.warnings![0]).toContain("chain.maxChainDepthOverride");
+  });
+
+  it("depth pre-check is silent when the depth carries the chain (incl. override)", async () => {
+    chainOn({ maxChainDepth: 4 });
+    engine = makeEngine(() => [], {
+      specKitPendingTaskCount: () => 5,
+    });
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: {
+        source: "spec_kit_tasks",
+        requestTemplate: "do ${chain.taskId}",
+        featureId: "001-feat",
+        maxChainDepthOverride: 6,
+      },
+    });
+    expect(head.warnings).toBeUndefined();
+    // successor spec carries the override (depth gates honor it)
+    expect(
+      engine.getSession(head.sessionId).chainSpec?.maxChainDepthOverride,
+    ).toBe(6);
+  });
+
+  it("depth pre-check skips (informational) without featureId or unreadable tasks.md", async () => {
+    chainOn();
+    engine = makeEngine(() => [], {
+      specKitPendingTaskCount: () => null,
+    });
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: {
+        source: "spec_kit_tasks",
+        requestTemplate: "do ${chain.taskId}",
+        featureId: "no-such-feature",
+      },
+    });
+    expect(head.warnings?.[0]).toContain("pre-check skipped");
+  });
+
+  it("maxChainDepthOverride validation: non-integer / out of bounds fail closed", async () => {
+    chainOn();
+    engine = makeEngine();
+    for (const bad of [0, 513, 2.5]) {
+      await expect(
+        engine.startWorkflow({
+          workspaceRoot: ws,
+          request: "r",
+          chain: {
+            source: "spec_kit_tasks",
+            requestTemplate: "do ${chain.taskId}",
+            featureId: "001-feat",
+            maxChainDepthOverride: bad,
+          },
+        }),
+      ).rejects.toThrow(/maxChainDepthOverride/);
+    }
+  });
+
+  it("override raises the effective depth gate (Form A, config depth 2 → override 3)", async () => {
+    chainOn({ maxChainDepth: 2 });
+    engine = makeEngine();
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+      chain: {
+        steps: [
+          { request: "step-1" },
+          { request: "step-2" },
+          { request: "step-3" },
+          { request: "step-4" },
+        ],
+        maxChainDepthOverride: 3,
+      },
+    });
+    await walkToVerify(head.sessionId);
+    const c1 = await engine.completeWorkflow(head.sessionId, { summary: "s" }); // idx 1
+    await walkToVerify(c1.nextSessionId!);
+    const c2 = await engine.completeWorkflow(c1.nextSessionId!, {
+      summary: "s",
+    });
+    // config depth 2 would fail HERE (idx 2 >= 2); override 3 allows step-3
+    expect(c2.nextSessionId).toBeTruthy();
+    await walkToVerify(c2.nextSessionId!);
+    const c3 = await engine.completeWorkflow(c2.nextSessionId!, {
+      summary: "s",
+    }); // idx 3
+    expect(c3.nextSessionId).toBeTruthy();
+    await walkToVerify(c3.nextSessionId!);
+    // 4 steps > override 3: the idx-3 session hits the backstop (3 >= 3)
+    const c4 = await engine.completeWorkflow(c3.nextSessionId!, {
+      summary: "s",
+    });
+    expect(c4.nextSessionId).toBeUndefined();
+    expect(c4.chain?.[0]?.error).toContain("maxChainDepth (3)");
+  });
+
+  it("inheritSpecKitState hook is called for every chain successor", async () => {
+    chainOn();
+    const inherited: [string, string][] = [];
+    engine = makeEngine(
+      () => [
+        {
+          id: "T001",
+          title: "First",
+          featureId: "001-feat",
+          status: "pending",
+        },
+        {
+          id: "T002",
+          title: "Second",
+          featureId: "001-feat",
+          status: "pending",
+        },
+      ],
+      {
+        inheritSpecKitState: (from, to) => inherited.push([from, to]),
+      },
+    );
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "feature work",
+      chain: {
+        source: "spec_kit_tasks",
+        requestTemplate: "do ${chain.taskId}",
+        featureId: "001-feat",
+      },
+    });
+    await walkToVerify(head.sessionId);
+    const c1 = await engine.completeWorkflow(head.sessionId, { summary: "s" });
+    await walkToVerify(c1.nextSessionId!);
+    const c2 = await engine.completeWorkflow(c1.nextSessionId!, {
+      summary: "s",
+    });
+    expect(inherited).toEqual([
+      [head.sessionId, c1.nextSessionId!],
+      [c1.nextSessionId!, c2.nextSessionId!],
+    ]);
   });
 });

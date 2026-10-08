@@ -567,7 +567,14 @@ export class SpecKitEngine {
         required: true,
         parallelizable: t.parallelizable,
         sourceSection: t.sourceSection,
-        status: "pending",
+        // Chain fix (2026-10-08): a checked tasks.md checkbox marks work that was
+        // completed (with evidence) in a PREVIOUS session — importing it as
+        // pending made Form-B chains re-run finished tasks. DEVIATION from
+        // specs/017 FR-066/SC-011 ("checkbox alone never completes a task"):
+        // deliberate, user-approved — tasks.md is the cross-session progress
+        // interface; checkboxAtImport keeps the audit trail. completeTask
+        // itself stays evidence-gated.
+        status: t.checkboxChecked ? "completed" : "pending",
         dependencies: t.dependencies,
         linkedRequirements: t.linkedRequirementIds.map((id) => ({
           id,
@@ -1270,7 +1277,9 @@ export class SpecKitEngine {
       }
     }
     for (const id of diff.added) {
-      tasks[id] = { ...nextImport.tasks[id]!, status: "pending" };
+      // Chain fix: respect the import status (checkbox-mapped since
+      // 2026-10-08) instead of resetting added tasks to pending.
+      tasks[id] = { ...nextImport.tasks[id]! };
     }
     return {
       ...nextImport,

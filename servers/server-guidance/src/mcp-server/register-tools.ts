@@ -77,6 +77,10 @@ const chainManifest = z
     taskFilter: z
       .object({ statuses: z.array(z.string()).optional() })
       .optional(),
+    // Chain fix (2026-10-08): per-manifest temporary depth override — the
+    // user decision surfaced by the Form-B depth pre-check warning. Hard cap
+    // mirrors the config schema (512); the effective depth stays bounded.
+    maxChainDepthOverride: z.number().int().min(1).max(512).optional(),
   })
   .refine((m) => m.steps !== undefined || m.source !== undefined, {
     message: "chain requires either steps or source",

@@ -955,3 +955,18 @@ Fast-forward 6455cc7..80069f1 (5 commits), feature branch deleted, develop ahead
 
 ### 2026-10-07 (Merge): 017 follow-ups chain merged to develop
 Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degradation marker, Final#2 convergence snapshot signal, memory-bank lifecycle), feature branch deleted, develop ahead of origin/develop by 7 — push pending (user-side SSH). Suite 674/674 green, typecheck fully clean (baseline eliminated), index covers new HEAD.
+
+## 2026-10-08 — Form-B chain fix (feature/form-b-chain-fix, von develop@c8e0f47)
+
+**What works:**
+- Checkbox-Mapping beim Import (`checkboxChecked` -> `status:"completed"`); Deviation von SC-011 dokumentiert (Code, README, Test; Spec-Nachzug getrackt CHFIX-1).
+- Spec-Kit-State-Vererbung an Chain-Successors + Bridge-Weitergabe an Child-Engines (`childBridges`) — Form B funktioniert jetzt auch im Pool-Betrieb.
+- Start-Time-Depth-Pre-Check mit nicht-blockender `warnings[]`-Ausgabe + per-Manifest `maxChainDepthOverride` (1..512); Config-Cap 64->512; `buildReconciledState` respektiert Import-Status.
+- Validierung: typecheck clean, targeted 65/65, Vollsuite 679/680 (1 environmental Timeout, CHFIX-5), prettier clean, detect_changes sauber.
+
+**What's left:**
+- Commit auf feature/form-b-chain-fix (ausstehend, User-Entscheidung).
+- Loesungsvorschlaege fuer restliche Lang-Chain-Huerden im Chat formuliert, NICHT beauftragt (CHFIX-2 Index-Gate, CHFIX-3 Recovery, CHFIX-4 Phase-Grenzen).
+- Merge nach develop + Rebase/Review gemaeß Branch-Regeln; die specs/018-Kette kann danach Form B nutzen (frueherer F1-Workaround entfaellt).
+
+**Current State:** Form-B-Chains sind fuer lange sequentielle Laeufe nutzbar; User-Decision-Gates stoppen bewusst. Der laufende specs/018-Branch (feature/018-wp01-adapter-core) ist von diesem Fix unabhaengig und kann nach Merge auf Form-B umgestellt werden.

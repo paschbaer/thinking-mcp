@@ -101,3 +101,9 @@
   10. **Config default (T005):** shipped default `executionBackends.beads` absent → functionally disabled (RFC §4.1 / AC-A1); config keys strictly RFC §23; config assistant offers Beads enablement only at rollout stage R5.
 - **Binding effect:** M0 exit reached (T001–T005 done); ⏳ADR-gated tasks T013 (ADR-6), T024 (ADR-3), T066 (ADR-7) are unblocked; WP-01 (Phase 1) may start. m0-implementation-contract.md is binding for AC-A3 contract tests (WP-05/06/07); m0-beads-v1.3-baseline.md is binding for mapping v1 and golden fixtures (T038).
 - **Environment note:** `bd` not installed on dev host (verified 2026-10-07) — real-backend tests need pinned Beads 1.3.x install; all other tiers run against the fake backend (T015).
+
+## DEC-CHFIX-1 (2026-10-08) — Form-B chain fix: checkbox→completed at import (deviates from specs/017 SC-011)
+
+- **Context:** Long unattended Form-B chains re-ran already-completed tasks because `import_spec_kit_artifacts` hardcoded `status:"pending"` for every task; specs/017 FR-066/SC-011 pinned the opposite ("checkbox alone never completes a task" — tamper protection with evidence-gated `complete_task`).
+- **Decision (user-approved):** tasks.md checkboxes are the cross-session progress interface — a checked box marks work completed (with evidence) in a PREVIOUS session, so import maps `checkboxChecked` → `status:"completed"`. `checkboxAtImport` keeps the audit trail; `complete_task` itself stays evidence-gated (in-session tamper protection unchanged). Complementary mechanics: spec-kit state inheritance to chain successors, child-engine bridge wiring, start-time depth pre-check with non-blocking `warnings[]` + per-manifest `maxChainDepthOverride` (1..512, config cap raised 64→512).
+- **Consequences:** specs/017 text is now partially stale (tracked CHFIX-1); user-decision gates intentionally stop unattended chains; specs/018 (74 tasks, 65 unchecked) fits within the raised cap.

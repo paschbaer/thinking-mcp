@@ -129,6 +129,10 @@ export interface StartResult {
   status: string;
   guidance: PhaseInstruction;
   operations: ExposedOpResult[];
+  /** Chain fix (2026-10-08): non-blocking start-time warnings (e.g. the Form-B
+   * depth pre-check) — the agent relays them to the user and waits for a
+   * decision before driving the chain. */
+  warnings?: string[];
 }
 
 export interface ChainStep {
@@ -186,6 +190,38 @@ export interface EngineDeps {
   clientOperationEngine?: OperationEngine;
   /** FR-117 bridge: pending spec-kit tasks of a session, tasks.md order. */
   specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
+  /** Chain fix (2026-10-08): copy the spec-kit state file from a completed
+   * predecessor to its chain successor — without inheritance the FR-117
+   * bridge returns [] for every successor (new sessionId, no state file) and
+   * Form B ends silently after ONE task. Implemented in main.ts so the
+   * engine stays free of spec-kit imports (WIZ-3). */
+  inheritSpecKitState?: (fromSessionId: string, toSessionId: string) => void;
+  /** Chain fix (2026-10-08): number of UNCHECKED spec-kit tasks of a feature
+   * (tasks.md source of truth, no session state needed) — feeds the Form-B
+   * depth pre-check at start_workflow time. null = not determinable. */
+  specKitPendingTaskCount?: (featureId: string) => number | null;
+  /** Chain fix (2026-10-08): builds the spec-kit bridges for a child engine
+   * (per-workspace root/stateDir/config) — engineForWorkspace previously
+   * dropped specKitTasks/specKitArtifactCheck for child engines, so Form B
+   * could never work in pool deployments. */
+  childBridges?: (
+    workspaceRoot: string,
+    stateDir: string,
+    config: LoadedConfig,
+  ) => {
+    specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
+    specKitArtifactCheck?: (
+      sessionId: string,
+      pattern: string,
+    ) => {
+      present: boolean;
+      reason?: string;
+      sha256?: string;
+      content?: string;
+    };
+    inheritSpecKitState?: (fromSessionId: string, toSessionId: string) => void;
+    specKitPendingTaskCount?: (featureId: string) => number | null;
+  };
   /** specs/017 FR-4/FR-8 bridge: artifact discovery/import validation for a
    *  session's feature (single source of truth with the spec-kit tools —
    *  SKP-1). Returns present/reason plus content hash/text for the gates. */
@@ -231,6 +267,13 @@ export class WorkflowEngine {
   private readonly deps: EngineDeps;
   private readonly chain: ChainConfig;
   private readonly specKitTasks?: (sessionId: string) => PendingSpecKitTask[];
+  private readonly inheritSpecKitState?: (
+    fromSessionId: string,
+    toSessionId: string,
+  ) => void;
+  private readonly specKitPendingTaskCount?: (
+    featureId: string,
+  ) => number | null;
   private readonly validators = new Map<string, SchemaValidator>();
   /** specs/017 FR-1: per-workspace workflow variant registry (cached). */
   private readonly workflowRegistry = new WorkflowRegistry();
@@ -249,6 +292,8 @@ export class WorkflowEngine {
       maxStepsPerManifest: 16,
     };
     this.specKitTasks = deps.specKitTasks;
+    this.inheritSpecKitState = deps.inheritSpecKitState;
+    this.specKitPendingTaskCount = deps.specKitPendingTaskCount;
     this.sessions = new SessionRepository(join(deps.stateDir, "sessions"));
     this.archiveDir = join(deps.stateDir, "archive");
     this.metrics = new MetricsRepository(join(deps.stateDir, "metrics.jsonl"));
@@ -883,6 +928,12 @@ export class WorkflowEngine {
         stateDir,
         operationEngine: this.deps?.operationEngine,
         clientOperationEngine: this.deps?.clientOperationEngine,
+        // Chain fix (2026-10-08): child engines previously DROPPED the spec-kit
+        // bridges — Form B and the artifact gates could never work in pool
+        // deployments (registry-only boot + per-workspace children).
+        ...(this.deps?.childBridges
+          ? this.deps.childBridges(root, stateDir, cfg)
+          : {}),
         isChild: true,
       });
       this.childEngines.set(root, eng);
@@ -2022,6 +2073,11 @@ export class WorkflowEngine {
       input.chain !== undefined
         ? this.validateChainManifest(input.chain)
         : undefined;
+    // Chain fix (2026-10-08): start-time depth pre-check — warn (non-blocking)
+    // when the Form-B task count exceeds the effective chain depth; the agent
+    // relays the warning to the user and waits for a decision (e.g. restart
+    // with chain.maxChainDepthOverride).
+    const chainWarnings = chainSpec ? this.chainStartWarnings(chainSpec) : [];
     // CHAIN-Replay (remaining-work-plan L19-34): a top-level request that
     // duplicates steps[0] runs step 0 twice (session-0 under the top-level
     // request, successor-0 under steps[0]). Fail closed instead of guessing
@@ -2094,7 +2150,40 @@ export class WorkflowEngine {
       status: fresh.status,
       guidance: this.guidanceFor(fresh),
       operations: activation.operations,
+      ...(chainWarnings.length > 0 ? { warnings: chainWarnings } : {}),
     };
+  }
+
+  /** Chain fix (2026-10-08): Form-B start-time depth pre-check. Reads the
+   * UNCHECKED task count straight from tasks.md (no session state exists for
+   * the head yet) and warns when the effective depth cannot carry the chain.
+   * Non-blocking by design: the user decides (override, split, or accept). */
+  private chainStartWarnings(
+    spec: NonNullable<WorkflowSession["chainSpec"]>,
+  ): string[] {
+    if (spec.source !== "spec_kit_tasks") return [];
+    if (!spec.featureId) {
+      return [
+        "chain depth pre-check skipped: manifest has no featureId — Form-B candidates resolve from the session's imported spec-kit state at completion time",
+      ];
+    }
+    const pending = this.deps.specKitPendingTaskCount?.(spec.featureId);
+    if (pending === undefined || pending === null) {
+      return [
+        `chain depth pre-check skipped: tasks.md not found or unreadable for feature ${spec.featureId}`,
+      ];
+    }
+    const depth = spec.maxChainDepthOverride ?? this.chain.maxChainDepth;
+    // Clean traversal needs depth >= pending + 1: the LAST successor is created
+    // at chainIndex = pending and must still pass the backstop gate on ITS
+    // completion to reach the silent chain end (smaller depth fails with
+    // chain_depth_exceeded, depth == pending fails on the final session).
+    if (depth < pending + 1) {
+      return [
+        `chain.maxChainDepth (${depth}) cannot carry the ${pending} unchecked spec-kit task(s) of feature ${spec.featureId}: the chain will fail with chain_depth_exceeded after ${depth} successor session(s) (a clean run needs depth >= ${pending + 1}). Ask the user how to proceed: restart with chain.maxChainDepthOverride (integer, hard cap 512), or split the work into smaller chains`,
+      ];
+    }
+    return [];
   }
 
   /**
@@ -2121,6 +2210,7 @@ export class WorkflowEngine {
       requestTemplate?: unknown;
       featureId?: string;
       taskFilter?: { statuses?: string[] };
+      maxChainDepthOverride?: unknown;
     };
     const hasSteps = Array.isArray(c.steps);
     const hasSource = c.source !== undefined;
@@ -2148,6 +2238,20 @@ export class WorkflowEngine {
       spec.featureId = c.featureId;
       spec.taskFilter = c.taskFilter;
       spec.chainedTaskIds = [];
+    }
+    // Chain fix (2026-10-08): per-manifest temporary depth override — the
+    // user decision surfaced by the depth pre-check warning. Mirrors the
+    // zod cap (512) here so direct engine callers fail closed the same way.
+    if (c.maxChainDepthOverride !== undefined) {
+      const n = c.maxChainDepthOverride as number;
+      if (!Number.isInteger(n) || n < 1 || n > 512) {
+        throw new GuidanceError(
+          "configuration_invalid",
+          `chain.maxChainDepthOverride must be an integer between 1 and 512 (got ${String(c.maxChainDepthOverride)})`,
+          { recoverable: true },
+        );
+      }
+      spec.maxChainDepthOverride = n;
     }
     if (hasSteps) {
       if ((c.steps as unknown[]).length > this.chain.maxStepsPerManifest) {
@@ -2214,11 +2318,13 @@ export class WorkflowEngine {
       // Form A: exhaustion check BEFORE the depth gate (review LOW-4): a
       // manifest with steps.length >= maxChainDepth must end SILENTLY after
       // its last step (Spec §3.2), not with a chain_depth_exceeded failure.
-      if ((session.chainIndex ?? 0) >= this.chain.maxChainDepth) {
+      // Chain fix (2026-10-08): per-manifest override wins over config depth.
+      const maxDepth = spec.maxChainDepthOverride ?? this.chain.maxChainDepth;
+      if ((session.chainIndex ?? 0) >= maxDepth) {
         return {
           failure: {
             reason: "chain_depth_exceeded",
-            error: `chainIndex ${session.chainIndex} reached maxChainDepth (${this.chain.maxChainDepth})`,
+            error: `chainIndex ${session.chainIndex} reached maxChainDepth (${maxDepth})`,
           },
         };
       }
@@ -2247,11 +2353,13 @@ export class WorkflowEngine {
     if (spec.source === "spec_kit_tasks") {
       // FR-111 (§11.4): the depth gate is the Form-B backstop (natural bound
       // = pending-task count), so it runs BEFORE candidate search here.
-      if ((session.chainIndex ?? 0) >= this.chain.maxChainDepth) {
+      // Chain fix (2026-10-08): per-manifest override wins over config depth.
+      const maxDepth = spec.maxChainDepthOverride ?? this.chain.maxChainDepth;
+      if ((session.chainIndex ?? 0) >= maxDepth) {
         return {
           failure: {
             reason: "chain_depth_exceeded",
-            error: `chainIndex ${session.chainIndex} reached maxChainDepth (${this.chain.maxChainDepth})`,
+            error: `chainIndex ${session.chainIndex} reached maxChainDepth (${maxDepth})`,
           },
         };
       }
@@ -3421,6 +3529,12 @@ export class WorkflowEngine {
         : {}),
     };
     this.sessions.save(successor);
+    // Chain fix (2026-10-08): inherit the spec-kit state so the FR-117 bridge
+    // resolves Form-B candidates in EVERY successor session (a new sessionId
+    // without a state file returned [] and silently ended the chain after one
+    // task). Best-effort: the bridge implementation logs and swallows errors —
+    // a failed copy degrades to the previous behavior, it never blocks completion.
+    this.inheritSpecKitState?.(session.sessionId, successor.sessionId);
     this.audit.append({
       sessionId: successor.sessionId,
       eventType: "session_started",

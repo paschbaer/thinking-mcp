@@ -1271,6 +1271,46 @@ every phase instruction: _import the artifacts first
 do not touch other tasks._ When no pending tasks remain, the chain ends
 silently — that is the normal Form-B termination, not an error.
 
+#### Long unattended chains (chain fix 2026-10-08)
+
+Three mechanics make a long sequential Form-B chain viable:
+
+1. **Checkbox status mapping at import** — a checked tasks.md checkbox marks
+   work completed (with evidence) in a PREVIOUS session; `import_spec_kit_artifacts`
+   now imports it as `status: "completed"` (deviation from specs/017
+   FR-066/SC-011, deliberate and user-approved; `checkboxAtImport` keeps the
+   audit trail, and `complete_task` itself stays evidence-gated). Without
+   this, a re-import marked every task `pending` and Form B re-ran finished
+   tasks.
+2. **Spec-kit state inheritance** — chain successors get a new `sessionId`;
+   the predecessor's imported spec-kit state is copied to the successor so
+   the Form-B bridge can resolve the next candidate in EVERY successor
+   session (previously the bridge returned `[]` and the chain ended silently
+   after one task). The bridges are now also wired into per-workspace child
+   engines (`childBridges`), so Form B works in pool deployments.
+3. **Start-time depth pre-check** — `start_workflow` counts the UNCHECKED
+   tasks in the feature's `tasks.md` and compares them against the effective
+   chain depth. If the depth cannot carry the chain (a clean run needs
+   `maxChainDepth >= unchecked + 1`), the response carries a non-blocking
+   `warnings[]` entry — relay it to the user and wait for a decision.
+
+```jsonc
+// temporary per-manifest depth adjustment (user decision from the warning)
+{
+  "chain": {
+    "source": "spec_kit_tasks",
+    "requestTemplate": "Execute task ${chain.taskId} …",
+    "featureId": "018-guidance-beads-execution-adapter",
+    "maxChainDepthOverride": 70 // integer, hard cap 512; wins over config maxChainDepth
+  }
+}
+```
+
+The config-level `chain.maxChainDepth` cap was raised from 64 to 512 for the
+same reason (specs/018 has 74 tasks). User-decision gates (plan-change
+approval, blockers requiring a decision) still STOP an unattended chain by
+design.
+
 ### Mixed manifests (steps + source)
 
 `steps` and `source` may be **combined**: the explicit steps run first, then
