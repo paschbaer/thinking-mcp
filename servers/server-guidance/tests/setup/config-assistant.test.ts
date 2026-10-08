@@ -33,7 +33,7 @@ describe("configuration assistant (stateless wizard)", () => {
     expect(overview.done).toBe(false);
     expect(overview.nextQuestion?.id).toBe("configSource");
     expect(overview.nextTool).toBe("setup_guidance_answer");
-    expect(overview.questions.length).toBe(11);
+    expect(overview.questions.length).toBe(13);
   });
 
   it("advances question by question and reports done when complete", () => {

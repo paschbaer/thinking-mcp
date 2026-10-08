@@ -19,7 +19,7 @@
  *   1  stale/missing — details on stderr
  */
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, resolve, basename } from "node:path";
+import { join, resolve } from "node:path";
 
 const repoRoot = process.argv[2] ?? process.cwd();
 // WF-5: SKIP_DIRS applies at EVERY path depth (nested node_modules, e.g.
@@ -44,16 +44,27 @@ function isSkipped(rel) {
 function fail(message) {
   console.error(`INDEX NOT FRESH: ${message}`);
   // Agent-facing remedy (house pattern per nodeDepsHints): stderr is surfaced
-  // VERBATIM in the exposed operation result (errors[0].message), so a
-  // chain-driving agent gets the exact heal command without recalling the
-  // AGENTS.md rule. The reindex runs host-side against the compose-managed
-  // gitnexus-server container (the guidance container has no gitnexus
-  // binary); the exec workdir must match the on-disk repo directory name
-  // exactly (derived from the checked repoRoot, so the remedy is always
-  // repo-specific). After healing, retry_operation re-runs this gate.
-  const repoName = basename(resolve(repoRoot));
+  // VERBATIM in the exposed operation result (errors[0].message). The exact
+  // reindex command is CONFIG-OWNED: when the workspace declares
+  // gitnexus.reindexCommand in .guidance/guidance.json it is printed verbatim
+  // (compose-container deployments); otherwise the generic local-CLI hint
+  // ships — this product script carries no deployment paths. After healing,
+  // retry_operation re-runs this gate.
+  let remedy;
+  try {
+    const main = JSON.parse(
+      readFileSync(join(repoRoot, ".guidance", "guidance.json"), "utf8"),
+    );
+    const cmd = main?.gitnexus?.reindexCommand;
+    remedy =
+      typeof cmd === "string" && cmd.trim() !== ""
+        ? cmd.trim()
+        : "gitnexus analyze --no-stats (via your configured shell)";
+  } catch {
+    remedy = "gitnexus analyze --no-stats (via your configured shell)";
+  }
   console.error(
-    `REMEDY: run host-side: docker compose -f D:/repos/thinking-mcp/docker-compose.yml exec -w /workspaces/${repoName} gitnexus-server gitnexus analyze --no-stats (workdir case must match the on-disk directory name), then retry_operation`,
+    `REMEDY: run the workspace reindex command: ${remedy} — then retry_operation`,
   );
   process.exit(1);
 }

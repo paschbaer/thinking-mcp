@@ -6,6 +6,10 @@
 
 ## Avoid These Mistakes
 
+- **Server-required ≠ Capability-required (2026-10-08, Decouple-Session):** `required: true` auf dem Downstream-Server (Config-Zeit) wurde stillschweigend als Pflicht für die CAPABILITY (Laufzeit) gelesen — Abwesenheit blockierte Workflow-Completion, obwohl das Ziel „nutzen, SOFERN vorhanden“ war. Kopplung kroch über Compose-Services, Generator-Defaults und Prose-Regeln ein (fakultative → obligate Symbiose). → Prevention: Capability-Deklaration pro Workspace (gitnexus.state/mode in guidance.json), Alone-Test pinnt den off-Fall, Regeln konditional formulieren.
+
+- **DrvFs-Partial-Write-Inkohärenz zwischen Windows-Writer und WSL-Reader (2026-10-08):** Ein `sed -i` aus Git Bash hinterließ eine Datei mit GEMISCHTEN Seiten (eine Zeile neu, eine alt); tsc/vitest (WSL) sahen den Mischzustand („parseGnSetup is not defined“), grep und esbuild-Output wirkten partiell korrekt — drei Tools, drei Ansichten desselben Pfades. → Prevention: nach schnellen Windows-Seiten-Schreiben IMMER mit dem konsumierenden Toolchain (WSL-tsc) verifizieren; bei inkohärenten Lesarten die Datei EINMAL vollständig über EINEN Writer neu schreiben.
+
 - **Zwei GitNexus-Index-Welten: CLI-Registry ≠ MCP-Server-Registry (2026-10-08, GN-Migration):** Der
   gitnexus-MCP-Server (:4747, eigener Container) resolvierte Repos ausschließlich über seine EIGENE
   Registry — ein WSL-CLI-`gitnexus analyze` schrieb nur in-repo `.gitnexus` + WSL-Registry und blieb

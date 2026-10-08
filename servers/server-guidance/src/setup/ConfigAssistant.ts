@@ -155,11 +155,28 @@ const QUESTIONS: SetupQuestion[] = [
   {
     id: "gitnexus",
     question:
-      "Enable the GitNexus downstream (blocking repository-analysis gate)?",
-    help: "yes = repository-analysis gate (MCP check + CLI fallback) and downstream entry are generated.",
-    options: ["yes", "no"],
+      "GitNexus integration: required, optional, or off?",
+    help: "Guidance itself is GitNexus-agnostic. required = blocking index gates (repository-analysis + index-freshness fail-closed). optional = advisory gates: absence degrades to a tolerated warning, presence is used fully — honest limitation: optional cannot distinguish never-installed from broken. off = no GitNexus references at all in the generated configuration. Legacy answers yes->required, no->off.",
+    options: ["required", "optional", "off"],
     required: true,
-    default: "yes",
+    default: "optional",
+  },
+  {
+    id: "gitnexusMode",
+    question:
+      "GitNexus index refresh mode: local-cli or compose-container? (only when GitNexus is not off)",
+    help: "Choose the mode of your SINGLE index writer. local-cli = a host-side gitnexus CLI refreshes the index (rendered reindex command: 'gitnexus analyze --no-stats' via your configured shell). compose-container = a docker compose managed gitnexus-server container owns the index; you provide the exact exec command in the next question.",
+    options: ["local-cli", "compose-container"],
+    required: false,
+    default: "local-cli",
+  },
+  {
+    id: "gitnexusReindexCommand",
+    question:
+      "Exact reindex command for the compose-container mode (e.g. 'docker compose -f <base> -f <overlay> exec -w /workspaces/<repo> gitnexus-server gitnexus analyze --no-stats')?",
+    help: "Required when gitnexusMode=compose-container — the deployment-specific command is stored in guidance.json (gitnexus.reindexCommand) and rendered into the completion instruction + freshness-gate remedy. Leave empty for local-cli (the plain shell command is rendered automatically).",
+    required: false,
+    default: "",
   },
   {
     id: "gates",
@@ -184,7 +201,46 @@ const QUESTIONS: SetupQuestion[] = [
 // FR-908/FR-901: in adopt mode these answers are derived from the reference
 // configuration (profile/insight/gitnexus/gates) and are NOT required — and
 // the wizard must not ASK them (they would be overwritten by generateFiles).
-const DERIVED_IN_ADOPT = new Set(["insight", "gitnexus", "gates"]);
+const DERIVED_IN_ADOPT = new Set([
+  "insight",
+  "gitnexus",
+  "gitnexusMode",
+  "gitnexusReindexCommand",
+  "gates",
+]);
+
+/** Parsed GitNexus capability setup (optional-decoupling phase 1). */
+export interface GitNexusSetup {
+  state: "required" | "optional" | "off";
+  mode: "local-cli" | "compose-container";
+  /** Exact operator-provided command (compose-container mode); the plain
+   *  shell command is rendered for local-cli. */
+  reindexCommand: string;
+}
+
+/** Maps raw answers (tri-state or legacy yes/no/boolean) to the setup. */
+export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
+  const raw = answers.gitnexus;
+  let state: GitNexusSetup["state"];
+  if (raw === "yes" || raw === true) state = "required";
+  else if (raw === "no" || raw === false) state = "off";
+  else if (raw === "required" || raw === "optional" || raw === "off")
+    state = raw;
+  else state = "optional"; // absent answer -> safe default
+  const mode = answers.gitnexusMode === "compose-container"
+    ? "compose-container"
+    : "local-cli";
+  const reindexCommand = String(answers.gitnexusReindexCommand ?? "").trim();
+  return { state, mode, reindexCommand };
+}
+
+/** Renders the reindex command text embedded in instructions/remedies. */
+export function renderReindexCommand(gn: GitNexusSetup): string {
+  if (gn.mode === "compose-container") {
+    return gn.reindexCommand;
+  }
+  return "gitnexus analyze --no-stats";
+}
 
 function isAnswered(q: SetupQuestion, answers: SetupAnswers): boolean {
   const v = answers[q.id];
@@ -384,13 +440,13 @@ function buildPolicies(transport: string): string {
 
 function buildWorkflow(
   gates: string,
-  gitnexus: boolean,
+  gn: GitNexusSetup,
   insight: boolean,
 ): string {
   const verifyGates =
     gates === "standard" ? ["lint", "test", "build"] : ["build"];
   const completeGates: string[] = [];
-  if (gitnexus) completeGates.push("repository-analysis");
+  if (gn.state !== "off") completeGates.push("repository-analysis");
   if (insight) completeGates.push("capture-session-lessons");
   const workflow = {
     version: 2,
@@ -474,16 +530,40 @@ function questionsSentence(field: string): string {
 }
 
 /** Builds the generic (fresh) baseline responses — exported for the FR-991 drift-guard test. */
-export function buildResponses(shell: string): string {
+/** Template-default GitNexus setup: the builtin baseline renders the
+ *  enabled/local-cli variant (generic, no deployment paths). The AC-1 drift
+ *  guard compares the template against buildResponses("", TEMPLATE_GN). */
+export const TEMPLATE_GN: GitNexusSetup = {
+  state: "required",
+  mode: "local-cli",
+  reindexCommand: "",
+};
+
+export function buildResponses(
+  shell: string,
+  gn: GitNexusSetup = TEMPLATE_GN,
+): string {
   const shellSentence = shell
     ? ` Set up your terminal shell first: run all commands through ${shell}.`
     : "";
   const idempotency =
     " Submission idempotency: never reuse a requestId across submissions — each phase advance requires a fresh requestId; if a submission returns accepted but the phase is unchanged, do not retry the same requestId — check get_workflow_state (requestIds) instead.";
   const timeoutPolicy =
-    " Timeout policy: NEVER retry the original call after a downstream MCP transport/request timeout — the call may already have run on the server. Instead, invoke the tool ONCE via the server's configured container route (containerRoute in downstream-servers.json; agent-side: run_operation through the guidance server). If the server has no containerRoute defined, or the container-route call also fails, make ONE direct call of the same tool over its HTTP MCP endpoint via curl (streamable-HTTP JSON-RPC). Non-idempotent calls (workspace_write/external_write) are never replayed on any route — for those, or if the direct call also fails, escalate via report_blocker (category: infrastructure). Route heavy GitNexus work (analyze/reindex) through the docker compose exec reindex command instead of MCP.";
+    " Timeout policy: NEVER retry the original call after a downstream MCP transport/request timeout — the call may already have run on the server. Instead, invoke the tool ONCE via the server's configured container route (containerRoute in downstream-servers.json; agent-side: run_operation through the guidance server). If the server has no containerRoute defined, or the container-route call also fails, make ONE direct call of the same tool over its HTTP MCP endpoint via curl (streamable-HTTP JSON-RPC). Non-idempotent calls (workspace_write/external_write) are never replayed on any route — for those, or if the direct call also fails, escalate via report_blocker (category: infrastructure)." +
+    (gn.state === "off"
+      ? ""
+      : " Route heavy GitNexus work (analyze/reindex) through the configured reindex command (gitnexus.reindexCommand in guidance.json) instead of MCP.");
   const longTransitions =
-    " Long state transitions: verification and completion hooks (lint, build, final-review, index-freshness) can run for minutes and may outlive your MCP client timeout — submit the phase call ONCE; if it times out, do NOT retry it (the single-flight lock queues retries into more timeouts while the transition completes server-side), poll get_workflow_state instead until phase and operations reflect the transition.";
+    " Long state transitions: verification and completion hooks (lint, build, final-review" +
+    (gn.state === "off" ? "" : ", index-freshness") +
+    ") can run for minutes and may outlive your MCP client timeout — submit the phase call ONCE; if it times out, do NOT retry it (the single-flight lock queues retries into more timeouts while the transition completes server-side), poll get_workflow_state instead until phase and operations reflect the transition.";
+  const reindexStep =
+    gn.state === "off"
+      ? ""
+      : gn.state === "required"
+        ? ` (1) refresh the GitNexus index by running '${renderReindexCommand(gn)}' in the terminal (the repository-analysis gate only verifies availability, the index-freshness gate verifies freshness of the in-repo index) and note the refresh in the report;`
+        : ` (1) IF a GitNexus index is configured for this repo, refresh it by running '${renderReindexCommand(gn)}' in the terminal (advisory in this configuration: the index gates degrade to tolerated warnings when GitNexus is absent — never-installed and broken are indistinguishable at this level) and note the refresh in the report;`;
+  const lessonsIdx = gn.state === "off" ? "1" : "2";
   const responses = {
     understand: {
       title: "Understand the Request",
@@ -554,7 +634,9 @@ export function buildResponses(shell: string): string {
     complete: {
       title: "Complete the Workflow",
       instruction:
-        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (0) write `.guidance/state/final-review.json` FRESH for THIS session — strict schema per the check-final-review.mjs gate script (ships with the guidance server under scripts/; run it from the repo root): formatVersion 1; keys formatVersion, sessionId, reviewerRef, reviewScope, baseCommit, headCommit, commits, reviewedAt, openHighCritical, findings — each finding carries {id, severity, status, evidence}; headCommit MUST equal the current HEAD as a full 40-hex hash and every commit entry is a full 40-hex hash; write it AFTER the last commit — any commit after the review invalidates the gate, so after late commits re-run the review (or re-bless the delta with the same reviewer) and rewrite the file; validate it with that script BEFORE completing. (1) refresh the GitNexus index by running the docker compose exec reindex command for this repo in the terminal (the compose-managed gitnexus-server container is the single index writer; the repository-analysis gate only verifies availability, the index-freshness gate verifies freshness of the in-repo index) and note the refresh in the report; (2) review this session for recurring bugs, traps, and validated fixes and write them to .guidance/state/session-lessons.json as [{slug, observation, cause, fix}] — ALWAYS create the file (an empty array is the explicit no-op success); a MISSING file FAILS the capture-session-lessons gate, so the lessons review step must not be skipped." +
+        "Produce the final completion report: summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, and next steps. BEFORE submitting the completion report: (0) write `.guidance/state/final-review.json` FRESH for THIS session — strict schema per the check-final-review.mjs gate script (ships with the guidance server under scripts/; run it from the repo root): formatVersion 1; keys formatVersion, sessionId, reviewerRef, reviewScope, baseCommit, headCommit, commits, reviewedAt, openHighCritical, findings — each finding carries {id, severity, status, evidence}; headCommit MUST equal the current HEAD as a full 40-hex hash and every commit entry is a full 40-hex hash; write it AFTER the last commit — any commit after the review invalidates the gate, so after late commits re-run the review (or re-bless the delta with the same reviewer) and rewrite the file; validate it with that script BEFORE completing." +
+        reindexStep +
+        ` (${lessonsIdx}) review this session for recurring bugs, traps, and validated fixes and write them to .guidance/state/session-lessons.json as [{slug, observation, cause, fix}] — ALWAYS create the file (an empty array is the explicit no-op success); a MISSING file FAILS the capture-session-lessons gate, so the lessons review step must not be skipped.` +
         longTransitions +
         idempotency +
         timeoutPolicy +
@@ -565,10 +647,10 @@ export function buildResponses(shell: string): string {
   return JSON.stringify({ version: 2, responses }, null, 2) + "\n";
 }
 
-function buildOperations(
+export function buildOperations(
   packageManager: string,
   gates: string,
-  gitnexus: boolean,
+  gn: GitNexusSetup,
   insight: boolean,
   projectName: string,
   transport: string,
@@ -685,15 +767,17 @@ function buildOperations(
     validation: { protocolRequestMustSucceed: true, exitCodeMustBeZero: true },
     output: { returnToAgent: "summary_and_errors", retainRawResult: true },
   };
-  if (gitnexus) {
+  if (gn.state !== "off") {
     operations["repository-analysis"] = {
       description:
-        "Verify the GitNexus index for this repo is present and queryable via the MCP check tool of the compose-managed gitnexus-server container. The index REFRESH itself stays a host-side pre-complete step (docker compose exec gitnexus-server gitnexus analyze --no-stats): the MCP server exposes no analyze tool, and a local process fallback cannot work in the guidance container by design.",
+        gn.state === "required"
+          ? "Verify the GitNexus index for this repo is present and queryable via the MCP check tool. The index REFRESH itself stays a pre-complete step using the workspace reindex command (gitnexus.reindexCommand in guidance.json): the MCP server exposes no analyze tool, and a local process fallback cannot work in the guidance container by design."
+          : "Advisory variant (GitNexus optional): verify the GitNexus index for this repo is present and queryable via the MCP check tool — when GitNexus is absent this gate degrades to a tolerated warning (never-installed and broken are indistinguishable at this level; use state 'required' for fail-closed semantics). The index REFRESH itself stays a pre-complete step using the workspace reindex command (gitnexus.reindexCommand in guidance.json).",
       type: "mcpTool",
       server: "gitnexus",
       capability: "check",
       arguments: { mode: "fixed", value: { repo: projectName } },
-      required: true,
+      required: gn.state === "required",
       timeoutSeconds: 900,
       riskClass: "read_only",
       validation: {
@@ -758,7 +842,7 @@ function buildOperations(
 
 function buildDownstream(
   insight: boolean,
-  gitnexus: boolean,
+  gn: GitNexusSetup,
   transport: string,
 ): string {
   const conn = (timeout: number) => ({
@@ -794,11 +878,11 @@ function buildDownstream(
     },
     connection: conn(120),
   };
-  if (gitnexus) {
+  if (gn.state !== "off") {
     servers.gitnexus = {
       displayName: "GitNexus",
       enabled: true,
-      required: true,
+      required: gn.state === "required",
       trustLevel: "trusted",
       transport: { type: "http", http: { url: gitnexusUrl(transport) } },
       capabilities: {
@@ -854,7 +938,7 @@ export function generateFiles(answers: SetupAnswers): {
   // all tools register on every instance.
   const shell = String(answers.shell ?? "").trim();
   let insight = answers.insight === "yes" || answers.insight === true;
-  let gitnexus = answers.gitnexus === "yes" || answers.gitnexus === true;
+  let gn = parseGnSetup(answers);
   let gates = String(answers.gates ?? "standard");
 
   // WIZ-1 (user decisions 2026-10-03): the former target modes are MERGED —
@@ -957,7 +1041,6 @@ ${entryJson}`,
     const refGuidance = JSON.parse(
       readFileSync(join(resolvedReference, "guidance.json"), "utf8"),
     ) as Record<string, unknown>;
-    void refGuidance; // legacy `profile` field is tolerated and ignored (WIZ-3)
     const refOps = JSON.parse(
       readFileSync(join(resolvedReference, "operations.json"), "utf8"),
     ) as { operations?: Record<string, Record<string, unknown>> };
@@ -967,7 +1050,28 @@ ${entryJson}`,
         "query-project-insights" in refOpsMap ||
         "capture-session-lessons" in refOpsMap
       : "capture-session-lessons" in refOpsMap;
-    gitnexus = "repository-analysis" in refOpsMap;
+    // Adopt derivation: the reference ops map decides enabled/off; a required
+    // reference gate maps to "required" (fail-closed preserved); the gitnexus
+    // block of the reference guidance.json carries mode + reindexCommand
+    // forward when present.
+    gn = {
+      state: "repository-analysis" in refOpsMap ? "required" : "off",
+      mode: gn.mode,
+      reindexCommand: gn.reindexCommand,
+    };
+    const refGn = (
+      refGuidance as {
+        gitnexus?: { mode?: string; reindexCommand?: string };
+      }
+    ).gitnexus;
+    if (refGn) {
+      if (refGn.mode === "compose-container" || refGn.mode === "local-cli") {
+        gn.mode = refGn.mode;
+      }
+      if (typeof refGn.reindexCommand === "string" && refGn.reindexCommand) {
+        gn.reindexCommand = refGn.reindexCommand;
+      }
+    }
     gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
     const genericPreset = new Set([
       "lint",
@@ -999,7 +1103,7 @@ ${entryJson}`,
             buildOperations(
               String(answers.packageManager ?? "npm"),
               gates,
-              gitnexus,
+              gn,
               insight,
               name,
               transport,
@@ -1061,7 +1165,7 @@ ${entryJson}`,
     }
     workflowOverride = wfText;
     policiesOverride = buildPolicies(transport);
-    downstreamOverride = buildDownstream(insight, gitnexus, transport);
+    downstreamOverride = buildDownstream(insight, gn, transport);
     // FR-981/FR-992..994 (specs/012+013): adopt the reference RESPONSES.
     // Builtin adopt renders the wisdom baseline (fail-closed if missing);
     // mounted references use their responses-wisdom.json when present,
@@ -1105,10 +1209,11 @@ ${entryJson}`,
         transport,
         enabledServers: new Set<string>([
           "clearthought",
-          ...(gitnexus ? ["gitnexus"] : []),
+          ...(gn.state !== "off" ? ["gitnexus"] : []),
           ...(insight ? ["insight"] : []),
         ]),
         projectName: name,
+        gitnexusReindexCommand: renderReindexCommand(gn),
       },
       // FR-995: wisdom sources must render completely; mounted fallback
       // responses.json keeps the lenient 012 behavior.
@@ -1189,6 +1294,21 @@ ${entryJson}`,
       restrictWorkingDirectory: true,
       redactSensitiveOutput: true,
     },
+    // Optional-decoupling phase 1: the workspace's GitNexus capability
+    // declaration — rendered into instructions/remedies; the engine derives
+    // gate strictness from the generated files as before (state off omits
+    // the block entirely so an off-workspace carries zero gitnexus marks).
+    ...(gn.state !== "off"
+      ? {
+          gitnexus: {
+            state: gn.state,
+            mode: gn.mode,
+            ...(gn.reindexCommand
+              ? { reindexCommand: gn.reindexCommand }
+              : {}),
+          },
+        }
+      : {}),
     ...(adoptionBlock ? { adoption: adoptionBlock } : {}),
   };
   const files: GeneratedFile[] = [
@@ -1198,18 +1318,18 @@ ${entryJson}`,
     },
     {
       path: "workflow.json",
-      content: workflowOverride ?? buildWorkflow(gates, gitnexus, insight),
+      content: workflowOverride ?? buildWorkflow(gates, gn, insight),
     },
     {
       path: "responses.json",
-      content: responsesOverride ?? buildResponses(""),
+      content: responsesOverride ?? buildResponses("", gn),
     },
     {
       path: "operations.json",
       content: buildOperations(
         String(answers.packageManager ?? "npm"),
         gates,
-        gitnexus,
+        gn,
         insight,
         name,
         transport,
@@ -1217,8 +1337,7 @@ ${entryJson}`,
     },
     {
       path: "downstream-servers.json",
-      content:
-        downstreamOverride ?? buildDownstream(insight, gitnexus, transport),
+      content: downstreamOverride ?? buildDownstream(insight, gn, transport),
     },
     {
       path: "policies.json",
@@ -1385,6 +1504,9 @@ export function renderAdoptedResponses(
     transport: string;
     enabledServers: Set<string>;
     projectName: string;
+    /** Optional-decoupling phase 1: rendered reindex command inside the
+     *  {{#server:gitnexus}} block of wisdom baselines. */
+    gitnexusReindexCommand?: string;
   },
   opts?: { strictLeftovers?: boolean },
 ): string {
@@ -1393,6 +1515,7 @@ export function renderAdoptedResponses(
     INSIGHT_URL: insightUrl(target.transport),
     GITNEXUS_URL: gitnexusUrl(target.transport),
     PROJECT_NAME: target.projectName,
+    GITNEXUS_REINDEX_CMD: target.gitnexusReindexCommand ?? "gitnexus analyze --no-stats",
   };
   const renderText = (text: string): string => {
     let out = text.replace(

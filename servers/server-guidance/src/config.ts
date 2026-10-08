@@ -30,6 +30,20 @@ export interface GuidanceMainConfig {
    *  enabled: false; profile-independent since runtime registration is an
    *  instance-level concern, not a process/workflow-type concern). */
   registryRegister?: { enabled?: boolean };
+  /** GitNexus capability declaration (optional-decoupling phase 1): the
+   *  workspace states whether/how it uses GitNexus. Consumed by the config
+   *  assistant renderers and by check-index-freshness.mjs (reindexCommand
+   *  remedy); the engine itself does NOT read this block — gates derive from
+   *  the generated operations/workflow files as before.
+   *  state: required = blocking gates (fail-closed), optional = advisory
+   *  gates (tolerated failure), off = nothing GitNexus-related is generated.
+   *  mode/reindexCommand: how the index is refreshed — local CLI or a
+   *  compose-managed container with the exact operator-provided command. */
+  gitnexus?: {
+    state: "required" | "optional" | "off";
+    mode?: "local-cli" | "compose-container";
+    reindexCommand?: string;
+  };
   /** specs/015 US2 (AC-10, FR-1214): proactive node-deps probe — when ON,
    *  boot diagnostics reference the guidance deps-install/deps-reinstall
    *  operations so the agent can heal before gates run. Default OFF. */
@@ -207,6 +221,16 @@ Object.assign(mainConfigSchema, {
       additionalProperties: false,
       properties: {
         enabled: { type: "boolean" },
+      },
+    },
+    gitnexus: {
+      type: "object",
+      additionalProperties: false,
+      required: ["state"],
+      properties: {
+        state: { enum: ["required", "optional", "off"] },
+        mode: { enum: ["local-cli", "compose-container"] },
+        reindexCommand: { type: "string", minLength: 1 },
       },
     },
     preFlight: {

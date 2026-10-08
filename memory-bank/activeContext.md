@@ -3,6 +3,14 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-08: GITNEXUS OPTIONAL-DECOUPLING PHASE 1 — Guidance-Session session-791af4dc, feature/gitnexus-optional-decoupling
+
+- **Ziel erreicht:** Guidance ist als Produkt GitNexus-agnostisch — Tri-State-Deklaration (`gitnexus.state` required|optional|off + `mode` local-cli|compose-container + `reindexCommand`) in guidance.json, vom Config-Assistenten gefragt/gesehen; alle Renderings (Responses-Schritt, Gates, Downstream, Workflow) conditional; Alone-Test pinnt `off` = null GitNexus-Referenzen; Basis-Compose nur 3 Services, GitNexus im opt-in Overlay `docker-compose.gitnexus.yml`.
+- **Deviation vom Plan:** Der Generator emittiert keine index-freshness-Op (war nie Teil des Generators — Workspace-Handzusatz); Allein-Test bezieht sich auf die vier Generator-Artefakte.
+- **Incident (Lesson!):** DrvFs-Partial-Write-Inkohärenz — sed -i von Git Bash erzeugte eine Datei mit GEMISCHTEN Seiten (Deklaration neu, Nutzung alt); tsc/vitest sahen die Inkohärenz, esbuild-Output war korrekt. Lösung: EIN Writer (edit_file) + Verifikation mit dem Verbraucher-Toolchain.
+- **Verifikation:** Suite 690/690 (6 neue Tests: Alone + Matrix 3×2 + REMEDY 4); tsc clean; Compose base 3 / merged 5 valide; Live-REMEDY druckt den guidance.json-Befehl.
+- **Offen (Phase 2, getrackt):** dreiwertige Gate-Zustände (skipped-capability-absent) + Hybrid-Probe im Engine — GN-Decouple-P2; optional-Semantiklücke (never-installed vs broken) dokumentiert.
+
 ## 2026-10-08: GN-MIGRATION IMPLEMENTIERT (Option A+D) — Guidance-Session session-67baca0b, feature/gn-gitnexus-compose-integration
 
 - **Umgesetzt:** gitnexus-server + gitnexus-web als Compose-Services (Root-docker-compose.yml, voller `/workspaces`-Mount, Registry host-seitig unter `D:\repos\.gitnexus-home`); Standalone-Container stillgelegt; alle drei Pool-Repos per `docker compose exec gitnexus analyze` mit in-repo-Storage registriert (thinking-mcp 10.380 Nodes/480 Flows, Niyama 8.782/156, copilot 262/255); Live-Pickup ohne Restart bewiesen (AC-6); Legacy-Volume gelöscht (Q3); REMEDY/Responses/Generator/Template auf docker-exec-Reindex umgestellt (CHFIX-6+GN-3 mitgelöst); safe.directory-Command-Wrapper gegen git-dubious-ownership; Tests 684/684 grün, tsc clean.

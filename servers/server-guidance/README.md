@@ -143,10 +143,10 @@ From a bare machine to a running multi-workspace instance:
 
 1. **Prerequisites**: Docker Desktop (with file sharing for the drive that
    hosts the checkout), git, Node ≥ 18 (host-side builds/tests optional —
-   the container brings its own toolchain). Optional: the
-   experience-memory + clear-thought downstream services and the
-   gitnexus-server container if you use them (all orchestrated by the
-   root compose file).
+   the container brings its own toolchain). Optional companions: the
+   experience-memory + clear-thought services (base compose) and the
+   GitNexus analysis stack (opt-in overlay `docker-compose.gitnexus.yml`) —
+   guidance itself runs without any of them.
 2. **Clone & build** (see above) — then start HTTP via
    `docker compose -f docker-compose.yml -f docker-compose.override.yml up -d`.
    The override mounts the **repos pool** via a relative path (`../../../` →
@@ -165,23 +165,25 @@ From a bare machine to a running multi-workspace instance:
    create each repo's own `.guidance/` (config assistant, target
    `repo-config`). **Restart the container afterwards** — the registry is
    read at boot. **Add `.guidance/state/` to each repo's `.gitignore`.**
-5. **Per-repo analysis index**: the gitnexus MCP server runs as a
-   **compose-managed container** (image
-   `ghcr.io/abhigyanpatwari/gitnexus:latest`) with the same repos mount as
-   the guidance container (`/workspaces`). Each registered repo is indexed
-   **in-repo** (`<root>/.gitnexus`) by the container itself — one index
-   world shared by the MCP server and the freshness gate, which checks
-   `<root>/.gitnexus/meta.json`/mtimes against the working tree. The
-   freshness scan ignores build/test-tooling artifacts (`node_modules`,
-   `dist`, `coverage` — at any depth, so `.vite` vitest results under a
-   nested `node_modules` do not count): a test run after a reindex no
-   longer makes the index look stale. Deterministic ordering still applies:
-   reindex after the last test run, immediately before `complete_workflow`.
+5. **Per-repo analysis index (optional)**: GitNexus is an opt-in capability —
+   declare it in the workspace's `.guidance/guidance.json` (`gitnexus`:
+   `state` required|optional|off, `mode` local-cli|compose-container,
+   `reindexCommand`). The config assistant renders gates, instructions and
+   remedies from that declaration; `off` produces a configuration with zero
+   GitNexus references. When enabled, each registered repo is indexed
+   **in-repo** (`<root>/.gitnexus`) by its single index writer — a host CLI
+   (`gitnexus analyze --no-stats`, local-cli mode) or a compose-managed
+   gitnexus-server container (overlay `docker-compose.gitnexus.yml`, full
+   repos mount). The freshness gate checks `<root>/.gitnexus` against the
+   working tree and its remedy prints the configured `reindexCommand`.
+   Choose the mode of your SINGLE index writer — mixing writers diverges
+   the storage identity. Deterministic ordering still applies: reindex
+   after the last test run, immediately before `complete_workflow`.
 
-   **Reindex procedure** (host-side, container is the single index writer):
+   **Container mode activation** (this repository's deployment):
 
    ```bash
-   docker compose -f <compose-root>/docker-compose.yml \
+   docker compose -f docker-compose.yml -f docker-compose.gitnexus.yml \
      exec -w /workspaces/<repo-dir> gitnexus-server \
      gitnexus analyze --no-stats
    ```

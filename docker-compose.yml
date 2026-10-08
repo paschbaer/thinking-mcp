@@ -1,6 +1,8 @@
-# Root-level orchestration: runs all MCP servers as Docker containers
-# (clear-thought, insight, guidance, plus the GitNexus analysis stack:
-# gitnexus-server and gitnexus-web).
+# Root-level orchestration: runs the guidance product stack (clear-thought,
+# insight, guidance). Guidance is GitNexus-agnostic — deployments that use
+# GitNexus activate the optional overlay docker-compose.gitnexus.yml
+# (see the header comment there for the exact invocation).
+#
 # The VS Code MCP config (User mcp.json) points at
 #   - http://localhost:3000/mcp  (clear-thought)
 #   - http://localhost:3002/mcp  (insight)
@@ -52,55 +54,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
-
-  gitnexus-server:
-    # Compose-managed replacement of the former standalone gitnexus-server
-    # container (GN migration, 2026-10-08). Full pool mount — same as the
-    # guidance service — so in-repo .gitnexus indexes written by in-container
-    # `docker compose exec gitnexus-server gitnexus analyze` are served
-    # directly. The registry persists on the host pool root
-    # (D:/repos/.gitnexus-home) instead of an anonymous Docker volume.
-    image: ghcr.io/abhigyanpatwari/gitnexus:latest
-    # Wrap the image CMD: safe.directory must live in the GLOBAL gitconfig
-    # (git ignores it via env/local config by design) so the analyzer's git
-    # calls work on the root-owned Windows bind mount. '*' is scoped to this
-    # disposable analysis container (it only ever sees /workspaces).
-    command: sh -c "git config --global --add safe.directory '*' && git config --global --add safe.directory /workspaces && exec gitnexus serve --host 0.0.0.0 --port \"$${PORT:-4747}\""
-    ports:
-      # 0.0.0.0 on purpose: the guidance container reaches this server via
-      # host.docker.internal:4747 (host-gateway), which does NOT land on
-      # loopback-only bindings. Same exposure as the former standalone
-      # container. Tightening (compose-DNS + 127.0.0.1) is a tracked follow-up.
-      - "4747:4747"
-    environment:
-      - NODE_ENV=production
-      - PORT=4747
-      # Registry location on the shared pool mount (survives compose down;
-      # host-backupable, mirrors the emms-data pattern). Index storage itself
-      # stays in-repo (<repo>/.gitnexus) via per-repo registration.
-      - GITNEXUS_HOME=/workspaces/.gitnexus-home
-      - GITNEXUS_NO_UPDATE_NOTIFIER=1
-      - GITNEXUS_LBUG_MAX_DB_SIZE=17179869184
-    volumes:
-      - ../:/workspaces
-    healthcheck:
-      # Any HTTP response (including 405) proves the server is up.
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4747/api/mcp').then(()=>process.exit(0)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    restart: unless-stopped
-
-  gitnexus-web:
-    # Web UI; GITNEXUS_BACKEND_URL stays empty — the browser connects to the
-    # server URL directly (same wiring as the former standalone container).
-    image: ghcr.io/abhigyanpatwari/gitnexus-web:latest
-    ports:
-      - "127.0.0.1:4173:4173"
-    environment:
-      - GITNEXUS_BACKEND_URL=
     restart: unless-stopped
 
   guidance:

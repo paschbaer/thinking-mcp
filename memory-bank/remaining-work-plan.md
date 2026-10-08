@@ -16,6 +16,10 @@
 
 ## Tracked Follow-ups
 
+- [GN-D1] MEDIUM (neu, 2026-10-08, Decouple-Session session-791af4dc) | **Phase 2 Engine-Scope:** dreiwertige Gate-Zustände (success/skipped-capability-absent/failed) + Hybrid-Probe (Soll aus Config-Tri-State, Ist aus list_reobs-Ping, Abweichung = Audit-Event). Schließt die dokumentierte Phase-1-Lücke: optional kann never-installed nicht von configured-but-broken unterscheiden (degradiert beides zu tolerierter Warnung). | Trigger: nächste Engine-Änderung an der Gate-Maschine oder wenn ein optional-Workspace laufend Warn-Rauschen erzeugt. | Action required at trigger.
+
+- [GN-D2] LOW (2026-10-08) | Config-Assistent: Adopt-Modus leitet den GitNexus-Modus nur aus refGuidance.gitnexus ab, NICHT aus refOpsMap-Heuristiken (z. B. compose-hinweisende Op-Beschreibungen). Builtin-Template → local-cli. | Trigger: erster Mounted-Adopt einer Container-Deployment-Referenz ohne gitnexus-Block. | Accepted observation.
+
 - [GN-1] HIGH (2026-10-08, Evidence: docker inspect + `/data/gitnexus/registry.json` + Guidance-Audit session-bbbf628c/bdb24391) — **GELÖST (2026-10-08, feature/gn-gitnexus-compose-integration)** | Zwei divergierende GitNexus-Registries: der alte Standalone-gitnexus-server-Container servierte einen stale thinking-mcp-Index (2026-10-01), WSL-CLI-Index aktuell, Gates blind dafür. Fix: Compose-managter gitnexus-server mit vollem `/workspaces`-Mount + in-repo-Storage; thinking-mcp frisch im Container indiziert (10.380 Nodes / 480 Flows), MCP-Check liefert echte Graph-Antworten. Beide Gates prüfen jetzt denselben Indexbestand.
 
 - [GN-2] HIGH (2026-10-08) — **GELÖST (2026-10-08, feature/gn-gitnexus-compose-integration)** | Pool-Onboarding neuer Repos war für den gitnexus-server-Container unsichtbar (docker cp nach /tmp als Workaround). Fix: alle drei Pool-Repos (thinking-mcp, copilot-repo-template, Niyama) per `docker compose exec gitnexus analyze` mit in-repo-StoragePath registriert; MCP-Check für alle drei grün; `--force` umgeht die Foreign-State-Sperre bei WSL-vorbelasteten .gitnexus-Verzeichnissen. Kanonischer Reindex-Befehl in AGENTS.md + REMEDY-Zeile dokumentiert.
