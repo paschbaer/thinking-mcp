@@ -463,7 +463,7 @@ call. Flow (which tool when) — the full configuration reference follows in
 
 | Step | Tool                                  | Purpose                                                                                                     |
 | ---- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1    | `setup_guidance_start`                | Returns the question catalog (11 questions) and the first question with help text and options               |
+| 1    | `setup_guidance_start`                | Returns the question catalog (13 questions) and the first question with help text and options               |
 | 2    | `setup_guidance_answer` `{answers}`   | Takes the accumulated answers, validates them, and returns the next open question                           |
 | 3    | … repeat `setup_guidance_answer`      | Until `done: true` — then `nextTool` points to `setup_guidance_generate`                                    |
 | 4    | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload                             |
