@@ -992,3 +992,11 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 **Correction:** The session could NOT be formally completed. After index-freshness healed (reindex + retry_operation, REMEDY verified live), repository-analysis failed with downstream_capability_changed (gitnexus:check pin drift after reindex/server-restart). Pin reset required a guidance container restart, which orphaned the session (sessions are workflow-run-scoped, do not survive server restarts despite on-disk JSON). All engineering work was already committed (6128cd8); the workflow completion itself is orphaned. Tracked as CHFIX-9 (HIGH). 4 lessons seeded to EMMS. Documentation deltas (CHFIX-9 README precision) are uncommitted, awaiting user decision.
 
 **Current State:** feature/form-b-chain-fix holds two commits (ba6ecc1 Form-B fix, 6128cd8 chain hardening), full suite green, 0 open HIGH/CRITICAL from independent review. Next candidates: CHFIX-9 (session persistence across restarts / in-process re-pinning), then merge to develop + container rebuild.
+
+## 2026-10-08 — GitNexus-Integration: Migration + optionale Entkopplung gemerged
+
+**What works:** develop @ 3b0e631 enthält beide Scopes linear: (1) GN-Migration (gitnexus-server als Compose-Container, voller Pool-Mount, in-repo-Storage, Live-Pickup, single index writer, Legacy-Volume gelöscht); (2) Optional-Decoupling Phase 1 (gitnexus Tri-State-Deklaration required/optional/off + mode + reindexCommand in guidance.json, konditionale Renderings, Alone-Test, Produkt/Deployment-Split mit Overlay docker-compose.gitnexus.yml, deployment-agnostische REMEDY). Suite 693/693; zwei unabhängige Reviews pro Scope, 0 offene HIGH/CRITICAL; Feature-Branches nach Merge gelöscht.
+
+**What's left:** Push nach origin (ausstehend, nicht angefragt); Phase 2 (GN-D1 dreiwertige Gates + Hybrid-Probe); GN-D3/D4 (Testlücken, Adopt-Asymmetrien); GN-5 (Port-Hardening); Niyama lastCommit populate beim nächsten Reindex.
+
+**Current State:** Guidance-Container mit neuem Stand rebuilt (healthy, configured, alle Workspaces reachable); Stack 5 Container über Basis+Overlay-Kette; beide Completion-Gates der Decouple-Session grün abgeschlossen. Compose-Aufruf kanonisch mit -f docker-compose.yml -f docker-compose.gitnexus.yml.
