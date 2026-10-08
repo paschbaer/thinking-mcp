@@ -69,8 +69,8 @@
   },
   "gitnexus": {
     "state": "required",
-    "mode": "compose-container",
-    "reindexCommand": "docker compose -f D:/repos/thinking-mcp/docker-compose.yml -f D:/repos/thinking-mcp/docker-compose.gitnexus.yml exec -w /workspaces/thinking-mcp gitnexus-server gitnexus analyze --no-stats"
+    "mode": "local-cli",
+    "reindexCommand": "wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats'"
   },
   "workspaces": [
     {

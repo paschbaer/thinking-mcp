@@ -30,6 +30,11 @@ services:
       - GITNEXUS_LBUG_MAX_DB_SIZE=17179869184
     volumes:
       - ../:/workspaces
+      # Dual mount (wsl-writer mode): the same pool is ALSO mounted under the
+      # exact WSL path prefix, so the WSL gitnexus CLI (single index writer)
+      # and this server (reader) share ONE storage path identity — the server
+      # validates meta.repoPath against its registry paths on read.
+      - ../:/mnt/d/repos
     # Wrap the image CMD: safe.directory must live in the GLOBAL gitconfig
     # (git ignores it via env/local config by design) so the analyzer's git
     # calls work on the root-owned Windows bind mount. '*' is scoped to this
