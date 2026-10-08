@@ -1503,3 +1503,7 @@
 
 - **Umgesetzt:** (1) Pool-weite Identitäts-Vereinheitlichung auf /mnt/d (Niyama + copilot per WSL --force + Registry-Rewrite; alle Checks/Queries grün); (2) GN-5 Port-Hardening: 127.0.0.1-Binding + Compose-DNS (Vorprobe 200), Egress + 3 Pool-Workspace-Konfigs umgestellt; (3) GN-D4: refGn.state-unbekannt-Throw, reindexCommand-Trim, parse/validate-Split; (4) GN-D3: guidance.json-Blob-Scan + AC-1b-Ops-Drift-Guard. Suite 696/696, tsc clean.
 - **Chain:** Head grün (session-928fa08c); Step 2 (Phase-2 dreiwertige Gates + Hybrid-Probe) und Step 3 (Doku-Konsolidierung) folgen automatisch.
+
+## 2026-10-08: WF-1 vereinfacht — clear-thought zurück auf Default-Route
+
+Benutzerentscheidung: clear-thought-Tools werden wie ALLE anderen Tools initial DIREKT (Editor-MCP) gerufen; call_downstream/container-route/curl nur noch Fallback je einmalig pro Route. Die frühere WF-1-Spezialvorschrift (Primärroute + Kette) hatte in der Praxis dazu geführt, dass Agents call_downstream als Standard nutzten. Backup AGENTS.md.bak aktualisiert; Widerspruchscheck (Route 3) ohne Konflikte. Gilt auch für die laufende Chain (Step 2/3).
