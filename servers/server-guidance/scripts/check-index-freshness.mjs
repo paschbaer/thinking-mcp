@@ -25,7 +25,15 @@ const repoRoot = process.argv[2] ?? process.cwd();
 // WF-5: SKIP_DIRS applies at EVERY path depth (nested node_modules, e.g.
 // servers/*/node_modules/.vite/vitest/results.json used to count as newest
 // source and made every test run after a reindex look like staleness).
-const SKIP_DIRS = new Set([".git", ".gitnexus", "node_modules", "dist", ".chats", ".yarn", "coverage"]);
+const SKIP_DIRS = new Set([
+  ".git",
+  ".gitnexus",
+  "node_modules",
+  "dist",
+  ".chats",
+  ".yarn",
+  "coverage",
+]);
 const SKIP_PREFIXES = [".guidance/state"];
 
 function isSkipped(rel) {
@@ -35,12 +43,23 @@ function isSkipped(rel) {
 
 function fail(message) {
   console.error(`INDEX NOT FRESH: ${message}`);
+  // Agent-facing remedy (house pattern per nodeDepsHints): stderr is surfaced
+  // VERBATIM in the exposed operation result (errors[0].message), so a
+  // chain-driving agent gets the exact host-side heal command without
+  // recalling the AGENTS.md rule. The reindex MUST run host-side — the
+  // guidance container has no gitnexus binary and would hit the storage
+  // case-mismatch (KA-4: registered lowercase /mnt/d/repos/thinking-mcp).
+  // After healing, retry_operation re-runs this gate.
+  console.error(
+    "REMEDY: run host-side: wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats' (exact lowercase cwd), then retry_operation",
+  );
   process.exit(1);
 }
 
 function readGitHead(repoRoot) {
   const gitPath = join(repoRoot, ".git");
-  if (!existsSync(gitPath)) fail(`no .git at ${gitPath} — not a git repository?`);
+  if (!existsSync(gitPath))
+    fail(`no .git at ${gitPath} — not a git repository?`);
   let gitDir = gitPath;
   // linked worktrees: .git is a FILE with 'gitdir: <path>' pointing at the
   // per-worktree git dir. Worktree .git files written by Windows git carry
@@ -48,24 +67,36 @@ function readGitHead(repoRoot) {
   // repo is mounted at /workspace in the guidance container, so map both.
   if (statSync(gitPath).isFile()) {
     const pointer = readFileSync(gitPath, "utf8").trim();
-    if (!pointer.startsWith("gitdir:")) fail(`cannot parse ${gitPath} (.git file without gitdir pointer)`);
+    if (!pointer.startsWith("gitdir:"))
+      fail(`cannot parse ${gitPath} (.git file without gitdir pointer)`);
     gitDir = resolve(repoRoot, pointer.slice("gitdir:".length).trim());
     // GDS-5: generic candidate resolution - raw relative, WSL drive mapping
     // (D:/... -> /mnt/d/...), and the guidance container mounts (/workspace,
     // /workspaces/<name>). First existing candidate wins.
-    const rawPointer = pointer.slice("gitdir:".length).trim().replace(/\\/g, "/");
+    const rawPointer = pointer
+      .slice("gitdir:".length)
+      .trim()
+      .replace(/\\/g, "/");
     const candidates = [gitDir];
     const driveMatch = rawPointer.match(/^([A-Za-z]):\/(.*)$/);
     if (driveMatch) {
-      candidates.push("/mnt/" + driveMatch[1].toLowerCase() + "/" + driveMatch[2]);
+      candidates.push(
+        "/mnt/" + driveMatch[1].toLowerCase() + "/" + driveMatch[2],
+      );
       candidates.push("/workspace/" + driveMatch[2]);
       candidates.push("/workspaces/" + driveMatch[2]);
       // D:\repos\<name> is mounted at /workspaces/<name> in the container
-      const reposMount = rawPointer.match(/^[A-Za-z]:\/(?:repos|workspaces)\/([^\/]+)(\/.*)$/);
-      if (reposMount) candidates.push("/workspaces/" + reposMount[1] + reposMount[2]);
+      const reposMount = rawPointer.match(
+        /^[A-Za-z]:\/(?:repos|workspaces)\/([^\/]+)(\/.*)$/,
+      );
+      if (reposMount)
+        candidates.push("/workspaces/" + reposMount[1] + reposMount[2]);
     }
     const hit = candidates.find((c) => existsSync(c));
-    if (!hit) fail(`worktree git dir does not exist in this container (tried: ${candidates.join(", ")})`);
+    if (!hit)
+      fail(
+        `worktree git dir does not exist in this container (tried: ${candidates.join(", ")})`,
+      );
     gitDir = hit;
   }
   const headPath = join(gitDir, "HEAD");
@@ -84,15 +115,26 @@ function readGitHead(repoRoot) {
   }
   for (const candidate of candidates) {
     if (existsSync(candidate)) {
-      return { commit: readFileSync(candidate, "utf8").trim(), branch: ref.replace("refs/heads/", ""), gitDir };
+      return {
+        commit: readFileSync(candidate, "utf8").trim(),
+        branch: ref.replace("refs/heads/", ""),
+        gitDir,
+      };
     }
   }
-  const packedDirs = [join(gitDir, "packed-refs"), commonDir ? join(commonDir, "packed-refs") : null].filter(Boolean);
+  const packedDirs = [
+    join(gitDir, "packed-refs"),
+    commonDir ? join(commonDir, "packed-refs") : null,
+  ].filter(Boolean);
   for (const packedPath of packedDirs) {
     if (existsSync(packedPath)) {
       for (const line of readFileSync(packedPath, "utf8").split("\n")) {
         if (line.endsWith(` ${ref}`)) {
-          return { commit: line.split(" ")[0].trim(), branch: ref.replace("refs/heads/", ""), gitDir };
+          return {
+            commit: line.split(" ")[0].trim(),
+            branch: ref.replace("refs/heads/", ""),
+            gitDir,
+          };
         }
       }
     }
@@ -170,7 +212,9 @@ scanIndex(indexRoot, 0);
 collectCommitCoverage(indexRoot);
 const branchesRoot = join(indexRoot, "branches");
 if (existsSync(branchesRoot)) {
-  for (const b of readdirSync(branchesRoot, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)) {
+  for (const b of readdirSync(branchesRoot, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)) {
     if (commitCovered) break;
     collectCommitCoverage(join(branchesRoot, b));
   }
@@ -181,12 +225,12 @@ const indexFreshByMtime = newestSource.mtime <= indexMtime;
 if (indexFreshByMtime || commitCovered) {
   console.log(
     `INDEX FRESH: HEAD ${head.commit} covered` +
-    (commitCovered ? " (commit coverage)" : " (mtime)") +
-    `. Newest source: ${rel(newestSource.file) || "(none)"} (${new Date(newestSource.mtime).toISOString()}).`,
+      (commitCovered ? " (commit coverage)" : " (mtime)") +
+      `. Newest source: ${rel(newestSource.file) || "(none)"} (${new Date(newestSource.mtime).toISOString()}).`,
   );
 } else {
   fail(
     `source files are newer than the index: newest source "${rel(newestSource.file)}" (${new Date(newestSource.mtime).toISOString()})` +
-    ` vs. index from ${new Date(indexMtime).toISOString()} — run: gitnexus analyze --no-stats`,
+      ` vs. index from ${new Date(indexMtime).toISOString()} — run: gitnexus analyze --no-stats`,
   );
 }

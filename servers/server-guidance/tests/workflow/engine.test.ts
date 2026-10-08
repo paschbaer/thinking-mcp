@@ -165,7 +165,11 @@ describe("workflow engine (FR-001–003)", () => {
     expect(done.accepted).toBe(false);
     if (!done.accepted) expect(done.error!.code).toBe("required_hook_failed");
     expect(engine.getSession(res.sessionId).status).toBe("active");
-  });
+    // Known-slow test (real downstream invoker roundtrips): ~25s isolated,
+    // exceeds the 30s default under full-suite load on slow filesystems
+    // (WSL //mnt/d) — explicit per-test timeout keeps the global default
+    // strict for hang detection everywhere else.
+  }, 60_000);
 
   it("report_blocker → blocked with previous phase preserved; resume_workflow re-enters it (FR-028)", async () => {
     const res = await started();

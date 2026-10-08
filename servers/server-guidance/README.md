@@ -1306,10 +1306,36 @@ Three mechanics make a long sequential Form-B chain viable:
 }
 ```
 
-The config-level `chain.maxChainDepth` cap was raised from 64 to 512 for the
-same reason (specs/018 has 74 tasks). User-decision gates (plan-change
+The config-level `chain.maxChainDepth` cap was raised from 64 to 512 so a
+single feature's full task list (potentially dozens of tasks) fits one
+sequential chain. User-decision gates (plan-change
 approval, blockers requiring a decision) still STOP an unattended chain by
 design.
+
+#### Recovering a chain after agent/context death
+
+Chain state lives entirely server-side (sessions, `chainSpec`,
+`chainedTaskIds`) — an agent restart never loses the chain, only the
+conversation. To resume:
+
+1. **Locate the session.** The last completion response you saw carries the
+   successor's `nextSessionId` — `get_workflow_state` on it shows phase and
+   status. If NO sessionId is known (fresh context), list the workspace state
+   sessions directory (`<repo>/.guidance/state/sessions/`) and pick the
+   newest session that is not `completed` and carries a `chainSpec`.
+2. **Successor status `activating`** (the agent died inside the crash window
+   before activation finished): call `retry_operation` on that session — it
+   finalizes activation and, for a retained completion report, still creates
+   the next successor.
+3. **Successor status `active`**: call `get_current_guidance` and continue the
+   normal phase loop from whatever phase it reports.
+4. **Do NOT restart the head.** Chain progress is carried in
+   `chainSpec.chainedTaskIds`; re-declaring the manifest would re-derive
+   already-chained tasks' successors from scratch (the checkbox mapping keeps
+   completed tasks out, but in-flight work would be duplicated).
+
+A `blocked` successor (failed mandatory gate) needs its blocker resolved or
+explicitly classified before the chain can continue.
 
 ### Mixed manifests (steps + source)
 

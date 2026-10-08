@@ -530,3 +530,12 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   Updates möglichst VOR dem finalen `gitnexus analyze --no-stats` erledigen;
   fällt der Gate trotzdem wegen fremder Änderungen aus, ist das als
   Scope-fremd zu klassifizieren (`report_blocker` statt Reindex-Schleife).
+  Das Gate failt laut mit dem exakten Host-Reindex-Befehl als REMEDY-Zeile
+  im Op-Ergebnis (`check-index-freshness.mjs`) — nach dem Heilungslauf
+  `retry_operation` aufrufen, nicht die Session neu starten.
+- **Chain-Recovery nach Agent-/Kontext-Verlust:** Chain-Zustand persistiert
+  server-side; nach Agent-Neustart KEIN Head-Neustart. Rezept (Session
+  lokalisieren → `activating`: `retry_operation`; `active`: Phase-Loop mit
+  `get_current_guidance` fortsetzen; Fortschritt steckt in
+  `chainSpec.chainedTaskIds`): siehe `servers/server-guidance/README.md`,
+  Abschnitt "Recovering a chain after agent/context death".

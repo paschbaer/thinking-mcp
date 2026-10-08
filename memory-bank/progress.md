@@ -970,3 +970,19 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 - Merge nach develop + Rebase/Review gemaeß Branch-Regeln; die specs/018-Kette kann danach Form B nutzen (frueherer F1-Workaround entfaellt).
 
 **Current State:** Form-B-Chains sind fuer lange sequentielle Laeufe nutzbar; User-Decision-Gates stoppen bewusst. Der laufende specs/018-Branch (feature/018-wp01-adapter-core) ist von diesem Fix unabhaengig und kann nach Merge auf Form-B umgestellt werden.
+
+## 2026-10-08 — CHFIX-2/3/5 session (session-78776317, feature/form-b-chain-fix)
+
+**What works:**
+- CHFIX-5: FR-004 per-test timeout 60s; full suite 683/683 green including FR-004 under load.
+- CHFIX-2: index-freshness gate fails loudly with agent-facing REMEDY (exact host-side wsl.exe reindex command) on stderr -> exposedOpResult.errors[0].message; 3 spawn-based regression tests.
+- CHFIX-3: chain-recovery recipe in README (incl. sessionId-discovery fallback) + AGENTS.md pointer; AGENTS.md.bak refreshed.
+- Independent final review (sub-agent 8cc483f1): 0 open HIGH/CRITICAL; 3 non-critical findings tracked as CHFIX-6/7/8.
+
+**What's left:**
+- CHFIX-6 (MEDIUM): REMEDY hardcodes this repo's reindex path — pool-wide misdirection for other workspaces; fix when a second workspace uses the gate.
+- CHFIX-7 (LOW): AGENTS.md still contains an older mixed-case reindex command (KA-4 trap) next to the correct lowercase one; unify on next AGENTS.md edit.
+- CHFIX-8 (LOW): README recovery step 1 imprecise for 'activating' successors (get_workflow_state throws instead of showing status); refine on next README edit.
+- Merge feature/form-b-chain-fix to develop (rebase) + guidance container rebuild.
+
+**Current State:** Form-B chains viable end-to-end (fix committed ba6ecc1) + hardened (this session); remaining long-chain risks are tracked, none blocking.
