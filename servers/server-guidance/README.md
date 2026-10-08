@@ -483,9 +483,19 @@ absolute container path where THIS repo is mounted, e.g.
 `GUIDANCE_WORKSPACE_ROOT` + the name hint), `registerWorkspace`
 (yes/no — instructs the agent to register via the `registry_register`
 MCP tool, with a manual merge fallback, see below),
-`insight` and `gitnexus` (on/off — control the downstream entries and
-their gates), the `gates` preset (`standard`: lint opt + test opt +
-build REQ · `minimal`: build REQ only) and `packageManager`
+`insight` (on/off — control the downstream entries and their gates),
+`gitnexus` (tri-state `required`/`optional`/`off` — declares the
+workspace's GitNexus capability: `required` = blocking index gates,
+`optional` = advisory gates that degrade to tolerated warnings when
+GitNexus is absent, `off` = no GitNexus references at all; legacy
+yes/no answers stay compatible), `gitnexusMode`
+(`local-cli`/`compose-container` — the mode of the single index writer,
+asked only when GitNexus is not off) and `gitnexusReindexCommand`
+(the exact reindex command for compose-container deployments, stored as
+`gitnexus.reindexCommand` in guidance.json and rendered into the
+completion instruction and the freshness-gate remedy), the `gates` preset
+(`standard`: lint opt + test opt + build REQ · `minimal`: build REQ only)
+and `packageManager`
 (optional, default `npm` — see below). Generation returns all six config
 files plus the seven submission schemas (from
 `examples/default-guidance/schemas`; if the directory is missing from the
