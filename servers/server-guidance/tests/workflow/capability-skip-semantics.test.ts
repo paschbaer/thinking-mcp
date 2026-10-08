@@ -347,4 +347,26 @@ describe("hybrid capability probe (GN-D1)", () => {
       ),
     ).resolves.toBeUndefined();
   });
+
+  it("REAL ping path (no stub): unreachable http server maps to a probe-source deviation event", async () => {
+    buildConfig({ declared: "required", opRequired: false });
+    const engine = makeEngine();
+    const start = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+    });
+    // No monkey-patch: the real pingGitnexusServer runs — http config
+    // mapping, ensureReady handshake against 127.0.0.1:9 (connection
+    // refused, fast) and the timeout race are all exercised.
+    await (engine as unknown as EngineInternals).probeCapabilityState(
+      start.sessionId,
+    );
+    const deviations = deviationsOf(engine, start.sessionId);
+    expect(deviations).toHaveLength(1);
+    expect(deviations[0]!.data).toMatchObject({
+      kind: "required-unreachable",
+      source: "probe",
+      live: "unreachable",
+    });
+  });
 });

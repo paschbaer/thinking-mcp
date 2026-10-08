@@ -155,7 +155,7 @@ const QUESTIONS: SetupQuestion[] = [
   {
     id: "gitnexus",
     question: "GitNexus integration: required, optional, or off?",
-    help: "Guidance itself is GitNexus-agnostic. required = blocking index gates (repository-analysis + index-freshness fail-closed). optional = advisory gates: absence degrades to a tolerated warning, presence is used fully — honest limitation: optional cannot distinguish never-installed from broken. off = no GitNexus references at all in the generated configuration. Legacy answers yes->required, no->off.",
+    help: "Guidance itself is GitNexus-agnostic. required = blocking index gates (repository-analysis + index-freshness fail-closed). optional = advisory gates: an unreachable GitNexus server reports the gates as skipped (capability-absent) with a loud warning, while a reachable-but-broken server fails visibly — never-installed and configured-but-broken are distinguishable. off = no GitNexus references at all in the generated configuration. Legacy answers yes->required, no->off.",
     options: ["required", "optional", "off"],
     required: true,
     default: "optional",
@@ -650,7 +650,7 @@ export function buildResponses(
       ? ""
       : gn.state === "required"
         ? ` (1) refresh the GitNexus index by running '${renderReindexCommand(gn)}' in the terminal (the repository-analysis gate only verifies availability, the index-freshness gate verifies freshness of the in-repo index) and note the refresh in the report;`
-        : ` (1) IF a GitNexus index is configured for this repo, refresh it by running '${renderReindexCommand(gn)}' in the terminal (advisory in this configuration: the index gates degrade to tolerated warnings when GitNexus is absent — never-installed and broken are indistinguishable at this level) and note the refresh in the report;`;
+        : ` (1) IF a GitNexus index is configured for this repo, refresh it by running '${renderReindexCommand(gn)}' in the terminal (advisory in this configuration: an unreachable GitNexus server reports the index gates as skipped/capability-absent, a reachable-but-broken one fails with a loud warning) and note the refresh in the report;`;
   const lessonsIdx = gn.state === "off" ? "1" : "2";
   const responses = {
     understand: {
@@ -860,7 +860,7 @@ export function buildOperations(
       description:
         gn.state === "required"
           ? "Verify the GitNexus index for this repo is present and queryable via the MCP check tool. The index REFRESH itself stays a pre-complete step using the workspace reindex command (gitnexus.reindexCommand in guidance.json): the MCP server exposes no analyze tool, and a local process fallback cannot work in the guidance container by design."
-          : "Advisory variant (GitNexus optional): verify the GitNexus index for this repo is present and queryable via the MCP check tool — when GitNexus is absent this gate degrades to a tolerated warning (never-installed and broken are indistinguishable at this level; use state 'required' for fail-closed semantics). The index REFRESH itself stays a pre-complete step using the workspace reindex command (gitnexus.reindexCommand in guidance.json).",
+          : "Advisory variant (GitNexus optional): verify the GitNexus index for this repo is present and queryable via the MCP check tool — when the GitNexus server is unreachable this gate reports skipped (capability-absent), while a reachable server that reports an error fails with a loud warning (configured-but-broken); use state 'required' for fail-closed semantics. The index REFRESH itself stays a pre-complete step using the workspace reindex command (gitnexus.reindexCommand in guidance.json).",
       type: "mcpTool",
       server: "gitnexus",
       capability: "check",
