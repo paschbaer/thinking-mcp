@@ -499,28 +499,39 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   sie das erste Mal nutzt — das ist normal und kein Fehler. Die Egress-
   Allowlist nennt `gitnexus-server:4747` (Compose-DNS), nicht mehr
   host.docker.internal.
-- **GitNexus-Topologie (NEU, GN-Migration 2026-10-08 — eine Welt):** :4747
+- **GitNexus-Topologie (wsl-writer-Modus, konsolidiert 2026-10-08):** :4747
   wird vom **gitnexus-server-Container** bedient, der als **optionales Overlay**
   `docker-compose.gitnexus.yml` Teil der Root-Orchestrierung ist (Image
-  `ghcr.io/abhigyanpatwari/gitnexus:latest`, Mount `../:/workspaces` =
-  kompletter Repo-Pool wie der guidance-Container, Registry host-seitig unter
-  `D:\repos\.gitnexus-home` via `GITNEXUS_HOME=/workspaces/.gitnexus-home`).
+  `ghcr.io/abhigyanpatwari/gitnexus:latest`, DUAL-Mount `../:/workspaces` UND
+  `../:/mnt/d/repos` = kompletter Repo-Pool wie der guidance-Container,
+  Registry host-seitig unter `D:
+epos\.gitnexus-home` via
+  `GITNEXUS_HOME=/workspaces/.gitnexus-home`). Rollen: Die **WSL-gitnexus-CLI
+  ist der SINGLE INDEX WRITER** — alle Pool-Repos liegen mit IN-REPO-Storage
+  (`<repo>/.gitnexus`) auf der vereinheitlichten Storage-Identität
+  `/mnt/d/repos/...`; der Container **serviert denselben Index read-only**
+  über den `/mnt/d/repos`-Mount (Path-Identität stimmt überein) und liest
+  Registry/Index **live** (kein Restart nach Reindex nötig). Container-Analyze
+  ist in diesem Modus VERBOTEN (flippt die Storage-Identität auf
+  `/workspaces/...` — der Server verliert das Repo; ein versehentlicher Lauf
+  wird mit `--force` im WSL-CLI-Heilungslauf korrigiert).
   **Produkt/Deployment-Split:** Der Basis-Stack (`docker-compose.yml`)
   umfasst NUR guidance/insight/clear-thought — Guidance selbst ist
   GitNexus-agnostisch; Deployments mit GitNexus aktivieren das Overlay:
   `docker compose -f docker-compose.yml -f docker-compose.gitnexus.yml up -d`
-  (oder `COMPOSE_FILE=...:...` in einer uncommitteten `.env`). Der Container
-  ist der **einzige primäre Index-Writer**: Repos liegen mit IN-REPO-Storage
-  (`<repo>/.gitnexus`) in der Container-Registry, und der Server liest
-  Registry/Index **live** (kein Restart nach Reindex nötig, verifiziert).
+  (oder `COMPOSE_FILE=...:...` in einer uncommitteten `.env`). Das Produkt
+  unterstützt beide Writer-Modi (`gitnexus.mode` in guidance.json):
+  `local-cli` (Host-CLI schreibt, Container liest — dieser Workspace) oder
+  `compose-container` (Container-Analyze schreibt — dann ist der Container
+  der Writer und es gilt KEIN Dual-Mount-Bedarf).
   Der Workspace deklariert seine GitNexus-Capability in
   `.guidance/guidance.json` (`gitnexus`: `state` required|optional|off,
   `mode` local-cli|compose-container, `reindexCommand`) — der Config-Assistent
-  rendert Gates/Instruktionen/REMEDY daraus. Die **WSL-gitnexus-CLI ist
-  LEGACY** (alte Registry `~/.gitnexus/registry.json` bleibt als Historie
-  liegen): ein WSL-Reindex schreibt zwar in-repo, aber mit abweichendem
-  Storage-Pfad-Präfix (`/mnt/d/...` vs `/workspaces/...`) — der nächste
-  Container-Analyze mit `--force` übernimmt den Storage wieder.
+  rendert Gates/Instruktionen/REMEDY daraus, und seit der Engine-Phase gilt:
+  `state=optional` + Server unerreichbar ⇒ Gates reporten
+  `skipped(capability-absent)` (never-installed ≠ configured-but-broken);
+  `state=required` failt weiterhin closed; eine Hybrid-Probe auditet
+  Deviationen (deklariert ≠ live) als `capability_state_deviation`.
 - **Reindex-Befehl (kanonisch, aus `gitnexus.reindexCommand` in
   guidance.json):** `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && .
   $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze

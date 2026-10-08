@@ -7,11 +7,16 @@
 # uncommitted .env — keep machine-specific paths out of the repo).
 services:
   gitnexus-server:
-    # Compose-managed GitNexus MCP server with the full repos-pool mount
-    # (same as the guidance service). The container is the single index
-    # writer: repos live with in-repo storage (<repo>/.gitnexus) and are
-    # registered via `docker compose exec gitnexus-server gitnexus analyze`.
-    # The registry persists on the host pool root (e.g. D:/repos/.gitnexus-home).
+    # Compose-managed GitNexus MCP server with the full repos-pool mounts
+    # (same pool as the guidance service). The server SERVES the in-repo
+    # index (<repo>/.gitnexus) read-only; which side WRITES it depends on the
+    # deployment's gitnexus.mode (guidance.json): local-cli = a host CLI is
+    # the single index writer and this container reads via the dual
+    # /mnt/d/repos mount (wsl-writer mode, path-identity-matched);
+    # compose-container = this container is the writer via
+    # `docker compose exec gitnexus-server gitnexus analyze` (no dual mount
+    # needed). The registry persists on the host pool root
+    # (e.g. D:/repos/.gitnexus-home) either way.
     image: ghcr.io/abhigyanpatwari/gitnexus:latest
     ports:
       # Loopback-only host binding (hardened): the editor and host tooling
