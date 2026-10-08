@@ -16,6 +16,8 @@
 
 ## Tracked Follow-ups
 
+- [GN-D5] MEDIUM (2026-10-08, Final Review Chain Step 1 F-1/F-2) | Der Generator koppelt URL-Topologie an den Writer-Mode (local-cli → host-gateway) — der Live-Shape dieses Workspaces (WSL-Writer local-cli + loopback-gebundener Compose-Server mit Compose-DNS-URL) ist so NICHT regenerierbar: Ein Setup/Adopt-Re-Run mit den wahren Answers erzeugte eine tote URL + falschen Egress-Eintrag. Zweitrangig: der gerenderte {{GITNEXUS_URL}}-Token-Wert im Adopt-Pfad ist ungetestet (F-2). Fix-Richtung: Server-Location (url-Topology) von Writer-Mode entkoppeln (eigene Frage/Antwort) oder Mixed-Shape dokumentieren+validieren; GITNEXUS_URL-Render-Regressionstest nachziehen. | Trigger: nächster Setup/Adopt-Re-Run für thinking-mcp oder nächste Generator-Änderung an der URL-Derivation. | Action required at trigger.
+
 - [GN-D4] MEDIUM (2026-10-08, Final Review Decouple-Session GN-FR-2/6/7) — **GELÖST (2026-10-08, Chain Step 1, feature/gn-chain-step1)** | Adopt-Asymmetrien geschlossen: unbekannter nicht-leerer refGn.state wirft configuration_invalid; refGn.reindexCommand wird getrimmt (whitespace-only fällt durch die Cross-Checks); parse/validate-Split mit validateGnSetup als einziger Prüfstelle NACH der Adopt-Derivation — Leftover-Antworten können im Adopt-Modus nicht mehr fehlziehen. Unit-Tests für alle Pfade; Suite 696/696. | resolved
 
 - [GN-D3] LOW (2026-10-08, Review F-6 der Decouple-Session) — **GELÖST (2026-10-08, Chain Step 1)** | Alone-Test scannt jetzt auch den vollständigen guidance.json-Blob; neuer AC-1b-Ops-Drift-Guard pinnt jede Generator-Op gegen das Template (Carry-Ops final-review-gate/docs-drift auf Existenz geprüft). | resolved
