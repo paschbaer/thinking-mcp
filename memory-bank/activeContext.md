@@ -3,6 +3,19 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-08: GITNEXUS-INTEGRATIONSANALYSE — Zwei-Registry-Divergenz aufgedeckt (GN-1..GN-4)
+
+- **Was passiert ist:** Beim copilot-repo-template-Onboarding schlug das `repository-analysis`-Gate zweimal fehl (zuerst Server unreachable, dann `Repository not found. Available: thinking-mcp`), obwohl WSL-seitig `gitnexus analyze` lief. Behebung war `docker cp` des Repos IN DEN gitnexus-server-Container (/tmp — ephemeral) + In-Container-Index.
+- **Root Cause (Evidence: docker inspect + beide Registry-Dateien + Guidance-Audit-History):** Es existieren ZWEI getrennte GitNexus-Welten — (a) gitnexus-server-Container (:4747, mountet nur Thinking-MCP → /workspace, eigene Registry /data/gitnexus/registry.json — thinking-mcp-Index dort STALE seit 2026-10-01) und (b) WSL-CLI (in-repo .gitnexus + ~/.gitnexus/registry.json). WSL-Reindex ist für den Container unsichtbar. Die beiden Completion-Gates prüfen zwei verschiedene Indizes und liegen beide grün.
+- **Doku-Update:** AGENTS.md-Topologie-Wording präzisiert (Container werden explizit benannt: gitnexus-server-Container vs. guidance-Container vs. WSL-CLI; Zwei-Welten-Warnung; Reindex-Befehl lowercase vereinheitlicht — erledigt CHFIX-7). Backup AGENTS.md.bak aktualisiert; Clear-Thought-Widerspruchscheck (Route 3, direkter HTTP-Call nach Route-1-404): keine Widersprüche.
+- **Offen (Architektur-Entscheidung):** Alternativen A (gitnexus-server in Root-Compose mit vollem D:\repos-Mount, in-repo-Storage), B (MCP-Server nach WSL verlagern), C (Status quo + docker-cp-Prozedur — abgelehnt), D (Analyze in den Container verlagern). Entscheidung ausstehend; siehe GN-1/GN-2/GN-3 im remaining-work-plan.
+
+## 2026-10-08: CHFIX-2/3/5 SESSION VOLLZOGEN (mit Infra-Vorfall) — Commit 6128cd8 auf feature/form-b-chain-fix
+
+- **Arbeit komplett:** CHFIX-2 (REMEDY-Zeile im Frische-Gate + 3 Regressionstests, LIVE validiert — der Gate failte während des Completions mit exakt der richtigen REMEDY), CHFIX-3 (Recovery-Rezept README + AGENTS.md-Pointer), CHFIX-5 (FR-004-Timeout 60 s; Vollsuite 683/683). Final-Review (Sub-Agent 8cc483f1): 0 HIGH/CRITICAL, F-1..F-6 → CHFIX-6/7/8 getrackt. final-review.json validiert (EXIT=0). Commit 6128cd8 (9 Files, +227/−21).
+- **Infra-Vorfall (WICHTIG):** Beim Completion schlug `repository-analysis` mit `downstream_capability_changed` fehl (gitnexus:check-Schema-Pin-Drift nach Reindex + GitNexus-Restart). Pin-Reset (capability-hashes.json) + Guidance-Restart → **Session operational verloren**: Sessions sind workflow-run-scoped und überleben KEINEN Server-Restart (Disk-Datei bleibt, wird aber nicht re-geloadet). complete_workflow wurde nie formell grün; die Session-Datei ist Archiv. → CHFIX-9 (HIGH) getrackt; 4 Lessons in EMMS gesät (inkl. capability-pin-reset-requires-server-restart).
+- **Offen:** Doku-Nachträge (CHFIX-9-Präzisierung im README-Rezept) uncommittet; Merge nach develop + Container-Rebuild ausstehend.
+
 ## 2026-10-08: CHFIX-2/3/5 IMPLEMENTIERT — Guidance-Session session-78776317 (feature/form-b-chain-fix)
 
 - **Was:** Drei getrackte Follow-ups des Form-B-Fix umgesetzt: (CHFIX-2) `check-index-freshness.mjs` fail() druckt jetzt eine agent-geeignete REMEDY-Zeile (exakter `wsl.exe … gitnexus analyze --no-stats`-Befehl, lowercase-cwd KA-4) auf stderr → OperationEngine reicht sie VERBATIM in exposedOpResult.errors[0].message weiter; Chain-treibende Agenten self-healen ohne AGENTS.md-Erinnerung + `retry_operation`. Server-seitiger Reindex war keine Option (kein gitnexus im Container + KA-4-foreign-Falle). (CHFIX-3) Recovery-Rezept „Recovering a chain after agent/context death“ im README (inkl. Discovery-Fallback über .guidance/state/sessions/ aus dem Plan-Review) + AGENTS.md-Pointer (Backup-Protokoll befolgt). (CHFIX-5) engine.test.ts FR-004 per-Test-Timeout 60 s.

@@ -494,18 +494,32 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   WSL-Notation `/mnt/d/…` und der frühere Root `/workspace` werden mit
   „workspace_not_registered“ bzw. „escapes the configured workspace“
   abgelehnt.
-- Downstream-Server (gitnexus :4747, insight :3002) verbinden **lazy**:
-  `get_downstream_status` zeigt `disconnected`, bis eine Operation sie das
-  erste Mal nutzt — das ist normal und kein Fehler.
+- Downstream-Server: gitnexus (MCP :4747) und insight (:3002) verbinden
+  **lazy**: `get_downstream_status` zeigt `disconnected`, bis eine Operation
+  sie das erste Mal nutzt — das ist normal und kein Fehler.
+- **GitNexus-Topologie — Container präzise benennen (GN-Reihe im
+  remaining-work-plan, 2026-10-08):** :4747 wird vom **gitnexus-server-
+  Container** bedient (Docker, Image `ghcr.io/abhigyanpatwari/gitnexus:latest`,
+  Mount NUR `D:\repos\Thinking-MCP → /workspace`, eigene Registry
+  `/data/gitnexus/registry.json` im Volume `gitnexus_gitnexus-data`). Die
+  **gitnexus-CLI** läuft dagegen in **WSL** (hinter nvm) und schreibt den Index
+  in-repo (`<repo>/.gitnexus`) plus eine EIGENE Registry
+  `~/.gitnexus/registry.json`. Diese zwei Welten divergieren: WSL-Reindex
+  aktualisiert NICHT den Index, den der gitnexus-server-Container serviert.
 - Das `repository-analysis`-Gate (Phase complete) verifiziert nur, dass der
-  GitNexus-Index existiert und queryable ist (`check`) — er **erkennt keine
-  Staleness und aktualisiert nichts**. Deterministische Frische-Prüfung:
+  GitNexus-Index im **gitnexus-server-Container** vorhanden und queryable ist
+  (`check`) — er **erkennt keine Staleness und aktualisiert nichts**.
+  Deterministische Frische-Prüfung:
   `node servers/server-guidance/scripts/check-index-freshness.mjs` (läuft im
-  Guidance-Container). Der Agent MUSS daher VOR `complete_workflow` den Index
-  selbst aktualisieren — im Terminal (gitnexus liegt in WSL hinter nvm):
+  **guidance-Container**, liest die WSL-geschriebene `.gitnexus/meta.json` auf
+  dem `/workspaces`-Mount — die zwei Gates prüfen also zwei unterschiedliche
+  Indizes). Der Agent MUSS daher VOR `complete_workflow` den Index selbst
+  aktualisieren — im Terminal (gitnexus-CLI in WSL hinter nvm):
   `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd
-  /mnt/d/repos/Thinking-MCP && gitnexus analyze --no-stats'` — und das
-  Ergebnis im Abschlussbericht nennen.
+  /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats'` (lowercase-Cwd,
+  KA-4) — und das Ergebnis im Abschlussbericht nennen. Achtung: das frischt
+  nur die WSL-Welt; für Repos außer Thinking-MCP sieht der
+  gitnexus-server-Container den Index trotzdem nicht (GN-2).
 - **Container-Start via `docker compose up -d`** — entweder aus
   `servers/server-guidance` oder aus der Repo-Wurzel (Root-`docker-compose.yml`
   orchestriert alle drei Server). Beide Files müssen den Mount
