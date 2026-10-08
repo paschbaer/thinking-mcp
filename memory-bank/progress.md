@@ -1023,3 +1023,11 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 **What's left:** Push nach origin (ausstehend, nicht angefragt); Phase 2 (GN-D1 dreiwertige Gates + Hybrid-Probe); GN-D3/D4 (Testlücken, Adopt-Asymmetrien); GN-5 (Port-Hardening); Niyama lastCommit populate beim nächsten Reindex.
 
 **Current State:** Guidance-Container mit neuem Stand rebuilt (healthy, configured, alle Workspaces reachable); Stack 5 Container über Basis+Overlay-Kette; beide Completion-Gates der Decouple-Session grün abgeschlossen. Compose-Aufruf kanonisch mit -f docker-compose.yml -f docker-compose.gitnexus.yml.
+
+## 2026-10-08 — Chain-Head Follow-up-Kette gestartet (session-1fa1ffca, verification-only)
+
+**What works:** Chained guidance workflow für 4 getrackte Follow-ups registriert und server-seitig verifiziert (chainSpec persistiert, 4 Steps in Reihenfolge): gn-d6-api-reindex → gn-d5-url-topology → gnd1-probe-residuals → chfix-9-session-persistence. Head-Zyklus lief als reiner Koordinations-/Verifikationsscope (understand/plan/review mit 4 sequential_thinking-Pässen + assumption_xray/argument_map, get_workflow_state-Nachweis) ohne Implementierung der Successor-Scopes; activeContext.md dokumentiert Kettenstart + Successor-Warnungen (Parallel-Agenten, Restart-Anfälligkeit bis CHFIX-9).
+
+**What's left:** Successor 1 (GN-D6) startet mit Head-Completion; danach GN-D5, GND1-TEST-1/RESIDUALS, CHFIX-9 (HIGH, letzter und größter Schritt). Offene getrackte Follow-ups GN-2 (lastCommit residual), GN-6/7/8, CHFIX-10 bleiben unberührt von dieser Kette.
+
+**Current State:** Checkout develop @ 3709b1c, Baum vor Head-Arbeit sauber; Head ändert ausschließlich memory-bank-Dateien (gezielter Commit). Kette anfällig für Guidance-Server-Restarts, bis CHFIX-9 implementiert ist.

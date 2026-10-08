@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-08: CHAIN HEAD GESTARTET — 4-Step-Follow-up-Kette GN-D6/GN-D5/GND1/CHFIX-9 (session-1fa1ffca, verification-only)
+
+- **Chain registriert und server-seitig persistiert** (get_workflow_state verifiziert, chainIndex 0): Successors in Reihenfolge (1) `gn-d6-api-reindex` (Reindex auf gitnexus-HTTP-API umstellen: reindexCommand/AGENTS.md/REMDY synchronisieren, wsl-CLI als Fallback), (2) `gn-d5-url-topology` (URL-Topologie vom Writer-Mode entkoppeln + GITNEXUS_URL-Render-Regressionstest), (3) `gnd1-probe-residuals` (dedizierter Chain-Successor-Probe-Test + Per-Residual-Entscheidung a–g), (4) `chfix-9-session-persistence` (HIGH: Sessions überleben Server-Restart — Disk-Reload/In-Process-Re-Pin + README-Präzisierung).
+- **Head-Scope:** rein Koordination/Verifikation — KEINE Implementierung von steps[]-Scope unter dem Head (Duplikationsfalle für Successor 1). Checkout develop @ 3709b1c, Baum sauber.
+- **Warnung an Successors:** Parallel-Agent-Risiko auf diesem Checkout (2026-10-08 auf WorkflowEngine.ts beobachtet) — vor Start memory-bank/activeContext.md auf konkurrierende Sessions prüfen, minimale Write-Scopes, Feature-Branch feature/<id>-… . Chain anfällig für Guidance-Server-Restart bis CHFIX-9 (letzter Step) greift (session-78776317-Präzedenzfall).
+
 ## 2026-10-08: CHAIN STEP 3 — Doku-Konsolidierung wsl-writer-Architektur (session-b5650a19, feature/gn-chain-step2)
 
 - **Umgesetzt:** Topologie-Doku auf die live wsl-writer-Welt vereinheitlicht — AGENTS.md-Topologie-Bullet (WSL-CLI = single writer, Container = read-only Dual-Mount-Reader, Container-Analyze verboten; Backup + Widerspruchscheck gemäß Regel-Protokoll), .guidance/responses.json Complete-Instruction (wsl.exe-Reindex statt Container-Analyze; Rebind-Pfad live verifiziert), docker-compose.gitnexus.yml-Header, README (Deployment-Block + Working-Sample-Tabelle; generischer Container-Mode-Beispiel bleibt). GND1-DOC-1 resolved; lessonsLearned-Eintrag wsl-writer identity unification ergänzt; GN-D1/D3/D4/GN-5-Auflösungen waren bereits aus Step 2 committet.
