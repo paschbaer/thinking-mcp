@@ -3,6 +3,9 @@
 > Recurring bugs, traps, and best practices. Check BEFORE starting a new task;
 > update when resolving a recurring bug or making a strategic decision
 
+## 2026-10-09 — GND1-Session lessons (feature/gnd1-probe-residuals)
+- **retry_operation war ein kostenloser Phasen-Advance:** retryOperations advancte nach grünem Ops-Re-Run die Phase UNBEDINGT — ohne Prüfung, ob ein Submission für die Phase recorded ist. Bei leerem beforeExit (Standard-Phasen) konnte jede Session per retry_operation ohne Submission durch die Phasen geschoben werden; live 2x als Desync erlebt (Phase übersprungen, submissions:{} leer, Inhalt verloren geglaubt). → Prevention/Fix: Guard hält die Transition ohne Phase-Submission (complete ausgenommen — pendingCompletion-GDS-6); Regressionstest pinnt beide Richtungen. Agent-seitig: nach required_hook_failed auf eine Submission ERST get_workflow_state prüfen (submissions + Phase) und die Submission resubmitten — NICHT blind retry_operation (das heilt nur Ops, nie die Submission).
+
 ## 2026-10-08 — Chain-Step-workflowId ist seit specs/017 eine Registry-Referenz
 - **workflowId in chain.steps wird gegen die Workflow-Registry aufgelöst:** Seit specs/017 (FR-1) failt die Engine geschlossen mit `workflow_not_found` (erwartet `.guidance/workflows/<id>.json`), wenn ein Chain-Step eine workflowId trägt, die keine Registry-Definition ist — und zwar erst beim `complete_workflow` (Successor-Spawn), NICHT schon bei `start_workflow`. Freiform-Labels („gn-d6-api-reindex“ als Schrittname) sind Legacy-Semantik aus Pre-017-Zeiten. → Prevention: in chain.steps KEINE workflowId setzen (Successors erben standard-development) oder eine echte Registry-Datei referenzieren; Stolper-Symptom ist ein scheinbar erfolgreicher Head-Lauf, der erst in der Completion explodiert. Zusätzlich gelernt: check-final-review.mjs verlangt lowercase severities (low/high/…) und Status fixed|tracked|accepted sowie base+head im commits-Array.
 

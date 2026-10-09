@@ -1031,3 +1031,11 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 **What's left:** Successor 1 (GN-D6) startet mit Head-Completion; danach GN-D5, GND1-TEST-1/RESIDUALS, CHFIX-9 (HIGH, letzter und größter Schritt). Offene getrackte Follow-ups GN-6 (lastCommit residual), GN-7/8, CHFIX-10 bleiben unberührt von dieser Kette (Hinweis: lastCommit ist GN-6; GN-2 ist bereits gelöst).
 
 **Current State:** Checkout develop @ 3709b1c, Baum vor Head-Arbeit sauber; Head ändert ausschließlich memory-bank-Dateien (gezielter Commit). Kette anfällig für Guidance-Server-Restarts, bis CHFIX-9 implementiert ist.
+
+## 2026-10-09 - GND1 Successor-Probe-Test + Desync-Fix (Chain Successor 3, session-0046f81b, feature/gnd1-probe-residuals)
+
+What works: Dedizierter Chain-Successor-Probe-Test (GND1-TEST-1, plainOps-Fixture + makeChainedEngine, bounded Poll, exactly-once, Head/Successor unabhaengig); GND1-DESYNC-1 gefixt: retryOperations-Guard haelt Phasen-Transition ohne recorded Submission (complete ausgenommen, GDS-6), Regressionstest in chain.test.ts pinnt beide Richtungen; Residuals (a)-(g) re-verifiziert, alle 7 unveraendert accepted (Entscheidungstabelle in activeContext). 37/37 zielgerichtet, Vollsuite 723/723, tsc clean.
+
+What's left: Chain Successor 4 (CHFIX-9, HIGH: Session-Persistenz ueber Server-Restart) — der Desync-Fix beruehrt Lebenszyklus, aber CHFIX-9 bleibt unberuehrt. Merge-Reihenfolge der 3 Feature-Branches beim User.
+
+Current State: feature/gnd1-probe-residuals (von develop) haelt WorkflowEngine-Guard + 2 Test-Dateien + memory-bank; parallele Branches gn-d6/gn-d5 ungemergt (Code disjunkt, memory-bank-Merge-Konflikte erwartet und loesbar).

@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
+import { OperationEngine } from "../../src/orchestration/OperationEngine.js";
 
 const FIXTURE_SOURCE = join(import.meta.dirname, "fixtures/guidance");
 
@@ -30,6 +31,11 @@ interface Scenario {
   placement?: "beforeEnter" | "afterEnter";
   /** Add a required noop process op alongside (afterEnter tests). */
   withRequiredNoop?: boolean;
+  /** Keep the fixture's original operations.json + workflow.json gate
+   *  placement untouched (for tests that walk phases to completion and only
+   *  need the downstream server entry + declared state, e.g. the
+   *  chain-successor probe test). */
+  plainOps?: boolean;
 }
 
 function readJson(p: string): Record<string, unknown> {
@@ -74,6 +80,11 @@ function buildConfig(scenario: Scenario): void {
       },
     },
   });
+  if (scenario.plainOps) {
+    // Downstream server + declared state + egress are already written; the
+    // fixture's own operations/workflow stay in place (walkable phases).
+    return;
+  }
   // Single gitnexus mcpTool gate (+ optional noop) bound to understand.
   const ops: Record<string, unknown> = {
     "gitnexus-check": {
@@ -129,6 +140,28 @@ function buildConfig(scenario: Scenario): void {
 function makeEngine(): WorkflowEngine {
   const config = loadConfig(configDir);
   return new WorkflowEngine({ config, stateDir: join(ws, "state") });
+}
+
+/** Engine with chaining enabled (Amendment 002) — for the successor-probe
+ *  test: the config gains chain { enabled } exactly like chain.test.ts, and a
+ *  stubbed downstream invoker lets required mcpTool completion ops succeed
+ *  (same pattern as chain.test.ts's makeEngine). */
+function makeChainedEngine(): WorkflowEngine {
+  const config = loadConfig(configDir);
+  config.chain = {
+    enabled: true,
+    maxChainDepth: 8,
+    maxStepsPerManifest: 16,
+  };
+  const opEngine = new OperationEngine();
+  opEngine.setDownstreamInvoker({
+    invokeTool: async () => ({ kind: "success" as const, content: [] }),
+  });
+  return new WorkflowEngine({
+    config,
+    stateDir: join(ws, "state"),
+    operationEngine: opEngine,
+  });
 }
 
 type EngineInternals = {
@@ -367,6 +400,92 @@ describe("hybrid capability probe (GN-D1)", () => {
       kind: "required-unreachable",
       source: "probe",
       live: "unreachable",
+    });
+  });
+});
+
+describe("chain-successor probe (GND1-TEST-1)", () => {
+  /** Walks a session from understand to verify, ready for complete_workflow
+   *  (same minimal payloads as chain.test.ts's walkToVerify). */
+  async function walkPhases(
+    eng: WorkflowEngine,
+    sessionId: string,
+  ): Promise<void> {
+    const sub = (p: string, payload: Record<string, unknown>) =>
+      eng.submit(sessionId, p, payload);
+    await sub("understand", { summary: "s", acceptanceCriteria: ["a"] });
+    await sub("plan", { tasks: [{ id: "T1" }] });
+    await sub("review_and_adjust_plan", {
+      findings: [],
+      approvedPlan: { tasks: [] },
+    });
+    await sub("implement", {
+      implementedTasks: ["T1"],
+      changedFiles: ["a.ts"],
+    });
+    await sub("review_and_fix_implementation", {
+      findings: [],
+      filesChangedDuringReview: [],
+    });
+    await sub("verify", { verificationSummary: ["ok"] });
+  }
+
+  it("completing a chained head fires the capability probe for the SUCCESSOR session (exactly-once, independent of the head event)", async () => {
+    // The fixture's own ops/workflow stay in place so phases walk to
+    // completion; the gitnexus downstream entry + declared state drive the
+    // probe (stubbed ping -> deterministic unreachable).
+    buildConfig({ declared: "required", opRequired: false, plainOps: true });
+    writeFileSync(
+      join(ws, "package.json"),
+      JSON.stringify({
+        name: "ws",
+        scripts: {
+          lint: 'node -e "process.exit(0)"',
+          test: 'node -e "process.exit(0)"',
+          build: 'node -e "process.exit(0)"',
+        },
+      }),
+    );
+    const engine = makeChainedEngine();
+    (engine as unknown as EngineInternals).pingGitnexusServer = async () =>
+      false;
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "HEAD-REQUEST",
+      chain: { steps: [{ request: "SUCCESSOR-REQUEST" }] },
+    });
+    await walkPhases(engine, head.sessionId);
+    const completion = await engine.completeWorkflow(head.sessionId, {
+      summary: "head done",
+    });
+    expect(completion.nextSessionId).toBeTruthy();
+    const successorId = completion.nextSessionId!;
+
+    // The probe is fire-and-forget inside createChainSuccessorLocked —
+    // poll the successor's audit with a bounded deadline (no sync assumption).
+    const deadline = Date.now() + 5_000;
+    let successorDeviations = deviationsOf(engine, successorId);
+    while (successorDeviations.length === 0 && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+      successorDeviations = deviationsOf(engine, successorId);
+    }
+    expect(successorDeviations).toHaveLength(1);
+    expect(successorDeviations[0]!.data).toMatchObject({
+      kind: "required-unreachable",
+      source: "probe",
+    });
+    // Exactly-once guard spans the creation-path probe AND a manual re-probe.
+    await (engine as unknown as EngineInternals).probeCapabilityState(
+      successorId,
+    );
+    expect(deviationsOf(engine, successorId)).toHaveLength(1);
+
+    // The head fired its own independent probe event at startWorkflow.
+    const headDeviations = deviationsOf(engine, head.sessionId);
+    expect(headDeviations).toHaveLength(1);
+    expect(headDeviations[0]!.data).toMatchObject({
+      kind: "required-unreachable",
+      source: "probe",
     });
   });
 });

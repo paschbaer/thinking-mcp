@@ -703,6 +703,34 @@ describe("Amendment 002: workflow chaining", () => {
     expect(s.chainFrom).toBeUndefined();
   });
 
+  it("GND1-DESYNC-1: retry_operation never advances a phase whose submission was never recorded", async () => {
+    // Live evidence (2026-10-09, two occurrences): a transient lifecycle-hook
+    // failure on the first submit left the phase without a recorded
+    // submission; retry_operation then advanced the phase anyway (ops green,
+    // beforeExit empty) — the phase machine skipped ahead with submissions {}
+    // still empty. Regression: retry must hold the transition until the
+    // phase's submission exists (the agent resubmits; hooks now pass).
+    engine = makeEngine();
+    const head = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "desync-repro",
+    });
+    expect(engine.getSession(head.sessionId).currentPhase).toBe("understand");
+    const retry = await engine.retryOperations(head.sessionId);
+    expect(retry.accepted).toBe(true);
+    // BEFORE the fix this advanced to 'plan' with no understand submission.
+    expect(engine.getSession(head.sessionId).currentPhase).toBe("understand");
+    expect(
+      engine.getSession(head.sessionId).submissions.understand,
+    ).toBeUndefined();
+    // The documented recovery works: a normal submit still advances.
+    await engine.submit(head.sessionId, "understand", {
+      summary: "s",
+      acceptanceCriteria: ["a"],
+    });
+    expect(engine.getSession(head.sessionId).currentPhase).toBe("plan");
+  });
+
   it("§10.10 pruning robustness: head pruned, successor still completes and creates the next step (FR-114)", async () => {
     chainOn();
     engine = makeEngine();
