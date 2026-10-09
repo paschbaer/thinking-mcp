@@ -48,14 +48,14 @@ export interface StorageHandle {
   artifactsDir: string;
 }
 
-let memoized: StorageHandle | null = null;
+let memoized = new Map<string, StorageHandle>();
 
 /** Returns the memoized process-wide storage handle (see module docs).
- * NOTE: after the first call the memo wins — config arguments passed by
- * later callers are intentionally ignored (all production entries pass the
- * same env-resolved config; per-process singleton by design). */
+ * Memo key = (backend, resolved target): production entries always resolve
+ * the SAME env config, so they share ONE adapter per process; callers that
+ * legitimately diverge (tests provisioning per-test stores) get their own
+ * handle instead of riding a stale memo whose directory may be gone. */
 export function buildStorageAdapter(config: ServerConfig = {}): StorageHandle {
-  if (memoized) return memoized;
   const backend = resolveStorageBackend();
   if (backend === "postgres") {
     const connectionString = resolvePostgresConnectionString();
@@ -64,7 +64,10 @@ export function buildStorageAdapter(config: ServerConfig = {}): StorageHandle {
         'EMMS storage backend "postgres" requires EMMS_PG_CONNECTION_STRING — refusing to silently fall back to a local sqlite store. Set EMMS_PG_CONNECTION_STRING (or unset EMMS_STORAGE_BACKEND to use sqlite).',
       );
     }
-    memoized = {
+    const key = `postgres:${connectionString}`;
+    const hit = memoized.get(key);
+    if (hit) return hit;
+    const handle: StorageHandle = {
       adapter: new PostgresAdapter({
         connectionString,
         autoCreateExtension: true,
@@ -73,16 +76,21 @@ export function buildStorageAdapter(config: ServerConfig = {}): StorageHandle {
       // EMMS_STORAGE_PATH if set, else the ~/.insight default.
       artifactsDir: defaultArtifactsDir(),
     };
-    return memoized;
+    memoized.set(key, handle);
+    return handle;
   }
   const resolved = resolveConfig(config);
   // resolveConfig already honors EMMS_STORAGE_PATH
   const storagePath = resolved.storagePath ?? defaultStoragePath();
-  memoized = {
+  const key = `sqlite:${storagePath}`;
+  const hit = memoized.get(key);
+  if (hit) return hit;
+  const handle: StorageHandle = {
     adapter: new SqliteAdapter(storagePath),
     artifactsDir: join(storagePath, "..", "emms-artifacts"),
   };
-  return memoized;
+  memoized.set(key, handle);
+  return handle;
 }
 
 function defaultArtifactsDir(): string {
@@ -92,7 +100,7 @@ function defaultArtifactsDir(): string {
     : join(homedir(), ".insight", "emms-artifacts");
 }
 
-/** Test-only: drops the memo so a new handle is constructed on next call. */
+/** Test-only: drops the memo so new handles are constructed on next call. */
 export function __resetStorageFactoryForTests(): void {
-  memoized = null;
+  memoized = new Map();
 }

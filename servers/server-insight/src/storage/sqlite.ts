@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { mkdir } from "node:fs/promises";
+import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
   Attempt,
@@ -47,13 +47,17 @@ export class SqliteAdapter implements StorageAdapter {
   }
 
   private async doInit(): Promise<void> {
-    // Async, fault-tolerant directory creation (SRCH-2-R4): previously a
-    // synchronous mkdirSync ran inside the listen callback and crashed
-    // startup outright on an unwritable home. The failure now surfaces as a
-    // rejected init with an actionable message instead.
+    // Fault-tolerant directory creation (SRCH-2-R4): previously a
+    // synchronous mkdirSync ran INSIDE the listen callback and crashed
+    // startup outright on an unwritable home. Here it runs behind the init
+    // promise (never on the synchronous startup path), and failures surface
+    // as a rejected init with an actionable message instead. Kept synchronous
+    // ON PURPOSE: doInit's body must stay microtask-fast so the init promise
+    // settles before the first tool call touches the db (the suite's timing
+    // assumption since the deferred-init design).
     const dir = dirname(this.path);
     try {
-      await mkdir(dir, { recursive: true });
+      mkdirSync(dir, { recursive: true });
     } catch (e) {
       throw new Error(
         `Cannot create storage directory ${dir} (${e instanceof Error ? e.message : String(e)}) — set EMMS_STORAGE_PATH to a writable location or fix the directory permissions.`,

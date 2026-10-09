@@ -90,6 +90,17 @@ describe("Storage factory (SRCH-2-R3)", () => {
     );
   });
 
+  it("distinct storage paths get DISTINCT handles (per-test stores must not ride a stale memo)", () => {
+    vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "a.db"));
+    const a = buildStorageAdapter();
+    vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "b.db"));
+    const b = buildStorageAdapter();
+    expect(b.adapter).not.toBe(a.adapter);
+    // Same path again still memoizes
+    vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "a.db"));
+    expect(buildStorageAdapter().adapter).toBe(a.adapter);
+  });
+
   it("sqlite backend stays the default without EMMS_STORAGE_BACKEND", () => {
     vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "store.db"));
     const { adapter } = buildStorageAdapter();
