@@ -11,6 +11,7 @@ import {
   deriveAdoptGn,
   generateFiles,
   parseGnSetup,
+  renderAdoptedResponses,
   validateGnSetup,
   type GitNexusSetup,
 } from "../../src/setup/ConfigAssistant.js";
@@ -190,6 +191,7 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
       validateGnSetup({
         state: "required",
         mode: "compose-container",
+        topology: "compose-dns",
         reindexCommand: "",
       }),
     ).toThrowError(/reindexCommand is required when mode=compose-container/);
@@ -197,6 +199,7 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
       validateGnSetup({
         state: "optional",
         mode: "compose-container",
+        topology: "compose-dns",
         reindexCommand: "  ",
       }),
     ).toThrowError(/reindexCommand is required/);
@@ -204,6 +207,7 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
       validateGnSetup({
         state: "required",
         mode: "compose-container",
+        topology: "compose-dns",
         reindexCommand: "docker compose exec ...",
       }),
     ).not.toThrow();
@@ -211,6 +215,7 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
       validateGnSetup({
         state: "off",
         mode: "compose-container",
+        topology: "compose-dns",
         reindexCommand: "",
       }),
     ).not.toThrow();
@@ -218,6 +223,7 @@ describe("fail-closed validation (optional-decoupling phase 1)", () => {
       validateGnSetup({
         state: "required",
         mode: "local-cli",
+        topology: "host-gateway",
         reindexCommand: "",
       }),
     ).not.toThrow();
@@ -276,6 +282,7 @@ describe("adopt derivation (deriveAdoptGn)", () => {
   const base: GitNexusSetup = {
     state: "optional",
     mode: "local-cli",
+    topology: "host-gateway",
     reindexCommand: "",
   };
   const ops = { "repository-analysis": { type: "mcpTool" } };
@@ -328,6 +335,150 @@ describe("adopt derivation (deriveAdoptGn)", () => {
     expect(gn.reindexCommand).toBe("");
     expect(() => validateGnSetup(gn)).toThrowError(
       /reindexCommand is required/,
+    );
+  });
+});
+
+describe("GN-D5: URL topology decoupled from the writer mode", () => {
+  const ops = { "repository-analysis": { type: "mcpTool" } };
+  const base: GitNexusSetup = {
+    state: "optional",
+    mode: "local-cli",
+    topology: "host-gateway",
+    reindexCommand: "",
+  };
+
+  it("absent topology answer derives from the mode (backward compatible)", () => {
+    expect(parseGnSetup({ gitnexus: "required" }).topology).toBe(
+      "host-gateway",
+    );
+    expect(
+      parseGnSetup({ gitnexus: "required", gitnexusMode: "compose-container" })
+        .topology,
+    ).toBe("compose-dns");
+  });
+
+  it("unknown non-empty topology answer fails closed", () => {
+    expect(() =>
+      parseGnSetup({
+        gitnexus: "required",
+        gitnexusTopology: "compose-dns-host",
+      }),
+    ).toThrowError(/unsupported gitnexusTopology value/);
+  });
+
+  it("MIXED SHAPE (live wsl-writer): local-cli + compose-dns renders the compose-DNS URL + matching egress, no dead host-gateway entry", () => {
+    const files = generateFiles({
+      ...BASE_ANSWERS,
+      gitnexus: "required",
+      gitnexusMode: "local-cli",
+      gitnexusTopology: "compose-dns",
+      transport: "http-docker",
+    }).files;
+    const byPath = new Map(files.map((f) => [f.path, f.content] as const));
+    const ds = JSON.parse(byPath.get("downstream-servers.json") ?? "{}");
+    expect(ds.servers.gitnexus.transport.http.url).toBe(
+      "http://gitnexus-server:4747/api/mcp",
+    );
+    expect(ds.servers.gitnexus.containerRoute.url).toBe(
+      "http://gitnexus-server:4747/api/mcp",
+    );
+    const pol = JSON.parse(byPath.get("policies.json") ?? "{}");
+    expect(pol.egress.httpHostAllowlist).toContain("gitnexus-server:4747");
+    expect(pol.egress.httpHostAllowlist).not.toContain(
+      "host.docker.internal:4747",
+    );
+  });
+
+  it("INVERSE MIXED SHAPE: compose-container + host-gateway renders the host-gateway URL", () => {
+    const files = generateFiles({
+      ...BASE_ANSWERS,
+      gitnexus: "required",
+      gitnexusMode: "compose-container",
+      gitnexusReindexCommand: "docker compose exec ...",
+      gitnexusTopology: "host-gateway",
+      transport: "http-docker",
+    }).files;
+    const byPath = new Map(files.map((f) => [f.path, f.content] as const));
+    const ds = JSON.parse(byPath.get("downstream-servers.json") ?? "{}");
+    expect(ds.servers.gitnexus.transport.http.url).toBe(
+      "http://host.docker.internal:4747/api/mcp",
+    );
+    const pol = JSON.parse(byPath.get("policies.json") ?? "{}");
+    expect(pol.egress.httpHostAllowlist).toContain(
+      "host.docker.internal:4747",
+    );
+    expect(pol.egress.httpHostAllowlist).not.toContain("gitnexus-server:4747");
+  });
+
+  it("ADOPT: the reference downstream URL wins over the mode (live-shape regression)", () => {
+    // local-cli reference with a compose-DNS URL => compose-dns topology
+    const mixed = deriveAdoptGn(
+      {
+        gitnexus: {
+          state: "required",
+          mode: "local-cli",
+          reindexCommand: "bash scripts/reindex-via-api.sh",
+        },
+      },
+      ops,
+      base,
+      "http://gitnexus-server:4747/api/mcp",
+    );
+    expect(mixed.mode).toBe("local-cli");
+    expect(mixed.topology).toBe("compose-dns");
+    // compose-container reference with a host-gateway URL => host-gateway
+    const inverse = deriveAdoptGn(
+      { gitnexus: { state: "required", mode: "compose-container" } },
+      ops,
+      base,
+      "http://host.docker.internal:4747/api/mcp",
+    );
+    expect(inverse.topology).toBe("host-gateway");
+    // no usable URL => mode-derived default
+    const fallback = deriveAdoptGn(
+      { gitnexus: { state: "required", mode: "local-cli" } },
+      ops,
+      base,
+    );
+    expect(fallback.topology).toBe("host-gateway");
+  });
+
+  it("F-2 REGRESSION: rendered {{GITNEXUS_URL}} token matches the topology for pure and mixed shapes", () => {
+    const wisdom = {
+      phases: {
+        complete: {
+          instruction:
+            "Reindex via {{GITNEXUS_URL}} with {{GITNEXUS_REINDEX_CMD}}.{{#server:gitnexus}} GN on.{{/server:gitnexus}}",
+        },
+      },
+    };
+    const target = (
+      gitnexusTopology?: string,
+      transport = "http-docker",
+    ) => ({
+      shell: "",
+      transport,
+      enabledServers: new Set(["gitnexus"]),
+      projectName: "p",
+      gitnexusReindexCommand: "cmd",
+      gitnexusTopology,
+    });
+    const mixed = JSON.parse(
+      renderAdoptedResponses(wisdom, target("compose-dns")),
+    );
+    expect(mixed.phases.complete.instruction).toContain(
+      "http://gitnexus-server:4747/api/mcp",
+    );
+    const pure = JSON.parse(
+      renderAdoptedResponses(wisdom, target("host-gateway")),
+    );
+    expect(pure.phases.complete.instruction).toContain(
+      "http://host.docker.internal:4747/api/mcp",
+    );
+    const stdio = JSON.parse(renderAdoptedResponses(wisdom, target(undefined, "stdio")));
+    expect(stdio.phases.complete.instruction).toContain(
+      "http://localhost:4747/api/mcp",
     );
   });
 });

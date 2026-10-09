@@ -170,6 +170,15 @@ const QUESTIONS: SetupQuestion[] = [
     default: "local-cli",
   },
   {
+    id: "gitnexusTopology",
+    question:
+      "How does the guidance container REACH the gitnexus server: compose-dns or host-gateway? (only when GitNexus is not off)",
+    help: "Reachability is independent of the writer mode above. compose-dns = the gitnexus-server runs in the same docker compose network (URL http://gitnexus-server:4747 — the typical wsl-writer mixed shape: host-side CLI writer + compose server). host-gateway = the server is only reachable on the host (URL http://host.docker.internal:4747). Default derives from the mode (compose-container -> compose-dns, local-cli -> host-gateway); answer explicitly whenever your deployment mixes the two (e.g. local-cli writer + compose-DNS server). In adopt mode this is derived from the reference downstream URL.",
+    options: ["compose-dns", "host-gateway"],
+    required: false,
+    default: "",
+  },
+  {
     id: "gitnexusReindexCommand",
     question:
       "Exact reindex command for the compose-container mode (e.g. 'docker compose -f <base> -f <overlay> exec -w /workspaces/<repo> gitnexus-server gitnexus analyze --no-stats')?",
@@ -204,6 +213,7 @@ const DERIVED_IN_ADOPT = new Set([
   "insight",
   "gitnexus",
   "gitnexusMode",
+  "gitnexusTopology",
   "gitnexusReindexCommand",
   "gates",
 ]);
@@ -212,9 +222,21 @@ const DERIVED_IN_ADOPT = new Set([
 export interface GitNexusSetup {
   state: "required" | "optional" | "off";
   mode: "local-cli" | "compose-container";
+  /** How the guidance container reaches the server — decoupled from the
+   *  writer mode (GN-D5): compose-dns (same compose network) or
+   *  host-gateway (host.docker.internal). Derived from the mode when the
+   *  answer is absent (backward compatible). */
+  topology: "compose-dns" | "host-gateway";
   /** Exact operator-provided command (compose-container mode); the plain
    *  shell command is rendered for local-cli. */
   reindexCommand: string;
+}
+
+/** Mode-derived topology default: a compose-container server sits in the
+ *  project network (compose DNS); a host-side CLI server is reached over
+ *  the host gateway. Explicit answers override this. */
+function defaultTopology(mode: GitNexusSetup["mode"]): GitNexusSetup["topology"] {
+  return mode === "compose-container" ? "compose-dns" : "host-gateway";
 }
 
 /** Maps raw answers (tri-state or legacy yes/no/boolean) to the setup.
@@ -242,8 +264,27 @@ export function parseGnSetup(answers: SetupAnswers): GitNexusSetup {
     answers.gitnexusMode === "compose-container"
       ? "compose-container"
       : "local-cli";
+  const rawTopology = answers.gitnexusTopology;
+  if (
+    rawTopology !== undefined &&
+    rawTopology !== "" &&
+    rawTopology !== "compose-dns" &&
+    rawTopology !== "host-gateway"
+  ) {
+    throw new GuidanceError(
+      "configuration_invalid",
+      `setup answers: unsupported gitnexusTopology value ${JSON.stringify(
+        rawTopology,
+      )} (expected compose-dns|host-gateway)`,
+      { recoverable: true },
+    );
+  }
+  const topology: GitNexusSetup["topology"] =
+    rawTopology === "compose-dns" || rawTopology === "host-gateway"
+      ? rawTopology
+      : defaultTopology(mode);
   const reindexCommand = String(answers.gitnexusReindexCommand ?? "").trim();
-  return { state, mode, reindexCommand };
+  return { state, mode, topology, reindexCommand };
 }
 
 /** Cross-field validation, applied AFTER parsing AND after the adopt
@@ -280,6 +321,7 @@ export function deriveAdoptGn(
   refGuidance: Record<string, unknown>,
   refOpsMap: Record<string, Record<string, unknown>>,
   base: GitNexusSetup,
+  refGnUrl?: string,
 ): GitNexusSetup {
   const refGn = (
     refGuidance as {
@@ -310,6 +352,7 @@ export function deriveAdoptGn(
           ? "required"
           : "off",
     mode: base.mode,
+    topology: base.topology,
     reindexCommand: base.reindexCommand,
   };
   if (refGn) {
@@ -319,6 +362,23 @@ export function deriveAdoptGn(
     if (typeof refGn.reindexCommand === "string") {
       gn.reindexCommand = refGn.reindexCommand.trim();
     }
+  }
+  // GN-D5: the reference downstream URL is the LIVE reachability fact — it
+  // wins over any mode-derived assumption (a local-cli reference with a
+  // compose-DNS URL is the regenerable mixed shape). Without a usable URL,
+  // the topology derives from the FINAL mode.
+  if (typeof refGnUrl === "string" && refGnUrl.trim() !== "") {
+    const host = refGnUrl
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/[\/].*$/, "")
+      .replace(/:[0-9]+$/, "");
+    gn.topology =
+      host === "host.docker.internal" || host === "localhost" || host === "127.0.0.1"
+        ? "host-gateway"
+        : "compose-dns";
+  } else {
+    gn.topology = defaultTopology(gn.mode);
   }
   return gn;
 }
@@ -454,13 +514,15 @@ function insightUrl(transport: string): string {
     : "http://localhost:3002/mcp";
 }
 
-/** GitNexus MCP endpoint, keyed by transport AND deployment mode: a
- *  compose-container gitnexus-server is reached over compose DNS inside the
- *  project network (and may be loopback-bound on the host); a local-CLI
- *  gitnexus runs host-side and is reached via the host gateway. */
-function gitnexusUrl(transport: string, mode?: string): string {
+/** GitNexus MCP endpoint, keyed by transport AND reachability topology
+ *  (GN-D5 decoupling): compose-dns = the gitnexus-server is a compose
+ *  service in the project network (URL via compose DNS, may be
+ *  loopback-bound on the host); host-gateway = the server runs host-side
+ *  and is reached via the host gateway. The topology is independent of the
+ *  writer mode (a local-cli writer can still point at a compose server). */
+function gitnexusUrl(transport: string, topology?: string): string {
   if (transport !== "http-docker") return "http://localhost:4747/api/mcp";
-  return mode === "compose-container"
+  return topology === "compose-dns"
     ? "http://gitnexus-server:4747/api/mcp"
     : "http://host.docker.internal:4747/api/mcp";
 }
@@ -477,13 +539,10 @@ function clearthoughtUrl(transport: string): string {
     : "http://localhost:3000/mcp";
 }
 
-function buildPolicies(transport: string, gnMode?: string): string {
-  const gnHost =
-    transport === "http-docker"
-      ? gnMode === "compose-container"
-        ? "gitnexus-server:4747"
-        : "host.docker.internal:4747"
-      : "localhost:4747";
+function buildPolicies(transport: string, gnTopology?: string): string {
+  const gnHost = gitnexusUrl(transport, gnTopology)
+    .replace(/^https?:\/\//, "")
+    .replace(/\/api\/mcp$/, "");
   const hosts =
     transport === "http-docker"
       ? ["host.docker.internal:3000", "host.docker.internal:3002", gnHost]
@@ -624,6 +683,7 @@ function questionsSentence(field: string): string {
 export const TEMPLATE_GN: GitNexusSetup = {
   state: "required",
   mode: "local-cli",
+  topology: "host-gateway",
   reindexCommand: "",
 };
 
@@ -974,7 +1034,7 @@ function buildDownstream(
       trustLevel: "trusted",
       transport: {
         type: "http",
-        http: { url: gitnexusUrl(transport, gn.mode) },
+        http: { url: gitnexusUrl(transport, gn.topology) },
       },
       capabilities: {
         allow: {
@@ -986,7 +1046,7 @@ function buildDownstream(
       connection: conn(300),
       // FR-035 amendment: read-only graph queries fall back over the same
       // endpoint when the primary transport times out (see REV-1).
-      containerRoute: { url: gitnexusUrl(transport, gn.mode) },
+      containerRoute: { url: gitnexusUrl(transport, gn.topology) },
     };
   }
   if (insight) {
@@ -1136,12 +1196,28 @@ ${entryJson}`,
       readFileSync(join(resolvedReference, "operations.json"), "utf8"),
     ) as { operations?: Record<string, Record<string, unknown>> };
     const refOpsMap = refOps.operations ?? {};
+    // GN-D5: the reference downstream URL is the live reachability fact —
+    // parse the gitnexus http URL so deriveAdoptGn can derive the topology
+    // from it (mixed shapes like local-cli writer + compose-DNS server stay
+    // regenerable). downstream-servers.json presence is guaranteed by
+    // validateAdoptReference; parsing stays defensive anyway.
+    let refGnUrl: string | undefined;
+    try {
+      const refDownstream = JSON.parse(
+        readFileSync(join(resolvedReference, "downstream-servers.json"), "utf8"),
+      ) as {
+        servers?: Record<string, { transport?: { http?: { url?: string } } }>;
+      };
+      refGnUrl = refDownstream.servers?.gitnexus?.transport?.http?.url;
+    } catch {
+      refGnUrl = undefined; // defensive: fall back to mode-derived topology
+    }
     insight = isBuiltin
       ? "store-completion-insight" in refOpsMap ||
         "query-project-insights" in refOpsMap ||
         "capture-session-lessons" in refOpsMap
       : "capture-session-lessons" in refOpsMap;
-    gn = deriveAdoptGn(refGuidance, refOpsMap, gn);
+    gn = deriveAdoptGn(refGuidance, refOpsMap, gn, refGnUrl);
     gates = "lint" in refOpsMap && "test" in refOpsMap ? "standard" : "minimal";
     const genericPreset = new Set([
       "lint",
@@ -1234,7 +1310,7 @@ ${entryJson}`,
       wfText = JSON.stringify(wf, null, 2);
     }
     workflowOverride = wfText;
-    policiesOverride = buildPolicies(transport, gn.mode);
+    policiesOverride = buildPolicies(transport, gn.topology);
     downstreamOverride = buildDownstream(insight, gn, transport);
     // FR-981/FR-992..994 (specs/012+013): adopt the reference RESPONSES.
     // Builtin adopt renders the wisdom baseline (fail-closed if missing);
@@ -1284,7 +1360,7 @@ ${entryJson}`,
         ]),
         projectName: name,
         gitnexusReindexCommand: renderReindexCommand(gn),
-        gitnexusMode: gn.mode,
+        gitnexusTopology: gn.topology,
       },
       // FR-995: wisdom sources must render completely; mounted fallback
       // responses.json keeps the lenient 012 behavior.
@@ -1413,7 +1489,7 @@ ${entryJson}`,
     },
     {
       path: "policies.json",
-      content: policiesOverride ?? buildPolicies(transport, gn.mode),
+      content: policiesOverride ?? buildPolicies(transport, gn.topology),
     },
   ];
   // WIZ-3: the former spec-kit profile file emission is gone — integrations
@@ -1579,16 +1655,17 @@ export function renderAdoptedResponses(
     /** Optional-decoupling phase 1: rendered reindex command inside the
      *  {{#server:gitnexus}} block of wisdom baselines. */
     gitnexusReindexCommand?: string;
-    /** Deployment mode — decides the rendered GITNEXUS_URL topology
-     *  (compose DNS for compose-container, host gateway otherwise). */
-    gitnexusMode?: string;
+    /** Reachability topology (GN-D5) — decides the rendered GITNEXUS_URL
+     *  (compose DNS for compose-dns, host gateway otherwise); independent
+     *  of the writer mode. */
+    gitnexusTopology?: string;
   },
   opts?: { strictLeftovers?: boolean },
 ): string {
   const tokens: Record<string, string> = {
     CLEARTHOUGHT_URL: clearthoughtUrl(target.transport),
     INSIGHT_URL: insightUrl(target.transport),
-    GITNEXUS_URL: gitnexusUrl(target.transport, target.gitnexusMode),
+    GITNEXUS_URL: gitnexusUrl(target.transport, target.gitnexusTopology),
     PROJECT_NAME: target.projectName,
     GITNEXUS_REINDEX_CMD:
       target.gitnexusReindexCommand ?? "gitnexus analyze --no-stats",
