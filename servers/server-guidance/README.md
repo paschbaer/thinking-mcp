@@ -1747,11 +1747,22 @@ workspace root generates the uv-based Python op set (`toolchain-sync`,
 ### Dependency-bootstrap operations
 
 Node workspaces get two healing operations in the shipped catalogs
-(scaffold template, config-assistant, `examples/default-guidance`):
+(scaffold template, config-assistant, `examples/default-guidance`). Their
+strategies are **package-manager-parameterized per workspace**: the config
+assistant asks for the repo's package manager (detected from the lockfile —
+yarn.lock → yarn, pnpm-lock.yaml → pnpm, otherwise npm) and generates the
+matching strategies; the shipped template defaults to npm. npm roots get
+`npm ci` → `npm install`; pnpm roots get `pnpm install --frozen-lockfile` →
+`pnpm install`; yarn roots (yarn 4+ via the `packageManager` field, e.g.
+through `corepack yarn`) get `yarn install --immutable` → `yarn install` —
+sync-with-lockfile semantics without a destructive `node_modules` reset. A
+workspace's catalog (its `.guidance/operations.json`) is the authoritative
+per-workspace configuration: edit or regenerate it to switch strategies —
+never let an npm-based strategy run against a yarn- or pnpm-managed root.
 
 | Operation        | Semantics                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deps-install`   | composite `firstAvailable`: `npm ci` (clean semantics) with `npm install` fallback — the fallback runs whenever `npm ci` fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); note `npm ci` removes `node_modules` before failing, so a masked failure leaves `node_modules` deleted. The result's `data.via` label (`npm-ci-lockfile` / `npm-install-fallback`) records which strategy ran (audit note) |
+| `deps-install`   | composite `firstAvailable`: the PM's clean/sync strategy with the PM's plain install as fallback — the fallback runs whenever the clean strategy fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); with npm note that `npm ci` removes `node_modules` before failing, so a masked failure leaves `node_modules` deleted. The result's `data.via` label (e.g. `npm-ci-lockfile` / `npm-install-fallback`, `yarn-install-immutable` / `yarn-install-fallback`) records which strategy ran (audit note) |
 | `deps-reinstall` | deletes `node_modules` (lockfile preserved) and reinstalls in one step — workspace-scoped (runs in the workspace root, no path traversal); the remedy for `ERR_DLOPEN_FAILED` native-addon ABI mismatches (reinstall INSIDE the container for a Linux-native tree)                                                                                                                                                                        |
 
 Both are `riskClass: workspace_write`, `required: false`,

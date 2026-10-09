@@ -1633,6 +1633,8 @@ Instead of the simplification, the dedicated clear-thought rule was COMPLETELY d
 - Successor 1 (CHFIX-11-R1): F-3 design decision documented in README (pin persistence & co-running engines, blocking re-assessment trigger preserved); F-2 assertNotDrifted removed (dual evidence: impact 0 callers + grep); 23/23 focused tests green, tsc clean. Remaining-work-plan reclassified.
 - Key successor-2 input (DEPS-OPS-1): PM-aware deps-install generation ALREADY EXISTS in ConfigAssistant (packageManager question, buildOperations PM strategies incl. yarn 4+); locate the instance-level npm-only operations source and apply per-workspace PM (yarn). WF-3: npm never at the yarn root. list_configured_operations returned [] at head — check instance config.
 
+- Successor 2 (DEPS-OPS-1) resolved: workspace operations.json → yarn profile via corepack (DEC-DEPSOPS-1); container-verified corepack yarn 4.6.0; npm never installs at the root; README generalized. Chain CHFIX-11-R1 + DEPS-OPS-1 fully resolved; remaining: merge decision (user).
+
 ## 2026-10-08: GN-D6 tracked — API-based reindexing (verified), agent retreat from the checkout
 
 - **GN-D6 (remaining-work-plan):** POST /api/analyze {"path":"/mnt/d/repos/<repo>"} + GET /api/analyze/<jobId> (poll until complete) — verified live on 2026-10-08 (job 0→100 %, identity /mnt/d preserved). Recommended replacement of the wsl.exe reindexCommand; the switch belongs to the running chain (step 3 or the next trigger).

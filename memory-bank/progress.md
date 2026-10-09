@@ -1112,3 +1112,11 @@ What works: (F-3) design decision documented in servers/server-guidance/README.m
 What's left: successor 2 (DEPS-OPS-1: parameterize deps-install per-workspace PM — PM generation exists in ConfigAssistant; locate instance npm-only operations source); merge of feature/chfix-11-r1-docs-f2 (user decision).
 
 Current State: code+docs change on feature branch; awaiting review + completion.
+
+## 2026-10-09 - DEPS-OPS-1 resolved (chain successor 2, session-c686501b, feature/chfix-11-r1-docs-f2)
+
+What works: workspace .guidance/operations.json parameterized to the yarn profile (decision DEC-DEPSOPS-1): deps-install = corepack yarn install --immutable → corepack yarn install; deps-reinstall = corepack yarn install. Container-verified: bare yarn shim = 1.22.22 (no --immutable), corepack yarn = 4.6.0 — hence the corepack wrapper. npm never installs at this root (WF-3); EACCES fallback path eliminated; README dependency-bootstrap section generalized to per-workspace PM parameterization. Config loads (guidance calls parse operations.json cleanly post-edit).
+
+What's left: merge of feature/chfix-11-r1-docs-f2 (both successor commits) — user decision; optional follow-up: corepack-enable in the container image so plain `yarn` resolves 4+ (tracked in remaining-work-plan.md as optional note).
+
+Current State: config+docs change on feature branch; chain complete after this session.
