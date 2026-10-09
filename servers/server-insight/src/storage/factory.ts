@@ -49,7 +49,10 @@ export interface StorageHandle {
 
 let memoized: StorageHandle | null = null;
 
-/** Returns the memoized process-wide storage handle (see module docs). */
+/** Returns the memoized process-wide storage handle (see module docs).
+ * NOTE: after the first call the memo wins — config arguments passed by
+ * later callers are intentionally ignored (all production entries pass the
+ * same env-resolved config; per-process singleton by design). */
 export function buildStorageAdapter(config: ServerConfig = {}): StorageHandle {
   if (memoized) return memoized;
   const backend = resolveStorageBackend();
