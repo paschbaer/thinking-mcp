@@ -9,8 +9,7 @@
  */
 import { existsSync, realpathSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import { ConfigurationError } from "./config.js";
-import { GuidanceError } from "./types/errors.js";
+import { ConfigurationError, GuidanceError } from "./types/errors.js";
 
 export interface WorkspaceEntry {
   name: string;

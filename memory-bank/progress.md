@@ -1120,3 +1120,11 @@ What works: workspace .guidance/operations.json parameterized to the yarn profil
 What's left: merge of feature/chfix-11-r1-docs-f2 (both successor commits) — DONE: merged to develop as 23d8f77 (no-ff) after full suite 734/734; feature branch deleted; develop ahead 3 of origin (push pending). Optional follow-up: corepack-enable in the container image so plain `yarn` resolves 4+ (tracked in remaining-work-plan.md).
 
 Current State: config+docs change on feature branch; chain complete after this session.
+
+## 2026-10-09 - Import cycle fixed + corepack yarn shim (session-0bebc4bf, feature/cycle-fix-corepack-yarn)
+
+What works: (1) Import cycle config.ts ↔ workspace-registry.ts broken — ConfigurationError moved verbatim to types/errors.ts (leaf module, home of GuidanceError); workspace-registry.ts's config.js import dropped entirely; sole external importer was the cycle partner, no re-export needed. Verified: tsc clean, full suite 734/734; GitNexus repository-analysis gate must re-confirm post-reindex (reindex in completion phase). Impact-gated: upstream impact CRITICAL (hub symbol) resolved via dual evidence (text search: only workspace-registry imports it from config.js) + suite. (2) Dockerfile `corepack enable pnpm yarn` (mirroring the existing pnpm rationale); temp-tag image build + docker run PROOF: bare `yarn --version` = 4.6.0 in /workspaces/Thinking-MCP (was 1.22.22). Running stack NOT recreated (user decision).
+
+What's left: stack recreate to activate the new image; merge decision; push decision.
+
+Current State: two scopes implemented on feature branch; verification green.

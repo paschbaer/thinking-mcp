@@ -66,12 +66,13 @@ COPY package*.json ./
 # (ignore-scripts: native/postinstall steps are handled explicitly below.)
 RUN npm ci --no-audit --no-fund --ignore-scripts
 
-# corepack-pnpm shim: workspace repos pin their own packageManager (e.g. Niyama
-# pnpm@12.4.2) — invoking `pnpm` inside a mounted workspace then resolves that
-# pinned version automatically; no pnpm version is baked into the image.
-# Shim must exist before USER node; the corepack cache under the node user's
+# corepack PM shims: workspace repos pin their own packageManager (e.g. Niyama
+# pnpm@12.4.2, yarn-4 monorepos via yarn@4 in packageManager) — invoking the
+# bare PM inside a mounted workspace then resolves that pinned version
+# automatically; no PM version is baked into the image.
+# Shims must exist before USER node; the corepack cache under the node user's
 # home is populated lazily on first use inside a workspace.
-RUN corepack enable pnpm
+RUN corepack enable pnpm yarn
 
 # Copy source files
 COPY . .

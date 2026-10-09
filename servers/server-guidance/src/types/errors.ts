@@ -107,6 +107,23 @@ export interface GuidanceErrorResponse {
   allowedActions?: string[];
 }
 
+/**
+ * Configuration error (config loading/validation, fail-closed). Lives here —
+ * not in config.ts — so workspace-registry.ts can use it without an import
+ * cycle config.ts ↔ workspace-registry.ts (GitNexus cycle gate).
+ */
+export class ConfigurationError extends Error {
+  readonly code: "configuration_not_found" | "configuration_invalid";
+  constructor(
+    code: "configuration_not_found" | "configuration_invalid",
+    message: string,
+  ) {
+    super(`${code}: ${message}`);
+    this.code = code;
+    this.name = "ConfigurationError";
+  }
+}
+
 export class GuidanceError extends Error {
   readonly code: ErrorCode;
   readonly recoverable: boolean;
