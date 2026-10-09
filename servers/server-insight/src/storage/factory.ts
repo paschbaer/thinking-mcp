@@ -14,7 +14,6 @@
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
 import {
   resolveConfig,
   resolveStorageBackend,
@@ -34,11 +33,13 @@ import type { StorageAdapter } from "./adapter.js";
  * "not found" (reported by the Niyama capture session, wf_225bf751-af3).
  * Override via config.storagePath or EMMS_STORAGE_PATH (docker-compose sets
  * it to the persistent volume).
+ *
+ * PURE path computation (SRCH-2-R4): directory creation happens in the
+ * adapter's async init(), never synchronously here — a sync mkdirSync in
+ * the listen callback crashed startup outright on an unwritable home.
  */
 export function defaultStoragePath(): string {
-  const dir = join(homedir(), ".insight");
-  mkdirSync(dir, { recursive: true });
-  return join(dir, "emms-store.db");
+  return join(homedir(), ".insight", "emms-store.db");
 }
 
 export interface StorageHandle {

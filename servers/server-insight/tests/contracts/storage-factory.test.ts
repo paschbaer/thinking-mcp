@@ -77,6 +77,19 @@ describe("Storage factory (SRCH-2-R3)", () => {
     await expect(adapter.init()).rejects.toThrow(); // fresh attempt, same cause
   });
 
+  it("unwritable storage dir: factory stays sync-safe, init rejects with an actionable error (SRCH-2-R4)", async () => {
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(join(dir, "blocker-r4"), "x");
+    vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "blocker-r4", "store.db"));
+    // Sync path must NOT throw (old behavior: mkdirSync crash mid-listen)
+    const handle = buildStorageAdapter();
+    expect(handle.adapter).toBeDefined();
+    // Failure surfaces asynchronously with an actionable message
+    await expect(handle.adapter.init()).rejects.toThrow(
+      /EMMS_STORAGE_PATH.*permissions|Cannot create storage directory/s,
+    );
+  });
+
   it("sqlite backend stays the default without EMMS_STORAGE_BACKEND", () => {
     vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "store.db"));
     const { adapter } = buildStorageAdapter();
