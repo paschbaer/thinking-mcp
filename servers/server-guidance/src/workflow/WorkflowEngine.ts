@@ -2893,9 +2893,19 @@ export class WorkflowEngine {
     }
     // Session binding mirrors the other session-scoped tools.
     this.getSession(sessionId);
+    // Pin keys are `${serverId}:${toolName}` and TOOL names may contain
+    // colons — split at the FIRST colon (server ids are colon-free slugs)
+    // so a toolName filter never over-matches another tool's suffix
+    // (review F-1: endsWith(":"+toolName) also hit `s1:thinking:analyze`
+    // when releasing `analyze`).
+    const keyOf = (k: string): { sid: string; tname: string } => {
+      const idx = k.indexOf(":");
+      return { sid: k.slice(0, idx), tname: k.slice(idx + 1) };
+    };
     const keys = [...this.pinnedHashes.keys()].filter((k) => {
-      if (opts.serverId && !k.startsWith(`${opts.serverId}:`)) return false;
-      if (opts.toolName && !k.endsWith(`:${opts.toolName}`)) return false;
+      const { sid, tname } = keyOf(k);
+      if (opts.serverId && sid !== opts.serverId) return false;
+      if (opts.toolName && tname !== opts.toolName) return false;
       return true;
     });
     for (const k of keys) this.pinnedHashes.delete(k);

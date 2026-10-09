@@ -376,4 +376,30 @@ describe("hybrid capability re-pin (CHFIX-11)", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("release filters are exact: a toolName never over-matches a colon-containing tool name (review F-1)", async () => {
+    seedWorkspace();
+    // Two pins: a colon-containing tool name on s1 and the plain name on s2.
+    writePins({ "s1:thinking:analyze": "h1", "s2:analyze": "h2" });
+    const engine = makeEngine();
+    const start = await engine.startWorkflow({
+      workspaceRoot: ws,
+      request: "r",
+    });
+    const released = engine.releaseCapabilityPins(start.sessionId, {
+      toolName: "analyze",
+      confirm: true,
+    });
+    expect(released).toEqual({ released: 1 });
+    expect(readPins()).toEqual({ "s1:thinking:analyze": "h1" });
+    // The reset audit carries the payload fields (released + filter).
+    const resets = sessionAudit(start.sessionId).filter(
+      (e) =>
+        (e as { eventType?: string }).eventType === "capability_pins_reset",
+    );
+    expect(resets).toHaveLength(1);
+    expect(resets[0]).toMatchObject({
+      data: { released: 1, toolName: "analyze" },
+    });
+  });
 });

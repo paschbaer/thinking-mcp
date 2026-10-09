@@ -393,7 +393,9 @@ removes the pins in memory and on disk (co-running engine instances keep
 their pins via merge-on-save), audits `capability_pins_reset` on the calling
 session, and the **next successful tool call re-pins automatically** — no
 server restart is needed. Pins are never re-pinned silently: drift always
-fails closed first; only the explicit release re-enables discovery.
+fails closed first; only the explicit release re-enables discovery. Like
+`call_downstream` and `run_operation`, the tool is not registered in remote
+mode (fail-closed; remote sessions produce no in-process pins).
 
 #### `run_operation` with argument overrides
 
