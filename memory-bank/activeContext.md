@@ -17,7 +17,6 @@
 - **Umgebungszwischenfall:** /tmp (tmpfs 7,8G) durch ~4700 relocated-venv-Testrückstände voll → 5 E2E-Fails „No space left on device"; Scratch geräumt (rm -rf /tmp/relocated-venv-* /tmp/guidance-py-e2e-*), danach Vollsuite 727/727 grün, tsc clean. Vorherige Fails waren umgebungsbedingt, nicht diff-bedingt.
 - **Branch:** feature/gn-d5-url-topology (von develop; Dateien disjunkt zu feature/gn-d6-api-reindex — Merge-Reihenfolge beliebig, nur memory-bank kann konfligieren).
 
-## 2026-10-09: CHAIN SUCCESSOR 1 — GN-D6 API-Reindex umgesetzt (session-7c6ae379, feature/gn-d6-api-reindex)
 ## 2026-10-09: CHAIN SUCCESSOR 4 — CHFIX-9 Evidence-Closure Pfad A (session-f0015ea9, feature/chfix-9-session-persistence)
 
 - **Prämisse widerlegt (2 Regressionstests):** Sessions überleben Restarts auf Engine- UND Pool-Ebene (SessionRepository file-backed; registry-only-Instanz re-resolvt Workspace-Sessions nach Neustart-Simulation). Der Live-Verlust (session-78776317) liegt oberhalb (MCP-Transport 404/-32001 oder Boot-/Mount-Timing) — in-process nicht reproduzierbar.
