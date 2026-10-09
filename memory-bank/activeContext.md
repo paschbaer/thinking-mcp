@@ -3,157 +3,161 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: memory-bank translated to English (user order)
+
+- All six German-language memory-bank files (activeContext, remaining-work-plan, progress, lessonsLearned, decisions, systemPatterns) translated to English via parallel sub-agents with disjoint file scopes; technical invariants (IDs, hashes, commands, paths, quoted error literals) preserved byte-identical; one deliberate exception: the FT-AXRAY-DE entry quotes the German marker keywords that assumption_xray detects (feature documentation, must stay verbatim). Completes the English-only migration alongside the AGENTS.md translation (resolves review finding F3 fully). Line counts within tolerance; structure verified (no split artifacts). Together with the guidance-chain translation convention, future entries are English-only per the existing Language Convention rule.
+
 ## 2026-10-09: AGENTS.md translated to English-only (user order)
 
 - The Guidance-MCP-Server deployment section (the only German block) is now English; technical invariants (commands, error codes, paths, mounts) byte-identical; backup protocol followed (AGENTS.md.bak created and removed after verification); clearthought consistency check passed. Resolves the rule-file side of review finding F3 (German memory-bank entries remain grandfathered).
 
-## 2026-10-09: CHAIN SUCCESSOR 1 — GN-D6 API-Reindex umgesetzt (session-7c6ae379, feature/gn-d6-api-reindex)
+## 2026-10-09: CHAIN SUCCESSOR 1 — GN-D6 API reindex implemented (session-7c6ae379, feature/gn-d6-api-reindex)
 
-- **Umgesetzt:** Kanonischer Reindex auf die gitnexus-HTTP-API umgestellt (Job-Semantik Submit+Poll statt blockierender wsl.exe-CLI). Neu `scripts/reindex-via-api.sh` (POSIX sh, Git-Bash- und WSL-tauglich; Default-Server http://127.0.0.1:4747, `GITNEXUS_URL` übersteuerbar; 5 s Poll, 900 s Timeout, fail-loud bei unparseierbarem Status). `gitnexus.reindexCommand` in guidance.json, AGENTS.md (Architecture Map + Guidance-Sektion) und responses.json (Complete-Instruction) synchronisiert; REMEDY-Zeile des Frische-Gates rendert den neuen Befehl automatisch (verifiziert). WSL-CLI bleibt dokumentierter Fallback und EINZIGER Weg für `--force`-Storage-Heilung.
-- **Wichtige Nebenerkenntnis (API-Vertrags-Pinning per Container-Source-Inspektion):** Der API-Analyze kennt KEIN no-stats (Body-Felder: path|url, force, embeddings, dropEmbeddings, token, branch) und schreibt immer die Symbol/Relationship-Counts-Zeile in AGENTS.md/CLAUDE.md. Skript-Fix: zeilenscharfes Restore der Stats-Zeile PLUS Mtime-Erhalt (`touch -d @epoch`) nach Job-Ende — Content-Restore allein würde die Datei mtime-neuer als den Index machen und den index-freshness-Gate zwangsläufig failen machen. Concurrent-Submit ist sicher (Server dedupped laufende Jobs pro Repo).
-- **Verifikation:** Live-Lauf end-to-end (Job 0→100 %, Exit 0), Stats-Restore automatisch, `check-index-freshness.mjs` grün (mtime), Identität `/mnt/d/repos/thinking-mcp` unverändert, Baum enthält nur die beabsichtigten Änderungen.
-- **Trap geboren:** write_file erzeugt auf diesem Windows-Setup CRLF in .sh-Dateien → dash wirft irreführende Syntaxfehler („word unexpected expecting do/in") — nach Erstellen LF-normalisieren (`sed -i 's/\r$//'`). In lessonsLearned.md festgehalten.
+- **Implemented:** The canonical reindex was switched to the gitnexus HTTP API (job semantics submit+poll instead of blocking wsl.exe CLI). New `scripts/reindex-via-api.sh` (POSIX sh, suitable for Git Bash and WSL; default server http://127.0.0.1:4747, `GITNEXUS_URL` overridable; 5 s poll, 900 s timeout, fail-loud on unparseable status). `gitnexus.reindexCommand` synchronized across guidance.json, AGENTS.md (Architecture Map + Guidance section) and responses.json (Complete-Instruction); the freshness gate's REMEDY line renders the new command automatically (verified). The WSL CLI remains the documented fallback and the ONLY path for `--force` storage healing.
+- **Important side finding (API contract pinning via container source inspection):** The API analyze knows NO no-stats (body fields: path|url, force, embeddings, dropEmbeddings, token, branch) and always writes the symbol/relationship counts line into AGENTS.md/CLAUDE.md. Script fix: line-precise restore of the stats line PLUS mtime preservation (`touch -d @epoch`) after job completion — content restore alone would make the file mtime-newer than the index and inevitably fail the index-freshness gate. Concurrent submits are safe (the server deduplicates running jobs per repo).
+- **Verification:** Live run end-to-end (job 0→100 %, exit 0), stats restore automatic, `check-index-freshness.mjs` green (mtime), identity `/mnt/d/repos/thinking-mcp` unchanged, tree contains only the intended changes.
+- **Trap born:** write_file produces CRLF in .sh files on this Windows setup → dash throws misleading syntax errors ("word unexpected expecting do/in") — normalize to LF after creation (`sed -i 's/\r$//'`). Recorded in lessonsLearned.md.
 
-## 2026-10-09: CHAIN SUCCESSOR 2 — GN-D5 URL-Topologie entkoppelt (session-a073a6b4, feature/gn-d5-url-topology)
+## 2026-10-09: CHAIN SUCCESSOR 2 — GN-D5 URL topology decoupled (session-a073a6b4, feature/gn-d5-url-topology)
 
-- **Umgesetzt:** GitNexus-URL-Topologie (Erreichbarkeit: compose-dns|host-gateway) ist nicht mehr an den Writer-Mode gekoppelt. Neue optionale Frage `gitnexusTopology` (Default mode-ablegeleitet, unbekannte Werte fail-closed); `gitnexusUrl()`/`buildPolicies()` (downstream URL, containerRoute, Egress-Allowlist) keyed on topology; `deriveAdoptGn` leitet die Topologie im Adopt-Pfad aus der LIVE-Referenz-Downstream-URL ab (host.docker.internal/localhost/127.0.0.1→host-gateway, sonst compose-dns; Fallback mode-ablegeleitet) — der Mixed-Shape (local-cli-Writer + compose-DNS-Server, dieser Workspace) ist damit regenerierbar. F-2 geschlossen: {{GITNEXUS_URL}}-Token-Render im Adopt-Pfad jetzt regressionsgetestet (pure + mixed + stdio).
-- **Deviation:** Phase-Desync beim Session-Start — submit_understanding scheiterte an transientem required_hook, retry_operation advanced understand→plan ohne Verständnis-Submission (submissions.understand leer); Verständnis-Inhalt vollständig im Plan (Gedanken 1–2) getragen. Als mögliche GND1-nahe Engine-Anomalie notiert (Kandidat für Successor-3-Blick).
-- **Umgebungszwischenfall:** /tmp (tmpfs 7,8G) durch ~4700 relocated-venv-Testrückstände voll → 5 E2E-Fails „No space left on device"; Scratch geräumt (rm -rf /tmp/relocated-venv-* /tmp/guidance-py-e2e-*), danach Vollsuite 727/727 grün, tsc clean. Vorherige Fails waren umgebungsbedingt, nicht diff-bedingt.
-- **Branch:** feature/gn-d5-url-topology (von develop; Dateien disjunkt zu feature/gn-d6-api-reindex — Merge-Reihenfolge beliebig, nur memory-bank kann konfligieren).
+- **Implemented:** The GitNexus URL topology (reachability: compose-dns|host-gateway) is no longer coupled to the writer mode. New optional question `gitnexusTopology` (default derived from mode, unknown values fail-closed); `gitnexusUrl()`/`buildPolicies()` (downstream URL, containerRoute, egress allowlist) keyed on topology; `deriveAdoptGn` derives the topology in the adopt path from the LIVE reference downstream URL (host.docker.internal/localhost/127.0.0.1→host-gateway, otherwise compose-dns; fallback derived from mode) — the mixed shape (local-cli writer + compose-DNS server, this workspace) is therefore regenerable. F-2 closed: {{GITNEXUS_URL}} token rendering in the adopt path is now regression-tested (pure + mixed + stdio).
+- **Deviation:** Phase desync at session start — submit_understanding failed on a transient required_hook, retry_operation advanced understand→plan without an understanding submission (submissions.understand empty); the understanding content was carried fully in the plan (thoughts 1–2). Noted as a possible GND1-near engine anomaly (candidate for the successor-3 look).
+- **Environment incident:** /tmp (tmpfs 7.8G) filled up by ~4700 relocated-venv test residues → 5 E2E fails "No space left on device"; scratch cleaned (rm -rf /tmp/relocated-venv-* /tmp/guidance-py-e2e-*), afterwards full suite 727/727 green, tsc clean. The earlier fails were environment-caused, not diff-caused.
+- **Branch:** feature/gn-d5-url-topology (from develop; files disjoint from feature/gn-d6-api-reindex — merge order arbitrary, only memory-bank can conflict).
 
-## 2026-10-09: CHAIN SUCCESSOR 4 — CHFIX-9 Evidence-Closure Pfad A (session-f0015ea9, feature/chfix-9-session-persistence)
+## 2026-10-09: CHAIN SUCCESSOR 4 — CHFIX-9 evidence-closure path A (session-f0015ea9, feature/chfix-9-session-persistence)
 
-- **Prämisse widerlegt (2 Regressionstests):** Sessions überleben Restarts auf Engine- UND Pool-Ebene (SessionRepository file-backed; registry-only-Instanz re-resolvt Workspace-Sessions nach Neustart-Simulation). Der Live-Verlust (session-78776317) liegt oberhalb (MCP-Transport 404/-32001 oder Boot-/Mount-Timing) — in-process nicht reproduzierbar.
-- **User-Entscheidung:** Pfad A (Evidence-Closure + README-Präzisierung) JETZT; Merge der vier Branches in Empfehlungsreihenfolge gn-d6 → gn-d5 → gnd1 → chfix-9; Pfad B (Live-Restart-Experiment mit aktiver Session) nach Merge + Container-Rebuild.
-- **Umgesetzt (Pfad A):** README-Recovery-Rezept erweitert (Restart-Semantik: was überlebt / was nicht / korrektes Recovery pro Schicht / niemals Session-Dateien löschen); CHFIX-11 (In-Process-Re-Pin) als eigenes Follow-up ausgekoppelt; CHFIX-9 mit Evidence resolved.
-- **Branch:** feature/chfix-9-session-persistence (auf gnd1-Tip gestapelt): 2 Restart-Survival-Regressionstests + README + memory-bank.
+- **Premise refuted (2 regression tests):** Sessions survive restarts at the ENGINE and POOL level (SessionRepository file-backed; the registry-only instance re-resolves workspace sessions after a restart simulation). The live loss (session-78776317) lies above that layer (MCP transport 404/-32001 or boot/mount timing) — not reproducible in-process.
+- **User decision:** Path A (evidence closure + README refinement) NOW; merge of the four branches in recommendation order gn-d6 → gn-d5 → gnd1 → chfix-9; path B (live restart experiment with an active session) after merge + container rebuild.
+- **Implemented (path A):** README recovery recipe extended (restart semantics: what survives / what does not / correct recovery per layer / never delete session files); CHFIX-11 (in-process re-pin) split out as its own follow-up; CHFIX-9 resolved with evidence.
+- **Branch:** feature/chfix-9-session-persistence (stacked on the gnd1 tip): 2 restart-survival regression tests + README + memory-bank.
 
-## 2026-10-09: CHAIN SUCCESSOR 3 — GND1 Successor-Probe-Test + Desync-Fix (session-0046f81b, feature/gnd1-probe-residuals)
+## 2026-10-09: CHAIN SUCCESSOR 3 — GND1 successor probe test + desync fix (session-0046f81b, feature/gnd1-probe-residuals)
 
-- **GND1-TEST-1 gelöst:** Dedizierter Chain-Successor-Probe-Test in capability-skip-semantics.test.ts (plainOps-Fixture-Variante + makeChainedEngine): Chained Head → completeWorkflow → Successor-Session bekommt GENAU EIN capability_state_deviation {kind required-unreachable, source probe} (bounded Poll, kein Sync-Annahme), Exactly-once über Creation-Pfad + manuellen Re-Probe, Head-Event unabhängig.
-- **GND1-DESYNC-1 GEFIXT (ungeplant, aber in-Scope per Plan-Qualifier):** Root Cause in retryOperations — nach grünen Re-Run-Ops advancte die Phase UNBEDINGT (selectTransition(true)), ohne zu prüfen, ob überhaupt ein Submission für die Phase recorded ist; bei leerem beforeExit war retry_operation ein kostenloser Phasen-Advance. Genau der Live-Desync aus GN-D5 (2 Vorkommen: submitUnderstanding→required_hook_failed transient, retry→Phase übersprungen mit submissions:{}). Fix: Guard hält die Transition ohne Phase-Submission (complete ausgenommen — pendingCompletion ist dort das Äquivalent, GDS-6); Regressionstest in chain.test.ts pinnt beide Richtungen (kein Advance ohne Submission; normales Submit advanct weiter).
-- **Residuals (a)–(g) re-verifiziert — alle 7 unverändert accepted:** (a) Flag-lose Transport-Fehler klassifizieren capability-absent (Taxonomie-Grenze, in-Code dokumentiert); (b) stdio-Spawn requireder Server beim Session-Start (gewollte Gate-Symmetrie); (c) ein Duplikat-Deviation-Event pro Prozess-Lebenszeit nach Restart (cosmetic, Kommentar an capabilityDeviationsNoted); (d) Composite-Steps erzwingen required:true (künftiger optionaler Composite-Gate könnte nicht skippen — Trigger bleibt); (e) consumeApprovals behält Grants bei Skip (konservativ); (f) sticky „unreachable" bei verlorenem Timeout-Rennen (exactly-once-Guard, Audit-only); (g) REAL-Ping-Test awaited manuell — kein Ordering-Risiko im Test, Race nur vs Gate-Detektor (dokumentiert). Kein Code-Änderungsbedarf.
-- **Verifikation:** 37/37 zielgerichtet (chain + capability-skip), Vollsuite 723/723 grün, tsc clean.
-- **Branch:** feature/gnd1-probe-residuals (von develop; WorkflowEngine-Guard + 2 Test-Dateien).
+- **GND1-TEST-1 solved:** Dedicated chain-successor probe test in capability-skip-semantics.test.ts (plainOps fixture variant + makeChainedEngine): chained head → completeWorkflow → the successor session gets EXACTLY ONE capability_state_deviation {kind required-unreachable, source probe} (bounded poll, no sync assumption), exactly-once via the creation path + manual re-probe, head event independent.
+- **GND1-DESYNC-1 FIXED (unplanned, but in scope via a plan qualifier):** Root cause in retryOperations — after green re-run ops the phase advanced UNCONDITIONALLY (selectTransition(true)) without checking whether any submission for the phase had been recorded at all; with an empty beforeExit, retry_operation was a free phase advance. Exactly the live desync from GN-D5 (2 occurrences: submitUnderstanding→required_hook_failed transient, retry→phase skipped with submissions:{}). Fix: a guard holds the transition when there is no phase submission (complete excepted — pendingCompletion is the equivalent there, GDS-6); a regression test in chain.test.ts pins both directions (no advance without submission; a normal submit still advances).
+- **Residuals (a)–(g) re-verified — all 7 unchanged, accepted:** (a) flag-less transport errors classify as capability-absent (taxonomy limit, documented in code); (b) stdio spawn of a required server at session start (intended gate symmetry); (c) one duplicate deviation event per process lifetime after a restart (cosmetic, comment at capabilityDeviationsNoted); (d) composite steps force required:true (a future optional composite gate could not skip — trigger remains); (e) consumeApprovals keeps grants on skip (conservative); (f) sticky "unreachable" when losing the timeout race (exactly-once guard, audit-only); (g) the REAL ping test awaited manually — no ordering risk in the test, race only vs the gate detector (documented). No need for code changes.
+- **Verification:** 37/37 targeted (chain + capability-skip), full suite 723/723 green, tsc clean.
+- **Branch:** feature/gnd1-probe-residuals (from develop; WorkflowEngine guard + 2 test files).
 
-## 2026-10-08: CHAIN HEAD GESTARTET — 4-Step-Follow-up-Kette GN-D6/GN-D5/GND1/CHFIX-9 (session-1fa1ffca, verification-only)
+## 2026-10-08: CHAIN HEAD STARTED — 4-step follow-up chain GN-D6/GN-D5/GND1/CHFIX-9 (session-1fa1ffca, verification-only)
 
-- **Chain registriert und server-seitig persistiert** (get_workflow_state verifiziert, chainIndex 0): Successors in Reihenfolge (1) `gn-d6-api-reindex` (Reindex auf gitnexus-HTTP-API umstellen: reindexCommand/AGENTS.md/REMEDY synchronisieren, wsl-CLI als Fallback), (2) `gn-d5-url-topology` (URL-Topologie vom Writer-Mode entkoppeln + GITNEXUS_URL-Render-Regressionstest), (3) `gnd1-probe-residuals` (dedizierter Chain-Successor-Probe-Test + Per-Residual-Entscheidung a–g), (4) `chfix-9-session-persistence` (HIGH: Sessions überleben Server-Restart — Disk-Reload/In-Process-Re-Pin + README-Präzisierung).
-- **Head-Scope:** rein Koordination/Verifikation — KEINE Implementierung von steps[]-Scope unter dem Head (Duplikationsfalle für Successor 1). Checkout develop @ 3709b1c, Baum sauber.
-- **Warnung an Successors:** Parallel-Agent-Risiko auf diesem Checkout (2026-10-08 auf WorkflowEngine.ts beobachtet) — vor Start memory-bank/activeContext.md auf konkurrierende Sessions prüfen, minimale Write-Scopes, Feature-Branch feature/<id>-… . Chain anfällig für Guidance-Server-Restart bis CHFIX-9 (letzter Step) greift (session-78776317-Präzedenzfall).
-- **Re-Registration (session-779d9023):** Erste Registrierung (session-1fa1ffca,cancelled) scheiterte erst in der Completion — Chain-Step-`workflowId` wird seit specs/017 als Registry-Referenz aufgelöst und failte closed (`workflow_not_found`); Steps tragen jetzt KEINE workflowId (Successors erben standard-development). Lesson in lessonsLearned.md festgehalten. Head-Artefakte unverändert gültig: 83945f7 + c9cfb8f (Review APPROVED, 0 HIGH/CRITICAL).
+- **Chain registered and persisted server-side** (get_workflow_state verified, chainIndex 0): successors in order (1) `gn-d6-api-reindex` (switch the reindex to the gitnexus HTTP API: synchronize reindexCommand/AGENTS.md/REMEDY, wsl CLI as fallback), (2) `gn-d5-url-topology` (decouple URL topology from the writer mode + GITNEXUS_URL render regression test), (3) `gnd1-probe-residuals` (dedicated chain-successor probe test + per-residual decision a–g), (4) `chfix-9-session-persistence` (HIGH: sessions survive a server restart — disk reload/in-process re-pin + README refinement).
+- **Head scope:** purely coordination/verification — NO implementation of steps[] scope under the head (duplication trap for successor 1). Checkout develop @ 3709b1c, tree clean.
+- **Warning to successors:** parallel-agent risk on this checkout (observed 2026-10-08 on WorkflowEngine.ts) — before starting, check memory-bank/activeContext.md for competing sessions, minimal write scopes, feature branch feature/<id>-… . The chain is vulnerable to a guidance server restart until CHFIX-9 (the last step) takes effect (session-78776317 precedent).
+- **Re-registration (session-779d9023):** The first registration (session-1fa1ffca, cancelled) failed only at completion — the chain-step `workflowId` has been resolved as a registry reference since specs/017 and failed closed (`workflow_not_found`); steps now carry NO workflowId (successors inherit standard-development). Lesson recorded in lessonsLearned.md. The head artifacts remain valid: 83945f7 + c9cfb8f (review APPROVED, 0 HIGH/CRITICAL).
 
-## 2026-10-08: CHAIN STEP 3 — Doku-Konsolidierung wsl-writer-Architektur (session-b5650a19, feature/gn-chain-step2)
+## 2026-10-08: CHAIN STEP 3 — documentation consolidation of the wsl-writer architecture (session-b5650a19, feature/gn-chain-step2)
 
-- **Umgesetzt:** Topologie-Doku auf die live wsl-writer-Welt vereinheitlicht — AGENTS.md-Topologie-Bullet (WSL-CLI = single writer, Container = read-only Dual-Mount-Reader, Container-Analyze verboten; Backup + Widerspruchscheck gemäß Regel-Protokoll), .guidance/responses.json Complete-Instruction (wsl.exe-Reindex statt Container-Analyze; Rebind-Pfad live verifiziert), docker-compose.gitnexus.yml-Header, README (Deployment-Block + Working-Sample-Tabelle; generischer Container-Mode-Beispiel bleibt). GND1-DOC-1 resolved; lessonsLearned-Eintrag wsl-writer identity unification ergänzt; GN-D1/D3/D4/GN-5-Auflösungen waren bereits aus Step 2 committet.
-- **Verifikation:** docs-drift grün, Vollsuite grün, frischer wsl.exe-Reindex nach letztem Commit, Final-Review-Zeremonie mit frischem Sub-Agent.
-- **Chain:** Schritt 3 = Kettenende (keine Successors mehr). Merge feature/gn-chain-step2 → develop + Push stehen beim User an.
+- **Implemented:** Topology documentation unified to the live wsl-writer world — AGENTS.md topology bullet (WSL CLI = single writer, container = read-only dual-mount reader, container analyze forbidden; backup + contradiction check per the rule protocol), .guidance/responses.json Complete-Instruction (wsl.exe reindex instead of container analyze; rebind path verified live), docker-compose.gitnexus.yml header, README (deployment block + working-sample table; the generic container-mode example remains). GND1-DOC-1 resolved; lessonsLearned entry wsl-writer identity unification added; GN-D1/D3/D4/GN-5 resolutions were already committed from step 2.
+- **Verification:** docs-drift green, full suite green, fresh wsl.exe reindex after the last commit, final-review ceremony with a fresh sub-agent.
+- **Chain:** Step 3 = end of the chain (no further successors). Merging feature/gn-chain-step2 → develop + push is up to the user.
 
-## 2026-10-08: CHAIN STEP 2 — GN-D1 dreiwertige Gates + Hybrid-Probe (session-11bb76a9, feature/gn-chain-step2)
+## 2026-10-08: CHAIN STEP 2 — GN-D1 tri-state gates + hybrid probe (session-11bb76a9, feature/gn-chain-step2)
 
-- **Umgesetzt (Commits a75a3a6, 44571ae + Review-Fix-Commits):** (1) `OperationStatus`/`OperationOutcome`/`GateEvent.phase` additiv um `skipped` erweitert (canonical shared-workflow + 3 vendored Kopien synchron, Hash-Tests grün); (2) OperationEngine: connection-level Transport-Fehler auf optional deklarierten Servern → `skipped(capability-absent)` mit lauter Warnung — nur NON-required (required fail-closed regression-gepinnt); Timeouts/expired Sessions bleiben failed (Review F2); erreichbare Server mit Tool-Fehler → failed + `optional_capability_broken`; (3) WorkflowEngine: minimal-additiver Read-Pfad `config.main.gitnexus.state` → `setOptionalCapabilityServers` (lokal + remote Engine); (4) Hybrid-Probe bei Session-Start UND Chain-Successor-Creation (fire-and-forget, max(5s, Handshake+1s), off pingt nur http-Leftovers, `capability_state_deviation` exactly-once, Gate-Time-Signal geteilt); (5) Generator-Texte (Wizard-Help, Advisory-Beschreibung, Reindex-Step) auf neue Semantik gebracht.
-- **Verifikation:** Suite 721/721 (19 neue Tests: 9 Unit + 10 Engine-Level inkl. Real-Ping-Live-Test), tsc clean, detect_changes: CRITICAL erwartet (Engine-Kern) → Voll-Review: Independent Review 1b74ed1e (F1–F9, alle gefixt/dokumentiert/refuted) + Re-Bless VERIFIED + Final Review f0532eee **0 offene HIGH/CRITICAL**; metacognitive_monitoring 0.86.
-- **Wichtig für Step 3:** GND1-DOC-1 — AGENTS.md-Topologie-Bullet + responses.json-Complete-Instruction beschreiben noch die alte Container-Writer-Welt; Live ist wsl-writer (kanonischer Reindex: wsl.exe aus guidance.json). In Step 3 vereinheitlichen.
-- **Chain:** Step 2 complete → Engine spawnt Step 3 (Doku-Konsolidierung) automatisch.
+- **Implemented (commits a75a3a6, 44571ae + review-fix commits):** (1) `OperationStatus`/`OperationOutcome`/`GateEvent.phase` additively extended by `skipped` (canonical shared-workflow + 3 vendored copies synchronized, hash tests green); (2) OperationEngine: connection-level transport errors on optionally declared servers → `skipped(capability-absent)` with a loud warning — only NON-required (required fail-closed regression-pinned); timeouts/expired sessions remain failed (review F2); reachable servers with tool errors → failed + `optional_capability_broken`; (3) WorkflowEngine: minimal-additive read path `config.main.gitnexus.state` → `setOptionalCapabilityServers` (local + remote engine); (4) hybrid probe at session start AND chain-successor creation (fire-and-forget, max(5s, handshake+1s), off pings only http leftovers, `capability_state_deviation` exactly-once, gate time signal shared); (5) generator texts (wizard help, advisory description, reindex step) brought onto the new semantics.
+- **Verification:** Suite 721/721 (19 new tests: 9 unit + 10 engine-level incl. real-ping live test), tsc clean, detect_changes: CRITICAL expected (engine core) → full review: independent review 1b74ed1e (F1–F9, all fixed/documented/refuted) + re-bless VERIFIED + final review f0532eee **0 open HIGH/CRITICAL**; metacognitive_monitoring 0.86.
+- **Important for step 3:** GND1-DOC-1 — the AGENTS.md topology bullet + responses.json Complete-Instruction still describe the old container-writer world; live is wsl-writer (canonical reindex: wsl.exe from guidance.json). Unify in step 3.
+- **Chain:** Step 2 complete → the engine spawns step 3 (documentation consolidation) automatically.
 
-## 2026-10-08: GITNEXUS OPTIONAL-DECOUPLING PHASE 1 — Guidance-Session session-791af4dc, feature/gitnexus-optional-decoupling
+## 2026-10-08: GITNEXUS OPTIONAL-DECOUPLING PHASE 1 — Guidance session session-791af4dc, feature/gitnexus-optional-decoupling
 
-- **FINAL:** 4 Commits 3ec9b88→ff2177a; FINAL REVIEW PASS (0 HIGH/CRITICAL; Mid-Session-Review 1H+3M gefixt, Final-Review GN-FR-1/3/4/5 gefixt, GN-FR-2/6/7 → GN-D4, F-6 → GN-D3). Suite 693/693, tsc clean, Gates grün (final-review + index-freshness).
+- **FINAL:** 4 commits 3ec9b88→ff2177a; FINAL REVIEW PASS (0 HIGH/CRITICAL; mid-session review 1H+3M fixed, final review GN-FR-1/3/4/5 fixed, GN-FR-2/6/7 → GN-D4, F-6 → GN-D3). Suite 693/693, tsc clean, gates green (final-review + index-freshness).
 
-- **Ziel erreicht:** Guidance ist als Produkt GitNexus-agnostisch — Tri-State-Deklaration (`gitnexus.state` required|optional|off + `mode` local-cli|compose-container + `reindexCommand`) in guidance.json, vom Config-Assistenten gefragt/gesehen; alle Renderings (Responses-Schritt, Gates, Downstream, Workflow) conditional; Alone-Test pinnt `off` = null GitNexus-Referenzen; Basis-Compose nur 3 Services, GitNexus im opt-in Overlay `docker-compose.gitnexus.yml`.
-- **Deviation vom Plan:** Der Generator emittiert keine index-freshness-Op (war nie Teil des Generators — Workspace-Handzusatz); Allein-Test bezieht sich auf die vier Generator-Artefakte.
-- **Incident (Lesson!):** DrvFs-Partial-Write-Inkohärenz — sed -i von Git Bash erzeugte eine Datei mit GEMISCHTEN Seiten (Deklaration neu, Nutzung alt); tsc/vitest sahen die Inkohärenz, esbuild-Output war korrekt. Lösung: EIN Writer (edit_file) + Verifikation mit dem Verbraucher-Toolchain.
-- **Verifikation:** Suite 690/690 (6 neue Tests: Alone + Matrix 3×2 + REMEDY 4); tsc clean; Compose base 3 / merged 5 valide; Live-REMEDY druckt den guidance.json-Befehl.
-- **Offen (Phase 2, getrackt):** dreiwertige Gate-Zustände (skipped-capability-absent) + Hybrid-Probe im Engine — GN-Decouple-P2; optional-Semantiklücke (never-installed vs broken) dokumentiert.
+- **Goal achieved:** Guidance as a product is GitNexus-agnostic — tri-state declaration (`gitnexus.state` required|optional|off + `mode` local-cli|compose-container + `reindexCommand`) in guidance.json, asked for/shown by the config assistant; all renderings (responses step, gates, downstream, workflow) conditional; the alone test pins `off` = null GitNexus references; base compose only 3 services, GitNexus in the opt-in overlay `docker-compose.gitnexus.yml`.
+- **Deviation from the plan:** The generator does not emit an index-freshness op (was never part of the generator — manual workspace addition); the alone test refers to the four generator artifacts.
+- **Incident (lesson!):** DrvFs partial-write incoherence — sed -i from Git Bash produced a file with MIXED states (declaration new, usage old); tsc/vitest saw the incoherence, the esbuild output was correct. Solution: ONE writer (edit_file) + verification with the consumer toolchain.
+- **Verification:** Suite 690/690 (6 new tests: alone + matrix 3×2 + REMEDY 4); tsc clean; compose base 3 / merged 5 valid; live REMEDY prints the guidance.json command.
+- **Open (phase 2, tracked):** tri-state gate states (skipped-capability-absent) + hybrid probe in the engine — GN-Decouple-P2; optional semantics gap (never-installed vs broken) documented.
 
-## 2026-10-08: GN-MIGRATION IMPLEMENTIERT (Option A+D) — Guidance-Session session-67baca0b, feature/gn-gitnexus-compose-integration
+## 2026-10-08: GN-MIGRATION IMPLEMENTED (Option A+D) — Guidance session session-67baca0b, feature/gn-gitnexus-compose-integration
 
-- **Umgesetzt:** gitnexus-server + gitnexus-web als Compose-Services (Root-docker-compose.yml, voller `/workspaces`-Mount, Registry host-seitig unter `D:\repos\.gitnexus-home`); Standalone-Container stillgelegt; alle drei Pool-Repos per `docker compose exec gitnexus analyze` mit in-repo-Storage registriert (thinking-mcp 10.380 Nodes/480 Flows, Niyama 8.782/156, copilot 262/255); Live-Pickup ohne Restart bewiesen (AC-6); Legacy-Volume gelöscht (Q3); REMEDY/Responses/Generator/Template auf docker-exec-Reindex umgestellt (CHFIX-6+GN-3 mitgelöst); safe.directory-Command-Wrapper gegen git-dubious-ownership; Tests 684/684 grün, tsc clean.
-- **Reviews:** Mid-Session-Independent-Review 0 HIGH/CRITICAL (F1/F2/F3/F5 in bd283e1 gefixt, F4/F6 → GN-7/GN-8 getrackt); FINAL REVIEW (frischer Sub-Agent, develop..HEAD): **PASS, 0 HIGH/CRITICAL** — FR-1 (README Operating-notes WSL-Rest, MEDIUM) + FR-2/FR-3 (operations.json-Beschreibungen, LOW) direkt im Abschluss behoben. Metacognition 0.88 (4 dokumentierte Unsicherheiten). Verify-Gates lint+build serverseitig grün.
-- **Commits:** fb47d17 (GN-Doku) → 787571a (Migration) → bd283e1 (Review-Fixes) → Abschluss-Commit (FR-1..3).
-- **Offen nach Session-Ende:** GN-5 (Port-Hardening), GN-6 (lastCommit-Populate — verifiziert sich beim Abschluss-Reindex), GN-7 (nested-Worktree-REMEDY), GN-8 (ops-Drift-Guard), GN-9 (neu, aus Final Review: Rest-Wording in unveränderten README-Segmenten war prä-existent — mit FR-1-Fix erledigt; kein eigener Eintrag nötig).
+- **Implemented:** gitnexus-server + gitnexus-web as compose services (root docker-compose.yml, full `/workspaces` mount, registry on the host side under `D:\repos\.gitnexus-home`); standalone container decommissioned; all three pool repos registered via `docker compose exec gitnexus analyze` with in-repo storage (thinking-mcp 10.380 nodes/480 flows, Niyama 8.782/156, copilot 262/255); live pickup without restart proven (AC-6); legacy volume deleted (Q3); REMEDY/responses/generator/template switched to docker-exec reindex (CHFIX-6+GN-3 co-solved); safe.directory command wrapper against git-dubious-ownership; tests 684/684 green, tsc clean.
+- **Reviews:** Mid-session independent review 0 HIGH/CRITICAL (F1/F2/F3/F5 fixed in bd283e1, F4/F6 → GN-7/GN-8 tracked); FINAL REVIEW (fresh sub-agent, develop..HEAD): **PASS, 0 HIGH/CRITICAL** — FR-1 (README operating-notes WSL restart, MEDIUM) + FR-2/FR-3 (operations.json descriptions, LOW) fixed directly in the wrap-up. Metacognition 0.88 (4 documented uncertainties). Verify-gates lint+build green server-side.
+- **Commits:** fb47d17 (GN docs) → 787571a (migration) → bd283e1 (review fixes) → wrap-up commit (FR-1..3).
+- **Open after session end:** GN-5 (port hardening), GN-6 (lastCommit populate — verifies itself at the wrap-up reindex), GN-7 (nested-worktree REMEDY), GN-8 (ops drift guard), GN-9 (new, from the final review: leftover wording in unchanged README segments was pre-existing — done with the FR-1 fix; no separate entry needed).
 
-## 2026-10-08: GITNEXUS-INTEGRATIONSANALYSE — Zwei-Registry-Divergenz aufgedeckt (GN-1..GN-4)
+## 2026-10-08: GITNEXUS INTEGRATION ANALYSIS — two-registry divergence uncovered (GN-1..GN-4)
 
-- **Was passiert ist:** Beim copilot-repo-template-Onboarding schlug das `repository-analysis`-Gate zweimal fehl (zuerst Server unreachable, dann `Repository not found. Available: thinking-mcp`), obwohl WSL-seitig `gitnexus analyze` lief. Behebung war `docker cp` des Repos IN DEN gitnexus-server-Container (/tmp — ephemeral) + In-Container-Index.
-- **Root Cause (Evidence: docker inspect + beide Registry-Dateien + Guidance-Audit-History):** Es existieren ZWEI getrennte GitNexus-Welten — (a) gitnexus-server-Container (:4747, mountet nur Thinking-MCP → /workspace, eigene Registry /data/gitnexus/registry.json — thinking-mcp-Index dort STALE seit 2026-10-01) und (b) WSL-CLI (in-repo .gitnexus + ~/.gitnexus/registry.json). WSL-Reindex ist für den Container unsichtbar. Die beiden Completion-Gates prüfen zwei verschiedene Indizes und liegen beide grün.
-- **Doku-Update:** AGENTS.md-Topologie-Wording präzisiert (Container werden explizit benannt: gitnexus-server-Container vs. guidance-Container vs. WSL-CLI; Zwei-Welten-Warnung; Reindex-Befehl lowercase vereinheitlicht — erledigt CHFIX-7). Backup AGENTS.md.bak aktualisiert; Clear-Thought-Widerspruchscheck (Route 3, direkter HTTP-Call nach Route-1-404): keine Widersprüche.
-- **Offen (Architektur-Entscheidung):** Alternativen A (gitnexus-server in Root-Compose mit vollem D:\repos-Mount, in-repo-Storage), B (MCP-Server nach WSL verlagern), C (Status quo + docker-cp-Prozedur — abgelehnt), D (Analyze in den Container verlagern). Entscheidung ausstehend; siehe GN-1/GN-2/GN-3 im remaining-work-plan.
+- **What happened:** During copilot-repo-template onboarding the `repository-analysis` gate failed twice (first server unreachable, then `Repository not found. Available: thinking-mcp`), although `gitnexus analyze` ran on the WSL side. The fix was a `docker cp` of the repo INTO the gitnexus-server container (/tmp — ephemeral) + an in-container index.
+- **Root cause (evidence: docker inspect + both registry files + guidance audit history):** TWO separate GitNexus worlds exist — (a) gitnexus-server container (:4747, mounts only Thinking-MCP → /workspace, own registry /data/gitnexus/registry.json — the thinking-mcp index there STALE since 2026-10-01) and (b) WSL CLI (in-repo .gitnexus + ~/.gitnexus/registry.json). A WSL reindex is invisible to the container. The two completion gates check two different indexes and both report green.
+- **Documentation update:** AGENTS.md topology wording refined (containers explicitly named: gitnexus-server container vs. guidance container vs. WSL CLI; two-worlds warning; reindex command unified lowercase — settles CHFIX-7). Backup AGENTS.md.bak updated; Clear-Thought contradiction check (route 3, direct HTTP call after the route-1 404): no contradictions.
+- **Open (architecture decision):** Alternatives A (gitnexus-server in root compose with the full D:\repos mount, in-repo storage), B (move the MCP server to WSL), C (status quo + docker-cp procedure — rejected), D (move analyze into the container). Decision pending; see GN-1/GN-2/GN-3 in remaining-work-plan.
 
-## 2026-10-08: CHFIX-2/3/5 SESSION VOLLZOGEN (mit Infra-Vorfall) — Commit 6128cd8 auf feature/form-b-chain-fix
+## 2026-10-08: CHFIX-2/3/5 SESSION COMPLETED (with an infrastructure incident) — Commit 6128cd8 on feature/form-b-chain-fix
 
-- **Arbeit komplett:** CHFIX-2 (REMEDY-Zeile im Frische-Gate + 3 Regressionstests, LIVE validiert — der Gate failte während des Completions mit exakt der richtigen REMEDY), CHFIX-3 (Recovery-Rezept README + AGENTS.md-Pointer), CHFIX-5 (FR-004-Timeout 60 s; Vollsuite 683/683). Final-Review (Sub-Agent 8cc483f1): 0 HIGH/CRITICAL, F-1..F-6 → CHFIX-6/7/8 getrackt. final-review.json validiert (EXIT=0). Commit 6128cd8 (9 Files, +227/−21).
-- **Infra-Vorfall (WICHTIG):** Beim Completion schlug `repository-analysis` mit `downstream_capability_changed` fehl (gitnexus:check-Schema-Pin-Drift nach Reindex + GitNexus-Restart). Pin-Reset (capability-hashes.json) + Guidance-Restart → **Session operational verloren**: Sessions sind workflow-run-scoped und überleben KEINEN Server-Restart (Disk-Datei bleibt, wird aber nicht re-geloadet). complete_workflow wurde nie formell grün; die Session-Datei ist Archiv. → CHFIX-9 (HIGH) getrackt; 4 Lessons in EMMS gesät (inkl. capability-pin-reset-requires-server-restart).
-- **Offen:** Doku-Nachträge (CHFIX-9-Präzisierung im README-Rezept) uncommittet; Merge nach develop + Container-Rebuild ausstehend.
+- **Work complete:** CHFIX-2 (REMEDY line in the freshness gate + 3 regression tests, validated LIVE — the gate failed during completion with exactly the right REMEDY), CHFIX-3 (recovery recipe README + AGENTS.md pointer), CHFIX-5 (FR-004 timeout 60 s; full suite 683/683). Final review (sub-agent 8cc483f1): 0 HIGH/CRITICAL, F-1..F-6 → CHFIX-6/7/8 tracked. final-review.json validated (EXIT=0). Commit 6128cd8 (9 files, +227/−21).
+- **Infrastructure incident (IMPORTANT):** At completion, `repository-analysis` failed with `downstream_capability_changed` (gitnexus:check schema-pin drift after reindex + GitNexus restart). Pin reset (capability-hashes.json) + guidance restart → **session operationally lost**: sessions are workflow-run-scoped and do NOT survive a server restart (the disk file remains, but is not re-loaded). complete_workflow never formally went green; the session file is an archive. → CHFIX-9 (HIGH) tracked; 4 lessons seeded in EMMS (incl. capability-pin-reset-requires-server-restart).
+- **Open:** documentation additions (CHFIX-9 refinement in the README recipe) uncommitted; merge to develop + container rebuild pending.
 
-## 2026-10-08: CHFIX-2/3/5 IMPLEMENTIERT — Guidance-Session session-78776317 (feature/form-b-chain-fix)
+## 2026-10-08: CHFIX-2/3/5 IMPLEMENTED — Guidance session session-78776317 (feature/form-b-chain-fix)
 
-- **Was:** Drei getrackte Follow-ups des Form-B-Fix umgesetzt: (CHFIX-2) `check-index-freshness.mjs` fail() druckt jetzt eine agent-geeignete REMEDY-Zeile (exakter `wsl.exe … gitnexus analyze --no-stats`-Befehl, lowercase-cwd KA-4) auf stderr → OperationEngine reicht sie VERBATIM in exposedOpResult.errors[0].message weiter; Chain-treibende Agenten self-healen ohne AGENTS.md-Erinnerung + `retry_operation`. Server-seitiger Reindex war keine Option (kein gitnexus im Container + KA-4-foreign-Falle). (CHFIX-3) Recovery-Rezept „Recovering a chain after agent/context death“ im README (inkl. Discovery-Fallback über .guidance/state/sessions/ aus dem Plan-Review) + AGENTS.md-Pointer (Backup-Protokoll befolgt). (CHFIX-5) engine.test.ts FR-004 per-Test-Timeout 60 s.
-- **Validierung:** typecheck EXIT=0; Vollsuite 683/683 (88 Dateien) inkl. FR-004 unter Last; 3 neue Regressionstests (stale→REMEDY, no-git→REMEDY, fresh→keine REMEDY); prettier clean. Metacognition 0.93, 3 dokumentierte Residuals.
-- **README-Hygiene-Nachbesserung:** interne Feature-ID-Referenz („specs/018 …“) aus dem Chain-Fix-Abschnitt entfernt (Regel: Verhalten statt Prozess-Historie).
-- **Status:** Verify-Phase der Session läuft als nächstes; Commit (T4) nach complete_workflow.
+- **What:** Implemented three tracked follow-ups of the Form-B fix: (CHFIX-2) `check-index-freshness.mjs` fail() now prints an agent-suitable REMEDY line (the exact `wsl.exe … gitnexus analyze --no-stats` command, lowercase-cwd KA-4) to stderr → OperationEngine passes it VERBATIM into exposedOpResult.errors[0].message; chain-driving agents self-heal without an AGENTS.md reminder + `retry_operation`. A server-side reindex was not an option (no gitnexus in the container + KA-4 foreign-path trap). (CHFIX-3) recovery recipe "Recovering a chain after agent/context death" in the README (incl. the discovery fallback via .guidance/state/sessions/ from the plan review) + AGENTS.md pointer (backup protocol followed). (CHFIX-5) engine.test.ts FR-004 per-test timeout 60 s.
+- **Validation:** typecheck EXIT=0; full suite 683/683 (88 files) incl. FR-004 under load; 3 new regression tests (stale→REMEDY, no-git→REMEDY, fresh→no REMEDY); prettier clean. Metacognition 0.93, 3 documented residuals.
+- **README hygiene touch-up:** removed an internal feature-ID reference ("specs/018 …") from the chain-fix section (rule: behavior instead of process history).
+- **Status:** the session's verify phase runs next; commit (T4) after complete_workflow.
 
-## 2026-10-08: FORM-B CHAIN FIX implementiert — feature/form-b-chain-fix (von develop@c8e0f47)
+## 2026-10-08: FORM-B CHAIN FIX implemented — feature/form-b-chain-fix (from develop@c8e0f47)
 
-- **Was:** Drei Defekte behoben, die lange unattended Form-B-Chains verhinderten: (1) `import_spec_kit_artifacts` mappt jetzt `checkboxChecked` → `status:"completed"` (vorher: hart `pending` für alle 74 Tasks → Kette hätte T001 erneut ausgeführt; DEVIATION von specs/017 FR-066/SC-011, user-approved — tasks.md-Checkbox ist die Cross-Session-Fortschrittsschnittstelle; `checkboxAtImport` bleibt Audit-Trail, `complete_task` selbst bleibt evidence-gated). (2) Spec-Kit-State-Vererbung an Chain-Successors (`inheritSpecKitState`-Hook in `createChainSuccessorLocked`, Factory `createSpecKitBridges` in main.ts) — Successors hatten neue sessionId OHNE State-File → Bridge lieferte [] → silent chain end nach 1 Task. Zusätzlich: `engineForWorkspace` reicht die Bridges jetzt an Child-Engines weiter (`childBridges`) — im Pool-Betrieb war Form B damit STRUKTURELL tot. (3) Start-Time-Depth-Pre-Check: `start_workflow` zählt unchecked Tasks in tasks.md und warnt nicht-blockend (`warnings[]` im StartResult), wenn `maxChainDepth < unchecked+1`; per-Manifest `chain.maxChainDepthOverride` (int 1..512) als temporäre Anpassung; Config-Cap 64→512 (specs/018: 74 Tasks). `buildReconciledState` respektiert jetzt den Import-Status neuer Tasks statt hart pending.
-- **User-Entscheidungen:** User-Decision-Gates stoppen die Chain (gewollt); sequentielle Chain reicht (keine parallelen Agenten); Kontext-Drift-Einwand verworfen — guidance injiziert pro Phase eng geleitete Prompts (geplantes Einsatzszenario).
-- **Validierung:** typecheck EXIT=0; targeted vitest 65/65 (chain+speckit); Vollsuite 679/680 — 1 pre-existing/environmental Timeout (engine.test FR-004, 25s isoliert grün, 30s-Limit unter Vollsuite-Last auf WSL//mnt/d); prettier clean; detect_changes: 9 Files/12 Symbole, nur beabsichtigte Änderungen. WF-1-Evidenz: alle 3 CT-Routen einmalig fehlgeschlagen (Editor-MCP 404, call_downstream ohne Session ungeeignet, curl Parse-Error) — inline Planung dokumentiert.
-- **Offen (Lösungsvorschläge im Chat, noch nicht beauftragt):** Index-Freshness-Gate automatisieren (Reindex-Op im Completion-Lifecycle), Chain-Recovery-Doku/Tool nach Agent-Crash, Phase-Grenzen-Filter (F1 aus 018-Kontext), SC-011-Deviation in specs/017-Doku nachziehen. Commit steht noch aus (nicht explizit beauftragt).
+- **What:** Fixed three defects that had prevented long unattended Form-B chains: (1) `import_spec_kit_artifacts` now maps `checkboxChecked` → `status:"completed"` (previously: hard `pending` for all 74 tasks → the chain would have run T001 again; DEVIATION from specs/017 FR-066/SC-011, user-approved — the tasks.md checkbox is the cross-session progress interface; `checkboxAtImport` remains the audit trail, `complete_task` itself remains evidence-gated). (2) Spec-Kit state inheritance to chain successors (`inheritSpecKitState` hook in `createChainSuccessorLocked`, factory `createSpecKitBridges` in main.ts) — successors had a new sessionId WITHOUT a state file → the bridge returned [] → silent chain end after 1 task. Additionally: `engineForWorkspace` now passes the bridges on to child engines (`childBridges`) — in pool operation Form B was therefore STRUCTURALLY dead. (3) Start-time depth pre-check: `start_workflow` counts unchecked tasks in tasks.md and warns non-blockingly (`warnings[]` in StartResult) when `maxChainDepth < unchecked+1`; per-manifest `chain.maxChainDepthOverride` (int 1..512) as a temporary adjustment; config cap 64→512 (specs/018: 74 tasks). `buildReconciledState` now respects the import status of new tasks instead of hard pending.
+- **User decisions:** user-decision gates stop the chain (intended); a sequential chain suffices (no parallel agents); the context-drift objection was dismissed — guidance injects tightly guided prompts per phase (the planned usage scenario).
+- **Validation:** typecheck EXIT=0; targeted vitest 65/65 (chain+speckit); full suite 679/680 — 1 pre-existing/environmental timeout (engine.test FR-004, 25s green in isolation, 30s limit under full-suite load on WSL//mnt/d); prettier clean; detect_changes: 9 files/12 symbols, only intended changes. WF-1 evidence: all 3 CT routes failed once each (editor MCP 404, call_downstream without a session unsuitable, curl parse error) — inline planning documented.
+- **Open (solution proposals in chat, not yet commissioned):** automate the index-freshness gate (reindex op in the completion lifecycle), chain recovery docs/tooling after an agent crash, phase-boundary filter (F1 from the 018 context), follow up the SC-011 deviation in the specs/017 docs. Commit still pending (not explicitly commissioned).
 
-## 2026-10-07: Phase 0 (M0) ABGESCHLOSSEN — alle Entscheidungen genehmigt (DEC-GBEA-M0)
+## 2026-10-07: Phase 0 (M0) COMPLETED — all decisions approved (DEC-GBEA-M0)
 
-- **Was:** User hat alle M0-Vorschläge unverändert genehmigt (nach ADR-1-Erläuterung im Chat). Entscheidungen hinterlegt als **DEC-GBEA-M0** in `memory-bank/decisions.md` (ADR 1–8 + Proof-Signing Ed25519 + Config-Default). Die drei M0-Dokumente in `specs/018-guidance-beads-execution-adapter/` von PROPOSED auf **ACCEPTED** geflippt (m0-adr-proposals.md, m0-implementation-contract.md — jetzt bindend für AC-A3, m0-beads-v1.3-baseline.md — bindend für Mapping v1 + Golden-Fixtures). Tasks T001–T005 in tasks.md abgehakt. M0-Exit erreicht: ⏳ADR-Gates (T013/T024/T066) entblockt, Phase 1 (WP-01 Adapter Core) kann starten.
-- **Status:** Phase 0 komplett, alles uncommitted. **Next:** Commit-Entscheidung (SDD-Trilogie + M0-Dokumente + decisions.md); dann Phase 1 Start (feature branch `feature/018-wp01-adapter-core`).
+- **What:** The user approved all M0 proposals unchanged (after the ADR-1 explanation in chat). Decisions recorded as **DEC-GBEA-M0** in `memory-bank/decisions.md` (ADR 1–8 + proof signing Ed25519 + config default). The three M0 documents in `specs/018-guidance-beads-execution-adapter/` flipped from PROPOSED to **ACCEPTED** (m0-adr-proposals.md, m0-implementation-contract.md — now binding for AC-A3, m0-beads-v1.3-baseline.md — binding for mapping v1 + golden fixtures). Tasks T001–T005 checked off in tasks.md. M0 exit reached: ⏳ADR gates (T013/T024/T066) unblocked, phase 1 (WP-01 adapter core) can start.
+- **Status:** Phase 0 complete, everything uncommitted. **Next:** commit decision (SDD trilogy + M0 documents + decisions.md); then phase 1 start (feature branch `feature/018-wp01-adapter-core`).
 
-## 2026-10-07: Phase 0 (M0) gestartet — Entscheidungsvorlagen erstellt, auf User-Approval wartend
+## 2026-10-07: Phase 0 (M0) started — decision templates created, waiting for user approval
 
-- **Was:** Phase 0 der specs/018-Tasks gestartet. Drei M0-Artefakte unter `specs/018-guidance-beads-execution-adapter/`: (1) `m0-adr-proposals.md` — ADR 1–8 + Proof-Signing (Ed25519, SQLite-Nonce-Store) + Config-Default, je mit Optionen, RFC-Constraints, Empfehlung und Repo-Evidenz; (2) `m0-implementation-contract.md` — Shared Rules + 22 Methoden (9 agent-facing, 13 admin) mit Authn/Authz/Idempotency/Error-Codes/Audit-Events und WP-Ownership; (3) `m0-beads-v1.3-baseline.md` — Beads-1.3.0-Konformitäts-Baseline (Statuses/Types/Priorities/Dependencies/Metadata/Store/Stealth) + Golden-Fixture-Checks.
-- **Evidenz gesammelt:** server-guidance persistiert JSON-Dateien (SessionRepository/AuditRepository), kein SQLite/Crypto/Canonicalization vorhanden; `bd` ist auf dem Host NICHT installiert (Real-Backend-Tests brauchen gepinnte 1.3.x-Installation).
-- **Status:** alle drei Dokumente PROPOSED; T001 wartet auf User-Approval der ADR-Entscheidungsmatrix, dann Übernahme in `memory-bank/decisions.md` + Statusflip ACCEPTED. **Next:** User-Entscheidung zu ADR 1–8/T003/T005.
+- **What:** Phase 0 of the specs/018 tasks started. Three M0 artifacts under `specs/018-guidance-beads-execution-adapter/`: (1) `m0-adr-proposals.md` — ADR 1–8 + proof signing (Ed25519, SQLite nonce store) + config default, each with options, RFC constraints, recommendation and repo evidence; (2) `m0-implementation-contract.md` — shared rules + 22 methods (9 agent-facing, 13 admin) with authn/authz/idempotency/error-codes/audit events and WP ownership; (3) `m0-beads-v1.3-baseline.md` — Beads-1.3.0-conformance baseline (statuses/types/priorities/dependencies/metadata/store/stealth) + golden-fixture checks.
+- **Evidence gathered:** server-guidance persists JSON files (SessionRepository/AuditRepository), no SQLite/crypto/canonicalization present; `bd` is NOT installed on the host (real-backend tests need a pinned 1.3.x installation).
+- **Status:** all three documents PROPOSED; T001 waits for user approval of the ADR decision matrix, then transfer into `memory-bank/decisions.md` + status flip to ACCEPTED. **Next:** user decision on ADR 1–8/T003/T005.
 
-## 2026-10-07: specs/018 tasks.md erstellt — Task-Breakdown (speckit.tasks)
+## 2026-10-07: specs/018 tasks.md created — task breakdown (speckit.tasks)
 
-- **Was:** `/speckit.tasks` für Spec 018: `specs/018-guidance-beads-execution-adapter/tasks.md`. 74 Tasks (T001–T074) in 6 Phasen (M0–M5), vollständige 1:1-Abbildung aller Plan-Tasks (WP-00..WP-10, T00.1–T10.11); jede Task mit `[WP-x.y]`-Rückverweis, RFC-§-Anker und `Verify:`-Gate (§26-Suite/§25-Kriterium). ⏳ADR-Gates: T013 (ADR-6), T024 (ADR-3), T066 (ADR-7). Completion Gate = RFC §29 DoD.
-- **Status:** SDD-Trilogie spec.md/plan.md/tasks.md komplett, uncommitted. **Next:** User-Review; dann Start mit Phase 0 (WP-00, ADR-Entscheidungen mit User-Approval) — z. B. über Guidance-Workflow (`start_workflow` workspace `thinking-mcp`) mit Batch-Release pro Phase.
+- **What:** `/speckit.tasks` for spec 018: `specs/018-guidance-beads-execution-adapter/tasks.md`. 74 tasks (T001–T074) in 6 phases (M0–M5), a complete 1:1 mapping of all plan tasks (WP-00..WP-10, T00.1–T10.11); every task with an `[WP-x.y]` back-reference, RFC § anchor and `Verify:` gate (§26 suite/§25 criterion). ⏳ADR gates: T013 (ADR-6), T024 (ADR-3), T066 (ADR-7). Completion gate = RFC §29 DoD.
+- **Status:** SDD trilogy spec.md/plan.md/tasks.md complete, uncommitted. **Next:** user review; then start with phase 0 (WP-00, ADR decisions with user approval) — e.g. via the guidance workflow (`start_workflow` workspace `thinking-mcp`) with batch release per phase.
 
-## 2026-10-07: specs/018 plan.md erstellt — Implementierungsplan (speckit.plan)
+## 2026-10-07: specs/018 plan.md created — implementation plan (speckit.plan)
 
-- **Was:** `/speckit.plan` für Spec 018: `specs/018-guidance-beads-execution-adapter/plan.md`. 11 Work Packages: WP-00 (M0-Entscheidungen: ADR 1–8, Implementation Contract, Proof-Signing, Beads-v1.3-Baseline) + die 10 geforderten Pakete — Adapter Core, Mapping Engine, Bindings (inkl. Persistenz + Operation Journal), Projection (inkl. Ingestion-Delta), Claim Coordination (inkl. Readiness/Cache/Proofs/Marker), Validation Workflow (Completion-State-Machines, Receipts, Blocker/Amendments), Reconciliation (M2-Detection + M5-Resolution-Workflow), Snapshots (Event-Log, Ordnung, Cursor, Retention), Observability, Testing (Fake-Backend, zweiter Test-Adapter, alle 10 RFC-§26-Suiten + Scale-Tier).
-- **Traceability:** MUST/SHALL-Compliance-Matrix (Plan §4) ordnet jedes RFC-Gebiet (§4–§29) genau einem Primary-Paket + Tasks zu; Milestone-Mapping (Plan §3) auf M1–M5 gemäß Spec 018 §4; ⏳ADR-Marker für ADR-abhängige Tasks (T02.1, T03.1, T08.5).
-- **Status:** plan.md geschrieben, uncommitted. **Next:** User-Review des Plans; dann speckit-Breakdown (tasks) bzw. Start mit WP-00 (ADR-Entscheidungen).
+- **What:** `/speckit.plan` for spec 018: `specs/018-guidance-beads-execution-adapter/plan.md`. 11 work packages: WP-00 (M0 decisions: ADR 1–8, implementation contract, proof signing, Beads v1.3 baseline) + the 10 required packages — adapter core, mapping engine, bindings (incl. persistence + operation journal), projection (incl. ingestion delta), claim coordination (incl. readiness/cache/proofs/marker), validation workflow (completion state machines, receipts, blocker/amendments), reconciliation (M2 detection + M5 resolution workflow), snapshots (event log, ordering, cursor, retention), observability, testing (fake backend, second test adapter, all 10 RFC §26 suites + scale tier).
+- **Traceability:** the MUST/SHALL compliance matrix (plan §4) maps every RFC area (§4–§29) to exactly one primary package + tasks; milestone mapping (plan §3) onto M1–M5 per spec 018 §4; ⏳ADR markers for ADR-dependent tasks (T02.1, T03.1, T08.5).
+- **Status:** plan.md written, uncommitted. **Next:** user review of the plan; then the speckit breakdown (tasks) respectively start with WP-00 (ADR decisions).
 
 ## 2026-10-07: specs/018 created — GBEA implementation spec (speckit.specify)
 
-- **Was:** `/speckit.specify` for the Guidance Beads Execution Adapter per RFC GBEA-SPEC-001 v0.6.1-draft. New spec at `specs/018-guidance-beads-execution-adapter/spec.md`: implementation scope (S1–S6), milestones M0–M5 (M0 added as ADR/implementation-contract gate in front of RFC §27 M1), 27 deliverables, acceptance-criteria traceability table (RFC §25.1–25.7 + additive AC-A1..A4), testing strategy mapping all ten RFC §26 suites to vitest layers, 8-stage rollout plan (R0–R5, disabled-by-default, config-reversible), risks (GBEA-F016, Beads version drift, Windows/WSL store-root canonicalization). Precedence rule: RFC wins on any conflict; no normative restatement.
+- **What:** `/speckit.specify` for the Guidance Beads Execution Adapter per RFC GBEA-SPEC-001 v0.6.1-draft. New spec at `specs/018-guidance-beads-execution-adapter/spec.md`: implementation scope (S1–S6), milestones M0–M5 (M0 added as ADR/implementation-contract gate in front of RFC §27 M1), 27 deliverables, acceptance-criteria traceability table (RFC §25.1–25.7 + additive AC-A1..A4), testing strategy mapping all ten RFC §26 suites to vitest layers, 8-stage rollout plan (R0–R5, disabled-by-default, config-reversible), risks (GBEA-F016, Beads version drift, Windows/WSL store-root canonicalization). Precedence rule: RFC wins on any conflict; no normative restatement.
 - **WF-1 incident (evidence table):** all three clear-thought routes failed once each in this session — (1) direct MCP tool: "MCP session no longer valid (HTTP 404)" (stale session, known); (2) container route structurally unavailable (no Guidance sessionId in this ad-hoc specify task); (3) direct HTTP `localhost:3000/mcp`: "initialize required". Structured planning continued with documented internal reasoning.
 - **Status:** spec.md written, uncommitted. **Next:** user review/approval of spec 018; then speckit plan phase (M0 ADR decisions first).
 
 ## 2026-10-07: GBEA review round 5 (minor corrections) applied → v0.6.1-draft
 
-- **Was:** External review of v0.6.0 verdict READY FOR IMPLEMENTATION WITH MINOR CHANGES (0 Critical, 2 High, 6 Medium remaining). Evidence-verified: 6 fixed, M-002 false positive (mermaid fence exists), M-006 = documented §28 deferral. Spec at v0.6.1-draft.
+- **What:** External review of v0.6.0 verdict READY FOR IMPLEMENTATION WITH MINOR CHANGES (0 Critical, 2 High, 6 Medium remaining). Evidence-verified: 6 fixed, M-002 false positive (mermaid fence exists), M-006 = documented §28 deferral. Spec at v0.6.1-draft.
 - **Lesson (round-4 residue):** H-001 showed that a normative text addition ("blocker reports MUST present fencing token") without the corresponding interface field slips through — when adding requirements to prose, always update the matching TypeScript interface in the same edit.
 - **Status:** Spec updated, uncommitted. **Next:** user decision on commit.
 
 ## 2026-10-07: GBEA review round 4 (CHANGES REQUIRED) applied → v0.6.0-draft
 
-- **Was:** External reviewer findings (4 Critical, 9 High, 11 Medium) verified against v0.5.0 with evidence table; user approved one-round implementation incl. H-009 method renames, and M-010 deferral. All 24 findings resolved (details in progress.md); spec at v0.6.0-draft, 1.974 lines.
+- **What:** External reviewer findings (4 Critical, 9 High, 11 Medium) verified against v0.5.0 with evidence table; user approved one-round implementation incl. H-009 method renames, and M-010 deferral. All 24 findings resolved (details in progress.md); spec at v0.6.0-draft, 1.974 lines.
 - **Note:** Two reviewer claims were partially pre-addressed (C-002 crash-safety detection, H-03 inspect_drift existed) — residual mechanism gaps closed via claim markers and resolve API.
 - **Status:** Spec updated, uncommitted. **Next:** user decision on commit (pattern: direct on develop). GBEA-F016 (partitioning deferral) remains the only tracked follow-up.
 
 ## 2026-10-07: GBEA external review round 3 applied → v0.5.0-draft
 
-- **Was:** External reviewer findings for v0.4.0 (F-013–F-018 + M-001/M-002; all non-blocking) verified against v0.4.1 and applied per user decisions: F-013 version negotiation (§19 + `transport.supportedBackendVersionRange`), F-014 mapping migration procedure (§9.7, receipts immutable), F-017 policySetDigest (package/receipt/readiness/validation), F-015 snapshot chaining SHOULD + anchoring caveat, F-018 **Variant A** (receipts bind to acceptance event, no full chain), F-016 scalability targets §21.2 + partitioning deferred (tracked as GBEA-F016 in remaining-work-plan.md), M-001/M-002 deferred to v1.0 editorial pass (noted §28).
+- **What:** External reviewer findings for v0.4.0 (F-013–F-018 + M-001/M-002; all non-blocking) verified against v0.4.1 and applied per user decisions: F-013 version negotiation (§19 + `transport.supportedBackendVersionRange`), F-014 mapping migration procedure (§9.7, receipts immutable), F-017 policySetDigest (package/receipt/readiness/validation), F-015 snapshot chaining SHOULD + anchoring caveat, F-018 **Variant A** (receipts bind to acceptance event, no full chain), F-016 scalability targets §21.2 + partitioning deferred (tracked as GBEA-F016 in remaining-work-plan.md), M-001/M-002 deferred to v1.0 editorial pass (noted §28).
 - **Status:** Spec v0.5.0-draft, uncommitted. **Next:** user decision on commit.
 
 ## 2026-10-07: GBEA-SPEC-001 v0.4.0 reviewed, fixed → v0.4.1, file replaced
 
-- **Was:** Review of the externally revised v0.4.0 draft (13 findings, evidence-verified against Beads v1.3 docs incl. fresh `bd statuses` fetch); user approved all fixes + file replacement. All fixes applied, version bumped to 0.4.1-draft, the version-suffixed file was moved over the canonical `SDD/guidance-beads-adapter-specification-en.md` (old v0.3.0 content deleted; SDD now has exactly one GBEA file).
+- **What:** Review of the externally revised v0.4.0 draft (13 findings, evidence-verified against Beads v1.3 docs incl. fresh `bd statuses` fetch); user approved all fixes + file replacement. All fixes applied, version bumped to 0.4.1-draft, the version-suffixed file was moved over the canonical `SDD/guidance-beads-adapter-specification-en.md` (old v0.3.0 content deleted; SDD now has exactly one GBEA file).
 - **Key facts verified:** Beads statuses are `open/in_progress/blocked/closed` (`done` is a category); worktrees share one `.beads` store; `BEADS_DIR` supports external/shared stores — both broke the v0.4.0 identity formula that hashed the workspace root.
 - **Status:** Spec v0.4.1-draft in place, uncommitted. **Next:** user decision on commit (pattern so far: direct on develop).
 
 ## 2026-10-07: GBEA-SPEC-001 review round 2 (external reviewer) fixed → v0.3.0-draft
 
-- **Was:** External review (6 findings) verified against v0.2.0 with evidence table; user approved fixes incl. Finding 3 = Option A (technology-neutral persistence requirements, tech choice stays ADR 4). Mapping grounded against real Beads v1.3 docs (issues/metadata/labels/dependencies/events-journal pages fetched; facts: types bug/feature/task/epic/chore/gate, priorities 0–4, dependency types incl. blocking vs non-blocking, human gates, metadata reserved prefixes `bd:`/`_`, per-replica at-least-once journal).
+- **What:** External review (6 findings) verified against v0.2.0 with evidence table; user approved fixes incl. Finding 3 = Option A (technology-neutral persistence requirements, tech choice stays ADR 4). Mapping grounded against real Beads v1.3 docs (issues/metadata/labels/dependencies/events-journal pages fetched; facts: types bug/feature/task/epic/chore/gate, priorities 0–4, dependency types incl. blocking vs non-blocking, human gates, metadata reserved prefixes `bd:`/`_`, per-replica at-least-once journal).
 - **Added:** §6.6 (schema versioning), §9.6 (mapping spec), §11.3 restart semantics, §16.4/16.5 suspension scopes, §18.1 (event ordering model), §21.1 (persistence requirements); §25.2/25.5 criteria; ADR 2/4/5 narrowed.
 - **Bug fixed:** stray code fence in §18 (from round-1 edit) had unbalanced the markdown and hidden §19 from the outline parser — removed; lesson: edit_file old_text must include the full fence context when inserting blocks after code.
 - **Note:** grep tool does not index `SDD/` (local exclude) — verify spec content via read_file outline, not grep.
@@ -161,7 +165,7 @@
 
 ## 2026-10-07: GBEA-SPEC-001 reviewed and fixed (SDD, uncommitted)
 
-- **Was:** Review of `SDD/guidance-beads-adapter-specification-en.md` produced 13 findings (F1–F13); user confirmed decisions: F2 = Option A (no acceptance revocation), F11 = define stealth from real Beads feature (`bd init --stealth` → `no-git-ops: true`), F1 = full Appendix A, F13 = verify URLs online. All fixes applied to the spec in place; version bumped to 0.2.0-draft.
+- **What:** Review of `SDD/guidance-beads-adapter-specification-en.md` produced 13 findings (F1–F13); user confirmed decisions: F2 = Option A (no acceptance revocation), F11 = define stealth from real Beads feature (`bd init --stealth` → `no-git-ops: true`), F1 = full Appendix A, F13 = verify URLs online. All fixes applied to the spec in place; version bumped to 0.2.0-draft.
 - **Verification:** grep confirms no stale references (`reopenOnAcceptanceRevocation`, optional `sequence?`, old §25.6 wording); Beads URLs fetched and verified (github.com/gastownhall/beads active, beads.gascity.com at v1.3.0, stealth semantics confirmed from README).
 - **Status:** Spec updated, not committed (doc-only change, no branch created — user did not request commit).
 - **Next:** User decision on commit/branch; §28 ADRs remain open for the implementation project.
@@ -174,382 +178,400 @@
 - **Verification:** tsc --noEmit green on all four servers; isolated Node 24 repro on same build: `keepAliveTimeout=65000` → `Keep-Alive: timeout=65`. Local WSL end-to-end run of server dist blocked by known env artifacts (better-sqlite3 dlopen TMPL-2; top-level stdio-import hang in `index.js` when run outside container) — Docker containers must be rebuilt (`docker compose up -d --build`) to pick up the change.
 - **Note:** GitNexus + direct Clear-Thought MCP routes both timed out during this session; grep/source verification used as documented fallback (FR-035 pattern).
 - **Next:** Commit, then rebuild containers; verify live header via `curl -sI http://localhost:<port>/health`.
-- **Review:** unabhängiger Reviewer (Sub-Agent, frischer Kontext): **APPROVED, 0 HIGH/CRITICAL**. Snapshot verifiziert (Branch, HEAD c64d112, nur unstaged Diff). Evidenz: Node-24-Header-Repro (`keep-alive: timeout=65`) in /tmp, `server.close()`-Idle-Socket-Repro (1 ms), tsc --noEmit je Server exit 0, keine Tests pinnen das Listen-Verhalten. Residuen als KA-1 (stochastic Shutdown-Asymmetrie, LOW), KA-2 (Env-Parse frisst 0-Werte, LOW), KA-3 (Container-Rebuild nötig, LOW/ops) in remaining-work-plan.md getrackt.
-- **Status:** MERGED (fast-forward) in develop @ `1677a9d`, Feature-Branch gelöscht, Review APPROVED (0 HIGH/CRIT). detect_changes vor Commit: risk `medium`, nur erwartete Symbole (startServer/startHttpServer + Doku).
-- **Status:** DEPLOYED & VERIFIZIERT (2026-10-02). Push, Build, Deploy durch User; Live-Gegenprobe: Port 3000/3002/3003 alle `Keep-Alive: timeout=65` ✓. Port 3001 (stochastic) ist **deprecated** und nicht deployed — kein Deployment nötig. develop gepusht (origin/develop aktuell).
-- **Index-Follow-up KA-4 — GELÖST (2026-10-02):** Root Cause war ein Case-Mismatch (Storage `/mnt/d/repos/thinking-mcp` lowercase vs. Shell-Cwd gemischt). Reindex mit kleingeschriebenem Cwd erfolgreich (8.988 Nodes / 21.534 Edges); detect-changes clean. Regel in AGENTS.md dokumentiert (Backup `AGENTS.md.bak`). Offen bleibt nur das separate MCP-Timeout-Problem (GitNexus-/Clear-Thought-MCP-Routen timen unabhängig vom Index aus).
-- **Offen:** MCP-Timeouts der direkten MCP-Routen (separates Infrastrukturthema, nicht index-bezogen).
+- **Review:** independent reviewer (sub-agent, fresh context): **APPROVED, 0 HIGH/CRITICAL**. Snapshot verified (branch, HEAD c64d112, only unstaged diff). Evidence: Node-24 header repro (`keep-alive: timeout=65`) in /tmp, `server.close()` idle-socket repro (1 ms), tsc --noEmit per server exit 0, no tests pin the listen behavior. Residuals tracked as KA-1 (stochastic shutdown asymmetry, LOW), KA-2 (env parse eats 0 values, LOW), KA-3 (container rebuild needed, LOW/ops) in remaining-work-plan.md.
+- **Status:** MERGED (fast-forward) into develop @ `1677a9d`, feature branch deleted, review APPROVED (0 HIGH/CRIT). detect_changes before commit: risk `medium`, only expected symbols (startServer/startHttpServer + docs).
+- **Status:** DEPLOYED & VERIFIED (2026-10-02). Push, build, deploy by the user; live counter-check: ports 3000/3002/3003 all `Keep-Alive: timeout=65` ✓. Port 3001 (stochastic) is **deprecated** and not deployed — no deployment needed. develop pushed (origin/develop current).
+- **Index follow-up KA-4 — SOLVED (2026-10-02):** The root cause was a case mismatch (storage `/mnt/d/repos/thinking-mcp` lowercase vs. mixed-case shell cwd). Reindex with a lowercase cwd succeeded (8.988 nodes / 21.534 edges); detect-changes clean. Rule documented in AGENTS.md (backup `AGENTS.md.bak`). Only the separate MCP timeout problem remains open (GitNexus/Clear-Thought MCP routes time out independently of the index).
+- **Open:** MCP timeouts of the direct MCP routes (separate infrastructure topic, not index-related).
 
-## 2026-10-02: REV-RRDO-1/2 abgearbeitet (Guidance-Session session-1bb0632b, Commit 9f7bc5f)
+## 2026-10-02: REV-RRDO-1/2 processed (Guidance session session-1bb0632b, Commit 9f7bc5f)
 
-- **Was:** Coverage-Lücken aus dem Review von 283fc74 geschlossen: Opt-out-Tool-Listen-Test (tools-registration.test.ts — `registryRegister.enabled:false` → `tools/list` exkludiert `registry_register`, exakte Surface = WORKFLOW_TOOL_NAMES) + Emissions-Assertions (scaffold.test.ts, config-assistant.test.ts AC-6, config-assistant-extensions.test.ts adopt+registry-edit — jeweils `registryRegister: {enabled: true}`). Nur Tests, keine Produktionscode-Änderung. Vollauf 537/537, tsc/prettier grün, detect_changes risk low.
-- **Notiz:** direkte Clear-Thought-MCP-Route wieder durchgehend getimed-out; `reasoning-pass` über Container-Route (`run_operation`) erfolgreich — FR-035-Passthrough-Muster erneut produktiv bestätigt. Final-Review über den Session-Diff (Sub-Agent aa18d064): APPROVED, 0 HIGH/CRIT; FR-FINAL-1 (Hash-Ref) hiermit korrigiert, FR-FINAL-2 getrackt.
+- **What:** Closed the coverage gaps from the review of 283fc74: opt-out tool-list test (tools-registration.test.ts — `registryRegister.enabled:false` → `tools/list` excludes `registry_register`, exact surface = WORKFLOW_TOOL_NAMES) + emission assertions (scaffold.test.ts, config-assistant.test.ts AC-6, config-assistant-extensions.test.ts adopt+registry-edit — each `registryRegister: {enabled: true}`). Tests only, no production code change. Full suite 537/537, tsc/prettier green, detect_changes risk low.
+- **Note:** the direct Clear-Thought MCP route was again consistently timed out; `reasoning-pass` via the container route (`run_operation`) succeeded — the FR-035 passthrough pattern productively confirmed once more. Final review over the session diff (sub-agent aa18d064): APPROVED, 0 HIGH/CRIT; FR-FINAL-1 (hash ref) corrected hereby, FR-FINAL-2 tracked.
 
-## 2026-10-02: registry_register aktiviert + Profil-Bindung entfernt (feature/registry-register-default-on)
+## 2026-10-02: registry_register enabled + profile binding removed (feature/registry-register-default-on)
 
-- **Was:** `registryRegister.enabled` ist jetzt Default-ON mit Opt-out (`enabled: false`) statt Default-OFF (config.ts Loader, FR-1207); die `spec-kit`-Profil-Bindung an `registry_register` wurde entfernt (ToolHandlers.isRegistryRegisterEnabled, WorkflowEngine.registerWorkspace, register-tools.ts) — Begründung: Workspace-Registrierung ist ein einmaliger Instanz-/Infrastruktur-Concern, der Workflow-Typ wird pro `start_workflow` gewählt; die Profil-Bindung mischte diese Ebenen. Beide Templates emitieren `registryRegister: { enabled: true }` (scaffold.ts Scaffold + ConfigAssistant registry-edit). README „Runtime registry registration“-Tabelle + Tool-Referenz-Zeile dokumentieren das neue Verhalten (Default ON, Opt-out, profilunabhängig).
-- **Tests:** registry-rebind (Opt-out-Test auf explizites `flag: false` umgestellt + neuer Default-ON/Plain-Profile-Regressionstest), tools-registration + spec-kit-tools-registration (erwartete Surface um `registry_register` erweitert), http-transport Tool-Count 23→24. Vollauf **535/535 grün** (68 Files), tsc + prettier clean.
-- **detect_changes:** risk `critical` (loadConfig/registerWorkflowTools an jedem Boot-Flow) — beabsichtigte Behavior-Änderung, durch Vollauf abgesichert.
-- **Review:** unabhängiger Reviewer (Sub-Agent, Post-Commit-Review von 283fc74): **APPROVED, 0 HIGH/CRITICAL, 0 MEDIUM**, 2 LOW-Coverage-Lücken + 3 INFO (als REV-RRDO-1..3 in remaining-work-plan.md getrackt; 1/2 in 9f7bc5f gelöst, 4/5 nachgetragen). Snapshot verifiziert (Branch/HEAD/clean Tree, Review-Basis = `git show 283fc74`).
-- **Next:** Merge nach develop; Container-Rebuild nötig, bis das Tool in der laufenden Instanz sichtbar ist (Hot-Reload gibt es nicht).
+- **What:** `registryRegister.enabled` is now default-ON with an opt-out (`enabled: false`) instead of default-OFF (config.ts loader, FR-1207); the `spec-kit` profile binding to `registry_register` was removed (ToolHandlers.isRegistryRegisterEnabled, WorkflowEngine.registerWorkspace, register-tools.ts) — rationale: workspace registration is a one-time instance/infrastructure concern, while the workflow type is chosen per `start_workflow`; the profile binding mixed these levels. Both templates emit `registryRegister: { enabled: true }` (scaffold.ts Scaffold + ConfigAssistant registry-edit). The README "Runtime registry registration" table + tool reference line document the new behavior (default ON, opt-out, profile-independent).
+- **Tests:** registry-rebind (opt-out test switched to an explicit `flag: false` + a new default-ON/plain-profile regression test), tools-registration + spec-kit-tools-registration (expected surface extended by `registry_register`), http-transport tool count 23→24. Full suite **535/535 green** (68 files), tsc + prettier clean.
+- **detect_changes:** risk `critical` (loadConfig/registerWorkflowTools on every boot flow) — intended behavior change, secured by the full suite.
+- **Review:** independent reviewer (sub-agent, post-commit review of 283fc74): **APPROVED, 0 HIGH/CRITICAL, 0 MEDIUM**, 2 LOW coverage gaps + 3 INFO (tracked as REV-RRDO-1..3 in remaining-work-plan.md; 1/2 solved in 9f7bc5f, 4/5 added afterwards). Snapshot verified (branch/HEAD/clean tree, review basis = `git show 283fc74`).
+- **Next:** merge to develop; a container rebuild is needed until the tool is visible in the running instance (there is no hot reload).
 
-## 2026-10-02: CT-ARGS-1 implementiert (feature/ct-args-passthrough)
+## 2026-10-02: CT-ARGS-1 implemented (feature/ct-args-passthrough)
 
-- **Was:** Guidance-Workflow session-b0c6df8b — `call_downstream`-Passthrough-Tool + `run_operation`-Arguments-Parameter (Deep-Merge, Agent-Keys gewinnen) + `argumentsLocked`-Fail-closed-Flag. Neue Tests `tests/contract/call-downstream.test.ts` (12, in-process HTTP-MCP-Stub); http-transport Tool-Count 22→23. Full-Suite 516/516 (9 skipped), tsc clean.
-- **Review:** unabhängiger Reviewer (Sub-Agent): CHANGES REQUIRED (1 HIGH Redaction, 2 MEDIUM Router-Override-Drop/Cancel-Semantik) → alle gefixt (d1f0c7d), Re-Review: **APPROVED, 0 offene HIGH/CRITICAL** (Residuen als CT-ARGS-2 getrackt).
-- **Live-Evidenz im Workflow:** direkte Clear-Thought-MCP-Route durchgehend getimed-out (4×), Container-Route-Fallback (`reasoning-pass`) jedes Mal erfolgreich — FR-035-Verhalten produktiv bestätigt; nach CT-ARGS-1 sind parametrisierte Reasoning-Pässe (`assumption_xray` etc.) über `call_downstream` nutzbar.
-- **Next:** Merge nach develop.
+- **What:** Guidance workflow session-b0c6df8b — `call_downstream` passthrough tool + `run_operation` arguments parameter (deep merge, agent keys win) + `argumentsLocked` fail-closed flag. New tests `tests/contract/call-downstream.test.ts` (12, in-process HTTP MCP stub); http-transport tool count 22→23. Full suite 516/516 (9 skipped), tsc clean.
+- **Review:** independent reviewer (sub-agent): CHANGES REQUIRED (1 HIGH redaction, 2 MEDIUM router-override drop/cancel semantics) → all fixed (d1f0c7d), re-review: **APPROVED, 0 open HIGH/CRITICAL** (residuals tracked as CT-ARGS-2).
+- **Live evidence in the workflow:** the direct Clear-Thought MCP route was consistently timed out (4×), the container-route fallback (`reasoning-pass`) succeeded every time — FR-035 behavior productively confirmed; after CT-ARGS-1, parameterized reasoning passes (`assumption_xray` etc.) are usable via `call_downstream`.
+- **Next:** merge to develop.
 
-## 2026-10-02: Clear-Thought-Operationen für Container-Route generiert (46 neue Ops)
+## 2026-10-02: Clear-Thought operations generated for the container route (46 new ops)
 
-- **Was:** `.guidance/operations.json` um `ct-*`-mcpTool-Operationen für ALLE Clear-Thought-Tools erweitert (38× `read_only`, 8× `external_write` für session_save/load/import, session/recipe_runner/workflow/Stochastic-Toolsets — nicht idempotent, daher bewusst NICHT fallback-eligibel). Capabilities gegen `server-clear-thought/src/tools/tool-metadata.ts` + Toolset-Slugs verifiziert; JSON per Node-Parser validiert (47 Clear-Thought-Ops inkl. reasoning-pass).
-- **Befund / Runtime-Limitierung:** `run_operation` nimmt KEINE Agent-Argumente entgegen (register-tools.ts L280: nur sessionId+operationId); mcpTool-Ops ziehen Args ausschließlich aus `arguments` (fixed/template). Die neuen Ops sind daher sofort funktional für parameterlose Tools (session_info/export, existing_tool_example) — parametrisierte Tools benötigen entweder feste Args im Op-Eintrag oder einen künftigen Downstream-Passthrough. Getrackt als CT-ARGS-1 (remaining-work-plan.md).
-- **Nächste Schritte:** Guidance-Container neu starten/Config neu laden (`docker compose up -d` bzw. Session neu initialisieren), dann Smoke-Test: `run_operation(ct-session-info)` über die Container-Route.
+- **What:** `.guidance/operations.json` extended with `ct-*` mcpTool operations for ALL Clear-Thought tools (38× `read_only`, 8× `external_write` for session_save/load/import, session/recipe_runner/workflow/stochastic toolsets — not idempotent, therefore deliberately NOT fallback-eligible). Capabilities verified against `server-clear-thought/src/tools/tool-metadata.ts` + toolset slugs; JSON validated via the Node parser (47 Clear-Thought ops incl. reasoning-pass).
+- **Finding / runtime limitation:** `run_operation` does NOT accept agent arguments (register-tools.ts L280: only sessionId+operationId); mcpTool ops pull args exclusively from `arguments` (fixed/template). The new ops are therefore immediately functional for parameterless tools (session_info/export, existing_tool_example) — parameterized tools need either fixed args in the op entry or a future downstream passthrough. Tracked as CT-ARGS-1 (remaining-work-plan.md).
+- **Next steps:** restart the guidance container / reload the config (`docker compose up -d` respectively re-initialize the session), then smoke test: `run_operation(ct-session-info)` via the container route.
 
-## 2026-09-30: Guidance-Container-Start-Crash behoben (falscher /workspaces-Mount)
+## 2026-09-30: Guidance container start crash fixed (wrong /workspaces mount)
 
-- **Symptom:** Container crashete beim Start mit `EACCES ... mkdir '/workspaces/.guidance'` (scaffold.js).
-- **Root cause:** Veralteter Container (`thinking-mcp-guidance-1`) mit falschem Mount `bind /mnt -> /workspaces` (root-owned, für `USER node` nicht schreibbar) statt `D:\repos -> /workspaces` — aus einer früheren/WSL-seitigen Erzeugung. Isoliertest mit korrektem Mount bestätigte Schreibbarkeit als `node`.
-- **Fix:** `docker compose up -d --force-recreate` aus `servers/server-guidance`; `/health` → `configured:true, reachable:true`. Alt-Container via `docker rm -v` entfernt.
-- **Doku:** Lesson in lessonsLearned.md (2026-09-30) + neue Start-Discipline-Regel in AGENTS.md (Guidance-Sektion; Backup `AGENTS.md.bak` angelegt, Clear-Thought-Konsistenzcheck ohne Konflikte).
+- **Symptom:** Container crashed at startup with `EACCES ... mkdir '/workspaces/.guidance'` (scaffold.js).
+- **Root cause:** Outdated container (`thinking-mcp-guidance-1`) with the wrong mount `bind /mnt -> /workspaces` (root-owned, not writable for `USER node`) instead of `D:\repos -> /workspaces` — from an earlier/WSL-side creation. An isolated test with the correct mount confirmed writability as `node`.
+- **Fix:** `docker compose up -d --force-recreate` from `servers/server-guidance`; `/health` → `configured:true, reachable:true`. Old container removed via `docker rm -v`.
+- **Docs:** Lesson in lessonsLearned.md (2026-09-30) + a new start-discipline rule in AGENTS.md (Guidance section; backup `AGENTS.md.bak` created, Clear-Thought consistency check without conflicts).
 
 ## 2026-09-28: Config-Assistant generic patterns (session-2c0c15fe, MERGED: develop @ 42e37bf)
 
-- **Root cause (Niyama-Folge):** der FRESH-Generator selbst war nicht generisch — `buildOperations` (ConfigAssistant.ts) hardcodete den Lint-Op als `npx prettier --check servers/*/src/**/*.{ts,tsx}` (Thinking-MCP-Glob) → exit 2 in jedem Repo ohne `servers/`-Layout. Zweitbefund: Adopt-Klassifikation prüfte Genericität nur über Op-NAMEN (+ kryptische `includes('"repo"')`-Heuristik) — repo-spezifische Args unter generischem Name entkamen dem `[adopted]`-Marker.
-- **Umgesetzt:** (1) Lint-Op → `npm run lint` (required:false, aligned mit examples/default-guidance); (2) strukturelle Genericitätsregel (nach Review-Verfeinerung): Preset-Ops werden IMMER aus dem Target-Fresh-Template regeneriert — divergente Ref-Args erzeugen eine laute `REGENERATED … reference args discarded`-Note statt Kopie; nur Non-Preset-Ops werden mit `[adopted — review args/paths]`-Marker kopiert (deckt beide Fehlerichtungen: Glob-Leak UND Scope-Kontamination); (3) Tests: Fresh-Args frei von Repo-Globs + Lint-Shape gepinnt; Niyama-Klasse (mutierter Lint-Args → regeneriert + Note), Builtin-Konvergenz + Builtin-Sync-Pin, Preset-Op ohne Fresh-Entsprechung → nonGeneric; (4) README: Genericity-Rule + npm/npx/sh-Konventionsannahme dokumentiert.
-- **Validierung:** ConfigAssistant-Suiten 57/57 grün, tsc --noEmit clean; Guidance-Suite 429/429 grün; Verify-Gates: build (required) GRÜN, lint-Fail = prä-existierender Prettier-Drift in 5 fremden Dateien (TMPL-1), test-Fail = better-sqlite3-musl-dlopen im Container (TMPL-2) — beide required:false, nicht durch diesen Diff verursacht. Independent Review (Sub-Agent): 0 HIGH/CRITICAL; GitNexus-MCP-Timeouts (2×) → grep-Fallback je FR-035.
-- **Status:** merged (rebase/fast-forward) in develop @ `42e37bf`, Feature-Branch gelöscht, Index frisch; Niyama-Container-Reparatur bleibt bei NIY-CFG-1/2, Prettier-Drift bei TMPL-1 (remaining-work-plan).
-- **Session-Review-Befunde (3, mit Evidence getrackt in remaining-work-plan):** REV-1 FR-035-Fallback-Reihenfolge bei GitNexus-Timeouts (Container-Route für gitnexus nicht konfiguriert — nur clearthought; Klärung Regeltext/Route offen); REV-2 `get_next_task` ohne Spec-Kit-Import wirft `spec_kit_artifact_missing` (reproduziert, auch post-completion); REV-3 `git diff` ohne `--no-pager` → Terminal-Hang (AGENTS.md-Regelverstoß, Lesson ergänzt).
+- **Root cause (Niyama follow-up):** the FRESH generator itself was not generic — `buildOperations` (ConfigAssistant.ts) hardcoded the lint op as `npx prettier --check servers/*/src/**/*.{ts,tsx}` (a Thinking-MCP glob) → exit 2 in every repo without a `servers/` layout. Second finding: adopt classification checked genericity only via op NAMES (+ a cryptic `includes('"repo"')` heuristic) — repo-specific args under a generic name escaped the `[adopted]` marker.
+- **Implemented:** (1) lint op → `npm run lint` (required:false, aligned with examples/default-guidance); (2) structural genericity rule (after review refinement): preset ops are ALWAYS regenerated from the target-fresh template — divergent ref args produce a loud `REGENERATED … reference args discarded` note instead of a copy; only non-preset ops are copied with an `[adopted — review args/paths]` marker (covers both error directions: glob leak AND scope contamination); (3) tests: fresh args free of repo globs + lint shape pinned; Niyama class (mutated lint args → regenerated + note), builtin convergence + builtin sync pin, preset op without a fresh counterpart → nonGeneric; (4) README: genericity rule + npm/npx/sh convention assumption documented.
+- **Validation:** ConfigAssistant suites 57/57 green, tsc --noEmit clean; guidance suite 429/429 green; verify gates: build (required) GREEN, lint fail = pre-existing prettier drift in 5 foreign files (TMPL-1), test fail = better-sqlite3-musl-dlopen in the container (TMPL-2) — both required:false, not caused by this diff. Independent review (sub-agent): 0 HIGH/CRITICAL; GitNexus MCP timeouts (2×) → grep fallback per FR-035.
+- **Status:** merged (rebase/fast-forward) into develop @ `42e37bf`, feature branch deleted, index fresh; the Niyama container repair remains with NIY-CFG-1/2, prettier drift with TMPL-1 (remaining-work-plan).
+- **Session review findings (3, tracked with evidence in remaining-work-plan):** REV-1 FR-035 fallback order on GitNexus timeouts (container route for gitnexus not configured — only clearthought; clarifying the rule text/route remains open); REV-2 `get_next_task` without a spec-kit import throws `spec_kit_artifact_missing` (reproduced, also post-completion); REV-3 `git diff` without `--no-pager` → terminal hang (AGENTS.md rule violation, lesson added).
 
-## 2026-09-28: Niyama Guidance-Session session-46a43aeb-6a87-4730-ac64-c73e613ae8d9 abgebrochen (Infrastruktur-Blocker)
+## 2026-09-28: Niyama guidance session session-46a43aeb-6a87-4730-ac64-c73e613ae8d9 aborted (infrastructure blocker)
 
-- **Kontext:** Session erreichte Phase `complete` nach Task 1 (gesamter C0+C1-Scope); verpflichtende Verification-Ops schlugen umgebungsbedingt fehl. Eigene Änderung (Standalone-.mjs + Markdown) kann build/lint/test nicht beeinflussen.
-- **Befunde:** (1) lint exit 2 — Pattern `servers/*/src/**/*.{ts,tsx}` existiert im Repo nicht (Verification-Config aus fremdem Repo-Layout kopiert, vermutlich Thinking-MCP `servers/`-Monorepo); (2) test exit 1 — `Cannot find module @rollup/rollup-linux-x64-musl` (Guidance-Container `/workspaces/Niyama`, pnpm-Store unvollständig/musl-inkompatibel). Keine der beiden Ops ist agent-invocable → nicht nachführbar.
-- **Entscheidung:** `report_blocker` (Kategorie infrastructure) gesetzt, dann `cancel_workflow` (status: cancelled) statt `complete_workflow` — Completion wäre unehrlich; betroffene Tasks NICHT als verified markiert.
-- **Follow-ups:** vor nächster Batch-Session (1) Lint-Glob in der Verification-Config des Guidance-Containers korrigieren, (2) pnpm-Store/Container-Mount reparieren, (3) komplette Verification-Config auf weitere fremde Repo-Pfade/Mounts auditieren. Danach frische Session pro Task-Batch; verbleibende C0-Tasks laufen dort (nicht in der abgeschlossenen Session — Lifecycle-Gates wären umgangen).
+- **Context:** The session reached phase `complete` after task 1 (the entire C0+C1 scope); mandatory verification ops failed for environmental reasons. Our own change (standalone .mjs + markdown) cannot influence build/lint/test.
+- **Findings:** (1) lint exit 2 — the pattern `servers/*/src/**/*.{ts,tsx}` does not exist in the repo (verification config copied from a foreign repo layout, presumably the Thinking-MCP `servers/` monorepo); (2) test exit 1 — `Cannot find module @rollup/rollup-linux-x64-musl` (guidance container `/workspaces/Niyama`, pnpm store incomplete/musl-incompatible). Neither op is agent-invocable → could not be re-run.
+- **Decision:** `report_blocker` (category infrastructure) set, then `cancel_workflow` (status: cancelled) instead of `complete_workflow` — completion would have been dishonest; the affected tasks NOT marked verified.
+- **Follow-ups:** before the next batch session (1) fix the lint glob in the guidance container's verification config, (2) repair the pnpm store/container mount, (3) audit the complete verification config for further foreign repo paths/mounts. After that a fresh session per task batch; the remaining C0 tasks run there (not in the completed session — the lifecycle gates would have been bypassed).
 
 ## 2026-09-28: Independent Review RID-1 (develop fbd5bdc) — CHANGES REQUIRED
 
-- Scope: `git show fbd5bdc` (RID-1 requestId-Replay-Hardening), Amendment 006. Snapshot verifiziert: develop @ fbd5bdc, Review-Basis = Commit-Diff (unstaged: nur memory-bank/SDD-Doku).
-- Verifiziert gegen Source: Replay-Marker + Clone (Cached-Original nie mutiert, Regressionstest), Replay-Check vor Phasen-/Schema-Checks in submitLocked UND completeWorkflowLocked (korrekt: Reuse erzeugt nie eine Submission), withLock-Serialisierung + MEDIUM-3-Successor-Race unbeeinträchtigt (Clone erhält nextSessionId), omitted-config-Defaults (submission absent → warn; requestPayloadHashes absent → Replay ohne Mismatch-Evaluation), fail-closed Policy-Validierung, Metric genau 1×/Replay. Tests: requestid-replay.test.ts 8/8 grün (lokal nachgeführt), tsc --noEmit grün.
-- Befunde: RID-2 MEDIUM (Hash-Poisoning bei fehlgeschlagenem Completion — First-Seen-Hash vor Outcome gespeichert, nie überschrieben → falsche payloadMismatch/fälschlicher Reject legaler Retries), RID-3 LOW (Metric nach Throw — payloadMismatches unter reject-mismatch immer 0), RID-4 LOW (Replays unauditiert), RID-5 INFO (undefined-Kollision in stablePayloadHash, wire-seitig unerreichbar), RID-6 INFO (fehlender Completion-Replay-Test als akzeptierte Abweichung bestätigt). Details + Trigger in remaining-work-plan.md.
-- Open HIGH/CRITICAL: 0. Verdict: CHANGES REQUIRED (RID-2 fixen, dann re-review).
+- Scope: `git show fbd5bdc` (RID-1 requestId replay hardening), amendment 006. Snapshot verified: develop @ fbd5bdc, review basis = commit diff (unstaged: only memory-bank/SDD docs).
+- Verified against source: replay marker + clone (cached original never mutated, regression test), replay check before the phase/schema checks in submitLocked AND completeWorkflowLocked (correct: reuse never creates a submission), withLock serialization + MEDIUM-3 successor race unaffected (the clone receives nextSessionId), omitted-config defaults (submission absent → warn; requestPayloadHashes absent → replay without mismatch evaluation), fail-closed policy validation, metric exactly 1×/replay. Tests: requestid-replay.test.ts 8/8 green (re-run locally), tsc --noEmit green.
+- Findings: RID-2 MEDIUM (hash poisoning on a failed completion — the first-seen hash stored before the outcome, never overwritten → false payloadMismatch/erroneous rejection of legal retries), RID-3 LOW (metric after throw — payloadMismatches under reject-mismatch always 0), RID-4 LOW (replays unaudited), RID-5 INFO (undefined collision in stablePayloadHash, unreachable on the wire), RID-6 INFO (missing completion replay test confirmed as an accepted deviation). Details + triggers in remaining-work-plan.md.
+- Open HIGH/CRITICAL: 0. Verdict: CHANGES REQUIRED (fix RID-2, then re-review).
 
-## 2026-09-28: RID-1 requestId-Replay-Hardening implementiert (session-dcd3ddc5, develop fbd5bdc)
+## 2026-09-28: RID-1 requestId replay hardening implemented (session-dcd3ddc5, develop fbd5bdc)
 
-- **Umgesetzt:** (1) Replay-Marker (replayed/duplicateOf/warning auf geklontem Result, Original nie mutiert — Amendment-002-Successor-Race sicher); (2) Payload-Hash (SHA-256 über sortiertes JSON, session.requestPayloadHashes) + Policy policies.submission.requestIdReuse warn|reject-mismatch (fail-closed Validierung, neuer ErrorCode requestId_reuse_payload_mismatch); (3) Metric requestIdReplays {total,payloadMismatches} in get_metrics; (4) 8 Contract-Tests + Error-Code-Snapshot; (5) Doku: README submit_* + specs/002/amendments/006.
-- **Validierung:** Worktree-Suite 228/233 grün (5 = bekannte final-review-gate-Worktree-Artefakte), Haupt-Checkout nach Merge Vollsuite grün (233/233 reale Tests), tsc clean.
-- **Vorfall:** Fremder Agent setzte während der Implementierung WorkflowEngine.ts im Haupt-Checkout auf HEAD zurück (RID-1-Edits verloren) und modifizierte SDD/guidance-mcp-specification-v2.md (fremde Änderung, unberührt gelassen). Arbeit in Worktree worktrees/rid1 isoliert neu aufgebaut und von dort gemerged — Parallel-Work-Lesson erneut bestätigt.
-- **Grenzen (Amendment 006 §4):** Pre-RID-1-Sessions ohne Hash durchlaufen warn ohne payloadMismatch-Bewertung; Completion-Replay-Test im Harness nicht erreichbar (repository-analysis required:true).
+- **Implemented:** (1) replay marker (replayed/duplicateOf/warning on a cloned result, original never mutated — amendment-002 successor race safe); (2) payload hash (SHA-256 over sorted JSON, session.requestPayloadHashes) + policy policies.submission.requestIdReuse warn|reject-mismatch (fail-closed validation, new error code requestId_reuse_payload_mismatch); (3) metric requestIdReplays {total,payloadMismatches} in get_metrics; (4) 8 contract tests + error-code snapshot; (5) docs: README submit_* + specs/002/amendments/006.
+- **Validation:** worktree suite 228/233 green (5 = known final-review-gate worktree artifacts), main checkout after merge full suite green (233/233 real tests), tsc clean.
+- **Incident:** A foreign agent reset WorkflowEngine.ts to HEAD in the main checkout during the implementation (RID-1 edits lost) and modified SDD/guidance-mcp-specification-v2.md (foreign change, left untouched). The work was rebuilt isolated in worktree worktrees/rid1 and merged from there — the parallel-work lesson confirmed once more.
+- **Limits (amendment 006 §4):** pre-RID-1 sessions without a hash pass through warn without payloadMismatch evaluation; the completion replay test is unreachable in the harness (repository-analysis required:true).
 
-## 2026-09-28: FR-035-Container-Route — Review-Runde 1 gefixt (worktree fr035-fix, 34b029c)
+## 2026-09-28: FR-035 container route — review round 1 fixed (worktree fr035-fix, 34b029c)
 
-- Independent Review (Sub-Agent, CHANGES REQUIRED, 1 HIGH): F1 SSRF-Bypass (stdio + containerRoute übersprang Allowlist) → behoben (Block vor Transport-Typ-continue, 2 Regressionstests); F4 Timeout-Guard, F5 recordConnection im Fallback-Pfad → behoben; F2 → FR-611 auf Wisdom-Baseline re-gescope't (Follow-up CR-1 in remaining-work-plan); F3 Engine-Test-Debt → getrackt (CR-2, GDS4-Konfliktvermeidung). Zielgerichtet 110/110 grün, tsc clean; Full-Suite im Worktree: 7 Umgebungsartefakte (final-review-gate vs. Windows-.git-File im Container; im Haupt-Checkout grün).
-- **Prozess-Anmerkung:** GDS4-Agent arbeitet parallel im Haupt-Checkout (HEAD auf feature/gds4-expose-op-content, uncommittete WorkflowEngine-Änderungen) — Review-Fixes bewusst im separaten Worktree committet; Merge/Rebase nach GDS4-Abschluss.
+- Independent review (sub-agent, CHANGES REQUIRED, 1 HIGH): F1 SSRF bypass (stdio + containerRoute skipped the allowlist) → fixed (block before the transport-type continue, 2 regression tests); F4 timeout guard, F5 recordConnection in the fallback path → fixed; F2 → re-scoped to FR-611 on the wisdom baseline (follow-up CR-1 in remaining-work-plan); F3 engine test debt → tracked (CR-2, GDS4 conflict avoidance). Targeted 110/110 green, tsc clean; full suite in the worktree: 7 environment artifacts (final-review-gate vs. the Windows .git file in the container; green in the main checkout).
+- **Process note:** the GDS4 agent works in parallel in the main checkout (HEAD on feature/gds4-expose-op-content, uncommitted WorkflowEngine changes) — review fixes deliberately committed in a separate worktree; merge/rebase after GDS4 completion.
 
-## 2026-09-28: FR-035-Amendment „Container-Route vor lokalem Fallback“ (session-1afb793f, feature/fr035-container-route)
+## 2026-09-28: FR-035 amendment "Container route before local fallback" (session-1afb793f, feature/fr035-container-route)
 
-- **Scope (Nutzerentscheid):** Textregel + maschinell; FR-035 amendiert (Amendment 005 in specs/002); RID-1 folgt separat.
-- **Umgesetzt:** (1) FR-035-Text in responses-wisdom.json + live .guidance/responses.json auf Reihenfolge retry → Container-Route → lokal → report_blocker (7 Phasen je Datei); (2) `containerRoute`-Feld in downstream-servers.json (fail-closed Validierung + SSRF-Allowlist + ${ENV}-Header in config.ts), Template + Live-Config für clearthought befüllt; (3) Engine-Fallback: EIN automatischer Versuch über containerRoute bei read_only-Timeout (ClientManager.invokeOnTransientHttpRoute + Gate in WorkflowEngine.buildInvokerClosure), Metric containerRouteFallbacks in get_metrics; (4) Tests tests/contract/container-route-fallback.test.ts (11) — Suite 221/221 grün, tsc clean; (5) Doku: README downstream-Attributtabelle + specs/002/amendments/005.
-- **Live bestätigt:** reasoning-pass über Container-Route erfolgreich, während direct-MCP gestern 2× timeoutete — die neue Regel ist genau der bewährte Workaround.
-- **Offen (nächster Schritt):** RID-1-Session nach Merge dieses Scopes starten; Refresh der Workspace-Configs (Niyama) auf den neuen Template-Stand.
+- **Scope (user decision):** text rule + machine; FR-035 amended (amendment 005 in specs/002); RID-1 follows separately.
+- **Implemented:** (1) FR-035 text in responses-wisdom.json + live .guidance/responses.json to the order retry → container route → local → report_blocker (7 phases per file); (2) `containerRoute` field in downstream-servers.json (fail-closed validation + SSRF allowlist + ${ENV} headers in config.ts), template + live config filled for clearthought; (3) engine fallback: ONE automatic attempt via containerRoute on a read_only timeout (ClientManager.invokeOnTransientHttpRoute + gate in WorkflowEngine.buildInvokerClosure), metric containerRouteFallbacks in get_metrics; (4) tests tests/contract/container-route-fallback.test.ts (11) — suite 221/221 green, tsc clean; (5) docs: README downstream attribute table + specs/002/amendments/005.
+- **Confirmed live:** reasoning-pass via the container route succeeded while direct MCP had timed out 2× the day before — the new rule is exactly the proven workaround.
+- **Open (next step):** start the RID-1 session after merging this scope; refresh the workspace configs (Niyama) to the new template state.
 
-## 2026-09-28: requestId-Reuse-Stall (Niyama session-46a43aeb) — Diagnose + Prävention
+## 2026-09-28: requestId reuse stall (Niyama session-46a43aeb) — diagnosis + prevention
 
-- **Befund:** `WorkflowEngine.submitLocked` (~L1617) replays still das gecachte Result bei bereits registrierter requestId — 3× `accepted: true` ohne Phase-Advance in review_and_adjust_plan. Fix: Resubmission mit frischer requestId (`req-plan-review-adjusted-c0c1`) → sofort `implement`.
-- **Umgesetzt:** Lesson in memory-bank/lessonsLearned.md (Avoid-These-Mistakes + datierter Eintrag); Hardening-Plan RID-1 in memory-bank/remaining-work-plan.md; Regel-Satz „Submission idempotency …“ in beide Config-Assistant-Templates (examples/default-guidance/responses-wisdom.json + responses.json, alle 6 Submission-Phasen, JSON-Validierung grün).
-- **Offen:** Live-.guidance/responses.json bestehender Workspaces (u. a. Niyama /workspaces/Niyama/.guidance) enthalten die Regel noch nicht → bei nächster Gelegenheit via setup_guidance_generate neu generieren oder hand-nachziehen; Server-Hardening (RID-1) umsetzen, siehe remaining-work-plan.
+- **Finding:** `WorkflowEngine.submitLocked` (~L1617) still replays the cached result for an already-registered requestId — 3× `accepted: true` without a phase advance in review_and_adjust_plan. Fix: resubmission with a fresh requestId (`req-plan-review-adjusted-c0c1`) → immediate `implement`.
+- **Implemented:** lesson in memory-bank/lessonsLearned.md (Avoid-These-Mistakes + dated entry); hardening plan RID-1 in memory-bank/remaining-work-plan.md; rule set "Submission idempotency …" in both config-assistant templates (examples/default-guidance/responses-wisdom.json + responses.json, all 6 submission phases, JSON validation green).
+- **Open:** the live .guidance/responses.json of existing workspaces (incl. Niyama /workspaces/Niyama/.guidance) does not yet contain the rule → regenerate via setup_guidance_generate at the next opportunity or pull it in by hand; implement the server hardening (RID-1), see remaining-work-plan.
 
-## 2026-09-26: Kleinkitems L256/L257/L253 (Guidance-Chain session-3b7f96a5)
+## 2026-09-26: Small items L256/L257/L253 (Guidance chain session-3b7f96a5)
 
-- **L256 FTS-Coverage (GELÖST):** `observations_fts` (FTS5, 500-Zeichen-Cap) + Insert-Trigger + Count-Guard-Backfill in `SqliteAdapter.init()`; `searchFullText` matcht beide Indizes (Dedupe bei Dual-Match). Tests `tests/contracts/fts-observation-coverage.test.ts` (7).
-- **L257 Postgres-FTS-Parität (GELÖST, Contract-Level):** `searchFullText` → sanitisierte AND-`tsquery` über goal_summary + Observations-Auszüge, INNER→**LEFT** JOIN signatures (2026-09-22-Bugklasse im zweiten Backend behoben), GIN-Expression-Indexe; SQL-Contract gepinnt in `tests/contracts/postgres-fts-parity.test.ts` (5). Offen: Live-Smoke-Test bei erster `EMMS_STORAGE_BACKEND=postgres`-Aktivierung.
-- **L253 Prompt-Sync (OBSOLET geschlossen, User-Entscheid Option 3):** keine Ziel-Repos mit Kopien/Referenzen vorhanden; Verteilung über Paket/Smithery.
-- Verifikation: 118/118 Tests, tsc, build grün. Independent Review (Sub-Agent): APPROVED, 0 HIGH/CRIT; MED (Backfill-Kosten) + 2 LOWs im Review behoben; F3–F6 als tracked follow-ups. GitNexus-Index frisch (analyze --no-stats). Lessons geseedet (`.guidance/state/session-lessons.json`): pg-search-fulltext-ilike-inner-join-parity-trap, sqlite-fts-backfill-per-init-quadratic-cost.
-- **Final Review (Fresh Sub-Agent dd5ee20f, nach Parallel-Agent-Abschluss):** APPROVED, **0 HIGH/CRITICAL**, 12/12 Fokus-Tests; Session-Code inzwischen committet (HEAD 60b2eddf); neues F1-LOW (Orphan-Observation → Count-Divergenz) zusammen mit F2/F4–F6 als tracked follow-ups persistiert. Index-freshness-Race bei Parallel-Work als Prozess-Follow-up getrackt.
-- **Prozessregel verankert (2026-09-26):** "Completion-Gate vs. Parallel-Work" in AGENTS.md (Guidance-Sektion) ergänzt — Backup `AGENTS.md.bak`; Clear-Thought-Konsistenzprüfung versuchte 3× (Server-Timeouts) → manuelle Prüfung dokumentiert (komplementär zu GitNexus/Branch-/Memory-Bank-Regeln, rein restriktiv). Tracked follow-up geschlossen.
-- Kontext: Session auf `feature/production-hardening` — die dirty-Dateien unter `servers/server-guidance` gehören zu einem PARALLELLEN Work-Stream und wurden nicht angefasst.
+- **L256 FTS coverage (SOLVED):** `observations_fts` (FTS5, 500-character cap) + insert trigger + count-guard backfill in `SqliteAdapter.init()`; `searchFullText` matches both indexes (dedupe on dual match). Tests `tests/contracts/fts-observation-coverage.test.ts` (7).
+- **L257 Postgres FTS parity (SOLVED, contract level):** `searchFullText` → sanitized AND-`tsquery` over goal_summary + observation excerpts, INNER→**LEFT** JOIN signatures (the 2026-09-22 bug class fixed in the second backend), GIN expression indexes; SQL contract pinned in `tests/contracts/postgres-fts-parity.test.ts` (5). Open: live smoke test at the first `EMMS_STORAGE_BACKEND=postgres` activation.
+- **L253 prompt sync (closed as OBSOLETE, user decision option 3):** no target repos with copies/references exist; distribution via package/Smithery.
+- Verification: 118/118 tests, tsc, build green. Independent review (sub-agent): APPROVED, 0 HIGH/CRIT; MED (backfill cost) + 2 LOWs fixed in review; F3–F6 as tracked follow-ups. GitNexus index fresh (analyze --no-stats). Lessons seeded (`.guidance/state/session-lessons.json`): pg-search-fulltext-ilike-inner-join-parity-trap, sqlite-fts-backfill-per-init-quadratic-cost.
+- **Final review (fresh sub-agent dd5ee20f, after the parallel agent finished):** APPROVED, **0 HIGH/CRITICAL**, 12/12 focus tests; session code committed in the meantime (HEAD 60b2eddf); a new F1-LOW (orphan observation → count divergence) persisted together with F2/F4–F6 as tracked follow-ups. The index-freshness race with parallel work tracked as a process follow-up.
+- **Process rule anchored (2026-09-26):** "Completion gate vs. parallel work" added in AGENTS.md (Guidance section) — backup `AGENTS.md.bak`; the Clear-Thought consistency check was attempted 3× (server timeouts) → manual check documented (complementary to the GitNexus/branch/memory-bank rules, purely restrictive). Tracked follow-up closed.
+- Context: the session ran on `feature/production-hardening` — the dirty files under `servers/server-guidance` belong to a PARALLEL work stream and were not touched.
 
 **Last updated:** 2026-09-26
 
-## 2026-09-26: Final-Review Feature 003 (develop @ ec924f6, kompletter Session-Diff 16c6f1e..ec924f6)
+## 2026-09-26: Final review feature 003 (develop @ ec924f6, complete session diff 16c6f1e..ec924f6)
 
-- Snapshot: develop @ ec924f6, clean (bis auf diese Review-Notiz); Diff
-  4 Commits gelesen (77fa854/a457329/b6edcee/ec924f6) + current source.
-- Verifikation: Suite 268/268 (RUN_PY_E2E=1) ✓, tsc clean ✓, build OK ✓.
-- Fix-Commit b6edcee geprüft: R-004-Stale-Lock-Recovery vorhanden, aber mit
-  neuem MEDIUM R-011 (Steal-TOCTOU, nicht-atomares unlink+recreate) und LOW
-  R-012 (TTL-vs-Timeout, EACCES-Code, Testlücken des neuen Codes) — getrackt
-  in remaining-work-plan.md. R-005 (Denial-Audit) korrekt, SC-002 erfüllt;
-  R-009 README konsistent mit PolicyEngine; R-007/R-007-Fix (Merge +
-  memory-bank) erledigt.
-- Offen: 0 CRITICAL, 0 HIGH, 1 MEDIUM (R-011), 3 LOW (R-012a-c). Kein reviewed
-  Code geändert.
+- Snapshot: develop @ ec924f6, clean (except this review note); the diff of
+  4 commits read (77fa854/a457329/b6edcee/ec924f6) + current source.
+- Verification: suite 268/268 (RUN_PY_E2E=1) ✓, tsc clean ✓, build OK ✓.
+- Fix commit b6edcee checked: R-004 stale-lock recovery present, but with
+  a new MEDIUM R-011 (steal TOCTOU, non-atomic unlink+recreate) and LOW
+  R-012 (TTL vs timeout, EACCES code, test gaps of the new code) — tracked
+  in remaining-work-plan.md. R-005 (denial audit) correct, SC-002 satisfied;
+  R-009 README consistent with PolicyEngine; R-007/R-007-fix (merge +
+  memory-bank) done.
+- Open: 0 CRITICAL, 0 HIGH, 1 MEDIUM (R-011), 3 LOW (R-012a-c). No reviewed
+  code changed.
 
-## 2026-09-26: Post-Commit-Review 77fa854+a457329 (independent, spec 003)
+## 2026-09-26: Post-commit review 77fa854+a457329 (independent, spec 003)
 
-- Snapshot: feature/guidance-toolchain-bootstrap @ a457329, clean; Review-Basis
-  git show beider Commits + current source. Suite 267/267 im
-  guidance-bootstrap-test-Image bestätigt; RUN_PY_E2E=1 4/4; tsc clean,
-  build OK; manueller uv-sync-0.12.19-Repro OK.
-- Ergebnis: 0 CRITICAL, 1 HIGH (R-004 Stale-Workspace-Lock ohne Recovery),
-  3 MEDIUM (R-005 SC-002-Denial-Audit, R-006 E2E-Abdeckung vs T008,
-  R-007 T013-Checkbox premature), 2 LOW (R-008, R-009) — Details + Trigger
-  in remaining-work-plan.md ("Getrackte Follow-ups 2026-09-26, Post-Commit-
-  Review 77fa854+a457329"). Kein Code geändert.
+- Snapshot: feature/guidance-toolchain-bootstrap @ a457329, clean; review basis
+  git show of both commits + current source. Suite 267/267 confirmed in the
+  guidance-bootstrap-test image; RUN_PY_E2E=1 4/4; tsc clean,
+  build OK; manual uv-sync-0.12.19 repro OK.
+- Result: 0 CRITICAL, 1 HIGH (R-004 stale workspace lock without recovery),
+  3 MEDIUM (R-005 SC-002 denial audit, R-006 E2E coverage vs T008,
+  R-007 T013 checkbox premature), 2 LOW (R-008, R-009) — details + triggers
+  in remaining-work-plan.md ("Tracked follow-ups 2026-09-26, post-commit
+  review 77fa854+a457329"). No code changed.
 
-## 2026-09-26: Workflow-Konfiguration — Final-Review-Pflicht in complete-Phase
+## 2026-09-26: Workflow configuration — mandatory final review in the complete phase
 
-- `.guidance/responses.json` (complete): pflichtiger abschließender Review
-  über ALLE Tasks der Session in einem frischen, authorship-excluded
-  Subagenten (Evidenz-Table je Finding, explizite HIGH/CRITICAL-Zählung,
-  Fokus Cross-Task/Speckonformanz/Fail-Closed/Boundary/Coverage).
-  HIGH/CRITICAL → fixen vor Completion; Rest → Findings-Lifecycle-
-  Persistierung; Outcome im Completion-Report referenzieren. Backup:
-  `responses.json.bak`. Container neu gestartet (/health ok). Clear-Thought-
-  Server timeouts — Verträglichkeitscheck manuell dokumentiert (Deviation).
+- `.guidance/responses.json` (complete): a mandatory final review over
+  ALL tasks of the session in a fresh, authorship-excluded
+  sub-agent (evidence table per finding, explicit HIGH/CRITICAL count,
+  focus cross-task/spec conformance/fail-closed/boundary/coverage).
+  HIGH/CRITICAL → fix before completion; the rest → findings-lifecycle
+  persistence; reference the outcome in the completion report. Backup:
+  `responses.json.bak`. Container restarted (/health ok). Clear-Thought
+  server timeouts — compatibility check documented manually (deviation).
 
 ## 2026-09-26: Final Comprehensive Review CHN-1..6 (bb37f6c) — APPROVED, 0 HIGH/CRIT
 
-- Authorship-excluded Review über eb99873..bb37f6c (4 Commits, develop).
-  Snapshot: develop @ bb37f6c, ahead 5, working tree clean bis auf
-  intentionales `.guidance/responses.json.bak` (Backup-Protokoll).
-- Verifikation: 251/251 Tests grün (inkl. chain.test.ts 18/18, WSL/nvm);
-  CHN-1..6-Fixes einzeln gegen den Quellcode verifiziert; Spec v1.1
-  FR-110..FR-119 + §12 end-to-end geprüft; Fail-Closed-Invarianten intakt
-  (`getSession` wirft chain_activation_incomplete; Recovery nur via
-  retry_operation mit vollständiger Aktivierung — kein Gate-Bypass).
-- Cross-Task-Interaktionen geprüft: CHN-1 × CHN-5 (beide Pfade hängen am
-  Successor-Lock + status==='activating'-Recheck ⇒ keine Doppel-Aktivierung);
-  CHN-3 Cursor-Semantik (upNext=steps.length) konsistent; CHN-4 chain_end
-  Audit nur beim stillen Form-B-Ende, keine Überschneidung mit chain_failed.
-- 0 HIGH/CRITICAL offen. 4 neue Akzeptanzen/NITs getrackt: CHN-R2-1 (LOW,
-  Replay-Staleness 'activating'-Entry), CHN-R2-2 (LOW, Testlücke Mixed in
-  plain), CHN-R2-3 (NIT, Recovery ohne FR-043-Reconciliation), CHN-R2-4
-  (NIT, memory-bank-Hygiene) → remaining-work-plan.md.
-- Merge-Empfehlung: develop bereit; für main später Squash + Container-
-  Image-Rebuild im Lockstep mit guidance.json (CHN-2-Lektion) wiederholen.
-- CHN-R2-2 SOFORT geschlossen (Commit `7cb55be`): Test „mixed manifest in
-  plain profile rejected entirely“ (chain.test.ts 19/19). CHN-R2-1/3/4
-  bleiben akzeptiert getrackt. Serien-Fazit: 4 Guidance-Workflows
-  (CHN-1, CHN-2, CHN-3, CHN-4/5/6) alle completed, gemerged, Branches
-  gelöscht; develop ahead 6.
+- Authorship-excluded review over eb99873..bb37f6c (4 commits, develop).
+  Snapshot: develop @ bb37f6c, ahead 5, working tree clean except for the
+  intentional `.guidance/responses.json.bak` (backup protocol).
+- Verification: 251/251 tests green (incl. chain.test.ts 18/18, WSL/nvm);
+  CHN-1..6 fixes individually verified against the source code; spec v1.1
+  FR-110..FR-119 + §12 checked end-to-end; fail-closed invariants intact
+  (`getSession` throws chain_activation_incomplete; recovery only via
+  retry_operation with full activation — no gate bypass).
+- Cross-task interactions checked: CHN-1 × CHN-5 (both paths hang on the
+  successor lock + status==='activating' recheck ⇒ no double activation);
+  CHN-3 cursor semantics (upNext=steps.length) consistent; CHN-4 chain_end
+  audit only at the silent Form-B end, no overlap with chain_failed.
+- 0 HIGH/CRITICAL open. 4 new acceptances/NITs tracked: CHN-R2-1 (LOW,
+  replay staleness 'activating' entry), CHN-R2-2 (LOW, test gap mixed in
+  plain), CHN-R2-3 (NIT, recovery without FR-043 reconciliation), CHN-R2-4
+  (NIT, memory-bank hygiene) → remaining-work-plan.md.
+- Merge recommendation: develop ready; for main later repeat
+  squash + container image rebuild in lockstep with guidance.json
+  (CHN-2 lesson).
+- CHN-R2-2 closed IMMEDIATELY (commit `7cb55be`): test "mixed manifest in
+  plain profile rejected entirely" (chain.test.ts 19/19). CHN-R2-1/3/4
+  remain accepted and tracked. Series conclusion: 4 guidance workflows
+  (CHN-1, CHN-2, CHN-3, CHN-4/5/6) all completed, merged, branches
+  deleted; develop ahead 6.
 
-## 2026-09-26: Independent Review CHN-3 (Mixed-Manifeste) — 1 HIGH offen
+## 2026-09-26: Independent review CHN-3 (mixed manifests) — 1 HIGH open
 
-- Authorship-excluded Review-Pass über den uncommitteten Diff (Scope:
+- Authorship-excluded review pass over the uncommitted diff (scope:
   register-tools.ts chainManifest, WorkflowEngine.ts validateChainManifest /
-  resolveChainStep / completeWorkflowLocked, Spec §12/FR-119, README,
+  resolveChainStep / completeWorkflowLocked, spec §12/FR-119, README,
   chain.test.ts). Snapshot: feature/chn-3-mixed-chains, HEAD == develop
-  49a18bc, Branch hat NULL Commits — alles uncommitted.
-- **1× HIGH (CHN-3-R1):** Form-B-Schritt setzt den Form-A-Cursor zurück
-  (`upNext: 0` → `chainUpNext = 1`): bei `steps.length >= 2` + `source`
-  wird `steps[1]` nach jedem Task erneut ausgeführt bis
-  `chain_depth_exceeded`. Reproduziert (temporärer Vitest, danach
-  entfernt); bestehender Mixed-Test nutzt nur 1 Step ⇒ Bug unsichtbar.
-  Details + Fix-Richtung: remaining-work-plan.md [CHN-3-R1].
-- **1× MEDIUM (CHN-3-R2):** Review-Scope-Abweichung — 25 weitere Dateien
-  mit substanziellen uncommitteten Änderungen außerhalb des deklarierten
-  Scopes (u. a. SpecKitEngine.ts +755). Getrackt in remaining-work-plan.md.
-- LOW (beobachtet, nicht getrackt als Blocker): Engine akzeptiert
-  `steps: []` (stillschweigend als reines Form B), während das Zod-Schema
-  via `.min(1)` ablehnt — nur per Engine-Direktaufruf erreichbar;
-  README-Guardrail-Zeile maxStepsPerManifest nennt nur Form A.
-- Verifikation: chain.test.ts 16/16 grün; Gesamtsuite 249 passed
-  (250 mit Review-Repro) — 249/249-Claim bestätigt; `npm run build` grün.
+  49a18bc, the branch has ZERO commits — everything uncommitted.
+- **1× HIGH (CHN-3-R1):** a Form-B step resets the Form-A cursor
+  (`upNext: 0` → `chainUpNext = 1`): with `steps.length >= 2` + `source`,
+  `steps[1]` is executed again after every task until
+  `chain_depth_exceeded`. Reproduced (temporary vitest, removed
+  afterwards); the existing mixed test uses only 1 step ⇒ bug invisible.
+  Details + fix direction: remaining-work-plan.md [CHN-3-R1].
+- **1× MEDIUM (CHN-3-R2):** review scope deviation — 25 further files
+  with substantial uncommitted changes outside the declared
+  scope (incl. SpecKitEngine.ts +755). Tracked in remaining-work-plan.md.
+- LOW (observed, not tracked as a blocker): the engine accepts
+  `steps: []` (silently as pure Form B), while the Zod schema
+  rejects it via `.min(1)` — reachable only via a direct engine call;
+  the README guardrail line maxStepsPerManifest mentions only Form A.
+- Verification: chain.test.ts 16/16 green; overall suite 249 passed
+  (250 with the review repro) — the 249/249 claim confirmed;
+  `npm run build` green.
 
-## 2026-09-25: Pre-Merge-Review Workflow-Chaining (0 HIGH/CRITICAL offen)
+## 2026-09-25: Pre-merge review workflow chaining (0 HIGH/CRITICAL open)
 
-- Frischer Review-Agent über den semantischen Diff: 3×MEDIUM, 3×LOW, 1×NIT;
-  **0 HIGH/CRITICAL**. Verifiziert gegen Source, vier behoben (mit
-  Regressionstests, chain.test.ts jetzt 12 Tests / 245 gesamt grün):
-  MEDIUM-1 (Form-B featureId aus Taskliste verworfen), MEDIUM-3
-  (Concurrent-Replay doppelt Aktivierung → Successor-Lock + In-Lock-Recheck),
-  LOW-4 (Depth-Gate vor Erschöpfung → falsches chain_depth_exceeded),
-  LOW-5 (Zod max(16) hardcodet → Engine-Gate autoritativ).
-- Akzeptiert + getrackt (remaining-work-plan): CHN-4 (stille Form-B-Brücke),
-  CHN-5 (Replay-Cache ohne chain-Entry im Crash-Fenster), CHN-6
-  (Pre-Aktivierungs-Guidance-Snapshot).
+- Fresh review agent over the semantic diff: 3×MEDIUM, 3×LOW, 1×NIT;
+  **0 HIGH/CRITICAL**. Verified against source, four fixed (with
+  regression tests, chain.test.ts now 12 tests / 245 overall green):
+  MEDIUM-1 (Form-B featureId discarded from the task list), MEDIUM-3
+  (concurrent replay double activation → successor lock + in-lock recheck),
+  LOW-4 (depth gate before exhaustion → false chain_depth_exceeded),
+  LOW-5 (Zod max(16) hardcoded → engine gate authoritative).
+- Accepted + tracked (remaining-work-plan): CHN-4 (silent Form-B bridge),
+  CHN-5 (replay cache without a chain entry in the crash window), CHN-6
+  (pre-activation guidance snapshot).
 
-## 2026-09-25: GUID-3/4/5-Workflow (erster Lauf mit Feature-Branch-Policy, completed)
+## 2026-09-25: GUID-3/4/5 workflow (first run with the feature-branch policy, completed)
 
-- Erster Workflow-Lauf mit der neuen implement-Regel: Branch-Check +
-  Feature-Branch `feature/guid-345-template-env-shell` (ohne Worktree),
-  Commits je Task, Merge ff nach develop, Branch gelöscht — Commit-Policy
-  erstmals produktiv.
-- GUID-3 CLOSED: Template-Resolution in OperationEngine (`ctxFor` →
-  templateVars session.request/project.name, tiefe ${token}-Resolution,
-  fail-fast bei unbekannten Tokens; mode:fixed literal; Behavior-Change in
-  README dokumentiert).
-- GUID-5 CLOSED: env + shell für Prozess-Operationen (spawnSync, Validierung
-  in config.ts); eigene operations.json auf env umgestellt (sh -c entfällt).
-- GUID-4 CLOSED: Schema-Load-Regression über public API + Source-Scan gegen
-  bare-require (2 neue Testdateien). Verifikation: 230/230 + 9 neue = grün,
-  detect_changes critical klassifiziert (Startup-Pfade).
-- GUID-7 NEU: umschaltbares workspaceRoot (Worktree-Gates) getrackt.
-- Live-Erkenntnis: Image-Rebuild nötig nach Engine-Änderungen — alter Image
-  ignorierte env-Felder (capture-Gate localhost-Fail), nach Rebuild grün.
+- First workflow run with the new implement rule: branch check +
+  feature branch `feature/guid-345-template-env-shell` (without a worktree),
+  commits per task, ff merge to develop, branch deleted — the commit policy
+  applied productively for the first time.
+- GUID-3 CLOSED: template resolution in OperationEngine (`ctxFor` →
+  templateVars session.request/project.name, deep ${token} resolution,
+  fail-fast on unknown tokens; mode:fixed literal; behavior change
+  documented in the README).
+- GUID-5 CLOSED: env + shell for process operations (spawnSync, validation
+  in config.ts); our own operations.json switched to env (sh -c dropped).
+- GUID-4 CLOSED: schema-load regression via the public API + source scan
+  against bare-require (2 new test files). Verification: 230/230 + 9 new = green,
+  detect_changes classified critical (startup paths).
+- GUID-7 NEW: switchable workspaceRoot (worktree gates) tracked.
+- Live insight: an image rebuild is needed after engine changes — the old
+  image ignored env fields (capture gate localhost fail), green after
+  the rebuild.
 
-## 2026-09-25: Workflow-Chaining-Spec (Amendment 002, APPROVED)
+## 2026-09-25: Workflow chaining spec (Amendment 002, APPROVED)
 
-- Design-Session „Chaining ohne Nutzerinput" abgeschlossen: Analyse ergab,
-  dass Phasen-Ketten im plain-Profil heute schon autark laufen, aber
-  Workflow-zu-Workflow-Ketten fehlen.
-- Entwurf als
+- Design session "Chaining without user input" completed: the analysis showed
+  that phase chains in the plain profile already run autonomously today, but
+  workflow-to-workflow chains are missing.
+- Draft persisted as
   `specs/002-guidance-workflow-server/amendments/002-workflow-chaining.md`
-  persistiert (Status APPROVED, FR-110…FR-116, Q1–Q3 durch Nutzer
-  entschieden).
-- Kern: `chain`-Manifest bei `start_workflow`, lazy Successor-Creation in
-  `completeWorkflowLocked`, Response-Felder `nextSessionId`/`chain`;
-  Kopf-Kopie der Restkette (Q2); Template-Fehler ⇒ keine Successor-Creation,
-  Vorgänger bleibt completed (Q1-Präzisierung).
-- **Q3 revidiert (Nutzer):** `spec-kit` lehnt `chain` NICHT ab — neue Form B
-  `chain.source: "spec_kit_tasks"` (FR-117/FR-118, §11): abhängigkeits-
-  geordnete Taskliste aus `speckit.tasks` als Chain-Quelle, ein voller
-  Workflow (mit Verify-Gates) pro Task; State-Brücke via optionaler
-  `specKitTasks`-EngineDeps-Callback.
-- Implementierung noch NICHT begonnen; Touchpoints in Spec §8 (WorkflowEngine,
-  types, config, template-resolver, register-tools, tests, Docs).
+  (status APPROVED, FR-110…FR-116, Q1–Q3 decided by the user).
+- Core: `chain` manifest at `start_workflow`, lazy successor creation in
+  `completeWorkflowLocked`, response fields `nextSessionId`/`chain`;
+  head copy of the remaining chain (Q2); template error ⇒ no successor
+  creation, the predecessor remains completed (Q1 refinement).
+- **Q3 revised (user):** `spec-kit` does NOT reject `chain` — the new
+  Form B `chain.source: "spec_kit_tasks"` (FR-117/FR-118, §11): a
+  dependency-ordered task list from `speckit.tasks` as the chain source,
+  one full workflow (with verify gates) per task; state bridge via an
+  optional `specKitTasks` EngineDeps callback.
+- Implementation NOT yet started; touchpoints in spec §8 (WorkflowEngine,
+  types, config, template-resolver, register-tools, tests, docs).
 
-## 2026-09-25: Nachfragen-Kultur (3. Guidance-Workflow, completed — volle Duty-Compliance)
+## 2026-09-25: Asking-questions culture (3rd guidance workflow, completed — full duty compliance)
 
-- Session `session-58872e83…` → **completed**; erster Lauf mit ALLEN vier
-  Clear-Thought-Duties envelope-pflichtig und erfüllt (sequential_thinking,
-  issue_tree + decision_framework, assumption_xray + Probing,
+- Session `session-58872e83…` → **completed**; first run with ALL four
+  Clear-Thought duties envelope-mandatory and fulfilled (sequential_thinking,
+  issue_tree + decision_framework, assumption_xray + probing,
   metacognitive_monitoring 0.85).
-- responses.json: Kern-Satz (Chat-Fragen vor Absenden + Feld-Referenz +
-  Blocker-Faustregel) in allen 6 Nicht-verify-Instructions; Feld-Mapping:
-  understand/plan→openQuestions, review_plan→remainingConcerns,
+- responses.json: core sentence (chat questions before submitting + field
+  reference + blocker rule of thumb) in all 6 non-verify instructions; field
+  mapping: understand/plan→openQuestions, review_plan→remainingConcerns,
   implement→unresolvedIssues+deviations, review_impl→unresolvedFindings,
-  complete→deferredWork/nextSteps. verify bewusst ausgenommen.
-- plan.schema.json: openQuestions ergänzt. README: Operating-Note 'Asking
+  complete→deferredWork/nextSteps. verify deliberately exempted.
+- plan.schema.json: openQuestions added. README: operating note 'Asking
   questions' (Commit 0b3fd42).
-- Neue EMMS-Episoden (via Capture-Gate geseedet):
-  gitnexus-detect-changes-misses-fresh-edits (detect_changes-Anomalie
-  beobachtet, kompensiert), guidance-schema-validator-caches-per-session.
+- New EMMS episodes (seeded via the capture gate):
+  gitnexus-detect-changes-misses-fresh-edits (detect_changes anomaly
+  observed, compensated), guidance-schema-validator-caches-per-session.
 
-## 2026-09-25: Capture-lessons-Integration (2. Guidance-Workflow, completed)
+## 2026-09-25: Capture-lessons integration (2nd guidance workflow, completed)
 
-- Session `session-1bb1d9c2…` → **completed**; `repository-analysis`-Gate
-  zum zweiten Mal produktiv grün.
-- `store-completion-insight` entfernt (GUID-2 → subsumed); neu:
-  **`capture-session-lessons`** (blocking Prozess-Gate, sh -c +
-  seed-lessons.mjs gegen Insight, idempotent) — Lessons-File-Vertrag:
-  Agent schreibt `.guidance/state/session-lessons.json` VOR complete_workflow
-  (leeres Array = No-Op; Redaction beim Agent).
-- Plan-Abweichung dokumentiert: OperationEngine spawnSync hat keine env-
-  Option → sh -c-Inline-ENV; als GUID-5 getrackt (env-Feld + Test).
-- Verifiziert: Live-Seed 2/2 + Idempotenz (2 duplicate, 1 seeded, exit 0),
-  experience_search-Round-Trip, 4× JSON-Validierung, build-Gate grün
-  (lint/test optional-failing aus bekannten Ursachen).
-- Commits: `2e72c9a` (Config + README). Neue EMMS-Episoden:
+- Session `session-1bb1d9c2…` → **completed**; the `repository-analysis`
+  gate green productively for the second time.
+- `store-completion-insight` removed (GUID-2 → subsumed); new:
+  **`capture-session-lessons`** (blocking process gate, sh -c +
+  seed-lessons.mjs against insight, idempotent) — lessons file contract:
+  the agent writes `.guidance/state/session-lessons.json` BEFORE
+  complete_workflow (empty array = no-op; redaction at the agent).
+- Plan deviation documented: OperationEngine spawnSync has no env
+  option → sh -c inline ENV; tracked as GUID-5 (env field + test).
+- Verified: live seed 2/2 + idempotency (2 duplicate, 1 seeded, exit 0),
+  experience_search round trip, 4× JSON validation, build gate green
+  (lint/test optional-failing for known reasons).
+- Commits: `2e72c9a` (config + README). New EMMS episodes:
   guidance-config-snapshot-per-session, guidance-template-placeholders-
   unresolved, guidance-process-operations-no-env-support.
 
-## 2026-09-25: GUID-1-Lauf — Gates produktiv, 2 echte Bugs aufgedeckt
+## 2026-09-25: GUID-1 run — gates productive, 2 real bugs uncovered
 
-- Erster echter Workflow-Lauf (Zed-Agent, Docs-Change): **build-Gate grün**
-  nach Container-Deps-Install (`npm install --include=dev --ignore-scripts
---script-shell=/bin/true` im isolierten Volume; corepack-yarn crasht auf
-  alpine, NODE_ENV=production skippte devDeps, prepare-Scripts laufen trotz
-  ignore-scripts). lint/test (optional) failen bekannt/toleriert (prettier
-  pre-existing; @rollup/rollup-linux-x64-musl optional-deps-Bug).
-- **Bug 1 (gefixt, `5316c88`)**: bare `require` in `createRequireShim()`
-  (ESM) — ReferenceError bei jedem submit_*; statischer createRequire-Import;
-  215/215 Tests; Lesson rezidivierend dokumentiert; Regression-Coverage
-  offen → GUID-4.
-- **Bug 2 (getrackt, GUID-3)**: Template-Platzhalter (`${project.name}` u.a.)
-  werden nie aufgelöst — Gate lief mit literalem Repo-Namen. Workaround:
-  hartcodiert in operations.json (Backup .bak), wirkt erst nach Container-
-  Restart (Config-Snapshot im Session-State). Restart erfolgt.
+- First real workflow run (Zed agent, docs change): **build gate green**
+  after the container deps install (`npm install --include=dev
+  --ignore-scripts --script-shell=/bin/true` in the isolated volume;
+  corepack-yarn crashes on alpine, NODE_ENV=production skipped
+  devDeps, prepare scripts run despite ignore-scripts). lint/test
+  (optional) fail known/tolerated (prettier pre-existing;
+  @rollup/rollup-linux-x64-musl optional-deps bug).
+- **Bug 1 (fixed, `5316c88`)**: bare `require` in `createRequireShim()`
+  (ESM) — ReferenceError on every submit_*; static createRequire import;
+  215/215 tests; recurring lesson documented; regression coverage
+  open → GUID-4.
+- **Bug 2 (tracked, GUID-3)**: template placeholders (`${project.name}`
+  etc.) are never resolved — the gate ran with the literal repo name.
+  Workaround: hardcoded in operations.json (backup .bak), takes effect
+  only after a container restart (config snapshot in the session state).
+  Restart done.
 
-## 2026-09-25: WORKFLOW COMPLETED — GUID-1 geschlossen
+## 2026-09-25: WORKFLOW COMPLETED — GUID-1 closed
 
-- Finaler grüner complete-Lauf: `repository-analysis` **succeeded**
-  (check `{repo:"thinking-mcp"}` nach GUID-3-Workaround + Container-Restart).
-  Session `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` → **completed**.
-- Scope: README.md Quick-Start-Abschnitt verbessert (docs-only, Zeilen 17–45).
-- `store-completion-insight` failed (nicht-required, toleriert) — siehe GUID-2.
-- Offen: GUID-3 (Template-Engine-Fix), GUID-4 (Regression-Test), GUID-2
-  (store-completion-insight-Args).
+- Final green complete run: `repository-analysis` **succeeded**
+  (check `{repo:"thinking-mcp"}` after the GUID-3 workaround + container
+  restart). Session `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` →
+  **completed**.
+- Scope: README.md quick-start section improved (docs-only, lines 17–45).
+- `store-completion-insight` failed (not required, tolerated) — see GUID-2.
+- Open: GUID-3 (template engine fix), GUID-4 (regression test), GUID-2
+  (store-completion-insight args).
 
-## 2026-09-25: GUID-1-Vorbereitung — GitNexus-Docker (:4747) an repo angebunden
+## 2026-09-25: GUID-1 preparation — GitNexus Docker (:4747) connected to the repo
 
-- `C:\Users\AlexanderPaschold\source\repos\GitNexus\docker-compose.override.yaml`
-  angelegt: Repo RO unter `/thinking-mcp`, nur `.gitnexus/` RW (geteilter Store
-  mit WSL-CLI, beide 1.6.8). Fallstricke: `/workspace`-Base-Mount ist RO →
-  kein Unter-Mount möglich; MCP-HTTP-Server expose't **kein analyze-Tool**
-  (nur Query-Tools); Indexierung läuft per CLI im Container
-  (`gitnexus analyze --no-stats`, einmalig + bei Bedarf host-seitig).
-- Erst-Indexierung erfolgreich: 4.506 Nodes / 10.117 Edges / 199 clusters.
-  `check {repo:"thinking-mcp"}` über HTTP verifiziert (Nebenbefund: 1
-  Import-Zyklus lesson-service.ts ↔ adapter.ts in server-insight, pre-existing).
-- Gate `repository-analysis` umgestellt: composite firstAvailable —
-  (1) mcpTool `check` {repo:${project.name}} (HTTP), (2) Prozess-Fallback
-  `gitnexus analyze --no-stats` (stdio-Deployments); riskClass jetzt
-  read_only; Allowlist auf existierende Tools gekürzt. Commit `5f8b2eb`.
-- **Verbleibend für GUID-1:** Nutzer startet echten Workflow-Lauf im Zed-Agent
-  (context_servers-Eintrag + kleine Aufgabe); Agent führt die Phasen,
-  `complete` feuert das Gate erstmals produktiv.
+- Created
+  `C:\Users\AlexanderPaschold\source\repos\GitNexus\docker-compose.override.yaml`:
+  repo RO under `/thinking-mcp`, only `.gitnexus/` RW (shared store
+  with the WSL CLI, both 1.6.8). Pitfalls: the `/workspace` base mount
+  is RO → no sub-mount possible; the MCP HTTP server exposes **no
+  analyze tool** (query tools only); indexing runs via the CLI in the
+  container (`gitnexus analyze --no-stats`, once + on demand on the
+  host side).
+- Initial indexing successful: 4.506 nodes / 10.117 edges / 199 clusters.
+  `check {repo:"thinking-mcp"}` verified over HTTP (side finding: 1
+  import cycle lesson-service.ts ↔ adapter.ts in server-insight,
+  pre-existing).
+- Gate `repository-analysis` switched: composite firstAvailable —
+  (1) mcpTool `check` {repo:${project.name}} (HTTP), (2) process
+  fallback `gitnexus analyze --no-stats` (stdio deployments);
+  riskClass now read_only; allowlist trimmed to existing tools.
+  Commit `5f8b2eb`.
+- **Remaining for GUID-1:** the user starts a real workflow run in the
+  Zed agent (context_servers entry + a small task); the agent runs the
+  phases, `complete` fires the gate productively for the first time.
 
-## 2026-09-25: Merge beider Guidance-Feature-Branches nach develop + Review
+## 2026-09-25: Merge of both guidance feature branches to develop + review
 
-- Fast-Forward-Merge `7b8e5d5 → 5ced680` (deckt `feature/guidance-workflow-setup`
-  und `feature/guidance-http-downstream` ab, lineare History); develop ahead 3
-  gegenüber origin/develop.
-- Post-Merge-Review von `e601515` (einziger Code-Touch) gegen aktuellen Stand:
-  Config-Validierung (stdio/http-Union, URL-Check), fail-closed Allowlist
-  (Pflicht sobald ein enabled http-Server existiert), `${ENV}`-Resolution **nach**
-  configVersion-Hashing (Secrets im Hash-freien Bereich), Legacy-stdio ohne
-  `type` bleibt kompatibel, WorkflowEngine-Transportauswahl korrekt.
-- Tests (WSL, nvm node): guidance typecheck grün + **206/206**; Full Suite
-  **521/521** (clear-thought 166, guidance 206, insight 106, stochastic 43).
-- Branches gelöscht (beide gemerged). Push auf origin/develop erfolgt
-  (2026-09-25). GUID-1/GUID-2 bleiben getrackt.
+- Fast-forward merge `7b8e5d5 → 5ced680` (covers
+  `feature/guidance-workflow-setup` and `feature/guidance-http-downstream`,
+  linear history); develop ahead 3 vs. origin/develop.
+- Post-merge review of `e601515` (the only code touch) against the
+  current state: config validation (stdio/http union, URL check),
+  fail-closed allowlist (mandatory as soon as an enabled http server
+  exists), `${ENV}` resolution **after** configVersion hashing
+  (secrets outside the hashed area), legacy stdio without
+  `type` stays compatible, WorkflowEngine transport selection correct.
+- Tests (WSL, nvm node): guidance typecheck green + **206/206**;
+  full suite **521/521** (clear-thought 166, guidance 206, insight 106,
+  stochastic 43).
+- Branches deleted (both merged). Push to origin/develop done
+  (2026-09-25). GUID-1/GUID-2 remain tracked.
 
-## 2026-09-24: Guidance für Zed-Agent eingerichtet (feature/guidance-workflow-setup)
+## 2026-09-24: Guidance set up for the Zed agent (feature/guidance-workflow-setup)
 
-- `.guidance/` im Repo-Root angelegt (aus `servers/server-guidance/examples/default-guidance/`,
-  Version 2, Profil `plain`, Standard-Flow understand → … → complete).
-- Anpassungen: `project.name=thinking-mcp`; Gates `lint` (prettier --check) und
-  `test` (npm test) auf `required:false` (Container/Windows-Caveats, siehe ops-Beschreibungen);
-  `repository-analysis` auf `required:false` — Downstream-MCP ist **stdio-only**
-  (ClientManager.ts), im Docker-Container sind gitnexus/insight nicht erreichbar;
-  Downstream-Server gitnexus/insight daher `enabled:false` dokumentiert.
-- `servers/server-guidance/docker-compose.override.yml`: Repo als `/workspace`
-  gemountet, isoliertes Volume `guidance_node_modules` schützt die Windows-
-  node_modules; kein Bearer-Token (loopback, Nutzer-Entscheid).
-- `.gitignore`: `/.guidance/state/` ergänzt.
-- Verifiziert: `docker compose up -d --build` → `/health` `configured:true`,
-  `/mcp` POST → 200, Startlog clean.
-- **Nachtrag — HTTP-Downstream aktiviert** (nach Retrofit von
-  `transport.type:"http"` im ClientManager): gitnexus (host.docker.internal:4747/api/mcp)
-  und insight (:3002/mcp) enabled, `policies.egress.httpHostAllowlist` gesetzt
-  (fail-closed-Pflicht), `repository-analysis` wieder `required:true` (AGENTS.md-Gate),
-  Insight-Ops auf echte Tool-Namen (`experience_search` + `scope_id`-Template /
-  `experience_record_observation`) umgestellt. Image-**Rebuild** war nötig (altes
-  Image kannte den http-Zweig nicht → „not connected“). End-to-End verifiziert:
-  `start_workflow` → `query-project-insights: succeeded`. Offen: erst echter
-  `complete`-Durchlauf exerziert `repository-analysis` (gitnexus); automatisierter
-  Regressionstest für stateful-Downstream-Sessions bleibt Follow-up (CI kann
-  Live-System nicht adressieren). **Getrackt:** GUID-1 (erster echter
-  `complete`-Lauf exerziert das gitnexus-Gate) und GUID-2
-  (`store-completion-insight`-Arg-Vollständigkeit) in
+- `.guidance/` created in the repo root (from
+  `servers/server-guidance/examples/default-guidance/`,
+  version 2, profile `plain`, standard flow understand → … → complete).
+- Adjustments: `project.name=thinking-mcp`; gates `lint` (prettier
+  --check) and `test` (npm test) to `required:false` (container/Windows
+  caveats, see the ops descriptions);
+  `repository-analysis` to `required:false` — the downstream MCP is
+  **stdio-only** (ClientManager.ts), in the Docker container
+  gitnexus/insight are unreachable;
+  the downstream servers gitnexus/insight therefore documented
+  `enabled:false`.
+- `servers/server-guidance/docker-compose.override.yml`: repo mounted
+  as `/workspace`, the isolated volume `guidance_node_modules` protects
+  the Windows node_modules; no bearer token (loopback, user decision).
+- `.gitignore`: `/.guidance/state/` added.
+- Verified: `docker compose up -d --build` → `/health`
+  `configured:true`, `/mcp` POST → 200, startup log clean.
+- **Addendum — HTTP downstream enabled** (after retrofitting
+  `transport.type:"http"` in ClientManager): gitnexus
+  (host.docker.internal:4747/api/mcp) and insight (:3002/mcp) enabled,
+  `policies.egress.httpHostAllowlist` set (fail-closed mandatory),
+  `repository-analysis` back to `required:true` (AGENTS.md gate),
+  insight ops switched to real tool names (`experience_search` +
+  `scope_id` template / `experience_record_observation`). An image
+  **rebuild** was necessary (the old image did not know the http branch
+  → "not connected"). Verified end-to-end:
+  `start_workflow` → `query-project-insights: succeeded`. Open: only a
+  first real `complete` pass exercises `repository-analysis` (gitnexus);
+  an automated regression test for stateful downstream sessions remains
+  a follow-up (CI cannot address the live system). **Tracked:** GUID-1
+  (the first real `complete` run exercises the gitnexus gate) and
+  GUID-2 (`store-completion-insight` arg completeness) in
   `memory-bank/remaining-work-plan.md`.
-- Ausstehend: Zed `context_servers`-Eintrag durch Nutzer setzen (siehe Chat);
-  in-container test env optional (`yarn install` im Container); Downstream-Aktivierung
-  nur im stdio-Modus möglich (Limitation dokumentiert).
+- Pending: the user sets the Zed `context_servers` entry (see chat);
+  in-container test env optional (`yarn install` in the container);
+  downstream activation possible only in stdio mode (limitation
+  documented).
 
 ## Current Focus
 
-- **RELEASE 0.3.0 SHIPPED (2026-09-14)** — alle Roadmap-Haupt-Tracks abgeschlossen
-  (A, B1–B5, C, D1–D3, E1–E3). Erster erfolgreicher **OIDC-Trusted-Publishing**-Lauf
-  (tokenlos, Provenance-Badge) nach dem 3-Ringe-Debug (Account-2FA-Modus →
-  Package-Access-Option → TP-Stage-Permission, siehe lessonsLearned). ghcr-Images
-  0.3.0 gepusht. Registry-verifiziert (`npm view` → latest 0.3.0).
-- Next: ghcr-Packages auf public stellen (falls noch nicht geschehen); Smithery-Re-Publish
-  (neue Tools sichtbar machen); optionale Punkte: D4 (Sampling), Tier 2 (LLM-Evals),
-  orchestrierter Recipe Runner, Naming-Rename (Breaking, ~4 pt).
+- **RELEASE 0.3.0 SHIPPED (2026-09-14)** — all roadmap main tracks completed
+  (A, B1–B5, C, D1–D3, E1–E3). First successful **OIDC trusted publishing**
+  run (tokenless, provenance badge) after the 3-rings debug (account 2FA
+  mode → package access option → TP stage permission, see lessonsLearned).
+  ghcr images 0.3.0 pushed. Registry-verified (`npm view` → latest 0.3.0).
+- Next: make the ghcr packages public (if not already done); Smithery re-publish
+  (make new tools visible); optional items: D4 (sampling), Tier 2 (LLM evals),
+  orchestrated Recipe Runner, Naming-Rename (breaking, ~4 pt).
 - Stochastic server fully shipped: merged, pushed, deployed, docker-verified,
   **published on the Smithery registry** (`paschbaer/stochasticthinking`,
   stdio bundle — download/install distribution; run.tools hosting is
@@ -560,108 +582,113 @@
 
 ### 2026-09-29 — Wildcard Container-Route (feature/wildcard-container-route, Guidance-Session session-45abc996)
 
-- Container-Route jetzt tool-name-agnostik-öffentlich: `capabilities.allow.tools:
-["*"]` (Wildcard, nur alleinig — gemischte Listen → configuration_invalid)
-  für gitnexus/clearthought/insight in `.guidance/` UND
-  `examples/default-guidance/`; insight erstmals mit `containerRoute`
-  (`host.docker.internal:3002/mcp` bzw. `localhost:3002/mcp` in examples).
-  Enforcement: `ClientManager.assertAllowed` respektiert "*"; Auto-Fallback
-  bleibt read_only-beschränkt (unverändert). Egress-Allowlist in examples-
-  policies.json ergänzt (localhost:3000/3002/4747). Tests: Wildcard-Validierung
-  - Enforcement + Full-Suite 437/437 grün. Hinweis: laufender Docker-Container
-    braucht Image-Rebuild, um "*" zu akzeptieren.
+- Container route now tool-name-agnostic public: `capabilities.allow.tools:
+["*"]` (wildcard, only standalone — mixed lists → configuration_invalid)
+  for gitnexus/clearthought/insight in `.guidance/` AND
+  `examples/default-guidance/`; insight for the first time with `containerRoute`
+  (`host.docker.internal:3002/mcp` resp. `localhost:3002/mcp` in examples).
+  Enforcement: `ClientManager.assertAllowed` respects "*"; auto-fallback
+  remains read_only-restricted (unchanged). Egress allowlist in examples
+  policies.json (localhost:3000/3002/4747). Tests: wildcard validation
+  - enforcement + full suite 437/437 green. Note: a running Docker container
+    needs an image rebuild to accept "*".
 
 ### 2026-09-25 — Guidance HTTP-Downstream-Transport (feature/guidance-http-downstream)
 
-- Plan reviewt (Clear-Thought-Server down ⇒ dokumentierter manueller Fallback
-  mit Findings-Tabelle), Plan v2 um Egress-Host-Allowlist + Load-Time-Secret-
-  Resolution + HTTP-Stub-E2E ergänzt.
-- Implementiert: `transport.type "http"` in downstream-servers.json
-  (`http.url` + `http.headers` mit `${ENV_VAR}`-Auflösung, fail-closed);
-  `policies.egress.httpHostAllowlist` (Pflicht, sobald ein enabled Server http
-  nutzt — exakter Host-Match); `validateDownstreamServers` validiert beide
-  Transport-Typen; Auflösung NACH configVersion-Hashing (Secrets nie im Hash);
-  ClientManager: `DownstreamTransportConfig`-Union +
-  `StreamableHTTPClientTransport`; WorkflowEngine reicht http/stdio korrekt
-  durch. Disabled Server werden komplett übersprungen.
-- Tests: 33/33 fokussiert, 206/206 volle Guidance-Suite, tsc grün. E2E: echter
-  Streamable-HTTP-Handshake gegen guidance-HTTP-App als Downstream.
-- insights/clear-thought sprechen stateful streamable HTTP (sessionIdGenerator)
-  — SDK-Client-Transport verwaltet `mcp-session-id` selbst; Reconnect = HD-1.
-- Node läuft in WSL via nvm, aber NICHT auf PATH in `bash -c`; Windows-seitiges
-  sh interpoliert `$VAR` vor wsl.exe (\$-Escaping nötig).
+- Plan reviewed (Clear-Thought server down ⇒ documented manual fallback
+  with findings table), plan v2 extended with egress host allowlist +
+  load-time secret resolution + HTTP stub E2E.
+- Implemented: `transport.type "http"` in downstream-servers.json
+  (`http.url` + `http.headers` with `${ENV_VAR}` resolution, fail-closed);
+  `policies.egress.httpHostAllowlist` (mandatory as soon as an enabled server
+  uses http — exact host match); `validateDownstreamServers` validates both
+  transport types; resolution AFTER configVersion hashing (secrets never in
+  the hash); ClientManager: `DownstreamTransportConfig` union +
+  `StreamableHTTPClientTransport`; WorkflowEngine passes http/stdio through
+  correctly. Disabled servers are skipped entirely.
+- Tests: 33/33 focused, 206/206 full guidance suite, tsc green. E2E: real
+  Streamable-HTTP handshake against the guidance HTTP app as downstream.
+- insights/clear-thought speak stateful streamable HTTP (sessionIdGenerator)
+  — SDK client transport manages `mcp-session-id` itself; reconnect = HD-1.
+- Node runs in WSL via nvm, but NOT on PATH in `bash -c`; Windows-side
+  sh interpolates `$VAR` before wsl.exe (\$-escaping needed).
 
 ## Recent Changes
 
-- 2026-09-16: **MG-1 RESOLVED** — stochastic-Jobs aus allen drei Publish-
-  Pipelines entfernt (`42010d1`) und `@paschbaer/stochasticthinking` deprecatet
-  (npm-Registry verifiziert: Meldung live, Verweis auf clear-thought@>=2.0.0).
-  SSH-Setup im WSL repariert (Key kopiert + .bashrc-Guard gegen blockierende
-  ssh-add-Prompts in nicht-interaktiven Shells); Push develop = `42010d1`.
-- 2026-09-16: **Release 2.0.0 pushed + gemerged + published (User-Meldung)** —
-  Branch `feature/release-2-0-0` (4 Commits: `0fd8410` Version-Bump +
-  Pfad-Fixes, `6ddba51` README user-first, `dd2e00d` Docker/HTTP-Config,
-  `92bde28` Memory-Bank) ist auf `develop` (`92bde28`, = origin/develop)
-  und wurde vom User nach `main` gemergt + Publish angestoßen.
-  Lokal nicht verifizierbar: `git fetch` schlägt fehl (Permission denied
-  publickey — Credentials nur im User-Terminal); origin/main-Ref lokal stale
-  (8897280, Stand 0.3.0). **Registry-Check: npm `latest` = 2.0.0 ✓ live.**
-  **MG-1-Trigger ist damit erreicht**: Deprecation
-  `@paschbaer/stochasticthinking` + stochastic-Jobs aus den drei
-  Publish-Pipelines entfernen (Reihenfolge: erst 2.0.0 live bestätigen).
-- 2026-09-16: Root-README user-first umgebaut (Commits `6ddba51` + `dd2e00d`,
-  branch `feature/release-2-0-0`): neue Abschnitte Quick Start (npx-Config),
-  What you get (7-Toolset-Tabelle, individuelle ≡ Toolset-Aufrufe),
-  Using it with your coding agent (Agent-Guide + Skill-Generator-Doku:
-  `npm run sync:skill`/`sync:all`), Docker/MCP-HTTP-Client-Config
-  (`http://localhost:3000/mcp`, Endpunkt laut server.ts verifiziert) +
-  ghcr-Image-Hinweis. Development/Publishing auf Verweise an die
-  Server-README verdichtet.
-- 2026-09-16: Release 2.0.0 vorbereitet (branch `feature/release-2-0-0`): Version-Bump
-  `@paschbaer/clear-thought` 1.0.0 → **2.0.0** (package.json + Factory-ServerInfo;
-  User-Entscheidung statt geplanter 1.1.0 — siehe decisions.md Update 2).
-  Session-Export-Envelope-Version in SessionState.ts bleibt bewusst 1.0.0
-  (Datenformat-Version, Schema unverändert — Bandit-Runs sind nicht Teil des Exports).
-  Typcheck grün. Phase 6 freigegeben: User mergt nach main und stößt Publish an;
-  danach MG-1 (Deprecation + Pipeline-Cleanup).
-- 2026-09-16: Repo von `/mnt/c` nach `/mnt/d/repos/Thinking-MCP` umgezogen; Pfade
-  korrigiert (`scripts/regen-root-agents.ts` + AGENTS.md-Guide-Block via
-  Regenerierung + handgeschriebene Domain-context-Zeile; Backup `AGENTS.md.bak`).
-  Merge-Status verifiziert: Implementierung `1bed87e` + Nachtrag `039c7e3` bereits
-  auf develop (HEAD `df0a84a`). GitNexus-Index nach Umzug nicht erreichbar
-  (Re-Index `node .gitnexus/run.cjs analyze --no-stats` ausstehend).
-- 2026-09-15: Smithery-CI-Fix (erster Pipeline-Lauf crashte mit ENOENT: das Skript las die
-  lokale settings.json bedingungslos, bevor es den Env-Token prüfte) — settings.json ist
-  jetzt OPTIONAL; SMITHERY_API_KEY allein reicht. Nebeneffekt des lokalen Probe-Laufs:
-  **clear-thought 0.3.0 auf Smithery republished** (45 Tools erfasst, Release 202/SUCCESS).
-- 2026-09-14 (VIII): `publish-smithery.yml` (Release-Pipelines vervollständigt): beide
-  Server werden bei Release-Merges automatisch republished (version-guarded via
-  registry.smithery.ai-Record); beide publish-smithery.mjs akzeptieren jetzt
-  SMITHERY_API_KEY-Env (Secret) zusätzlich zur lokalen Settings-Datei.
-- 2026-09-14 (VII): Roadmap-Track D (branch `feature/track-d`, noch 0.3.0): D1 Session-
-  Resources (4 URIs), D2 Workflow-Prompts (6), D3 Persistence (session_save/load + dataDir);
-  Factory-Bug behoben (unparsed Config → sofortiger Cleanup-Timer); 129/129 Tests.
-- 2026-09-14 (VI): Roadmap-Track B2–B5 (branch `feature/track-b2-b5`, noch 0.3.0):
-  `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix` im reasoning-Toolset;
-  fermi-Feld `operation`→`combine` (reservierter Toolset-Diskriminator); Mixed-Formel
-  für den Spalten-Spieler korrigiert ((h−g)/denom); 121/121 Tests.
-- 2026-09-14 (V): Roadmap-Track C (branch `feature/recipe-runner`, 0.3.0): `recipe_runner`
-  - `workflow`-Toolset — 6 Guide-Rezepte als Daten, per-session Fortschritt im neuen
-    `WorkflowStore`, Auto-Start/advance/reset; Guide (Routing + Rezept-Intro) und
-    Root-AGENTS.md regeneriert; 111/111 Tests.
-- 2026-09-14 (V): Release 0.2.0 über PR `develop → main` (Branch-Protection aktiv);
-  GitHub-Actions: ghcr-Images gepusht, npm-Publish durch Account-2FA-Modus
-  (auth-and-writes) blockiert → 0.2.0 manuell published; Modus auf „authorization only“
-  umgestellt (Trusted-Publisher-Einträge für beide Packages vorhanden) — OIDC-Test
-  fällt beim nächsten Release an.
-- 2026-09-14 (IV): Roadmap-Track B1 (branch `feature/risk-family`, 0.2.0): Risiko-Familie
-  `premortem`/`fmea`/`fault_tree` als dual-mode Tools über neues `risk`-Toolset;
-  Registry-Metadaten für 37 Einträge; 103/103 Tests. Öffentlicher Punkt: Guide-Erweiterung
-  (AGENTS.template.md) für die neue Familie erledigt (Routing-Tabelle + Dual-Mode-Liste).
-- 2026-09-14 (III): GitFlow-light CI — `develop`-Branch angelegt (Test-Action dort),
-  `publish-npm.yml` (npmjs.com, version-guarded, provenance) +
-  `publish-containers.yml` (ghcr.io) für Release-Merges nach `main`;
-  Root-README Publishing-Abschnitt erweitert.
+- 2026-09-16: **MG-1 RESOLVED** — stochastic jobs removed from all three
+  publish pipelines (`42010d1`) and `@paschbaer/stochasticthinking` deprecated
+  (npm registry verified: message live, pointer to clear-thought@>=2.0.0).
+  SSH setup in WSL repaired (key copied + .bashrc guard against blocking
+  ssh-add prompts in non-interactive shells); push develop = `42010d1`.
+- 2026-09-16: **Release 2.0.0 pushed + merged + published (user report)** —
+  branch `feature/release-2-0-0` (4 commits: `0fd8410` version bump +
+  path fixes, `6ddba51` README user-first, `dd2e00d` Docker/HTTP config,
+  `92bde28` memory bank) is on `develop` (`92bde28`, = origin/develop)
+  and was merged to `main` by the user + publish triggered.
+  Not verifiable locally: `git fetch` fails (permission denied
+  publickey — credentials only in the user terminal); origin/main ref
+  locally stale (8897280, at 0.3.0). **Registry check: npm `latest` =
+  2.0.0 ✓ live.** **The MG-1 trigger is thereby reached**: deprecate
+  `@paschbaer/stochasticthinking` + remove stochastic jobs from the three
+  publish pipelines (order: first confirm 2.0.0 live).
+- 2026-09-16: Root-README reworked user-first (commits `6ddba51` +
+  `dd2e00d`, branch `feature/release-2-0-0`): new sections Quick Start
+  (npx config), What you get (7-toolset table, individual ≡ toolset
+  calls), Using it with your coding agent (agent guide + skill generator
+  docs: `npm run sync:skill`/`sync:all`), Docker/MCP-HTTP-client config
+  (`http://localhost:3000/mcp`, endpoint verified per server.ts) +
+  ghcr image note. Development/Publishing condensed to references to the
+  server README.
+- 2026-09-16: Release 2.0.0 prepared (branch `feature/release-2-0-0`): version bump
+  `@paschbaer/clear-thought` 1.0.0 → **2.0.0** (package.json + factory ServerInfo;
+  user decision instead of the planned 1.1.0 — see decisions.md update 2).
+  Session export envelope version in SessionState.ts deliberately stays 1.0.0
+  (data format version, schema unchanged — bandit runs are not part of the export).
+  Typecheck green. Phase 6 released: user merges to main and triggers publish;
+  after that MG-1 (deprecation + pipeline cleanup).
+- 2026-09-16: Repo moved from `/mnt/c` to `/mnt/d/repos/Thinking-MCP`; paths
+  corrected (`scripts/regen-root-agents.ts` + AGENTS.md guide block via
+  regeneration + hand-written domain-context line; backup `AGENTS.md.bak`).
+  Merge status verified: implementation `1bed87e` + follow-up `039c7e3` already
+  on develop (HEAD `df0a84a`). GitNexus index unreachable after the move
+  (re-index `node .gitnexus/run.cjs analyze --no-stats` pending).
+- 2026-09-15: Smithery CI fix (first pipeline run crashed with ENOENT: the
+  script read the local settings.json unconditionally before checking the
+  env token) — settings.json is now OPTIONAL; SMITHERY_API_KEY alone
+  suffices. Side effect of the local probe run: **clear-thought 0.3.0
+  republished on Smithery** (45 tools captured, release 202/SUCCESS).
+- 2026-09-14 (VIII): `publish-smithery.yml` (release pipelines completed): both
+  servers are republished automatically on release merges (version-guarded via
+  registry.smithery.ai record); both publish-smithery.mjs now accept
+  SMITHERY_API_KEY env (secret) in addition to the local settings file.
+- 2026-09-14 (VII): roadmap track D (branch `feature/track-d`, still 0.3.0): D1
+  session resources (4 URIs), D2 workflow prompts (6), D3 persistence
+  (session_save/load + dataDir); factory bug fixed (unparsed config →
+  immediate cleanup timer); 129/129 tests.
+- 2026-09-14 (VI): roadmap track B2–B5 (branch `feature/track-b2-b5`, still
+  0.3.0): `argument_map`, `causal_graph`, `fermi_estimate`, `game_matrix` in
+  the reasoning toolset; fermi field `operation`→`combine` (reserved toolset
+  discriminator); mixed formula for the column player corrected
+  ((h−g)/denom); 121/121 tests.
+- 2026-09-14 (V): roadmap track C (branch `feature/recipe-runner`, 0.3.0):
+  `recipe_runner`
+  - `workflow` toolset — 6 guide recipes as data, per-session progress in
+    the new `WorkflowStore`, auto start/advance/reset; guide (routing +
+    recipe intro) and root AGENTS.md regenerated; 111/111 tests.
+- 2026-09-14 (V): Release 0.2.0 via PR `develop → main` (branch protection
+  active); GitHub Actions: ghcr images pushed, npm publish blocked by the
+  account 2FA mode (auth-and-writes) → 0.2.0 published manually; mode
+  switched to "authorization only" (trusted-publisher entries exist for
+  both packages) — OIDC test due at the next release.
+- 2026-09-14 (IV): roadmap track B1 (branch `feature/risk-family`, 0.2.0):
+  risk family `premortem`/`fmea`/`fault_tree` as dual-mode tools via the
+  new `risk` toolset; registry metadata for 37 entries; 103/103 tests.
+  Public point: guide extension (AGENTS.template.md) for the new family
+  done (routing table + dual-mode list).
+- 2026-09-14 (III): GitFlow-light CI — `develop` branch created (test
+  action there), `publish-npm.yml` (npmjs.com, version-guarded, provenance)
+  + `publish-containers.yml` (ghcr.io) for release merges to `main`;
+  root-README publishing section extended.
 - 2026-09-14 (II): npm publish round (E-Plan Phase 2, branch
   `feature/npm-publish`): package hygiene + dry-run audits; first publish
   0.1.0 (stochastic silently failed); bin-guard bug found via npx
@@ -680,7 +707,7 @@
   validation, honest annotations idempotentHint=false), bandit run store per
   session (runId continuation, measurable regret); guide chain regenerated
   (AGENTS.template.md ↔ template constant ↔ root AGENTS.md via real tool
-  handler ↔ README), funktionstest on real params + run continuation.
+  handler ↔ README), functional test on real params + run continuation.
   41/41 tests. Lesson: direct module calls bypass zod defaults (see
   lessonsLearned).
 - 2026-09-13: Docs commit fe181f2 on main: extension roadmap (tracks A–E,
@@ -726,8 +753,8 @@
 - 2026-09-11: Stochastic HTTP-MCP rebuild (phases 0–5) on
   `feature/stochastic-http-mcp`: SDK 1.30 spike, clear-thought parity deps/
   tsconfig/scripts, session factory + config, HTTP server (/health, port 3001,
-  graceful shutdown), vitest 15/15 + live funktionstest 6/6, Dockerfile ported
-  (docker verify pending, RB-4), READMEs + root docker script updated.
+  graceful shutdown), vitest 15/15 + live functional test 6/6, Dockerfile
+  ported (docker verify pending, RB-4), READMEs + root docker script updated.
 - 2026-09-11: Removed volatile GitNexus stats from AGENTS.md/CLAUDE.md via
   `gitnexus analyze --no-stats`; `--no-stats` is now the mandatory repo command
   (documented in Architecture Map, techContext, lessonsLearned).
@@ -749,106 +776,119 @@
   (roadmap open question #2).
 - Smithery rescan score for the stochastic server after the guide updates.
 
-## 2026-09-15: Architektur-Abwägung Server-Zusammenlegung
+## 2026-09-15: Architecture Deliberation on Merging Servers
 
-- User-Frage: Merge clear-thought + stochasticthinking zu einem Server für gemeinsame
-  Recipe-Nutzung? Entscheidung `merge-servers-2026-09-15` (Full-Chain incl. MDP):
-  **Status quo (B)**, Merge an Trigger gekoppelt (stochastic-Rezepte im recipe_runner /
-  Cross-Familie-Session-State, Setup-Friction-Feedback, Wartungsdruck → dann Hybrid
-  statt Full-Merge). Details in `memory-bank/decisions.md`. Kein Code-Change.
+- User question: merge clear-thought + stochasticthinking into one server for
+  shared recipe usage? Decision `merge-servers-2026-09-15` (full chain incl.
+  MDP): **status quo (B)**, merger coupled to a trigger (stochastic recipes
+  in recipe_runner / cross-family session state, setup-friction feedback,
+  maintenance pressure → then hybrid instead of a full merge). Details in
+  `memory-bank/decisions.md`. No code change.
 
-## 2026-09-15: Eval-Rig Upgrade (Actor/Judge-Split + harte Tasks)
+## 2026-09-15: Eval-Rig Upgrade (Actor/Judge Split + Hard Tasks)
 
-- Branch `feature/harder-evals-actor-judge-split`: `evals/run.mjs` behandelt
-  Actor und Judge als getrennte Endpoints (`EVAL_ACTOR_MODEL/BASE_URL/API_KEY`,
-  `EVAL_JUDGE_*`); Legacy-Vars bleiben Actor-Default, Judge erbt. Self-Bias-
-  Warnung bei gleichem Modell+Endpoint; `config.json` Snapshot im Report-Ordner.
-- `evals/tasks-hard.json` (4 Tasks, Ground-Truth via echte Tool-Läufe): fault_tree
-  exakt 0.04148 + Beitrags-Ranking; game_matrix iterierte Dominanz (exit→hold,
-  chaotic→stable) + 2×2-Mix (expand/hold 0.50/0.50, aggressive/stable 0.75/0.25,
-  Payoffs 3.75/3.0); fermi 993,600 € + Sensitivität + VoI 63,000 €; Bandit
-  (thompson, seed 7) runId-Fortsetzung 80+60 pulls → regret 16.14, pulls 31/13/96.
-- Runner attached `server-stochasticthinking/dist/dev.js` automatisch (statefulle
-  Tools, runId über Calls). SDK-Falle: Constructor-Option heißt
-  `defaultRequestTimeoutMsec`, `timeout` wirkt nur pro Request (drvfs-Kaltstart!).
-- Offen: Run 3 mit hartem Set + unabhängigem Judge (braucht API-Keys + User-Go).
+- Branch `feature/harder-evals-actor-judge-split`: `evals/run.mjs` treats
+  actor and judge as separate endpoints (`EVAL_ACTOR_MODEL/BASE_URL/API_KEY`,
+  `EVAL_JUDGE_*`); legacy vars remain actor defaults, judge inherits.
+  Self-bias warning for the same model+endpoint; `config.json` snapshot
+  in the report folder.
+- `evals/tasks-hard.json` (4 tasks, ground truth via real tool runs):
+  fault_tree exactly 0.04148 + contribution ranking; game_matrix iterated
+  dominance (exit→hold, chaotic→stable) + 2×2 mix (expand/hold 0.50/0.50,
+  aggressive/stable 0.75/0.25, payoffs 3.75/3.0); fermi 993,600 € +
+  sensitivity + VoI 63,000 €; bandit (thompson, seed 7) runId continuation
+  80+60 pulls → regret 16.14, pulls 31/13/96.
+- Runner attached `server-stochasticthinking/dist/dev.js` automatically
+  (stateful tools, runId across calls). SDK trap: the constructor option
+  is called `defaultRequestTimeoutMsec`, `timeout` only applies per
+  request (drvfs cold start!).
+- Open: Run 3 with the hard set + independent judge (needs API keys +
+  user go).
 
-## 2026-09-15: Post-Commit-Review Eval-Rig (abgeschlossen)
+## 2026-09-15: Post-Commit-Review Eval-Rig (completed)
 
-- Review-Subagent über 37cc9a6..HEAD: **APPROVE, 0 HIGH/CRITICAL**, 1 MEDIUM,
-  5 LOW, 3 NIT. Alle Ground-Truth-Zahlen der harten Tasks unabhängig handverifiziert
-  (inkl. Pseudo-Regret-Formel 0.46·140 − Σpᵢ·pullsᵢ = 16.14).
-- Fixes committet: MEDIUM → Pinning-Test (stochastic, 17/17); LOWs → Arg-Guards,
-  Judge-Cap 12000, Transport-Cleanup, Rubrik-Dual-Dominator. NITs/Flake als
-  EV-4/EV-5 accepted dokumentiert. bin-invocation-Fehler in Full-Suite = drvfs-
-  Last-Flake (isoliert grün), nicht diff-bedingt.
+- Review subagent over 37cc9a6..HEAD: **APPROVE, 0 HIGH/CRITICAL**, 1 MEDIUM,
+  5 LOW, 3 NIT. All ground-truth numbers of the hard tasks independently
+  hand-verified (incl. pseudo-regret formula 0.46·140 − Σpᵢ·pullsᵢ = 16.14).
+- Fixes committed: MEDIUM → pinning test (stochastic, 17/17); LOWs → arg
+  guards, judge cap 12000, transport cleanup, rubric dual-dominator.
+  NITs/flakes documented as EV-4/EV-5 accepted. bin-invocation failure in
+  the full suite = drvfs load flake (green in isolation), not
+  diff-caused.
 
-## 2026-09-15: Run 3 durchgeführt (Hard Set, Split Actor/Judge)
+## 2026-09-15: Run 3 executed (hard set, split actor/judge)
 
-- Ergebnisse (s. progress.md): Bandit +11 / Fault-Tree +2 / Fermi 0 / Game −4.
-  Rig-Fixes unterwegs: Streaming-SSE-Reassembly, attempt-skalierte Timeouts,
-  thinking je Rolle (Actor disabled fixt Reasoning-Loop), .env-Loader,
-  eval:llm:hard-Script, Final-Answer-Nudge, Judge-Anker.
-- Offen für Run 4 (User freigegeben): verbatim-parameter System-Prompt für den
-  Actor-Modus, EVAL_MAX_TOOL_ROUNDS, Tool-Call-Log im report.json (hätte den
-  Game-Matrix-Transcribe-Fehler sofort gezeigt), Rundungstoleranz H1-Rubrik.
-- NEU entdeckt: Scoring-Anzeige-Bug — Judge summiert raw 0-4 je Kriterium
-  (max 16), report zeigt aber gewichtetes max (40). Deltas valide, Prozent-
-  angaben deflationiert. Fix: total = Σ score×weight im Runner.
+- Results (see progress.md): bandit +11 / fault tree +2 / fermi 0 / game
+  −4. Rig fixes en route: streaming SSE reassembly, attempt-scaled
+  timeouts, thinking per role (actor disabled fixes the reasoning loop),
+  .env loader, eval:llm:hard script, final-answer nudge, judge anchors.
+- Open for Run 4 (user approved): verbatim-parameter system prompt for
+  actor mode, EVAL_MAX_TOOL_ROUNDS, tool-call log in report.json (would
+  have shown the game-matrix transcribe error immediately), rounding
+  tolerance H1 rubric.
+- Newly discovered: scoring display bug — judge sums raw 0-4 per
+  criterion (max 16), but the report shows weighted max (40). Deltas
+  valid, percentages deflated. Fix: total = Σ score×weight in the
+  runner.
 
-## 2026-09-15: Run 4 (gehärtetes Rig) — Tool-Wert-These validiert
+## 2026-09-15: Run 4 (hardened rig) — tool-value thesis validated
 
-- 40/40-Bandit (Δ+22), 40/40-Fault-Tree (Δ+4); Game −6 / Fermi −9. Tool-Call-Log
-  beweist: String-instead-of-Object-Schema-Flailing (4 calls) + skipped
-  fermi_estimate. Deltas/kumulierte Zahlen exakt (16.140 ✓ Pinning-Test-Werte).
-- EV-6 (gewichtetes Scoring) + EV-7 (Operator-Prompt/Log/Runden) RESOLVED,
-  committet `2db88c9`. Run-4-Report: evals/results/2026-09-15T15-10-16/.
+- 40/40 bandit (Δ+22), 40/40 fault tree (Δ+4); game −6 / fermi −9.
+  Tool-call log proves: string-instead-of-object schema flailing (4
+  calls) + skipped fermi_estimate. Deltas/cumulative numbers exact
+  (16.140 ✓ pinning test values).
+- EV-6 (weighted scoring) + EV-7 (operator prompt/log/rounds) RESOLVED,
+  committed `2db88c9`. Run-4 report: evals/results/2026-09-15T15-10-16/.
 
-## 2026-09-15: Run 5 — Abschluss der Eval-Härtung (98,8 %)
+## 2026-09-15: Run 5 — completion of the eval hardening (98.8 %)
 
-- Feature-Branch `feature/harder-evals-actor-judge-split` per fast-forward nach
-  develop gemergt (9bd6812) und gelöscht; Parallelsession-WIP (decisions.md,
-  merge-plan) via Stash erhalten.
-- Run 5 (Report evals/results/2026-09-15T15-47-23/): Server 158/160. EV-8
-  RESOLVED — beide Run-4-Fehlerklassen (Schema-Flailing, skipped fermi_estimate)
-  treten nicht mehr auf. Verbleibender 2-Punkt-Verlust Game-Matrix: Detail,∉
-  blocking. Eval-Track damit abgeschlossen; Rest: git push develop (User).
-- **MERGE IMPLEMENTIERT (2026-09-15, Branch `feature/merge-stochastic-into-clear-thought`)**:
-  Phasen 0-5 des Umsetzungsplans (`plans/merge-stochastic-into-clear-thought.md`)
-  ausgefuehrt. Port: `src/algorithms/*` (7 Module), `BanditRunStore` in SessionState
-  (cleanup-integriert), Dual-Registration (`stochasticalgorithm` Name/Signatur
-  unveraendert + Toolset `stochastic`, operation mdp/mcts/bandit/bayesian/hmm),
-  2 TOOL_METADATA-Eintraege (stateful:true), Tests portiert (`algorithms.test.ts`)
-  - neue Merge-Contracts (`stochastic-merge.test.ts`: Paritaet, Bandit-runId ueber
-    beide Call-Pfade, Fehlerkontrakte). Orchestrator: Rezept 7
-    `decision-under-uncertainty` + stochastic-Stage in `architecture-decision`
-    (STAGE_GUIDANCE reindiziert), 7. Workflow-Prompt. Guide: Template erweitert,
-    Konstante via neuem `sync:guide`-Skript regeneriert; Root-AGENTS.md ueber echten
-    Handler (`scripts/regen-root-agents.ts`) regeneriert — verwaister
-    stochastic-thinking-Markerblock entfernt (verifiziert: 0 Marker, Rezept 7 sichtbar).
-    Docs: Root-README Single-Server + Migrations-Abschnitt; stochastic-README
-    Deprecation-Banner; MG-1/2/3 in remaining-work-plan getrackt. Gezielte Tests
-    30/30 gruen; Typecheck gruen. Offen: Full-Suite-Auswertung + Phase 6 (Release
-    1.1.0 + Deprecation, wartet auf Freigabe). Stale-Buffer-Trap dokumentiert
-    (lessonsLearned).
+- Feature branch `feature/harder-evals-actor-judge-split` fast-forward
+  merged to develop (9bd6812) and deleted; parallel-session WIP
+  (decisions.md, merge plan) preserved via stash.
+- Run 5 (report evals/results/2026-09-15T15-47-23/): server 158/160. EV-8
+  RESOLVED — both Run-4 error classes (schema flailing, skipped
+  fermi_estimate) no longer occur. Remaining 2-point loss game matrix:
+  detail, ∉ blocking. Eval track thereby completed; remaining: git
+  push develop (user).
+- **MERGE IMPLEMENTED (2026-09-15, branch `feature/merge-stochastic-into-clear-thought`)**:
+  Phases 0-5 of the implementation plan (`plans/merge-stochastic-into-clear-thought.md`)
+  executed. Port: `src/algorithms/*` (7 modules), `BanditRunStore` in
+  SessionState (cleanup-integrated), dual registration
+  (`stochasticalgorithm` name/signature unchanged + toolset `stochastic`,
+  operation mdp/mcts/bandit/bayesian/hmm), 2 TOOL_METADATA entries
+  (stateful:true), tests ported (`algorithms.test.ts`)
+  - new merge contracts (`stochastic-merge.test.ts`: parity, bandit runId
+    across both call paths, error contracts). Orchestrator: recipe 7
+    `decision-under-uncertainty` + stochastic stage in `architecture-decision`
+    (STAGE_GUIDANCE reindexed), 7th workflow prompt. Guide: template
+    extended, constant regenerated via the new `sync:guide` script; root
+    AGENTS.md regenerated via the real handler
+    (`scripts/regen-root-agents.ts`) — orphaned
+    stochastic-thinking marker block removed (verified: 0 markers,
+    recipe 7 visible).
+    Docs: root README single-server + migration section; stochastic README
+    deprecation banner; MG-1/2/3 tracked in remaining-work-plan. Focused
+    tests 30/30 green; typecheck green. Open: full-suite evaluation +
+    phase 6 (release 1.1.0 + deprecation, waiting for approval).
+    Stale-buffer trap documented (lessonsLearned).
 
 ## 2026-09-17: Spec-Review EMMS (specs/001-experience-memory-server)
 
-- Review mit clear-thought (structured_argumentation, argument_map 83% completeness, seven-seekers 7 Lenses). Ergebnis: spec plan-ready, Confidence 0.85.
-- 5 Findings (plan-level, nicht spec-invalidierend), getrackt in remaining-work-plan.md: Actor-Modell fehlt; Revision/Conflict-Semantik unbestimmt; Eval-Korpus nicht definiert; Guidance-Objekt ohne konkrete Struktur; Detektionsschwellen (Duplikate/Kontradiktionen FR-021) ohne Metrik.
-- Zusatz-Beobachtungen: Fabricated-Evidence-Risiko (Agent kann Exit Codes erfinden; nur Artefakt-Evidenz mildert) und fehlende Feedback-Schleife fuer gescheiterte Guidance-Pfade — als Akzeptanzkriterien in der Planung verengen.
-- Server-Scaffold: servers/server-experiencememory/ auf Branch 001-experience-memory-server angelegt (Abweichung von feature/-Namenskonvention dokumentiert).
+- Review with clear-thought (structured_argumentation, argument_map 83% completeness, seven-seekers 7 lenses). Result: spec plan-ready, confidence 0.85.
+- 5 findings (plan-level, not spec-invalidating), tracked in remaining-work-plan.md: actor model missing; revision/conflict semantics undetermined; eval corpus not defined; guidance object without concrete structure; detection thresholds (duplicates/contradictions FR-021) without a metric.
+- Additional observations: fabricated-evidence risk (the agent can invent exit codes; only artifact evidence mitigates) and missing feedback loop for failed guidance paths — narrow these into acceptance criteria during planning.
+- Server scaffold: servers/server-experiencememory/ created on branch 001-experience-memory-server (deviation from the feature/ naming convention documented).
 
 ## 2026-09-17: Analyze-Remediation EMMS (C1/C2/U1-U5/E1-E4/A1)
 
-- Alle 12 Findings aus /speckit-analyze per clear-thought-Entscheidung (Conf 0.88) aufgeloest: spec FR-008/022/SC-001/005/009 praezisiert; contracts um workflow.abandon + Artifact-Limits (1 MiB, 4 Media-Types) erweitert; research D6 (Ranking-Defaults + Applicability-Formel); tasks T007/T012/T022/T040 geschaerft, T047 (abandon, US2) + T048 (Baseline-Harness, Polish) neu -> 48 Tasks.
+- All 12 findings from /speckit-analyze resolved via clear-thought decision (confidence 0.88): spec FR-008/022/SC-001/005/009 sharpened; contracts extended with workflow.abandon + artifact limits (1 MiB, 4 media types); research D6 (ranking defaults + applicability formula); tasks T007/T012/T022/T040 sharpened, T047 (abandon, US2) + T048 (baseline harness, polish) new -> 48 tasks.
 
-## 2026-09-18: EMMS Implementierung (T001-T048 abgeschlossen)
+## 2026-09-18: EMMS Implementation (T001-T048 completed)
 
-- 58/58 Tests gruen, Typecheck sauber. Alle Phasen (Setup, Foundational, US1-US5, Polish) implementiert.
-- Neue Dateien: src/domain/{types,state-machine,revision,errors,normalize}.ts, src/storage/{adapter,sqlite,migrations}.ts, src/evidence/{store,redact}.ts, src/guidance/{envelope,engine,limits}.ts, src/service.ts, src/tools/{register,index}.ts, 13 Test-Dateien (contract+unit+fixtures).
-- Wichtige Design-Entscheidungen beim Implementieren: finalize-Assessment ist read-only (keine State-Mutation bei abgelehntem 'verified'); recordValidationRun transitioniert automatisch SOLUTION_PROPOSED->VALIDATING; harmful-Attempt gilt nur als 'unresolved critical side effect' wenn kein spaeterer 'successful'-Attempt existiert; Idempotenz-Check VOR Revisions-Check; Schema-Validierung geschieht auf SDK-Protokollebene (isError), Fachlichkeiten auf Service-Ebene.
-- Offen: T045 (gitnexus detect_changes), Commit-Freigabe, Full-quickstart-Durchlauf manuell.
+- 58/58 tests green, typecheck clean. All phases (setup, foundational, US1-US5, polish) implemented.
+- New files: src/domain/{types,state-machine,revision,errors,normalize}.ts, src/storage/{adapter,sqlite,migrations}.ts, src/evidence/{store,redact}.ts, src/guidance/{envelope,engine,limits}.ts, src/service.ts, src/tools/{register,index}.ts, 13 test files (contract+unit+fixtures).
+- Key design decisions while implementing: finalize assessment is read-only (no state mutation on a rejected 'verified'); recordValidationRun transitions automatically SOLUTION_PROPOSED->VALIDATING; a harmful attempt only counts as 'unresolved critical side effect' if no later 'successful' attempt exists; idempotency check BEFORE revision check; schema validation happens at the SDK protocol level (isError), domain concerns at the service level.
+- Open: T045 (gitnexus detect_changes), commit approval, full-quickstart run manually.
 
 - 2026-09-18: `agents_guide` tool renamed to `setup_clearthought` (naming
   alignment with experience-memory's `setup_experience_memory`). Historical
@@ -889,301 +929,305 @@
 - Remaining tracked follow-ups in remaining-work-plan.md: Phase 7c SpecKitEngine hardening, Phase 5/6 policy wiring depth, Phase 10-12 LOWs (IPv6 test, DNS-rebinding Host-header validation, perf percentile method), MCP streamable-HTTP adapter mount, bearer-token authN.
 - Next: merge flow per constitution (rebase → develop, squash → main) on user approval; /capture_lessons executed for Phases 4-6, 7a, 10-12 lessons (6 lessons seeded).
 - 2026-09-22 — Full-codebase review fix round: F1-F4 fixed (commits 8eeba9c, e0b911d, e217ddf, 2054691, a8a5082). F4 tests debugged: second submit on terminal phase returns required_hook_failed (transition_rejected alias), not transition success — assertions must target the transition-carrying submit. Next: findings M2 (requestTimeoutSeconds enforcement), M3 (stale `as never` casts), Spec-Kit 12-tool MCP registration (needs SpecKitEngine wiring design decision).
-- 2026-09-23 — M2/M3/F7 abgeschlossen (commits 7efaa16, 2b7bbb2, 6cdc842, e3bded6, d1cd01b): requestTimeoutSeconds erzwungen, alle `as never` entfernt, Spec-Kit 12 Tools profil-gated registriert (Option C, lazy Engine-Cache je sessionId + atomic StateStore). Review-HIGH (sessionId-Pfad-Traversal im StateStore) sofort geschlossen. Suite: 136/136. Offen: getrackte LOWs in remaining-work-plan.md; Merge-Flow (rebase→develop, squash→main) wartet auf User-Freigabe.
-- 2026-09-23 — Alle getrackten LOW-Findings behoben (ab985b9, 5c34f3d): Review-HIGH (fehlendes await → '{}'-Payloads bei 5 Mutation-Tools) vom Reviewer gefunden und sofort mit Regressions-Test geschlossen. Suite 137/137. Merge-Flow wartet weiter auf User-Freigabe.
-- 2026-09-23 — HTTP-Betrieb implementiert und in Container verifiziert: POST /mcp (streamable, stateless), Bearer-Auth optional, GUIDANCE_BIND_HOST-Opt-in, Dockerfile+Compose (Port 3003, /workspace-Volume). Suite 142/142. Server jetzt auch über HTTP einsatzbereit; develop um 2 Commits ahead of origin (push via User).
-- 2026-09-23 — Doku: server-guidance/README.md neu (Installation, .guidance/-Konfigurationsreferenz mit Beispielen, Agent-Loop mit Tool-Beispielen, Spec-Kit-Beispiel, Env-Variablen); Root-README um Guidance-Zeile + Kurzabschnitt erweitert (b4869af).
+- 2026-09-23 — M2/M3/F7 completed (commits 7efaa16, 2b7bbb2, 6cdc842, e3bded6, d1cd01b): requestTimeoutSeconds enforced, all `as never` removed, Spec-Kit 12 tools registered profile-gated (option C, lazy engine cache per sessionId + atomic StateStore). Review-HIGH (sessionId path traversal in StateStore) closed immediately. Suite: 136/136. Open: tracked LOWs in remaining-work-plan.md; merge flow (rebase→develop, squash→main) waiting for user approval.
+- 2026-09-23 — All tracked LOW findings fixed (ab985b9, 5c34f3d): review-HIGH (missing await → '{}' payloads in 5 mutation tools) found by the reviewer and closed immediately with a regression test. Suite 137/137. Merge flow still waiting for user approval.
+- 2026-09-23 — HTTP operation implemented and verified in the container: POST /mcp (streamable, stateless), bearer auth optional, GUIDANCE_BIND_HOST opt-in, Dockerfile+compose (port 3003, /workspace volume). Suite 142/142. Server now ready for use over HTTP as well; develop 2 commits ahead of origin (push via user).
+- 2026-09-23 — Docs: server-guidance/README.md rewritten (installation, .guidance/ configuration reference with examples, agent loop with tool examples, Spec-Kit example, env variables); root README extended with a guidance line + short section (b4869af).
 
 ## 2026-09-23: SDK-Streamable-Transport-Migration (feature/sdk-streamable-transport-migration)
 
-- clear-thought + insight: @smithery/sdk-Wrapper entfernt, direkter StreamableHTTPServerTransport (stateful Sessions, mcp-session-id, enableJsonResponse). Keine neue Abhängigkeit, Sed-Patch aus beiden Dockerfiles gefallen.
-- Container-Härtung: clear-thought npm ci + compose modernisiert + CLEAR_THOUGHT_BIND_HOST; insight Label-Pfad gefixt, server-lokales Lockfile + npm ci (LOW resolved).
-- Root-Cause-Trap beim Migrationstest: fehlendes await server.connect(transport) — Transport annahm Sessions, Server antwortete nie. Nur per offiziellem SDK-Client-E2E gegen dist/Container auffindbar (curl-SSE-Artefakte irreführend).
-- Review (Review-Agent): 2 HIGHs (Root-Compose-Bind-Hosts, ungebremstes Session-Wachstum) — beide gefixt in 1caa690; 3 akzeptierte LOW/INFO-Beobachtungen getrackt im remaining-work-plan.
-- Stand: 3 Commits auf Feature-Branch (bc5326c, dd065b4, 1caa690), Baum sauber; Merge nach develop noch offen.
-- 2026-09-23 — Option D implementiert (scaffold-on-first-start, init-CLI, configured-aware /health; 4683720). Review-HIGH (scaffolded workflow referenzierte undefiniertes repository-analysis-Op → operation_not_configured an complete) sofort gefixt + E2E-Regressions test (scaffold-e2e). TOCTOU via wx-Flag. Config-Doku: Abhängigkeitsgraph + Attribut-Referenz + Best-Practice-Reihenfolge (ec14fe6). Suite 149/149.
-- 2026-09-23 — Store-Abgleich: STDIO-Store (~/.insight, 76 Episoden, Stand 22.09.) war disjunkt vom Docker-Store (37, heutige Lessons). migrate-stdio-store.mjs (Container gestoppt, vorher Dry-Run) → DOCKER-Store jetzt 113 Episoden, FTS 113/113, Container healthy, Suche via HTTP verifiziert (alte STDIO-Episoden + heutige Lessons beide auffindbar). STDIO-Store unangetastet als Backup.
+- clear-thought + insight: @smithery/sdk wrapper removed, direct StreamableHTTPServerTransport (stateful sessions, mcp-session-id, enableJsonResponse). No new dependency, sed patch dropped from both Dockerfiles.
+- Container hardening: clear-thought npm ci + compose modernized + CLEAR_THOUGHT_BIND_HOST; insight label path fixed, server-local lockfile + npm ci (LOW resolved).
+- Root-cause trap in the migration test: missing await server.connect(transport) — the transport accepted sessions, the server never responded. Only findable via the official SDK client E2E against dist/container (curl SSE artifacts misleading).
+- Review (review agent): 2 HIGHs (root compose bind hosts, unbounded session growth) — both fixed in 1caa690; 3 accepted LOW/INFO observations tracked in remaining-work-plan.
+- Status: 3 commits on the feature branch (bc5326c, dd065b4, 1caa690), tree clean; merge to develop still open.
+- 2026-09-23 — Option D implemented (scaffold-on-first-start, init CLI, configured-aware /health; 4683720). Review-HIGH (scaffolded workflow referenced an undefined repository-analysis op → operation_not_configured at complete) fixed immediately + E2E regression test (scaffold-e2e). TOCTOU via wx flag. Config docs: dependency graph + attribute reference + best-practice order (ec14fe6). Suite 149/149.
+- 2026-09-23 — Store reconciliation: the STDIO store (~/.insight, 76 episodes, as of 22.09.) was disjoint from the Docker store (37, today's lessons). migrate-stdio-store.mjs (container stopped, dry run beforehand) → Docker store now 113 episodes, FTS 113/113, container healthy, search verified via HTTP (old STDIO episodes + today's lessons both findable). STDIO store untouched as a backup.
 
-## 2026-09-23: setup_clearthought Loop-Defense-Serie abgeschlossen
+## 2026-09-23: setup_clearthought loop-defense series completed
 
-- Feature-Zweige gemerged (develop): Loop-Guard (d9d6759), F4-Härtung (184a7ec),
-  Pagination (53f7714/582a9b9), Eskalation (44063c6), Compact-Guide + Recipes-
-  on-Demand (a5c5c98). Reviews: jeweils 0 HIGH/CRITICAL, approved.
-- Getrackte Follow-ups (Reviews, trigger = naechste Template-/Tool-Aenderung):
-  1. Test fehlt: Compact-Output muss GENAU EIN Marker-Paar enthalten
-     (Regression waere doppelte Marker -> Merge-Fallback). [R: a5c5c98 Review #2]
-  2. Eskalationstest ueber den Utility-Toolset-Dispatcher (isError-Propagation
-     via toolsets/registry.ts untested). [R: 44063c6 Review #4]
-  3. Beobachtung akzeptiert: section:'recipes' ist unguarded (statischer
-     ~2-3KB-Payload); Rate-Limit nur falls Spam beobachtet wird.
+- Feature branches merged (develop): loop guard (d9d6759), F4 hardening
+  (184a7ec), pagination (53f7714/582a9b9), escalation (44063c6),
+  compact guide + recipes-on-demand (a5c5c98). Reviews: 0 HIGH/CRITICAL
+  each, approved.
+- Tracked follow-ups (reviews, trigger = next template/tool change):
+  1. Test missing: compact output must contain EXACTLY ONE marker pair
+     (a regression would mean double markers -> merge fallback). [R:
+     a5c5c98 review #2]
+  2. Escalation test via the utility toolset dispatcher (isError
+     propagation via toolsets/registry.ts untested). [R: 44063c6 review
+     #4]
+  3. Observation accepted: section:'recipes' is unguarded (static
+     ~2-3KB payload); rate limit only if spam is observed.
 
 ## 2026-09-23: Spec-Review Amendment 001-remote-mode (v3)
 
-- Review durchgeführt: 0 Blocker, 2 MEDIUM (M1 Idempotenz-vs-MultiSession,
-  M2 401-vs-session_not_found), 6 LOW. Findings persistiert in
+- Review performed: 0 blockers, 2 MEDIUM (M1 idempotency-vs-multiSession,
+  M2 401-vs-session_not_found), 6 LOW. Findings persisted in
   specs/002-guidance-workflow-server/amendments/001-remote-mode-review-findings.md
-- Implementierung läuft PARALLEL in separatem Chat (bereits src/main.ts
-  composeApplication-Optionen). Post-Implementation-Review nach Merge Pflicht
-  (Trigger in remaining-work-plan.md eingetragen).
-- 2026-09-23 — Remote-Mode (spec amendment 001) implementiert: init_session-Config-Upload, Pair-Auth (optional, anonymer Fallback), sessiongebundene Tools, ClientOpEngine (1a), report_operation_result mit Auto-Retry, TTL 30d, configured-aware /health. Review: 2 CRITICAL (ClientOpEngine nie verdrahtet — Patch-Verlust; lastAttempt nur bei accepted) + 2 HIGH behoben. 155/155 Tests. Branch feature/remote-mode-session-binding, Merge nach develop offen.
+- Implementation runs IN PARALLEL in a separate chat (already
+  src/main.ts composeApplication options). Post-implementation review
+  after the merge is mandatory (trigger entered in
+  remaining-work-plan.md).
+- 2026-09-23 — Remote mode (spec amendment 001) implemented: init_session config upload, pair auth (optional, anonymous fallback), session-bound tools, ClientOpEngine (1a), report_operation_result with auto-retry, TTL 30d, configured-aware /health. Review: 2 CRITICAL (ClientOpEngine never wired — patch loss; lastAttempt only on accepted) + 2 HIGH fixed. 155/155 tests. Branch feature/remote-mode-session-binding, merge to develop open.
 
 ## 2026-09-24: Full-Codebase-Review (develop @ 2d580fa)
 
-- Basis: Snapshot develop@2d580fa, clean, ahead 4 (fb0a350..2d580fa = Remote-Mode-Hardening + memory-bank). Merge nach develop ERFOLGT — „Merge nach develop offen" oben ist stale.
-- Ergebnis: 0 HIGH/CRITICAL offen; 4 MEDIUM (CB-1 guidance touch()-TTL-Bug; CB-2 guidance Quota-Rollback-Lücke configFiles; CB-3 Session-Orphan-Pattern insight+clear-thought — Re-Evaluation der akzeptierten LOW aus Review 1caa690; CB-4 Compose-Exposure 0.0.0.0 ohne insight-Auth); 9 LOW + 4 INFO — alle persistiert unter „Getrackte Follow-ups (2026-09-24...)" in remaining-work-plan.md.
-- Positiv verifiziert: insight FTS5-Sanitization + Prepared Statements + atomare tmp+rename-Writes + Read-Hash-Verifikation; guidance SESSION_ID_PATTERN, separator-bewusster Pfadschutz, timing-safe Pair-Auth, 401/404-Kanaltrennung, Loopback-fail-closed-Binding; Reaper+MAX_SESSIONS in beiden HTTP-Servern.
-- Tests NICHT ausgeführt (keine Node-Toolchain in der Session; drei Shells geprüft) — CI test.yml autoritativ.
-- Review-Qualität: c22585a-Commitmsg „dbg-Logs entfernt" traf nicht zu (1 [dbg] in src L132 verblieben) → als CB-9 getrackt.
+- Basis: snapshot develop@2d580fa, clean, ahead 4 (fb0a350..2d580fa = remote-mode hardening + memory bank). Merge to develop DONE — "merge to develop open" above is stale.
+- Result: 0 HIGH/CRITICAL open; 4 MEDIUM (CB-1 guidance touch() TTL bug; CB-2 guidance quota rollback gap configFiles; CB-3 session orphan pattern insight+clear-thought — re-evaluation of the accepted LOW from review 1caa690; CB-4 compose exposure 0.0.0.0 without insight auth); 9 LOW + 4 INFO — all persisted under "Tracked follow-ups (2026-09-24...)" in remaining-work-plan.md.
+- Positively verified: insight FTS5 sanitization + prepared statements + atomic tmp+rename writes + read-hash verification; guidance SESSION_ID_PATTERN, separator-aware path protection, timing-safe pair auth, 401/404 channel separation, loopback fail-closed binding; reaper+MAX_SESSIONS in both HTTP servers.
+- Tests NOT run (no Node toolchain in the session; three shells checked) — CI test.yml authoritative.
+- Review quality: the c22585a commit message "dbg logs removed" did not hold (1 [dbg] in src L132 remained) → tracked as CB-9.
 
-## 2026-09-26: Feature 003 Toolchain-Bootstrap implementiert (Chained Workflow)
+## 2026-09-26: Feature 003 Toolchain-Bootstrap implemented (chained workflow)
 
-- Spec (16c6f1e auf develop) via Guidance-Chained-Workflow umgesetzt (Session session-1dcd604f, Profil spec-kit in .guidance/guidance.json aktiviert, chain depth 16). Branch feature/guidance-toolchain-bootstrap: 77fa854 (Implementierung) + Review-Fix-Commit.
-- Kern: run_operation-Tool (nur invocableByAgent:true, fail-closed), FR-107 Per-Session-Mutex, FR-109 Cross-Session-Workspace-Lock mit Stale-Recovery (dead-PID/TTL-Steal), FR-110 kooperativ (spawnSync-Constraint dokumentiert), Dockerfile python3 + uv 0.12.19 gepinnt, examples/python-guidance (uv sync --locked fail-closed), E2E SC-001..004. Suite 268/268 + tsc + build grün (Container guidance-bootstrap-test).
-- Unabhängiger Review (Subagent): 1 HIGH (Stale-Lock) + MEDIUMs/LOWs — HIGH + Denial-Audit + EACCES + README sofort gefixt; Rest (R-006 E2E-Lücken, R-008a globaler Lock, R-010 ERROR_CODES-Test) in remaining-work-plan getrackt.
-- Testumgebung: kein Node auf Host — Suite im Container (Repo-Copy + @rollup/rollup-linux-x64-musl; für E2E das Guidance-Image selbst: node+uv vereint).
+- Spec (16c6f1e on develop) implemented via the Guidance chained workflow (session session-1dcd604f, profile spec-kit active in .guidance/guidance.json, chain depth 16). Branch feature/guidance-toolchain-bootstrap: 77fa854 (implementation) + review-fix commit.
+- Core: run_operation tool (only invocableByAgent:true, fail-closed), FR-107 per-session mutex, FR-109 cross-session workspace lock with stale recovery (dead-PID/TTL steal), FR-110 cooperative (spawnSync constraint documented), Dockerfile python3 + uv 0.12.19 pinned, examples/python-guidance (uv sync --locked fail-closed), E2E SC-001..004. Suite 268/268 + tsc + build green (container guidance-bootstrap-test).
+- Independent review (subagent): 1 HIGH (stale lock) + MEDIUMs/LOWs — HIGH + denial audit + EACCES + README fixed immediately; rest (R-006 E2E gaps, R-008a global lock, R-010 ERROR_CODES test) tracked in remaining-work-plan.
+- Test environment: no Node on the host — suite in a container (repo copy + @rollup/rollup-linux-x64-musl; for E2E the guidance image itself: node+uv combined).
 
-## 2026-09-26: Amendment 003 Final-Review Evidence Gate implementiert
+## 2026-09-26: Amendment 003 Final-Review Evidence Gate implemented
 
-- Anlass: verpasster frischer Gesamt-Review beim Feature-003-Completion (weicher Instruktionstext) → Gate machbar gemacht. Draft ff4fe31, Umsetzung 2983be3 (Q1–Q3-Defaults vom Nutzer gebilligt).
-- check-final-review.mjs (strict Schema, HEAD-Match ohne git-Binary, computed HIGH/CRITICAL), Gate-Op required in scaffold/examples/root-Workspace (complete.beforeExit), 6 Contract-Tests. 274/274 + tsc + build grün.
-- Getrackt: FR-Nummern-Kollision specs/003 vs Amendments 001/002; Amendment-Status-Update DRAFT→APPROVED bei Nutzerbilligung.
+- Occasion: a fresh overall review missed at the Feature-003 completion (soft instruction text) → gate made enforceable. Draft ff4fe31, implementation 2983be3 (Q1–Q3 defaults approved by the user).
+- check-final-review.mjs (strict schema, HEAD match without a git binary, computed HIGH/CRITICAL), gate op required in scaffold/examples/root workspace (complete.beforeExit), 6 contract tests. 274/274 + tsc + build green.
+- Tracked: FR number collision specs/003 vs amendments 001/002; amendment status update DRAFT→APPROVED upon user approval.
 
-## 2026-09-26: Feature 004 Async Operation Execution (Chained Workflow, feature/async-operation-execution)
+## 2026-09-26: Feature 004 Async Operation Execution (chained workflow, feature/async-operation-execution)
 
-- Session session-85c8e497. Async Executor (spawn, SIGTERM→SIGKILL, AbortSignal) ersetzt spawnSync; AbortController-Registry in WorkflowEngine; cancel_workflow = Hard-Kill (FR-202/110 erledigt); R-006-E2Es geschlossen. stderr-Redaction für failing ops nachgerüstet (neu gefundene Lücke). 290/290 + tsc + build grün.
+- Session session-85c8e497. Async executor (spawn, SIGTERM→SIGKILL, AbortSignal) replaces spawnSync; AbortController registry in WorkflowEngine; cancel_workflow = hard kill (FR-202/110 done); R-006 E2Es closed. stderr redaction for failing ops retrofitted (newly found gap). 290/290 + tsc + build green.
 
 ## 2026-09-26: Lock-Hardening (R-011/R-012/R-010, feature/guidance-lock-hardening → develop 61d7399)
 
-- WorkspaceOpLock (src/workflow/workspace-lock.ts): Acquire via link() (atomar, Doppel-Halt konstruktiv ausgeschlossen), Steal via rename-in-Quarantäne mit Verify+Restore. TTL = max(120s, 2× max Op-Timeout) ⇒ TTL-stale impliziert toten Halter (R-012a-Invariante). Neuer ErrorCode workspace_lock_unavailable (R-012b).
-- Tests: 6-Prozess-Race (exakt 1 Halter), Live-Owner-nicht-stehlen, ERROR_CODES-Exact-Snapshot (R-010). 279/279 + tsc grün. Residuales Mikro-Fenster (inspect→rename) dokumentiert: nie Doppel-Halt, schlimmstenfalls transiente Contention + Quarantäne-Orphan.
+- WorkspaceOpLock (src/workflow/workspace-lock.ts): acquire via link() (atomic, double-hold constructively excluded), steal via rename-into-quarantine with verify+restore. TTL = max(120s, 2× max op timeout) ⇒ TTL-stale implies a dead holder (R-012a invariant). New error code workspace_lock_unavailable (R-012b).
+- Tests: 6-process race (exactly 1 holder), don't steal from a live owner, ERROR_CODES exact snapshot (R-010). 279/279 + tsc green. Residual micro-window (inspect→rename) documented: never a double-hold, at worst transient contention + quarantine orphan.
 
-## 2026-09-24: Security-/Policy-Verifikation (Phase 5/6-Fixes) + Rest-Fixes
+## 2026-09-24: Security/Policy verification (Phase 5/6 fixes) + remaining fixes
 
-- User-Anderungen verifiziert (Code + Container-Tests, node:22-alpine): Phase 6 Egress-Inhaltsprüfung (`containsSecretPattern` für restricted), `redactUnknown()`-Seam auf content + protocolMetadata.structuredContent, Multi-Line-Redaction, Capability-Pin-Persistenz über Restarts. 192/192 grün + tsc clean.
-- Rest-Fixes umgesetzt: saveCapabilityPins atomar (tmp+rename), Pin-Helfer exportiert, Regressionstest tests/workflow/capability-pins.test.ts (5 Tests: Roundtrip/Merge/Drift/Korrupt/Atomarität). Suite 197/197 grün, tsc clean.
-- remaining-work-plan.md gesynct: L264/L266 (Phase 5/6) + CB-1/CB-2/CB-9 auf [x] mit Evidence; neue Sektion „Security-/Policy-Verifikation". Verbleibende Guidance-Offenpunkte: Metrics-Tool (L260), awaiting_client-Spec (L305d), Rest-LOWs aus R-1..R-3 (akzeptiert).
-- Testumgebung-Lesson: kein Node auf Host-PATH; Container-Run braucht Repo-COPY (Mount-EACCES bei npm install) + @rollup/rollup-linux-x64-musl nachinstallieren (bekannte native-Bindings-Falle).
+- User changes verified (code + container tests, node:22-alpine): Phase 6 egress content check (`containsSecretPattern` for restricted), `redactUnknown()` seam on content + protocolMetadata.structuredContent, multi-line redaction, capability-pin persistence across restarts. 192/192 green + tsc clean.
+- Remaining fixes implemented: saveCapabilityPins atomic (tmp+rename), pin helpers exported, regression test tests/workflow/capability-pins.test.ts (5 tests: roundtrip/merge/drift/corrupt/atomicity). Suite 197/197 green, tsc clean.
+- remaining-work-plan.md synced: L264/L266 (Phase 5/6) + CB-1/CB-2/CB-9 to [x] with evidence; new section "Security/Policy verification". Remaining guidance open points: metrics tool (L260), awaiting_client spec (L305d), remaining LOWs from R-1..R-3 (accepted).
+- Test-environment lesson: no Node on the host PATH; container runs need a repo COPY (mount EACCES with npm install) + @rollup/rollup-linux-x64-musl installed afterwards (known native-bindings trap).
 
-## 2026-09-27: Multi-Repo-Fähigkeits-Befund (Guidance, Niyama-Beispiel)
+## 2026-09-27: Multi-repo capability finding (Guidance, Niyama example)
 
-- Nutzer-Befund verifiziert: guidance ist single-repo verdrahtet — ein Workspace-Root (src/index.ts:15-16), assertWorkspaceInside + spec_kit_feature_outside_workspace lehnen Fremd-Repos ab, .guidance/-Config+State bound an das eine Root, Deployment 1 Container = 1 Repo (docker-compose.override.yml).
-- Konsequenz: Für ein zweites Repo (Niyama) sind heute nur Workarounds möglich (zusätzlicher Mount + Sub-Pfad als workspaceRoot, oder zweite Container-Instanz). Produktionsreif = Workspace-Registry-Konzept nötig.
-- Getrackt als MR-1 (MEDIUM, Architektur) + MR-2 (LOW, Docs) in remaining-work-plan.md.
+- User finding verified: guidance is wired single-repo — one workspace root (src/index.ts:15-16), assertWorkspaceInside + spec_kit_feature_outside_workspace reject foreign repos, .guidance/ config+state bound to that one root, deployment 1 container = 1 repo (docker-compose.override.yml).
+- Consequence: for a second repo (Niyama) only workarounds are possible today (extra mount + sub-path as workspaceRoot, or a second container instance). Production-ready = a workspace registry concept is needed.
+- Tracked as MR-1 (MEDIUM, architecture) + MR-2 (LOW, docs) in remaining-work-plan.md.
 
-## 2026-09-27: MCP-Timeout-Diagnose (clearthought/gitnexus) — Ursache clientseitig
+## 2026-09-27: MCP-timeout diagnosis (clearthought/gitnexus) — cause client-side
 
-- Wiederkehrende `Context server request timeout`-Fehler verifiziert: Container healthy, Logs 24h ohne error/timeout/warn, direkter curl-MCP-Roundtrip gegen :3000/mcp = ~160 ms. Server-Seite exkulpiert → Ursache ist der Zed-MCP-Client/HTTP-Transport (eigener, kürzerer Request-Timeout; abgebrochener SSE-Stream kaskadiert).
-- Workarounds: schwere GitNexus-Ops via CLI statt MCP; nach Timeout MCP-Session im Editor neu starten. Lesson in lessonsLearned.md (Avoid These Mistakes, 2026-09-27) dokumentiert. Befund :4747 = Web-UI, kein /mcp-Endpunkt.
+- Recurring `Context server request timeout` errors verified: container healthy, logs 24h without error/timeout/warn, direct curl MCP round trip against :3000/mcp = ~160 ms. Server side exonerated → the cause is the Zed MCP client/HTTP transport (its own, shorter request timeout; an aborted SSE stream cascades).
+- Workarounds: heavy GitNexus ops via CLI instead of MCP; after a timeout restart the MCP session in the editor. Lesson documented in lessonsLearned.md (Avoid These Mistakes, 2026-09-27). Finding: :4747 = web UI, no /mcp endpoint.
 
-## 2026-09-27: Spec-009 Delta-Re-Review R-1…R-5 (Commit 7f9065f, spec-only)
+## 2026-09-27: Spec-009 delta re-review R-1…R-5 (commit 7f9065f, spec-only)
 
-- R-1 gelöst in spec.md (FR-901/903: Kopierliste = workflow.json + schemas/, policies via FR-910 regeneriert) — ABER plan.md (L18, L46-47) und tasks.md (T7) nennen policies.json weiterhin als „kopiert" (widerspricht FR-910/T13). → N-D1 (MEDIUM) getrackt.
-- R-2 gelöst (FR-902: Referenz-guidance.json lesbar + profile-Feld auswertbar), R-3 gelöst (AC-3 differenzierter Golden-File-Vergleich, testbar via T5), R-4 gelöst (Muster „adopt coherence: workflow references unknown op <name>", AC-9), R-5 weitgehend gelöst (Ziel-.guidance-Ausschluss + Symlink-Regel für schemas/); Restvektor: Check nicht als realpath/resolve-basiert spezifiziert → N-D2 (LOW).
-- Weitere: N-D3 (LOW) FR-909 referenziert aber nicht definiert; N-D4 (INFO) FR-902 Satzbruch durch R-5-Einschub, plan.md-Typo „und宵".
-- Urteil: 0 HIGH/CRITICAL offen → Spec FREIGEGEBEN; Plan/Tasks brauchen 1-Zeilen-Fix (N-D1) vor/vor Implementation.
+- R-1 solved in spec.md (FR-901/903: copy list = workflow.json + schemas/, policies regenerated via FR-910) — BUT plan.md (L18, L46-47) and tasks.md (T7) still name policies.json as "copied" (contradicts FR-910/T13). → N-D1 (MEDIUM) tracked.
+- R-2 solved (FR-902: reference guidance.json readable + profile field evaluable), R-3 solved (AC-3 differentiated golden-file comparison, testable via T5), R-4 solved (pattern "adopt coherence: workflow references unknown op <name>", AC-9), R-5 largely solved (target-.guidance exclusion + symlink rule for schemas/); residual vector: check not specified as realpath/resolve-based → N-D2 (LOW).
+- Further: N-D3 (LOW) FR-909 referenced but not defined; N-D4 (INFO) FR-902 sentence break from the R-5 insertion, plan.md typo "und宵".
+- Verdict: 0 HIGH/CRITICAL open → spec APPROVED; plan/tasks need a 1-line fix (N-D1) before/at implementation.
 
-## 2026-09-27: Clear-Thought-Re-Routing über Guidance-Container (live verifiziert)
+## 2026-09-27: Clear-Thought re-routing via the Guidance container (live verified)
 
-- clearthought als Downstream-Server in .guidance konfiguriert (downstream-servers.json: host.docker.internal:3000/mcp, trusted, HD-1-Reconnect; policies.json: Egress-Allowlist; operations.json: reasoning-pass mcpTool, invocableByAgent:true). Teilweise vom parallelen Spec-009-Agenten committed (109d3df/5406875); invocableByAgent-Flag: d2b394a auf feature/clearthought-agent-invocable-pass.
-- Live-Test: run_operation(reasoning-pass) = succeeded, 177 ms serverseitig (get_metrics), clearthought-Status ready — vs. Timeout auf derselben Editor-Route. Guidance-Container-Neustart nötig nach Config-Änderung.
-- Ziel-Verwendung: workflow-verpflichtende Reasoning-Pässe orchestriert laufen lassen; Ad-hoc-Calls bleiben auf der Editor-Route (dort gilt die neue Timeout-Policy in responses.json).
+- clearthought configured as a downstream server in .guidance (downstream-servers.json: host.docker.internal:3000/mcp, trusted, HD-1 reconnect; policies.json: egress allowlist; operations.json: reasoning-pass mcpTool, invocableByAgent:true). Partially committed by the parallel Spec-009 agent (109d3df/5406875); invocableByAgent flag: d2b394a on feature/clearthought-agent-invocable-pass.
+- Live test: run_operation(reasoning-pass) = succeeded, 177 ms server-side (get_metrics), clearthought status ready — vs. timeout on the same editor route. Guidance container restart needed after a config change.
+- Intended use: run workflow-mandatory reasoning passes in an orchestrated way; ad-hoc calls stay on the editor route (the new timeout policy in responses.json applies there).
 
-## 2026-09-27: Spec-010 Review (independent spec review, Commit 76801a2, develop, tree clean)
+## 2026-09-27: Spec-010 Review (independent spec review, commit 76801a2, develop, tree clean)
 
-- Review-Objekt: specs/010-documentation-drift-gate/spec.md (Draft, Q1–Q3 entschieden). Review auf Spec-Qualität, keine Implementierung existiert.
-- Snapshot: branch develop, HEAD 76801a2 = Review-Commit, unstaged/staged diff leer zum Review-Zeitpunkt. Kontexte verifiziert: check-final-review.mjs, check-index-freshness.mjs, .guidance/operations.json + workflow.json (lifecycle.beforeExit), ConfigAssistant QUESTIONS (9 IDs), register-tools.ts (16 SPEC_KIT + 19 WORKFLOW Tool-Namen), errors.ts ERROR_CODES (~80), spec 009 (FR-901–910).
-- Urteil: NICHT FREIGEGEBEN — 1 HIGH (F-1: FR-954 Pfadmuster-Semantik/Basis undefiniert, `src/config.ts` etc. existieren nicht als Repo-Root-Pfade → Gate tot oder arbiträr), 5 MEDIUM (F-2 Verdrahtungspunkt workflow.json beforeExit fehlt + Gate-Reihenfolge, F-3 Check-1 „Abschnitts-Verweis" unpräzise + README-Tool-Tabelle bereits 12 vs 16 driftig, F-4 ERROR_CODES-Anker existiert in README gar nicht, F-5 Check-4 Heuristik „Merge-Commit" für dieses Repo (Rebase/Squash) ungeeignet/undefiniert + Blocking ohne Ausstiegsregel), 3 LOW, 2 INFO. Details: remaining-work-plan.md Abschnitt Spec-010.
+- Review object: specs/010-documentation-drift-gate/spec.md (draft, Q1–Q3 decided). Review of spec quality, no implementation exists.
+- Snapshot: branch develop, HEAD 76801a2 = review commit, unstaged/staged diff empty at review time. Contexts verified: check-final-review.mjs, check-index-freshness.mjs, .guidance/operations.json + workflow.json (lifecycle.beforeExit), ConfigAssistant QUESTIONS (9 IDs), register-tools.ts (16 SPEC_KIT + 19 WORKFLOW tool names), errors.ts ERROR_CODES (~80), spec 009 (FR-901–910).
+- Verdict: NOT APPROVED — 1 HIGH (F-1: FR-954 path-pattern semantics/base undefined, `src/config.ts` etc. do not exist as repo-root paths → gate dead or arbitrary), 5 MEDIUM (F-2 wiring point workflow.json beforeExit missing + gate order, F-3 check-1 "section reference" imprecise + README tool table already 12 vs 16 drifted, F-4 ERROR_CODES anchor does not exist in the README at all, F-5 check-4 heuristic "merge commit" unsuitable/undefined for this repo (rebase/squash) + blocking without an escape rule), 3 LOW, 2 INFO. Details: remaining-work-plan.md section Spec-010.
 
-## 2026-09-27: specs/010 Implementation abgeschlossen (T5-T10)
+## 2026-09-27: specs/010 Implementation completed (T5-T10)
 
-- Snapshot: branch develop, HEAD d89bb25 + uncommittete Änderungen (operations.json, workflow.json, SpecKitEngine.ts, lifecycle.test.ts, Contract-Doku, tasks.md 010). Alles im Container verifiziert (344 Tests/tsc/build/Gate je Exit 0).
-- docsImpact-Semantik implementiert: Substring-Match gegen DOCS_RELEVANT_PATTERNS mit Backslash-Normalisierung (Windows-Pfade); löst S10-F1 praktisch (Muster als definierte Konstante mit definierter Basis repo-root-relative changedFiles).
-- S10-F2/F6 gelöst (beforeExit vor final-review-gate; Contract specs/002 dokumentiert docsImpact inkl. submission_invalid-Verhalten).
-- Offen: Push + index-freshness beim complete_workflow; AD-1/AD-2 (Adopt) unberührt.
+- Snapshot: branch develop, HEAD d89bb25 + uncommitted changes (operations.json, workflow.json, SpecKitEngine.ts, lifecycle.test.ts, contract docs, tasks.md 010). Everything verified in the container (344 tests/tsc/build/gate each exit 0).
+- docsImpact semantics implemented: substring match against DOCS_RELEVANT_PATTERNS with backslash normalization (Windows paths); practically resolves S10-F1 (pattern as a defined constant with a defined base repo-root-relative changedFiles).
+- S10-F2/F6 solved (beforeExit ahead of final-review-gate; contract specs/002 documents docsImpact incl. submission_invalid behavior).
+- Open: push + index-freshness at complete_workflow; AD-1/AD-2 (adopt) untouched.
 
-## 2026-09-27: specs/010 Completion-Phase
+## 2026-09-27: specs/010 completion phase
 
-- Review-Fixes (3191d05): Segment-Matching + AC-5-Testlücken. Final-Review durch frischen Sub-Agent: 0 HIGH/CRITICAL unresolved. lint/test-Ops rot = pre-existing non-blocking (Doku in remaining-work-plan). final-review.json + session-lessons.json geschrieben; Index-Refresh nach letztem Commit.
+- Review fixes (3191d05): segment matching + AC-5 test gaps. Final review by a fresh sub-agent: 0 HIGH/CRITICAL unresolved. lint/test ops red = pre-existing non-blocking (docs in remaining-work-plan). final-review.json + session-lessons.json written; index refresh after the last commit.
 
-## 2026-09-27: specs/010 Final-Review Runde 2 — 2 HIGH behoben
+## 2026-09-27: specs/010 final-review round 2 — 2 HIGH fixed
 
-- Unabhängiger Final-Review fand: Check-1-Tool-Parität war nie implementiert (No-op) + fehlende Gate-Tests. Beide HIGH gefixt (Segment: check-docs-drift.mjs vollständig umgebaut, tests/scripts/check-docs-drift.test.ts 12 Regressionstests). MEDIUMs (Freitext-Match, Override-Datei, Kapitel-Scoping) + LOWs (.bak-Dirs, Ziffern-Codes, done>0-Guard) ebenfalls gefixt. Gate Exit 0 (35 tools beidseitig), Vollsuite 357/357, tsc grün.
+- An independent final review found: check-1 tool parity was never implemented (no-op) + missing gate tests. Both HIGHs fixed (segment: check-docs-drift.mjs fully rebuilt, tests/scripts/check-docs-drift.test.ts 12 regression tests). MEDIUMs (free-text match, override file, chapter scoping) + LOWs (.bak dirs, digit codes, done>0 guard) also fixed. Gate exit 0 (35 tools on both sides), full suite 357/357, tsc green.
 
-## 2026-09-27: Rest-Findings-Batch implementiert (session-4e4471f2)
+## 2026-09-27: Remaining-findings batch implemented (session-4e4471f2)
 
-- Branch feature/rest-findings-batch. AD-1-Semantik: Kopie statt Verwerfen — nicht-generische Referenz-Ops landen mit Marker in operations.json; Notes-Text + Test AC-9 angepasst (legacy-custom-op jetzt erwartet).
-- Achtung: Prettier --write reformatiert server-guidance/src (ConfigAssistant/SpecKitEngine) — Bulk-Diff in diesem Commit enthalten (Format-only).
+- Branch feature/rest-findings-batch. AD-1 semantics: copy instead of discard — non-generic reference ops land in operations.json with a marker; notes text + test AC-9 adjusted (legacy-custom-op now expected).
+- Caution: Prettier --write reformats server-guidance/src (ConfigAssistant/SpecKitEngine) — bulk diff contained in this commit (format-only).
 
-## 2026-09-27: AD-1/AD-1a/AD-2 geschlossen (parallel implementiert, live verifiziert) + Guidance-Workflow-Restart-Falle
+## 2026-09-27: AD-1/AD-1a/AD-2 closed (implemented in parallel, live verified) + Guidance workflow restart trap
 
-- AD-1/AD-1a/AD-2 wurden vom parallelen Agenten implementiert (36e6233: non-generische Ops werden mit [adopted]-Marker kopiert statt verworfen; realistic-reference Regressionstest; referencePath-Help+README dokumentieren builtin-Referenz; 798e545: Shape-Validation kopierter Ops; 4bd2556: [x]-Close-out mit Independent Final Review 0 HIGH/CRITICAL, Suite 360/360).
-- Unabhängige Live-Verifikation: Guidance-Image neu gebaut, Original-Repro setup_guidance_generate {referencePath:/examples/default-guidance} jetzt GRÜN (9-Dateien-Payload, final-review-gate/store-completion-insight kopiert mit Review-Hinweis, Kohärenzprüfung grün).
-- Workflow session-d57a0bc7 wurde nach Container-Restart nicht fortsetzbar: (1) Restart mit falschem Compose-File (servers/server-guidance/docker-compose.yml allein — docker compose -f lädt das override.yml NICHT automatisch → falsches /workspace-Mount, Sessions "verschwunden"); korrekt: -f docker-compose.yml -f docker-compose.override.yml. (2) Danach Config-Drift: Session an alte configurationVersion gebunden (specs/008 AC-5, fail-closed) — Restarts nach Config-Änderung invalidieren laufende Sessions grundsätzlich.
+- AD-1/AD-1a/AD-2 were implemented by the parallel agent (36e6233: non-generic ops are copied with an [adopted] marker instead of discarded; realistic-reference regression test; referencePath help+README document the builtin reference; 798e545: shape validation of copied ops; 4bd2556: [x] close-out with independent final review 0 HIGH/CRITICAL, suite 360/360).
+- Independent live verification: guidance image rebuilt, the original repro setup_guidance_generate {referencePath:/examples/default-guidance} now GREEN (9-file payload, final-review-gate/store-completion-insight copied with a review note, coherence check green).
+- Workflow session-d57a0bc7 was not resumable after a container restart: (1) restart with the wrong compose file (servers/server-guidance/docker-compose.yml alone — docker compose -f does NOT load the override.yml automatically → wrong /workspace mount, sessions "vanished"); correct: -f docker-compose.yml -f docker-compose.override.yml. (2) Afterwards config drift: session bound to the old configurationVersion (specs/008 AC-5, fail-closed) — restarts after a config change invalidate running sessions in principle.
 
-## 2026-09-27: specs/011-adopt-templates implementiert (session-f66c3f62, feature/011-adopt-templates)
+## 2026-09-27: specs/011-adopt-templates implemented (session-f66c3f62, feature/011-adopt-templates)
 
-- T1–T6 komplett: resolveBuiltinReferencePath() (env GUIDANCE_BUILTIN_TEMPLATE_DIR, Default PKG_ROOT/examples/default-guidance); validateAdoptReference akzeptiert "builtin" (fail-closed FR-973); generateFiles: adopt ohne/"builtin" referencePath → builtin (AC-1/AC-2); adoptionBlock source:"builtin"+resolvedPath (AC-3); mounted-Referenz byte-identisch (AC-4); README builtin-vs-Referenz + env-Override.
-- 2 latente 009-Bugs dabei gefixt (AC-1-e2e deckte sie auf): (1) mainConfigSchema additionalProperties:false ohne "adoption" → JEDE adopt-Config scheiterte am loadConfig; Schema um adoption:{type:"object"} ergänzt (config.ts). (2) Insight-Erkennung prüfte nur "capture-session-lessons", Template nutzt store-completion-insight → query-project-insights wurde nicht regeneriert, Workflow-Boot failte operation_not_configured.
-- Verification: vitest 369/369 (56 Files), tsc --noEmit grün, build grün, detect-changes 4 Files/6 Symbole/MEDIUM (nur erwartete).
+- T1–T6 complete: resolveBuiltinReferencePath() (env GUIDANCE_BUILTIN_TEMPLATE_DIR, default PKG_ROOT/examples/default-guidance); validateAdoptReference accepts "builtin" (fail-closed FR-973); generateFiles: adopt without/"builtin" referencePath → builtin (AC-1/AC-2); adoptionBlock source:"builtin"+resolvedPath (AC-3); mounted reference byte-identical (AC-4); README builtin-vs-reference + env override.
+- 2 latent 009 bugs fixed along the way (AC-1-e2e uncovered them): (1) mainConfigSchema additionalProperties:false without "adoption" → EVERY adopt config failed at loadConfig; schema extended with adoption:{type:"object"} (config.ts). (2) insight detection only checked "capture-session-lessons", the template uses store-completion-insight → query-project-insights was not regenerated, workflow boot failed operation_not_configured.
+- Verification: vitest 369/369 (56 files), tsc --noEmit green, build green, detect-changes 4 files/6 symbols/MEDIUM (only expected).
 
-## 2026-09-28: specs/011 Follow-up — Wizard-Findings aus niyama (branch feature/011-adopt-wizard-fixes)
+## 2026-09-28: specs/011 Follow-up — wizard findings from niyama (branch feature/011-adopt-wizard-fixes)
 
-- 3 Findings aus dem Wizard-Lauf im niyama-Repo behoben: (1) Sample-Prompts erzwingen jetzt Warten auf Nutzerantwort ("ask one at a time and WAIT — do not answer on my behalf"); (2) clearthought ist Teil des Default-Profils: buildDownstream erzeugt den Server immer (Tools-Allowlist der in Instructions referenzierten Reasoning-Tools), shipped Template downstream-servers.json ergänzt, policies-egress um :3000 erweitert; (3) derived Fragen (profile/insight/gitnexus/gates) werden im Adopt-Mode nicht mehr gestellt (nextQuestion respektiert DERIVED_IN_ADOPT — Antworten wären ohnehin von der Referenz überschrieben worden).
-- Tests: +4 contract tests (adopt-skip, fresh-still-asks, clearthought fresh+adopt inkl. egress, Template-Datencheck); alter config-assistant-Test (downstream {}) an Default-Profil angepasst. Suite 374/374, tsc/build grün, detect-changes 5 Dateien/11 Symbole/MEDIUM nur erwartete.
+- 3 findings from the wizard run in the niyama repo fixed: (1) sample prompts now enforce waiting for the user's answer ("ask one at a time and WAIT — do not answer on my behalf"); (2) clearthought is part of the default profile: buildDownstream always creates the server (tools allowlist of the reasoning tools referenced in instructions), shipped template downstream-servers.json extended, policies egress extended with :3000; (3) derived questions (profile/insight/gitnexus/gates) are no longer asked in adopt mode (nextQuestion respects DERIVED_IN_ADOPT — answers would have been overwritten by the reference anyway).
+- Tests: +4 contract tests (adopt-skip, fresh-still-asks, clearthought fresh+adopt incl. egress, template data check); old config-assistant test (downstream {}) adapted to the default profile. Suite 374/374, tsc/build green, detect-changes 5 files/11 symbols/MEDIUM only expected.
 
-## 2026-09-28: specs/011 Follow-up 2 — Container-Only Self-Containment (niyama-Finding, branch feature/011-adopt-wizard-fixes)
+## 2026-09-28: specs/011 Follow-up 2 — Container-only self-containment (niyama finding, branch feature/011-adopt-wizard-fixes)
 
-- Finding: generierte Ops referenzierten Skripte im Guidance-Paket (servers/server-guidance/scripts/check-final-review.mjs, servers/server-insight/scripts/seed-lessons.mjs) — existieren im Ziel-Repo nicht → complete-Phase scheitert an final-review-gate. Regel: Container-only-Configs dürfen KEINE Abhängigkeiten außerhalb des Ziel-Repos haben.
-- Fix: (1) generateFiles bettet beide Gate-Skripte als generierte Dateien unter .guidance/scripts/ ein (fail-closed, wenn Paket-Skripte fehlen); (2) zero-dep-Seeder scripts/embedded/seed-lessons.mjs (MCP Streamable-HTTP via node:fetch statt @modelcontextprotocol/sdk — Ziel-Repo hat kein SDK), LIVE gegen EMMS-Server :3002 verifiziert (initialize-Handshake + Session-Id + SEEDED smoke); (3) Template final-review-gate + buildOperations capture-session-lessons zeigen auf .guidance/scripts/-Kopien; capture-session-lessons-Scope jetzt ${projectName}-lessons (EMMS-Konvention <repo>-lessons statt festem thinking-mcp-lessons); (4) mounted-Referenzen mit Alt-Pfaden → laute WARNING-note (Rewrite nicht möglich, Detektion fail-loud); (5) adoption.resolvedPath bleibt als Provenance-Metadaten erlaubt (nichts executed es).
-- Tests: 3 neue Self-Containment-Tests (fresh, builtin-adopt, mounted-warning). Suite 377/377, tsc/build grün.
+- Finding: generated ops referenced scripts in the guidance package (servers/server-guidance/scripts/check-final-review.mjs, servers/server-insight/scripts/seed-lessons.mjs) — they do not exist in the target repo → complete phase fails at the final-review-gate. Rule: container-only configs must have NO dependencies outside the target repo.
+- Fix: (1) generateFiles embeds both gate scripts as generated files under .guidance/scripts/ (fail-closed if package scripts are missing); (2) zero-dep seeder scripts/embedded/seed-lessons.mjs (MCP Streamable-HTTP via node:fetch instead of @modelcontextprotocol/sdk — the target repo has no SDK), LIVE verified against the EMMS server :3002 (initialize handshake + session id + SEEDED smoke); (3) template final-review-gate + buildOperations capture-session-lessons point to the .guidance/scripts/ copies; capture-session-lessons scope now ${projectName}-lessons (EMMS convention <repo>-lessons instead of the fixed thinking-mcp-lessons); (4) mounted references with old paths → loud WARNING-note (rewrite impossible, detection fail-loud); (5) adoption.resolvedPath remains allowed as provenance metadata (nothing executes it).
+- Tests: 3 new self-containment tests (fresh, builtin-adopt, mounted-warning). Suite 377/377, tsc/build green.
 
-## 2026-09-28: specs/012-adopt-response-wisdom implementiert (session-3a85d0ce, feature/012-adopt-response-wisdom)
+## 2026-09-28: specs/012-adopt-response-wisdom implemented (session-3a85d0ce, feature/012-adopt-response-wisdom)
 
-- T1–T8: (1) neues dependency-freies Embedded-Skript check-spec-drift.mjs (generische Spec-Status-Hygiene: Draft vs offene Checkboxen in tasks.md, FR-951.4-Override-Kommentar); (2) Embedded-Fileset +3; (3) Builtin-Template: docs-drift-Op + complete.beforeExit [docs-drift, final-review-gate, repository-analysis, store-completion-insight]; (4) FR-982: validateAdoptReference requiredFiles + responses.json + Phasen-Deckung (adopt source: responses missing phase <id>) — BREAKING für Alt-Referenzen ohne responses.json (dokumentiert); (5) FR-981: responsesOverride — Referenz-Responses kopiert, instructions.global auf Ziel-Shell getauscht (Slot bei leerer Antwort entfernt), buildResponses nur noch Fresh; (6) FR-985: referencePath-Trim + Whitespace-Tests; (7) README: Responses-Adoption + Spec-Drift-Gate dokumentiert.
-- Infrastruktur-Note: Chat-seitiger Clear-Thought-MCP-Transport zeitete out (2×) → Pflicht-Passes (sequential_thinking understand/plan, assumption_xray review) via Container-HTTP-Endpoint (localhost:3000/mcp, fetch + Session-Handshake) ausgeführt — Server selbst healthy; Throwaway-Helper nach Gebrauch gelöscht.
-- Verification: Suite 384/384, tsc exit 0, build exit 0, detect-changes 5 Dateien/7 Symbole/LOW.
+- T1–T8: (1) new dependency-free embedded script check-spec-drift.mjs (generic spec status hygiene: draft vs open checkboxes in tasks.md, FR-951.4 override comment); (2) embedded fileset +3; (3) builtin template: docs-drift op + complete.beforeExit [docs-drift, final-review-gate, repository-analysis, store-completion-insight]; (4) FR-982: validateAdoptReference requiredFiles + responses.json + phase coverage (adopt source: responses missing phase <id>) — BREAKING for old references without responses.json (documented); (5) FR-981: responsesOverride — reference responses copied, instructions.global swapped to the target shell (slot removed on an empty answer), buildResponses now fresh-only; (6) FR-985: referencePath trim + whitespace tests; (7) README: responses adoption + spec-drift gate documented.
+- Infrastructure note: the chat-side Clear-Thought MCP transport timed out (2×) → mandatory passes (sequential_thinking understand/plan, assumption_xray review) executed via the container HTTP endpoint (localhost:3000/mcp, fetch + session handshake) — the server itself healthy; throwaway helper deleted after use.
+- Verification: suite 384/384, tsc exit 0, build exit 0, detect-changes 5 files/7 symbols/LOW.
 
-## 2026-09-28: specs/012 Final-Review (Sub-Agent 7d3ca207) — Findings-Bilanz
+## 2026-09-28: specs/012 final review (sub-agent 7d3ca207) — findings balance
 
-- Final-Review (frischer Sub-Agent, HEAD a55d381+Follow-ups): 0 HIGH/CRITICAL. 2 MEDIUM: F-1 (FR-981-Kommentar behauptete Mirror-Verhalten, das nur für responses.json gilt — Kommentar korrigiert, 011-workflow-Verhalten bewusst unberührt), F-2 (Golden-Tests fehlten → Determinismus-Tests fresh+mounted ergänzt, Timestamps gestrippt). LOWs: F-3 (Spec-ohne-tasks-Skip jetzt in spec.md dokumentiert), F-4 (Duplikat-Write entfernt).
-- Getrackte Follow-ups (Trigger: nächste Testrunde an config-assistant-extensions): wisdom-e2e über composeApplication-Boot mit Marker; indented-checkbox-Test für check-spec-drift; env-Override-e2e (011-Erbe).
-- FR-982 Breaking (Alt-Referenzen ohne responses.json) final bestätigt akzeptiert + dokumentiert.
+- Final review (fresh sub-agent, HEAD a55d381+follow-ups): 0 HIGH/CRITICAL. 2 MEDIUM: F-1 (the FR-981 comment claimed mirror behavior that only applies to responses.json — comment corrected, 011-workflow behavior deliberately untouched), F-2 (golden tests missing → determinism tests fresh+mounted added, timestamps stripped). LOWs: F-3 (spec-without-tasks skip now documented in spec.md), F-4 (duplicate write removed).
+- Tracked follow-ups (trigger: next test round on config-assistant-extensions): wisdom-e2e via composeApplication boot with a marker; indented-checkbox test for check-spec-drift; env-override-e2e (011 legacy).
+- FR-982 breaking (old references without responses.json) finally confirmed accepted + documented.
 
-## 2026-09-28: specs/013-wisdom-baseline implementiert (session-14fd6161, feature/013-wisdom-baseline)
+## 2026-09-28: specs/013-wisdom-baseline implemented (session-14fd6161, feature/013-wisdom-baseline)
 
-- T1–T7: (1) FR-991 Template-responses.json auf buildResponses("")-Output synchronisiert (war stale-generic ohne Clear-Thought-Sätze — die Niyama-Regression-Wurzel) + Drift-Guard-Contract-Test; buildResponses jetzt exportiert. (2) FR-992 responses-wisdom.json kuratiert (7 Phasen aus .guidance/responses.json, Shell-Sätze/WSL-Pfade entfernt, {{CLEARTHOUGHT_URL}}/{{INSIGHT_URL}}/{{PROJECT_NAME}}-Platzhalter + {{#server:NAME}}-Bedingungsblöcke). (3) FR-993 renderAdoptedResponses (Platzhalter→transportabhängige URLs, Bedingungsblöcke je aktivem Server, Unknown-Token/Unbalanced fail-closed, instructions.global-Slot FR-981-Semantik). (4) FR-994 Adopt-Pfad: builtin → wisdom fail-closed; mounted → wisdom wenn vorhanden sonst responses.json (012-kompatibel); Coverage-Prüfung auf der verwendeten Datei. (5) FR-995 Anti-Drift-Tests. (6) e2e + README (Two response baselines). (7) Regression.
-- Order-Bug beim ersten Lauf: enabledServers wurde VOR dem Adopt-Block aus initialen insight/gitnexus-Werten gebaut (immer clearthought-only) → Bedingungsblöcke rendernten nie; Fix: Set erst am Render-Aufruf.
-- Verification: Suite 393/393, tsc/build exit 0, detect-changes 4 Dateien/5 Symbole/LOW.
+- T1–T7: (1) FR-991 template responses.json synchronized to the buildResponses("") output (was stale-generic without the Clear-Thought sentences — the root of the niyama regression) + drift-guard contract test; buildResponses now exported. (2) FR-992 responses-wisdom.json curated (7 phases from .guidance/responses.json, shell sentences/WSL paths removed, {{CLEARTHOUGHT_URL}}/{{INSIGHT_URL}}/{{PROJECT_NAME}} placeholders + {{#server:NAME}} conditional blocks). (3) FR-993 renderAdoptedResponses (placeholders→transport-dependent URLs, conditional blocks per active server, unknown-token/unbalanced fail-closed, instructions.global slot FR-981 semantics). (4) FR-994 adopt path: builtin → wisdom fail-closed; mounted → wisdom if present otherwise responses.json (012-compatible); coverage check on the file in use. (5) FR-995 anti-drift tests. (6) e2e + README (Two response baselines). (7) Regression.
+- Order bug on the first run: enabledServers was built BEFORE the adopt block from the initial insight/gitnexus values (always clearthought-only) → conditional blocks never rendered; fix: build the set only at the render call.
+- Verification: suite 393/393, tsc/build exit 0, detect-changes 4 files/5 symbols/LOW.
 
-## 2026-09-28: specs/013 Final-Review (Sub-Agent fd7b22e1) — Findings-Bilanz [L755-758]
+## 2026-09-28: specs/013 final review (sub-agent fd7b22e1) — findings balance [L755-758]
 
-## 2026-09-28: Guidance `get_downstream_status` zeigt auf HTTP-Transport strukturell immer "disconnected" (Diagnose-Sitzung, live verifiziert)
+## 2026-09-28: Guidance `get_downstream_status` structurally always shows "disconnected" on the HTTP transport (diagnosis session, live verified)
 
-- **Befund:** Der HTTP-Endpoint von server-guidance ist zustandslos — pro Request wird ein frischer McpServer + WorkflowEngine + ClientManager gebaut (server.ts L170-174: "Stateless streamable HTTP: fresh server+transport per request"). Der Verbindungsstatus (`ClientManager.statuses`, in-memory) wird nach jedem Request verworfen. Daher kann `get_downstream_status` über :3003/mcp niemals `ready` oder `failed` melden — nur den Default `disconnected` (WorkflowEngine.getDownstreamStatus L668: `st?.status ?? "disconnected"`). Live verifiziert: `run_operation reasoning-pass` = succeeded, unmittelbar danach Status weiterhin `disconnected`.
-- **Widerspruch zu Alt-Eintrag:** Der Eintrag 2026-09-27 (L697) meldet "clearthought-Status ready" — auf dem HTTP-Transport nach heutigem Befund nicht reproduzierbar (evtl. In-Process-Beobachtung oder anderes Build). Alt-Befund ist als review-quality issue zu betrachten; der technische Inhalt (Route funktioniert, 177 ms) bleibt gültig.
-- **Timeout-Einordnung (Folge der Diagnose):** guidance→clearthought timed out NICHT: get_metrics zeigt reasoning-pass 13/13 succeeded, 0 timedOut, max 177 ms; query-project-insights 22/22, max 258 ms. Beobachtete Timeouts stammen von einer anderen Route —primärverdacht: direkte Editor-MCP-Verbindung (clientseitiger Request-Timeout, konsistent mit Diagnose 2026-09-27 L685). Ausstehend: konkrete Fehlermeldung/Quelle eines Timeouts zuordnen.
-- **Nebenfunde:** (a) Alte Workflow-Session-IDs aus früheren Container-Läufen liefern `session_not_found` bei run_operation — ein "forced first use" schlägt damit still fehl und erzeugt keinen Downstream-Kontakt. (b) `get_metrics`-Zählwerte überleben Container-Restarts (persistiert in .guidance/state/metrics.jsonl), Verbindungsstatus nicht.
-- Final-Review (frischer Sub-Agent, HEAD deaa1de): 0 HIGH/CRITICAL. F-1 (LOW, gefixt): Unknown-Token-Throw + Strict-Leftover jetzt gekoppelt — wisdom fail-closed, lenient fallback behält 012-Pass-through (Regressionstest). F-2 (LOW, gefixt): GITNEXUS_URL wird in der Wisdom genutzt (complete-Phase, gitnexus-konditional). F-3 (LOW, gefixt): Mismatched-Close-Tag-Regressionstest ergänzt. F-4 (INFO, tracked): Coverage-Logik dupliziert (generateFiles/validateAdoptReference) — Trigger: nächste Änderung an Responses-File-Selection/Coverage → gemeinsamen Helper extrahieren. Weitere Getrackte: PROJECT_NAME-Render-Assert; AC-6 Self-Containment-Scan auf responses-wisdom.json ausweiten.
-- Implementation-Review (cb51d48e): F-1 MEDIUM (Non-kanonische {{…}}-Reste) → strictLeftovers-Lösung; F-2 Backreference; F-4 Tokens shipped. Alle in der Bilanz oben referenziert.
+- **Finding:** The HTTP endpoint of server-guidance is stateless — a fresh McpServer + WorkflowEngine + ClientManager is built per request (server.ts L170-174: "Stateless streamable HTTP: fresh server+transport per request"). The connection status (`ClientManager.statuses`, in-memory) is discarded after every request. Therefore `get_downstream_status` can never report `ready` or `failed` over :3003/mcp — only the default `disconnected` (WorkflowEngine.getDownstreamStatus L668: `st?.status ?? "disconnected"`). Live verified: `run_operation reasoning-pass` = succeeded, immediately afterwards the status still `disconnected`.
+- **Contradiction with the old entry:** The entry 2026-09-27 (L697) reports "clearthought status ready" — not reproducible on the HTTP transport per today's finding (possibly an in-process observation or a different build). The old finding is to be treated as a review-quality issue; the technical content (route works, 177 ms) remains valid.
+- **Timeout classification (consequence of the diagnosis):** guidance→clearthought did NOT time out: get_metrics shows reasoning-pass 13/13 succeeded, 0 timedOut, max 177 ms; query-project-insights 22/22, max 258 ms. Observed timeouts originate from a different route — primary suspicion: the direct editor MCP connection (client-side request timeout, consistent with the diagnosis 2026-09-27 L685). Pending: attribute a concrete error message/source to a timeout.
+- **Side findings:** (a) Old workflow session IDs from earlier container runs return `session_not_found` on run_operation — a "forced first use" thus fails silently and creates no downstream contact. (b) `get_metrics` counters survive container restarts (persisted in .guidance/state/metrics.jsonl), the connection status does not.
+- Final review (fresh sub-agent, HEAD deaa1de): 0 HIGH/CRITICAL. F-1 (LOW, fixed): unknown-token throw + strict-leftover now coupled — wisdom fail-closed, lenient fallback keeps the 012 pass-through (regression test). F-2 (LOW, fixed): GITNEXUS_URL is used in the wisdom (complete phase, gitnexus-conditional). F-3 (LOW, fixed): mismatched-close-tag regression test added. F-4 (INFO, tracked): coverage logic duplicated (generateFiles/validateAdoptReference) — trigger: next change to responses file selection/coverage → extract a shared helper. Further tracked: PROJECT_NAME render assert; AC-6 self-containment scan extended to responses-wisdom.json.
+- Implementation review (cb51d48e): F-1 MEDIUM (non-canonical {{…}} leftovers) → strictLeftovers solution; F-2 backreference; F-4 tokens shipped. All referenced in the balance above.
 
-## 2026-09-28: GDS-4 implementiert (feature/gds4-expose-op-content) — run_operation leitet vollständige Tool-Antworten weiter
+## 2026-09-28: GDS-4 implemented (feature/gds4-expose-op-content) — run_operation forwards complete tool responses
 
-- Fix: exposeOpResult (WorkflowEngine.ts) gibt jetzt das exposure-gefilterte Vollresult zurück (content, data, errors, warnings; Redaction bleibt upstream); neuer exportierter Typ ExposedOpResult; runOperation/StartResult/SubmitResult auf breiteren Typ umgestellt.
-- Config: .guidance/operations.json — alle 10 Operationen auf returnToAgent:"raw" (minimal-invasiver Diff, 10 Zeilen).
-- Tests: +2 Contract-Tests (raw forwarded vollständig inkl. warnings; summary_and_errors stripped weiter, SC-004 erhalten), profile-config-Test auf objectContaining umgestellt. Contract-Suite 206/206 grün (2 Bestätigungsläufe), tsc --noEmit grün.
-- Live-Verifikation: Guidance-Container neu gebaut + deployed; run_operation reasoning-pass über :3003 liefert jetzt die vollständige sequential_thinking-Antwort (content mit Thought + sessionContext).
-- Hinweis: GitNexus impact()/sequential_thinking über die Editor-Route sind während der Session mit dem bekannten clientseitigen Timeout (GDS-Diagnose 2026-09-27) ausgestiegen — Aufrufer-Analyse manuell per grep, plan dokumentiert im Chat statt im Tool.
+- Fix: exposeOpResult (WorkflowEngine.ts) now returns the exposure-filtered full result (content, data, errors, warnings; redaction stays upstream); new exported type ExposedOpResult; runOperation/StartResult/SubmitResult switched to the broader type.
+- Config: .guidance/operations.json — all 10 operations to returnToAgent:"raw" (minimally invasive diff, 10 lines).
+- Tests: +2 contract tests (raw forwarded completely incl. warnings; summary_and_errors still stripped, SC-004 preserved), profile-config test switched to objectContaining. Contract suite 206/206 green (2 confirmation runs), tsc --noEmit green.
+- Live verification: guidance container rebuilt + deployed; run_operation reasoning-pass via :3003 now delivers the complete sequential_thinking response (content with thought + sessionContext).
+- Note: GitNexus impact()/sequential_thinking over the editor route aborted during the session with the known client-side timeout (GDS diagnosis 2026-09-27) — caller analysis done manually via grep, plan documented in the chat instead of in the tool.
 
-### 2026-09-29 — WC-4 Shipped-Config-Contract (feature/wc4-shipped-config-contract, Guidance-Session session-e782866b — COMPLETED, alle Gates grün)
+### 2026-09-29 — WC-4 Shipped-Config-Contract (feature/wc4-shipped-config-contract, Guidance-Session session-e782866b — COMPLETED, all gates green)
 
-- Fix: tests/contract/shipped-configs.test.ts lädt alle 5 ausgelieferten Config-Sets gegen loadConfig (einzige Substitution: workspaces[]-Key; Container-Roots host-seitig nicht existent); Egress-Konsistenz inkl. disabled Server (raw URL.host wie Validator) + Negative-Control. 7/7 Tests, Suite 458/458 grün. Unabhängiger Review APPROVED 0 HIGH/CRIT; F1/F2 post-review gefixt.
-- Änderungen UNCOMMITTED auf dem Feature-Branch; Merge nach develop ausständig. Keine neuen getrackten Findings (F3/F4 als INFO accepted dokumentiert im final-review.json).
+- Fix: tests/contract/shipped-configs.test.ts loads all 5 shipped config sets against loadConfig (only substitution: workspaces[] key; container roots do not exist host-side); egress consistency incl. disabled servers (raw URL.host like the validator) + negative control. 7/7 tests, suite 458/458 green. Independent review APPROVED 0 HIGH/CRIT; F1/F2 fixed post-review.
+- Changes UNCOMMITTED on the feature branch; merge to develop outstanding. No new tracked findings (F3/F4 documented as INFO accepted in final-review.json).
 
-### 2026-09-29 — WC-1 Wildcard↔TrustLevel-Coupling (feature/wc1-wildcard-trustlevel-coupling, Guidance-Session session-22e9b598 — COMPLETED, alle Gates grün)
+### 2026-09-29 — WC-1 Wildcard↔TrustLevel-Coupling (feature/wc1-wildcard-trustlevel-coupling, Guidance-Session session-22e9b598 — COMPLETED, all gates green)
 
-- Fix: validateDownstreamServers lehnt Wildcard ["*"] bei effektiver trustLevel != "trusted" fail-closed ab; nicht-string trustLevel abgelehnt (Review-F1); toTrustLevel nach src/trust-level.ts extrahiert (Validator+Runtime eine Semantik). 6 neue Tests, Suite 451/451, unabhängiger Review APPROVED 0 HIGH/CRIT.
-- Offene getrackte Findings aus diesem Run: **WC-1-B** (trusted Wildcard-Server + unkonfigurierte destructive Tools — Runtime-Hardening, Trigger: destructive Non-Operation-Tools auf gitnexus/clearthought/insight) und **WC-4** (Contract-Test für shipped Configs vs. Validator) in remaining-work-plan.md.
-- Änderungen liegen UNCOMMITTED auf dem Feature-Branch; Merge nach develop + Docker-Rebuild ausständig.
+- Fix: validateDownstreamServers rejects wildcard ["*"] at an effective trustLevel != "trusted" fail-closed; non-string trustLevel rejected (review-F1); toTrustLevel extracted to src/trust-level.ts (validator+runtime one semantics). 6 new tests, suite 451/451, independent review APPROVED 0 HIGH/CRIT.
+- Open tracked findings from this run: **WC-1-B** (trusted wildcard server + unconfigured destructive tools — runtime hardening, trigger: destructive non-operation tools on gitnexus/clearthought/insight) and **WC-4** (contract test for shipped configs vs. validator) in remaining-work-plan.md.
+- Changes are UNCOMMITTED on the feature branch; merge to develop + Docker rebuild outstanding.
 
-### 2026-09-29 — WA-1 Config-Assistent Multi-Workspace (feature/wizard-workspaces)
+### 2026-09-29 — WA-1 Config-Assistant Multi-Workspace (feature/wizard-workspaces)
 
-- Wizard-Fragen `workspaceRoot` + `extraWorkspaces` („name=path;…“) ergänzt;
-  `generateFiles` emittiert workspaces[]-Block (Default-Eintrag + Extras) nur
-  bei gesetzten Antworten; Generierungs-Validierung fail-closed (Name-Pattern,
-  absolute Roots, Dubletten; Root-Existenz bei loadConfig); Adopt-Modus
-  übernimmt NIE Referenz-Workspaces (Niyama-Klasse). Suite 440/440 grün
-  (sauberer Volllauf; Last-Flakiness-Lesson beachtet). README aktualisiert.
-- Final Review (unabhängig, session-756c112d): APPROVED, 0 HIGH/CRITICAL offen. Neue getrackte LOW-Follow-ups WW-2 (workspaceRoot ohne isAbsolute-Fail-fast bei Generierung) + WW-3 (ungetestete Boundary-Cases: '=' im Pfad, whitespace-only-Antworten) in remaining-work-plan.md. Verifikation: Suite-Lauf 2× — Lauf 1: 2 Load-Flakes (Timeout-Fehler, 310 s Dauer), Lauf 2: 440/440 sauber (0 failed, JSON-Report verifiziert).
+- Wizard questions `workspaceRoot` + `extraWorkspaces` ("name=path;…") added;
+  `generateFiles` emits a workspaces[] block (default entry + extras) only
+  when answers are set; generation validation fail-closed (name pattern,
+  absolute roots, duplicates; root existence at loadConfig); adopt mode
+  NEVER adopts reference workspaces (niyama class). Suite 440/440 green
+  (clean full run; the last-flakiness lesson heeded). README updated.
+- Final review (independent, session-756c112d): APPROVED, 0 HIGH/CRITICAL open. New tracked LOW follow-ups WW-2 (workspaceRoot without isAbsolute fail-fast at generation) + WW-3 (untested boundary cases: '=' in path, whitespace-only answers) in remaining-work-plan.md. Verification: suite run 2× — run 1: 2 load flakes (timeout errors, 310 s duration), run 2: 440/440 clean (0 failed, JSON report verified).
 
 ### 2026-09-29 — specs/014 Config Truth & Composition v2 (feature/config-truth-v2)
 
-- Zwei-Modi-Modell umgesetzt (Nutzerentscheid): Workspace-Mode-Instanz-
-  .guidance = Registry only (registryOnly-Flag in loadConfig, FR-1101);
-  cpSync-Bootstrap entfernt → fehlende Repo-Process-Config fail-closed
-  workspace_process_config_missing (FR-1102); Legacy-Monolith + Dormanz-
-  Boot-Warnungen (src/config-truth.ts, FR-1103/1106); Wizard mode-aware
-  mit target-Frage repo-config|registry-edit (FR-1104/1105, WA-1-Emission
-  ersetzt). Suite 468/468 grün (sauberer Volllauf). Neuer Error-Code
-  workspace_process_config_missing (docs-drift-konform).
+- Two-mode model implemented (user decision): workspace-mode instance-
+  .guidance = registry only (registryOnly flag in loadConfig, FR-1101);
+  cpSync bootstrap removed → missing repo process config fails closed
+  workspace_process_config_missing (FR-1102); legacy monolith + dormancy
+  boot warnings (src/config-truth.ts, FR-1103/1106); wizard mode-aware
+  with target question repo-config|registry-edit (FR-1104/1105, WA-1 emission
+  replaced). Suite 468/468 green (clean full run). New error code
+  workspace_process_config_missing (docs-drift-conformant).
 
-### 2026-09-30 — CT-1 Constructor-Guard (feature/ct1-constructor-guard, 8f588c6, Guidance-Session session-1070c546)
+### 2026-09-30 — CT-1 Constructor Guard (feature/ct1-constructor-guard, 8f588c6, Guidance session session-1070c546)
 
-- Fix: WorkflowEngine-Konstruktor wirft bei registryOnly=false und fehlender/
-  unvollständiger workflow.file jetzt configuration_invalid (recoverable:false)
-  statt nacktem TypeError — Strukturcheck über workflow.id/initialPhase,
-  weil ein truthy-leeres workflow-Objekt den reinen Falsiness-Check
-  umgangen hätte (von Review-Finding #2 aufgedeckt, Test workflow={}).
-  4 Regressionstests; Suite 479/479 grün; unabhängiger Review APPROVED
-  0 HIGH/CRIT; README-Hinweis ergänzt. Kettenlauf: Schritte CT-2, WW-1..3,
-  WC-1-B, HR-1-SDD, DB-1-Rest-SDD folgen in derselben Session.
-- Infrastruktur-Muster: Clear-Thought/GitNexus-MCP 2× Timeout → Container-
-  Route (run_operation reasoning-pass) bzw. Terminal-CLI (gitnexus analyze);
-  submit_verification Client-Timeout ≠ Server-Fail (Submission war
-  akzeptiert, Gates gingen serverseitig) — State prüfen statt retryen;
-  Container-Gate-Fails (lint/test) sind umweltbedingt (keine nativen
-  node_modules im Container, required:false) — TYPE-1/GATE-1 getrackt.
+- Fix: WorkflowEngine constructor now throws configuration_invalid
+  (recoverable:false) for registryOnly=false with missing/incomplete
+  workflow.file instead of a bare TypeError — structural check on
+  workflow.id/initialPhase, since a truthy-empty workflow object would
+  have bypassed a pure falsiness check (surfaced by review finding #2, test workflow={}).
+  4 regression tests; suite 479/479 green; independent review APPROVED
+  0 HIGH/CRIT; README note added. Chain run: steps CT-2, WW-1..3,
+  WC-1-B, HR-1-SDD, DB-1-Rest-SDD follow in the same session.
+- Infrastructure pattern: Clear-Thought/GitNexus MCP 2× timeout → container
+  route (run_operation reasoning-pass) or terminal CLI (gitnexus analyze);
+  submit_verification client timeout ≠ server failure (submission was
+  accepted, gates ran server-side) — check state instead of retrying;
+  container gate failures (lint/test) are environmental (no native
+  node_modules in the container, required:false) — TYPE-1/GATE-1 tracked.
 
-### 2026-09-30 — CT-2 Legacy-Monolith-E2E (feature/ct2-legacy-monolith-e2e, 96b0a67, Guidance-Session session-9e23340f)
+### 2026-09-30 — CT-2 Legacy-Monolith-E2E (feature/ct2-legacy-monolith-e2e, 96b0a67, Guidance session session-9e23340f)
 
-- Test-Gap geschlossen: registry-composition.test.ts um E2E-Test ergänzt —
-  Legacy-Monolith (Voll-Config am Pool-Root + workspaces[]-Registry) und
-  registrierter Extra-Workspace mit eigener voller .guidance: Session wird
-  aus dem Workspace-Root komponiert (Persisted-Session-configurationVersion
-  === Workspace-Config-Hash, ≠ Pool-Hash; keine Config-Copies). Suite
-  480/480 grün. Kein Produktionscode nötig. Kettenfortsetzung als frische
-  Kette (session-9e23340f) wegen CHAIN-1 (AC-5-Drift der Auto-Folgesession).
+- Test gap closed: registry-composition.test.ts extended with an E2E test —
+  legacy monolith (full config at the pool root + workspaces[] registry) and
+  a registered extra workspace with its own full .guidance: the session is
+  composed from the workspace root (persisted session configurationVersion
+  === workspace config hash, ≠ pool hash; no config copies). Suite
+  480/480 green. No production code needed. Chain continuation as a fresh
+  chain (session-9e23340f) due to CHAIN-1 (AC-5 drift of the auto-successor session).
 
-### 2026-09-30 — WW-1 Extra-Root-Default-Dedupe (feature/ww1-extraroot-default-dedupe, 6029007, Guidance-Session session-58b4d57f)
+### 2026-09-30 — WW-1 Extra-Root-Default-Dedupe (feature/ww1-extraroot-default-dedupe, 6029007, Guidance session session-58b4d57f)
 
-- parseExtraWorkspaces(value, defaultRoot?): seenRoots-Seed mit
-  resolve(defaultRoot) — Extra-Root, der zum Default-workspaceRoot
-  kollidiert, failt bei Generation-Zeit (configuration_invalid) statt
-  erst beim Container-Load; generateFiles übergibt getrimmten Root.
-  2 Regressionstests (inkl. resolve-normalisierter Kollision);
-  70/70 Config-Assistent + 480/480 Suite grün; prettier grün.
-  Realpath-/Case-Kollaps bleibt load-time (Scope-Grenze dokumentiert).
-  aus bereits bekannten Code-Stellen statt Voll-Datei-Reads.
+- parseExtraWorkspaces(value, defaultRoot?): seenRoots seed with
+  resolve(defaultRoot) — an extra root that collides with the default
+  workspaceRoot fails at generation time (configuration_invalid) instead
+  of only at container load; generateFiles passes the trimmed root.
+  2 regression tests (incl. resolve-normalized collision);
+  70/70 config assistant + 480/480 suite green; prettier green.
+  Realpath/case collapse remains load-time (scope boundary documented).
+  from already-known code locations instead of full-file reads.
 
-### 2026-09-30 — WW-2 workspaceRoot-isAbsolute (feature/ww2-workspaceroot-isabsolute, 5c06639, Guidance-Session session-c4d8dba2)
+### 2026-09-30 — WW-2 workspaceRoot-isAbsolute (feature/ww2-workspaceroot-isabsolute, 5c06639, Guidance session session-c4d8dba2)
 
-- generateFiles (registry-edit): isAbsolute-Fail-fast für den Default-
-  workspaceRoot nach dem Empty-Check — konsistente Semantik mit den
-  Extras (parseExtraWorkspaces); relativer Pfad failt jetzt bei
-  Generierung statt erst beim Container-Load. 1 Regressionstest;
-  fokussiert 71/71; Vollauf effektiv 481/481 (2 bekannte Timeout-Flakes
-  auf Re-Run grün); prettier grün. Kettenfortsetzung als frische Kette
-  (CHAIN-1-Workaround).
+- generateFiles (registry-edit): isAbsolute fail-fast for the default
+  workspaceRoot after the empty check — consistent semantics with the
+  extras (parseExtraWorkspaces); a relative path now fails at
+  generation instead of only at container load. 1 regression test;
+  focused 71/71; full run effectively 481/481 (2 known timeout flakes
+  green on re-run); prettier green. Chain continuation as a fresh chain
+  (CHAIN-1 workaround).
 
-### 2026-09-30 — WW-3 extraWorkspaces-Boundary-Tests (feature/ww3-extraworkspaces-boundary-tests, 101306c, Guidance-Session session-46674965)
+### 2026-09-30 — WW-3 extraWorkspaces-Boundary-Tests (feature/ww3-extraworkspaces-boundary-tests, 101306c, Guidance session session-46674965)
 
-- Beide getrackten Boundary-Cases regressionsgesichert: '=' im Root
-  (indexOf-Trennung, Rest = Root) und whitespace-only ≡ weggelassen.
-  E2E-Assertions über generiertes guidance.json; kein Produktionscode
-  nötig. Suite 482/482 grün, prettier grün.
+- Both tracked boundary cases regression-secured: '=' in the root
+  (indexOf split, remainder = root) and whitespace-only ≡ omitted.
+  E2E assertions on the generated guidance.json; no production code
+  needed. Suite 482/482 green, prettier green.
 
-### 2026-09-30 — specs/015 SDD: Registry-Hot-Reload + Dependency-Bootstrap (feature/015-sdd-registry-hot-reload-deps, Guidance-Session session-7980b278)
+### 2026-09-30 — specs/015 SDD: Registry-Hot-Reload + Dependency-Bootstrap (feature/015-sdd-registry-hot-reload-deps, Guidance session session-7980b278)
 
-- SDD-Artefakte im Draft-Status (KEINE Implementierung, gemäß Regel):
-  spec.md (US1 HR-1 mit offener Design-Entscheidung Watch-vs-Register +
-  AC-1…AC-6, US2 DB-1-Rest deps-install/deps-reinstall mit AC-7…AC-12,
-  FR-1201+-Namespace), plan.md (R1/R2-Open-Points, Technical Approach,
-  Test-Strategie), tasks.md (4 Phasen, T001…T014). specs/008-Spannung
-  als Verwerfungs-Kriterium verankert; Konfig-Flag „Default aus" als
-  sicherer Modus. Memory-bank: HR-1/DB-1 auf SDD-abgeschlossen gesetzt,
-  Umsetzung ausstehend.
+- SDD artifacts in draft status (NO implementation, per the rule):
+  spec.md (US1 HR-1 with open design decision Watch-vs-Register +
+  AC-1…AC-6, US2 DB-1-Rest deps-install/deps-reinstall with AC-7…AC-12,
+  FR-1201+ namespace), plan.md (R1/R2 open points, technical approach,
+  test strategy), tasks.md (4 phases, T001…T014). specs/008 tension
+  anchored as a rejection criterion; config flag "Default off" as
+  the safe mode. Memory-bank: HR-1/DB-1 set to SDD-complete,
+  implementation pending.
 
-### 2026-09-30 — WC-1-B Wildcard-Approval-Hardening (feature/wc1b-wildcard-unconfigured-approval, e5408c1, Guidance-Session session-b470f696)
+### 2026-09-30 — WC-1-B Wildcard-Approval-Hardening (feature/wc1b-wildcard-unconfigured-approval, e5408c1, Guidance session session-b470f696)
 
-- Option B (Nutzerentscheid im Chat, Alternativen A/C abgewogen):
-  PolicyEngine.assertUnconfiguredWildcard — unkonfiguriertes Tool auf
-  Wildcard-Server → recoverable authorization_required (statt lautlos
-  ohne riskClass durchzulaufen); verdrahtet in buildInvokerClosure nach
-  assertAllowed/opForEgress, vor evaluateEgress. Realer Geltungsbereich
-  v. a. Child-/Downstream-Engine-Verdrahtung (Eltern-Closure + fremder
-  Operations-Bestand). Konfigurierte Tools byte-identisch. 4 neue
-  PolicyEngine-Tests; Suite 483/483 grün; README-Wildcard-Abschnitt
-  ergänzt. YAGNI-Notiz: Config-Knopf (Option C) später ohne Breaking
-  Change ausbaubar.
+- Option B (user decision in chat, alternatives A/C weighed):
+  PolicyEngine.assertUnconfiguredWildcard — unconfigured tool on
+  a wildcard server → recoverable authorization_required (instead of
+  silently passing through without riskClass); wired in buildInvokerClosure after
+  assertAllowed/opForEgress, before evaluateEgress. Real scope of
+  application above all child/downstream engine wiring (parent closure +
+  foreign operations stock). Configured tools byte-identical. 4 new
+  PolicyEngine tests; suite 483/483 green; README wildcard section
+  added. YAGNI note: config knob (option C) can be added later without a
+  breaking change.
 
 ## 2026-09-30: Language Convention (communication German / artifacts English)
 
@@ -1194,320 +1238,320 @@
   backup created as `AGENTS.md.bak` beforehand per Rule Update & Backup
   Protocol. Convention also noted in `memory-bank/lessonsLearned.md`.
 
-### 2026-09-30 — Neue Maschine: Guidance-Registry neu aufgesetzt
+### 2026-09-30 — New machine: Guidance registry re-established
 
-- Pool-Registry `/workspaces/.guidance/guidance.json` (host `D:\repos\.guidance`):
-  Workspace **thinking-mcp** → `/workspaces/Thinking-MCP` registriert (neben default).
-  Alt-Container `server-guidance-guidance-1` (falscher Kontext, Port-Drift,
-  fremder `/workspace`-Volume) entfernt; Neustart aus Root-Compose
-  (`thinking-mcp-guidance-1`, Mount `D:\repos -> /workspaces`).
-- Repo-`.guidance/guidance.json` maschinenspezifisch korrigiert (UNGECOMMITTET,
-  geht in den nächsten Feature-Branch-Commit): `thinking-mcp.root` `/workspace` →
-  `/workspaces/Thinking-MCP`; `niyama`-Eintrag entfernt (Repo auf dieser
-  Maschine nicht vorhanden; Re-Registrierung bei Klon-Vorhandensein).
-- Chained Workflow gestartet: session-77a51a32-ac77-413e-9339-e37fec32700f,
-  4 Steps (TYPE-1 → WC1B-F3 → GATE-1 → CHAIN-1). specs/015-Umsetzung als
-  separate Chain nach R1/R2-Nutzerentscheid.
+- Pool registry `/workspaces/.guidance/guidance.json` (host `D:\repos\.guidance`):
+  workspace **thinking-mcp** → `/workspaces/Thinking-MCP` registered (alongside default).
+  Old container `server-guidance-guidance-1` (wrong context, port drift,
+  foreign `/workspace` volume) removed; restart from the root compose
+  (`thinking-mcp-guidance-1`, mount `D:\repos -> /workspaces`).
+- Repo `.guidance/guidance.json` corrected machine-specifically (UNCOMMITTED,
+  goes into the next feature branch commit): `thinking-mcp.root` `/workspace` →
+  `/workspaces/Thinking-MCP`; `niyama` entry removed (repo not present
+  on this machine; re-register when a clone exists).
+- Chained workflow started: session-77a51a32-ac77-413e-9339-e37fec32700f,
+  4 steps (TYPE-1 → WC1B-F3 → GATE-1 → CHAIN-1). specs/015 implementation as a
+  separate chain after the R1/R2 user decision.
 
-### 2026-09-30 — TYPE-1 gelöst (feature/type1-ts2532, Guidance-Session session-77a51a32, Kettenschritt 1/4)
+### 2026-09-30 — TYPE-1 solved (feature/type1-ts2532, Guidance session session-77a51a32, chain step 1/4)
 
-- TS2532 in tests/contract/shipped-configs.test.ts(125) gefixt: `CONFIG_SETS[1]!.dir`
-  (Konsistent mit `[0]!`-Idiom im selben File). Zusätzlich File auf LF normalisiert —
-  Root-Cause-Befund: Datei kam in WC-4 (235e9e6) mit CRLF-Zeilenenden UND dem
-  unchecked Index-Zugriff ins Repo; jeder tsc-Lauf mit tests/ seit 235e9e6 musste
-  den Fehler melden („früher grün" = Lauf vor 235e9e6 oder ohne typecheck über tests).
-  CRLF führte zusätzlich zu prettier --check-Fail (endOfLine lf) — GATE-lint-Kontext.
-- Verifikation (WSL, Node v24.21.0, tsc 5.9.3): typecheck grün, prettier grün,
-  fokussiert 7/7, Vollauf 474 passed / 9 skipped (63 Files).
-- Observation: ~10 weitere Testdateien enthalten CR (strings/fixtures), prettier-grün;
-  nicht Teil von TYPE-1.
+- TS2532 in tests/contract/shipped-configs.test.ts(125) fixed: `CONFIG_SETS[1]!.dir`
+  (consistent with the `[0]!` idiom in the same file). Also normalized the file to LF —
+  root-cause finding: the file entered the repo in WC-4 (235e9e6) with CRLF line endings AND the
+  unchecked index access; every tsc run with tests/ since 235e9e6 had to
+  report the error ("previously green" = a run before 235e9e6 or without typecheck over tests).
+  CRLF additionally caused a prettier --check failure (endOfLine lf) — GATE-lint context.
+- Verification (WSL, Node v24.21.0, tsc 5.9.3): typecheck green, prettier green,
+  focused 7/7, full run 474 passed / 9 skipped (63 files).
+- Observation: ~10 further test files contain CR (strings/fixtures), prettier-green;
+  not part of TYPE-1.
 
-### 2026-10-01 — TYPE-1 gemerged; Cleanup-Chain neu gestartet
+### 2026-10-01 — TYPE-1 merged; cleanup chain restarted
 
-- feature/type1-ts2532 per Fast-Forward nach develop gemerged (58faa7e…e0b2f60,
-  develop ahead 6 of origin — Push wartet auf Nutzer), Branch gelöscht.
-- Neue Chain session-293a251f-77ef-4ea1-a20d-f7587b926663 gestartet:
-  3 Steps (WC1B-F3 → GATE-1 → CHAIN-1-Evidence). CONSTRAINT je Step: keine
-  .guidance-Config-Änderungen mid-session (CHAIN-1-Workaround).
+- feature/type1-ts2532 fast-forward merged into develop (58faa7e…e0b2f60,
+  develop ahead 6 of origin — push waiting on user), branch deleted.
+- New chain session-293a251f-77ef-4ea1-a20d-f7587b926663 started:
+  3 steps (WC1B-F3 → GATE-1 → CHAIN-1-Evidence). CONSTRAINT per step: no
+  .guidance config changes mid-session (CHAIN-1 workaround).
 
-### 2026-10-01 — WC1B-F3 gelöst (feature/wc1b-f3-integration-test, Guidance-Session session-293a251f, Kettenschritt 1/3)
+### 2026-10-01 — WC1B-F3 solved (feature/wc1b-f3-integration-test, Guidance session session-293a251f, chain step 1/3)
 
-- Integrationstest in tests/contract/tools-run-operation.test.ts: Wildcard-Server
-  (stdio, nie gespawnt — Policy wirft vor ensureReady) + Composite-Operation mit
-  mcpTool-Step (server=wildcard, capability=unlisted-tool) → run_operation liefert
-  status "failed" mit recoverable authorization_required (Server-/Tool-Benennung),
-  kein Downstream-Contact. Semantik gelernt: firstAvailable-Komposite reportieren
-  Step-Failures als Result (status failed + errors), sie werfen nicht — exakt das
-  Live-Bild des repository-analysis-Gates (CHAIN-1-Kontext).
-- Fokussiert 20/20, Vollauf 475 passed / 9 skipped (63 Files), prettier grün.
+- Integration test in tests/contract/tools-run-operation.test.ts: wildcard server
+  (stdio, never spawned — policy throws before ensureReady) + composite operation with
+  mcpTool step (server=wildcard, capability=unlisted-tool) → run_operation returns
+  status "failed" with recoverable authorization_required (server/tool naming),
+  no downstream contact. Semantics learned: firstAvailable composites report
+  step failures as a result (status failed + errors), they do not throw — exactly the
+  live picture of the repository-analysis gate (CHAIN-1 context).
+- Focused 20/20, full run 475 passed / 9 skipped (63 files), prettier green.
 
-### 2026-10-01 — GATE-1 Evidenznotiz (feature/gate1-evidence, Guidance-Session session-a0577447, Kettenschritt 1/2)
+### 2026-10-01 — GATE-1 evidence note (feature/gate1-evidence, Guidance session session-a0577447, chain step 1/2)
 
-- Klassifizierung bestätigt: Container-Verify-Gates (lint=prettier --check,
-  test=root npm test --workspaces) bleiben umweltbedingt — der Guidance-Container
-  hat keine Linux-nativen node_modules (DB-1-Kontext, specs/015 US2 löst es).
-- Evidenz aus session-293a251f-Completion (2026-10-01): ausgeführte Completion-Hooks
-  waren ausschließlich skriptbasiert (docs-drift, final-review-gate, index-freshness,
-  repository-analysis, capture-session-lessons — alle grün); lint (required:false)
-  wurde übersprungen; test/build liefen im Completion-Flow NICHT. Authoritative
-  Verifikationsroute war WSL (Vollauf 475 passed / 9 skipped, prettier grün).
-- Konsequenz: Gates NICHT auf required:true ziehen, keine nativen node_modules im
-  Container installieren — beides erst mit DB-1 (deps-install). Hardening bleibt
-  bis dahin blockiert; GATE-1 bleibt OBSERVATION mit erweiterter Evidenz.
+- Classification confirmed: container verify gates (lint=prettier --check,
+  test=root npm test --workspaces) remain environmental — the guidance container
+  has no Linux-native node_modules (DB-1 context, specs/015 US2 resolves it).
+- Evidence from the session-293a251f completion (2026-10-01): executed completion hooks
+  were exclusively script-based (docs-drift, final-review-gate, index-freshness,
+  repository-analysis, capture-session-lessons — all green); lint (required:false)
+  was skipped; test/build did NOT run in the completion flow. The authoritative
+  verification route was WSL (full run 475 passed / 9 skipped, prettier green).
+- Consequence: do NOT move gates to required:true, do not install native node_modules in
+  the container — both only with DB-1 (deps-install). Hardening remains
+  blocked until then; GATE-1 remains an OBSERVATION with extended evidence.
 
-### 2026-10-01 — specs/015 Umsetzung gestartet (feature/015-us1-registry-register, Guidance-Session session-7e69dcdd, Schritt 1/4)
+## 2026-10-01 — specs/015 implementation started (feature/015-us1-registry-register, Guidance session session-7e69dcdd, step 1/4)
 
-- T001 erledigt: Spec gegen Codebase geprüft (WorkflowEngine/PolicyEngine/
-  specs/014-Registry; GDS-6 als verwandter WorkflowEngine-Defekt referenziert).
-- T002 erledigt: FR-1201…1210 (US1, Alternative B) und FR-1211…1216 (US2)
-  im spec.md verankert; R1/R2-Entscheidungen als entschieden eingetragen.
+- T001 done: spec checked against the codebase (WorkflowEngine/PolicyEngine/
+  specs/014 registry; GDS-6 referenced as a related WorkflowEngine defect).
+- T002 done: FR-1201…1210 (US1, alternative B) and FR-1211…1216 (US2)
+  anchored in spec.md; R1/R2 decisions recorded as decided.
 
-### 2026-10-01 — specs/015 Kette: Schritt 1 complete, US1-Session in plan-Phase (HANDOVER)
+## 2026-10-01 — specs/015 chain: step 1 complete, US1 session in plan phase (HANDOVER)
 
-- Kette session-7e69dcdd: Schritt 1/4 (Phase 1, T001/T002) COMPLETED (9dcca90,
-  FR-1201..1216 verankert, Review APPROVED). Successor born-invalid (AC-5) →
-  getrackt + cancelled; Rest-Kette als FRESH chain gestartet:
+- Chain session-7e69dcdd: step 1/4 (phase 1, T001/T002) COMPLETED (9dcca90,
+  FR-1201..1216 anchored, review APPROVED). Successor born-invalid (AC-5) →
+  tracked + cancelled; remaining chain started as a FRESH chain:
   **session-b045ff14-273c-4c66-a85e-1a588de02d64** (US1, T003..T006) —
-  Status: phase=plan (understanding submittet), Branch feature/015-us1-registry-register.
-- **US1 Root-Cause-Refinement (source-verifiziert):** Dual-Engine-Hashes —
-  Boot-Parent = POOL-Config-Hash (8cf5be36), lazy Child = REPO-Config-Hash
-  (cacb2274) (engineForWorkspace, WorkflowEngine.ts:593-606). Successor erbt
-  Session-Hash (~L2384) und wird je nach Route an der FALSCHEN Instanz auf
-  AC-5 geprüft (L641-648) → born-invalid. Fix-Scope AC-16: Successor an
-  eigenen Workspace-Root-Hash binden + Routing konsistent; danach Rebind-
-  Semantik AC-13..17 auf demselben Guard; registry-register-Tool (FR-1201..10,
-  Flag default OFF).
-- Nächste Schritte (Fortsetzung): T003 failing regression test FIRST
-  (Successor-Komposition/-Routing), dann Fix, registry-register, T005/T006.
-  Completion-Protocol: analyze --no-stats --force LAST, pre-check gates,
+  status: phase=plan (understanding submitted), branch feature/015-us1-registry-register.
+- **US1 root-cause refinement (source-verified):** dual-engine hashes —
+  boot parent = POOL config hash (8cf5be36), lazy child = REPO config hash
+  (cacb2274) (engineForWorkspace, WorkflowEngine.ts:593-606). The successor inherits
+  the session hash (~L2384) and, depending on the route, is checked against AC-5
+  at the WRONG instance (L641-648) → born-invalid. Fix scope AC-16: bind the successor
+  to its own workspace root hash + consistent routing; afterwards rebind
+  semantics AC-13..17 on the same guard; registry-register tool (FR-1201..10,
+  flag default OFF).
+- Next steps (continuation): T003 failing regression test FIRST
+  (successor composition/routing), then fix, registry-register, T005/T006.
+  Completion protocol: analyze --no-stats --force LAST, pre-check gates,
   first-try complete (GDS-6!).
 
-### 2026-10-01 — specs/015 US1 implementiert (T003..T006, Guidance-Session session-b045ff14)
+### 2026-10-01 — specs/015 US1 implemented (T003..T006, Guidance session session-b045ff14)
 
-- **AC-16-Fix (CHAIN-1):** getWorkflowState delegiert nach Probe-Routing den
-  GESAMTEN AC-5-Guard an die Routing-Engine (WorkflowEngine.ts) — Workspace-
-  Sessions werden nicht mehr am Pool-Hash gemessen. Successor born-invalid
-  damit behoben (Regressionstest: fresh-parent access).
-- **Rebind-Semantik AC-13..17:** completed überlebt; active/blocked rebinden
-  nach erfolgreicher Fresh-Compositon-Re-Validierung (session_rebound-Audit);
-  Invalid-Config bleibt fail-closed. specs/008-multi-workspace-Test auf neue
-  Semantik aktualisiert (ALTER fail-closed Fall → AC-15-Test in
+- **AC-16 fix (CHAIN-1):** after probe routing, getWorkflowState delegates the
+  ENTIRE AC-5 guard to the routing engine (WorkflowEngine.ts) — workspace
+  sessions are no longer measured against the pool hash. Successor born-invalid
+  thus fixed (regression test: fresh-parent access).
+- **Rebind semantics AC-13..17:** completed survives; active/blocked rebind
+  after successful fresh-composition re-validation (session_rebound audit);
+  invalid config remains fail-closed. specs/008 multi-workspace test updated to the
+  new semantics (OLD fail-closed case → AC-15 test in
   registry-rebind.test.ts).
 - **registry_register (FR-1201..1210):** profile+flag-gated (spec-kit +
   registryRegister.enabled, default OFF), WorkspaceRegistry.build-exclusive,
-  atomarer guidance.json-Write, registry_changed-Audit, neue
-  configurationVersion, childEngines-Invalidierung. README Tool-Referenz +
-  Runtime-Registration-Regeln ergänzt.
-- Tests: registry-rebind.test.ts 8 (AC-13/14/15/16/17, Flag, Persistenz,
-  Remove, FR-1208-Onboarding), Vollauf 483 passed / 9 skipped (64 Files),
-  typecheck + prettier grün.
+  atomic guidance.json write, registry_changed audit, new
+  configurationVersion, childEngines invalidation. README tool reference +
+  runtime registration rules added.
+- Tests: registry-rebind.test.ts 8 (AC-13/14/15/16/17, flag, persistence,
+  remove, FR-1208 onboarding), full run 483 passed / 9 skipped (64 files),
+  typecheck + prettier green.
 
-## 2026-10-01 — Re-Review Fix-Commit 04a2b4c (F1-F5) — CHANGES REQUESTED (1 HIGH neu)
+## 2026-10-01 — Re-review fix commit 04a2b4c (F1-F5) — CHANGES REQUESTED (1 new HIGH)
 
-- F1-F5-Fixes im Source verifiziert (sessionRoutes-Purge, fingerprintConfigDir-Drift-Probe vor AC-5-Guard, registryWriteLock-Serialisierung, configuration_invalid-Wrapper + tmp-Cleanup, Engine-Level-Profile-Gate).
-- [REV-04a2b4c-1] HIGH (neu, durch den Fix-Commit eingeführt): register-tools.ts L320-328 — registry_register-Handler reicht das jetzt async registerWorkspace()-Promise UN-awaited an toJson() durch; JSON.stringify(Promise) → "{}". Tool-Antwort verliert configurationVersion/registry; bei Rejection (z.B. Flag off, invalid root) floated das Promise als unhandled rejection statt MCP-Tool-Error. Fix: `await tools.registerWorkspace(...)` im Handler (Muster existiert: getDownstreamStatus L301). Repro: registry_register-Toolaufruf → response content "{}".
-- [REV-04a2b4c-2] MEDIUM (Coverage): Kein Test übt den Fingerprint-Drift-Probe auf einer LIVE-Engine aus — AC-13/14/15 nutzen jeweils frische engine2 nach touchConfig(); Claim "existing AC-14 test now exercises a live-engine path" trifft nicht zu. Fehlt: touchConfig() → engine1.getWorkflowState() → Rebind.
-- [REV-04a2b4c-3] MEDIUM (Coverage): F1-Purge-Loop (sessionRoutes beim childEngines-Invalidieren) hat keinen Regressionstest (FR-1208 testet register→serve, nicht remove→stale-route-purge).
+- F1-F5 fixes verified in source (sessionRoutes purge, fingerprintConfigDir drift probe before AC-5 guard, registryWriteLock serialization, configuration_invalid wrapper + tmp cleanup, engine-level profile gate).
+- [REV-04a2b4c-1] HIGH (new, introduced by the fix commit): register-tools.ts L320-328 — the registry_register handler now passes the async registerWorkspace() promise UN-awaited through to toJson(); JSON.stringify(Promise) → "{}". The tool response loses configurationVersion/registry; on rejection (e.g. flag off, invalid root) the promise floats as an unhandled rejection instead of an MCP tool error. Fix: `await tools.registerWorkspace(...)` in the handler (pattern exists: getDownstreamStatus L301). Repro: registry_register tool call → response content "{}".
+- [REV-04a2b4c-2] MEDIUM (coverage): no test exercises the fingerprint drift probe on a LIVE engine — AC-13/14/15 each use a fresh engine2 after touchConfig(); the claim "existing AC-14 test now exercises a live-engine path" does not hold. Missing: touchConfig() → engine1.getWorkflowState() → rebind.
+- [REV-04a2b4c-3] MEDIUM (coverage): the F1 purge loop (sessionRoutes on childEngines invalidation) has no regression test (FR-1208 tests register→serve, not remove→stale-route-purge).
 
-## 2026-10-01 — specs/015 US2 implementiert (feature/015-us2-deps-operations, Guidance-Session session-2184b012)
+## 2026-10-01 — specs/015 US2 implemented (feature/015-us2-deps-operations, Guidance session session-2184b012)
 
-- deps-install (composite firstAvailable: npm ci → npm-install-Fallback, Audit via data.via capability-Label npm-ci-lockfile/npm-install-fallback), deps-reinstall (einzelner process-Step: node -e rm node_modules + spawnSync npm install — firstAvailable stoppt beim ersten Erfolg, daher kein 2-Step-Composite). Templates: scaffold.ts (Node-Block), ConfigAssistant.buildOperations, examples/default-guidance.
-- Reaktive Erkennung (AC-9): OperationEngine hängt bei Process-Fails mit "Cannot find module" bzw. ERR_DLOPEN_FAILED node_deps_hint-Warnings an (deps-install resp. deps-reinstall). Proaktive Sonde (AC-10): guidance.json-Flag nodeDeps.proactiveProbe (Default OFF) schaltet warnNodeDeps in Operational-Wording (verweist auf die Ops).
-- T007 Contract-Tests FIRST (11 Tests, echte offline npm-Installations mit file:-Dependency — Zero-Dep-Pakete erzeugen gar kein node_modules). Vollauf 496 passed / 9 skipped; tsc/prettier/docs-drift grün; Commit e5780fc.
-- Unabhängiger Sub-Agent-Review: APPROVED, 0 HIGH/CRIT; F1 (MEDIUM, AC-11-Approval-Deviation: FR-053-Gate feuert nur bei destructive/credential_sensitive) + F2 (MEDIUM, Fallback-Doku vs. echte firstAvailable-Semantik) + F3-F6 (LOW) als getrackte Follow-ups in remaining-work-plan.md.
-- Offen: Deploy nach der Kette (docker compose build guidance insight && up -d --force-recreate, NUR außerhalb von Sessions) + Instanz-.guidance/operations.json erst DANN um die deps-Ops erweitern (AC-5-Fingerprint — bewusst nicht mid-Session geändert); Push nur auf Nutzeranweisung.
+- deps-install (composite firstAvailable: npm ci → npm-install fallback, audit via data.via capability label npm-ci-lockfile/npm-install-fallback), deps-reinstall (single process step: node -e rm node_modules + spawnSync npm install — firstAvailable stops at the first success, hence no 2-step composite). Templates: scaffold.ts (node block), ConfigAssistant.buildOperations, examples/default-guidance.
+- Reactive detection (AC-9): OperationEngine appends node_deps_hint warnings on process failures containing "Cannot find module" or ERR_DLOPEN_FAILED (deps-install resp. deps-reinstall). Proactive probe (AC-10): guidance.json flag nodeDeps.proactiveProbe (default OFF) switches warnNodeDeps to operational wording (pointing to the ops).
+- T007 contract tests FIRST (11 tests, real offline npm installations with file: dependency — zero-dep packages produce no node_modules at all). Full run 496 passed / 9 skipped; tsc/prettier/docs-drift green; commit e5780fc.
+- Independent sub-agent review: APPROVED, 0 HIGH/CRIT; F1 (MEDIUM, AC-11 approval deviation: FR-053 gate fires only on destructive/credential_sensitive) + F2 (MEDIUM, fallback doc vs. real firstAvailable semantics) + F3-F6 (LOW) as tracked follow-ups in remaining-work-plan.md.
+- Open: deploy after the chain (docker compose build guidance insight && up -d --force-recreate, ONLY outside sessions) + extend the instance .guidance/operations.json with the deps ops only THEN (AC-5 fingerprint — deliberately not changed mid-session); push only on user instruction.
 
-### 2026-10-01 — specs/015 US2 COMPLETED (Guidance-Session session-a0feb195, 3. Anlauf)
+### 2026-10-01 — specs/015 US2 COMPLETED (Guidance session session-a0feb195, 3rd attempt)
 
-- Guidance-Completion nach zwei Infrastruktur-Wedges erreicht: (1) session-2184b012 verify-Gate wedged am Container-test-Timeout (19 min, GATE-1) + geleaktem Test-Fixture-Prozess → cancelled; (2) session-a1afbe61 starb an einem Guidance-Container-Restart (Sessions sind workflow-run-scoped, überleben keinen Neustart). session-a0feb195 lief komplett durch: alle Completion-Gates grün (docs-drift, final-review-gate, index-freshness, repository-analysis, capture-session-lessons).
-- Merge: feature/015-us2-deps-operations fast-forward nach develop (e5780fc + 06cf335), Branch gelöscht. Push weiterhin nur auf Nutzeranweisung.
-- Infrastruktur-Lessons (siehe lessonsLearned.md): gitnexus -32001 "Session not found" wird vom ClientManager NICHT re-initialisiert → gitnexus-Server-Restart allein hilft nicht, weil guidance-Sessions prozessinterner sind; Repo-Root-/tmp-Scratch-Dateien dürfen niemals jünger als der gitnexus-Index sein (index-freshness-Gate zählt sie als Quellen) — Diagnose-Ausgaben ausschließlich nach /tmp.
+- Guidance completion achieved after two infrastructure wedges: (1) the session-2184b012 verify gate wedged on the container test timeout (19 min, GATE-1) + a leaked test fixture process → cancelled; (2) session-a1afbe61 died on a guidance container restart (sessions are workflow-run-scoped, they do not survive a restart). session-a0feb195 ran through completely: all completion gates green (docs-drift, final-review-gate, index-freshness, repository-analysis, capture-session-lessons).
+- Merge: feature/015-us2-deps-operations fast-forward into develop (e5780fc + 06cf335), branch deleted. Push still only on user instruction.
+- Infrastructure lessons (see lessonsLearned.md): gitnexus -32001 "Session not found" is NOT re-initialized by the ClientManager → a gitnexus server restart alone does not help because guidance sessions are in-process; repo-root /tmp scratch files must never be younger than the gitnexus index (the index-freshness gate counts them as sources) — write diagnostic output exclusively to /tmp.
 
-## 2026-10-01 — REV-04a2b4c-1 abgeschlossen (Guidance-Session session-b568d084)
+## 2026-10-01 — REV-04a2b4c-1 completed (Guidance session session-b568d084)
 
-- Await-Fix war bereits in develop (b09f74b, inkl. F1/F2-Regressionstests); Rest-Gap war der fehlende Tool-Level-Response-Shape-Test. Ergänzt in registry-rebind.test.ts ('review F-handler'): Stub-MCP-Server fängt registry_register-Handler ab, echte WorkflowTools über Pool-Engine; asserted configurationVersion + registry im serialisierten Body (nicht Promise-'{}') + fail-closed-Rejection /root does not exist/. Fokussiert 12/12, tsc/prettier grün.
-- Merge: feature/rev04a2b4c1-registry-await-test → develop (9b07627, fast-forward), Branch gelöscht. Unabhängiger Reviewer-Sub-Agent (fc79ecb9): APPROVED, 0 HIGH/CRIT.
-- Infrastruktur-Befunde: (1) Clear-Thought-MCP-Server durchgehend timeouts (sequential_thinking/metacognitive_monitoring) — FR-035-Eskalation + Chat-Analyse-Fallback; Container thinking-mcp-clear-thought-1 läuft, aber antwortet nicht → prüfen. (2) GDS-7-Konkretisierung: repo-lokales .gitnexus gehört zur Identität /mnt/d/repos/thinking-mcp (KLEIN) — WSL-Analyze von /mnt/d/repos/Thinking-MCP (GROSS) failt mit 'foreign'; Fix: Analyze vom kleingeschriebenen Pfad fahren. gitnexus-server-Analyze schreibt in eigenen /data-Storage, NICHT repo-lokal → hilflos für den index-freshness-Gate. (3) gitnexus-Analyze OHNE --skip-skills rewritet AGENTS.md/CLAUDE.md (CLI-Sektion entfernt) — revertiert; künftig immer --skip-skills. (4) GDS-6 live bestätigt: nach required_hook_failed → retry_operation-Success finalisiert der Server nicht (Phase completed, Status bleibt active, kein Terminal-Übergang) — exakt das getrackte Defektbild.
+- The await fix was already in develop (b09f74b, incl. F1/F2 regression tests); the remaining gap was the missing tool-level response shape test. Added in registry-rebind.test.ts ('review F-handler'): a stub MCP server intercepts the registry_register handler, real WorkflowTools over the pool engine; asserts configurationVersion + registry in the serialized body (not a Promise-'{}') + fail-closed rejection /root does not exist/. Focused 12/12, tsc/prettier green.
+- Merge: feature/rev04a2b4c1-registry-await-test → develop (9b07627, fast-forward), branch deleted. Independent reviewer sub-agent (fc79ecb9): APPROVED, 0 HIGH/CRIT.
+- Infrastructure findings: (1) Clear-Thought MCP server timeouts throughout (sequential_thinking/metacognitive_monitoring) — FR-035 escalation + chat analysis fallback; container thinking-mcp-clear-thought-1 is running but not responding → check. (2) GDS-7 concretization: the repo-local .gitnexus belongs to the identity /mnt/d/repos/thinking-mcp (lowercase) — WSL analyze from /mnt/d/repos/Thinking-MCP (uppercase) fails with 'foreign'; fix: run analyze from the lowercase path. gitnexus-server analyze writes to its own /data storage, NOT repo-local → useless for the index-freshness gate. (3) gitnexus analyze WITHOUT --skip-skills rewrites AGENTS.md/CLAUDE.md (CLI section removed) — reverted; always use --skip-skills from now on. (4) GDS-6 confirmed live: after required_hook_failed → retry_operation success, the server does not finalize (phase complete, status stays active, no terminal transition) — exactly the tracked defect picture.
 
-## 2026-10-01 — GDS-6 + CHAIN-Replay geschlossen, CHAIN-1/US1 als implementiert verifiziert (Guidance-Session session-310b5d4a)
+## 2026-10-01 — GDS-6 + CHAIN replay closed, CHAIN-1/US1 verified as implemented (Guidance session session-310b5d4a)
 
-- Scope-Reassess gegen develop 9b07627: specs/015-US1 (R1=B, R2-Rebind AC-13..17, Successor-Rebind) bereits implementiert (a40f485/04a2b4c/b09f74b) mit 12 Regressionstests — kein Re-Implementation-Bedarf.
-- GDS-6 gefixt (WorkflowEngine): Hook-Fail persistiert pendingCompletion {report, requestId}; retryOperations finalisiert bei Phase complete jetzt vollstaendig (status=completed, completedAt, workflow_completed-Audit, Chain-Successor aus Retained-Report, requestId-Cache). Neue Helper createChainSuccessorLocked/activateSuccessor von completeWorkflow geteilt. Live-Repro war session-b568d084 (gleiche Defektbild).
-- CHAIN-Replay gefixt: start_workflow lehnt top-level request == steps[0].request (getrimmt) fail-closed mit configuration_invalid ab (Step-0-Doppelau sofuehrung); generische Kontext-Ketten bleiben valide.
-- Tests: tests/workflow/retry-finalize.test.ts (4 Tests; deterministisches Hook-Fail ueber ws-lokales .guidance mit Composite aus zwei analyze-mcpTool-Steps + faehigkeitsabhaengigem Invoker — Vorbild-Fallback-Prozess wuerde in WSL durchinstalliertes gitnexus gruen machen). Fokussiert 35/35 (inkl. chain.test.ts + registry-rebind), Vollauf 502 passed / 9 skipped, tsc/prettier gruen.
-- README: Chain-Semantik ergaenzt (Duplicate-Step-0-Regel, Retry-Finalisierung).
+- Scope reassess against develop 9b07627: specs/015-US1 (R1=B, R2 rebind AC-13..17, successor rebind) already implemented (a40f485/04a2b4c/b09f74b) with 12 regression tests — no re-implementation needed.
+- GDS-6 fixed (WorkflowEngine): hook failure persists pendingCompletion {report, requestId}; retryOperations now finalizes completely when the phase is complete (status=completed, completedAt, workflow_completed audit, chain successor from the retained report, requestId cache). New helpers createChainSuccessorLocked/activateSuccessor shared with completeWorkflow. Live repro was session-b568d084 (same defect picture).
+- CHAIN replay fixed: start_workflow rejects top-level request == steps[0].request (trimmed) fail-closed with configuration_invalid (step-0 double execution); generic context chains remain valid.
+- Tests: tests/workflow/retry-finalize.test.ts (4 tests; deterministic hook failure via a ws-local .guidance with a composite of two analyze-mcpTool steps + capability-dependent invoker — the template fallback process would make a through-installed gitnexus green in WSL). Focused 35/35 (incl. chain.test.ts + registry-rebind), full run 502 passed / 9 skipped, tsc/prettier green.
+- README: chain semantics added (duplicate step-0 rule, retry finalization).
 
 ## 2026-10-01 — Independent Review eedb7bb (feature/gds6-chain-replay-hardening): APPROVED, 0 HIGH/CRITICAL
 
-- Basis: HEAD eedb7bb == review commit, working tree clean; diff vs develop 9b07627 gelesen; WorkflowEngine.ts-Touchpoints + Typen im Current Source verifiziert.
-- Refactor-Aequivalenz bestaetigt: sessionId→session.sessionId / result.sessionId sind wertidentisch; Audit-Events (chain_end/chain_failed/chain_successor_created/session_started), requestIds-Caching und chainUpNext-Advancement unverändert.
-- State-Machine: Lock-Discipline korrekt (Successor-Creation im Predecessor-Lock, Activation im Successor-Lock mit Re-Check); 'complete'-Phase hat Success-Transition → retry-finalize feuert; requestId-Replay liefert Final-Result; complete_workflow danach → workflow_already_completed; 'activating'-Recovery-Pfad unberuehrt.
-- Defect-Pinning hart belegt: Testdatei auf Pre-Fix-src (9b07627) laufen gelassen → 3/4 Tests failen (beide GDS-6-Tests + Duplicate-Rejection), Negative-Control bleibt gruen. Post-Fix: retry-finalize 4/4 + chain.test.ts 19/19 gruen. Temporaerer Worktree/Checkout-Swap vollstaendig zurueckgerollt (Baum wieder sauber auf eedb7bb).
-- Findings: 0 HIGH/CRITICAL; 1 LOW Code (requestId-Cache im Retry-Finalize nicht post-activation refreshed), 1 LOW Test-Hygiene (orphan comment), Rest Info — alle als REV-eedb7bb-* in remaining-work-plan.md getrackt.
+- Basis: HEAD eedb7bb == review commit, working tree clean; diff vs develop 9b07627 read; WorkflowEngine.ts touchpoints + types verified in the current source.
+- Refactor equivalence confirmed: sessionId→session.sessionId / result.sessionId are value-identical; audit events (chain_end/chain_failed/chain_successor_created/session_started), requestIds caching and chainUpNext advancement unchanged.
+- State machine: lock discipline correct (successor creation under the predecessor lock, activation under the successor lock with re-check); 'complete' phase has a success transition → retry-finalize fires; requestId replay returns the final result; complete_workflow afterwards → workflow_already_completed; 'activating' recovery path untouched.
+- Defect pinning hard-proven: ran the test file against the pre-fix src (9b07627) → 3/4 tests fail (both GDS-6 tests + duplicate rejection), the negative control stays green. Post-fix: retry-finalize 4/4 + chain.test.ts 19/19 green. Temporary worktree/checkout swap fully rolled back (tree clean again at eedb7bb).
+- Findings: 0 HIGH/CRITICAL; 1 LOW code (requestId cache in retry-finalize not refreshed post-activation), 1 LOW test hygiene (orphan comment), the rest info — all tracked as REV-eedb7bb-* in remaining-work-plan.md.
 
-## 2026-10-01 — REV-US2-F2/F3/F4 geschlossen (Guidance-Session session-12d087d8)
+## 2026-10-01 — REV-US2-F2/F3/F4 closed (Guidance session session-12d087d8)
 
-- F2: deps-install-Beschreibung in allen drei Katalogen (scaffold.ts, ConfigAssistant.ts, examples/default-guidance/operations.json) + README auf echte firstAvailable-Semantik umgestellt (Fallback bei JEDEM npm-ci-Fehler, node_modules-Lösch-Caveat). Entscheidung: Doku-Alignment statt condition-Feld.
-- F3: OperationEngine-Composite-Failure-Merge führt Step-Warnings mit (node_deps_hint überlebt); neuer Test pinnt das.
-- F4: Drei Kataloge field-identisch (canonical: protocolRequestMustSucceed + summary_and_errors + 'Runs in the workspace root'-Phrase); Drift-Guard-Test vergleicht scaffold-Generierung vs. ConfigAssistant-generateFiles vs. shipped example über 10 Felder.
-- Unabhängiger Review (036a6d4d): APPROVED, 0 HIGH/CRIT; Follow-ups REV-F2F3F4-1/-2 accepted+tracked (Exposure-Filtering: merged warnings unter summary_and_errors agent-invisible), -3 (Join-Separator) gefixt in 3ed06b9.
-- Vollauf 504 passed / 9 skipped; tsc/prettier grün. Commits 7edef62 + 3ed06b9 auf feature/rev-us2-f2f3f4; Merge nach develop nach Completion.
+- F2: deps-install description in all three catalogs (scaffold.ts, ConfigAssistant.ts, examples/default-guidance/operations.json) + README switched to the real firstAvailable semantics (fallback on EVERY npm-ci error, node_modules deletion caveat). Decision: doc alignment instead of a condition field.
+- F3: OperationEngine composite failure merge carries step warnings along (node_deps_hint survives); a new test pins this.
+- F4: three catalogs field-identical (canonical: protocolRequestMustSucceed + summary_and_errors + 'Runs in the workspace root' phrase); a drift guard test compares scaffold generation vs. ConfigAssistant-generateFiles vs. shipped example across 10 fields.
+- Independent review (036a6d4d): APPROVED, 0 HIGH/CRIT; follow-ups REV-F2F3F4-1/-2 accepted+tracked (exposure filtering: merged warnings agent-invisible under summary_and_errors), -3 (join separator) fixed in 3ed06b9.
+- Full run 504 passed / 9 skipped; tsc/prettier green. Commits 7edef62 + 3ed06b9 on feature/rev-us2-f2f3f4; merge into develop after completion.
 
-## 2026-10-02 — Independent Review 5d782c9 (feature/fr053-approval-gate) — APPROVED (0 HIGH/CRIT offen)
+## 2026-10-02 — Independent Review 5d782c9 (feature/fr053-approval-gate) — APPROVED (0 HIGH/CRIT open)
 
-- Snapshot: branch feature/fr053-approval-gate @ 5d782c9, Basis origin/develop 5a0a3b6, clean tree. Tests: approval-gate/policy-engine/exposure-wiring/deps-operations — 26/26 grün (WSL vitest).
-- Gate-Verdrahtung semantisch verifiziert: 8 assert/consume-Paare (runOperation, activateSession, runAfterEnter, submitLocked beforeExit/beforeEnter/afterExit, completeWorkflowLocked, retryOperations); assert vor JEGLICHER Ausführung, consume nur bei status=succeeded; Replay-Check (requestIds) VOR assert → Replay re-executiert keine Ops; runningOps/Workspace-Lock schließt TOCTOU-Fenster; routedFor delegiert komplett an die Child-Engine, die dieselbe Session-Datei (inkl. Grants) liest. Exposure: warnings unter summary_and_errors now redacted-at-source (stderr → redactor), errors führten redigierten stderr bereits vorher — keine neue Leak-Klasse. Harness-Rewrites (replay/e2e) keine geschwächten Assertions, alle SC-Cases erhalten.
-- Neue getrackte Findings: REV-F053-1 (LOW, Hook-Listen Op-für-Op statt Batch-Assert — Re-Approval nach Retry), REV-F053-2 (LOW, deklaratives riskClass-Vertrauen bei Composites — accepted), REV-F053-3 (INFO, consume lost-update-Fenster — unerreichbar, accepted). Details in remaining-work-plan.md.
+- Snapshot: branch feature/fr053-approval-gate @ 5d782c9, basis origin/develop 5a0a3b6, clean tree. Tests: approval-gate/policy-engine/exposure-wiring/deps-operations — 26/26 green (WSL vitest).
+- Gate wiring semantically verified: 8 assert/consume pairs (runOperation, activateSession, runAfterEnter, submitLocked beforeExit/beforeEnter/afterExit, completeWorkflowLocked, retryOperations); assert before ANY execution, consume only on status=succeeded; replay check (requestIds) BEFORE assert → replay does not re-execute ops; runningOps/workspace lock closes the TOCTOU window; routedFor delegates completely to the child engine, which reads the same session file (incl. grants). Exposure: warnings under summary_and_errors now redacted-at-source (stderr → redactor), errors already carried redacted stderr before — no new leak class. Harness rewrites (replay/e2e) no weakened assertions, all SC cases preserved.
+- New tracked findings: REV-F053-1 (LOW, hook lists op-by-op instead of batch assert — re-approval after retry), REV-F053-2 (LOW, declarative riskClass trust for composites — accepted), REV-F053-3 (INFO, consume lost-update window — unreachable, accepted). Details in remaining-work-plan.md.
 
-## 2026-10-02 — FR-053 Approval Gate verdrahtet (Guidance-Session session-01df2607, Rest-Backlog)
+## 2026-10-02 — FR-053 approval gate wired (Guidance session session-01df2607, remaining backlog)
 
-- ESCALATION: requiresApproval hatte KEINEN Runtime-Consumer — der FR-053-Gate war komplett unverdrahtet (F1-Befund schärfer als getrackt).
-- Umsetzung (Scope-A Nutzerentscheid): requiresApproval + workspace_write; assertApprovals an allen 8 Executions-Pfaden (runOperation + Lifecycle); Grants via Approval-Zeremonie (report_blocker category approval + resume "approve <op>", session.approvedOperations, erfolgsbasierter Einmal-Konsum); Audit approval_required/granted/consumed.
-- REV-F2F3F4-1: applyExposure summary_and_errors lässt Warnings durch (node_deps_hint agent-sichtbar).
-- F5: Plattform-Note (deps ops Linux/Container-only) in README + 3 Kataloge; F6: require→Import.
-- Python-Profil: toolchain-sync aus understand.afterEnter entfernt (Auto-Workspace-Write inkompatibel mit Zeremonie; E2E nutzt run_operation).
-- Unabhängiger Review (d6994259): APPROVED, 0 HIGH/CRIT; Bypass-Analyse (routed engines, argumentOverrides, TOCTOU, replay) sauber; REV-F053-1 (over-approval bei Multi-Gate-Hook-Listen) getrackt, -2/-3 accepted.
-- Vollauf 530/530; tsc 0 Fehler; prettier grün. Commit 5d782c9 auf feature/fr053-approval-gate.
-- Deployment-Note: der laufende Container erzwingt den Gate erst nach dem nächsten Rebuild/Redeploy.
+- ESCALATION: requiresApproval had NO runtime consumer — the FR-053 gate was completely unwired (F1 finding sharper than tracked).
+- Implementation (scope A user decision): requiresApproval + workspace_write; assertApprovals on all 8 execution paths (runOperation + lifecycle); grants via approval ceremony (report_blocker category approval + resume "approve <op>", session.approvedOperations, success-based single consumption); audit approval_required/granted/consumed.
+- REV-F2F3F4-1: applyExposure summary_and_errors lets warnings through (node_deps_hint agent-visible).
+- F5: platform note (deps ops Linux/container-only) in README + 3 catalogs; F6: require→import.
+- Python profile: toolchain-sync removed from understand.afterEnter (auto workspace write incompatible with the ceremony; E2E uses run_operation).
+- Independent review (d6994259): APPROVED, 0 HIGH/CRIT; bypass analysis (routed engines, argumentOverrides, TOCTOU, replay) clean; REV-F053-1 (over-approval on multi-gate hook lists) tracked, -2/-3 accepted.
+- Full run 530/530; tsc 0 errors; prettier green. Commit 5d782c9 on feature/fr053-approval-gate.
+- Deployment note: the running container enforces the gate only after the next rebuild/redeploy.
 
 ## 2026-10-02 — FR-053-Batch deployed
 
-- develop → origin/develop gepusht (5d782c9 + 46a3afa); Container neu gebaut (Image 2026-10-02T13:08Z) und neu gestartet (healthy). Der FR-053-Approval-Gate (Scope A), die GDS-6-Retry-Finalisierung und der CHAIN-Replay-Schutz sind damit in der laufenden Instanz aktiv.
-- Betriebs-Hinweis: erste Ausführung einer workspace_write/destructive/credential_sensitive-Op pro Run → authorization_required → Approval-Zeremonie (report_blocker category approval + resume "approve <op>"), siehe README "FR-053 approval ceremony".
+- develop → origin/develop pushed (5d782c9 + 46a3afa); container rebuilt (image 2026-10-02T13:08Z) and restarted (healthy). The FR-053 approval gate (scope A), GDS-6 retry finalization and CHAIN replay protection are thus active in the running instance.
+- Operations note: first execution of a workspace_write/destructive/credential_sensitive op per run → authorization_required → approval ceremony (report_blocker category approval + resume "approve <op>"), see README "FR-053 approval ceremony".
 
-## 2026-10-02 — Independent Review 588fa62 (feature/f0531-gds7-cleanup) — APPROVED (0 HIGH/CRIT offen)
+## 2026-10-02 — Independent Review 588fa62 (feature/f0531-gds7-cleanup) — APPROVED (0 HIGH/CRIT open)
 
-- Basis: 588fa62 vs. origin/develop 46a3afa; 34/34 Tests grün (approval-gate, deps-operations, engine, lifecycle-points).
-- REV-F053-1 als GELÖST verifiziert: alle vier Loops (activateSession beforeEnter, runAfterEnter, submitLocked beforeEnter, afterExit) hoisten Resolution + assertApprovals vor die erste Ausführung; consumeApprovals bleibt erfolgsbasiert pro Op; Batch-Sites (completeWorkflowLocked, retryOperations, runOperation, Submit-Gates 2491/2832/3122) unverändert; Audit-Rename id → op.operationId ist neutral (operationId = Config-Key, WorkflowEngine.ts:330).
-- Neue Tests pinnen den Defekt: Pre-Loop-Denial nennt repository-analysis, KEIN approval_consumed in History, build-Grant intakt — auf Pre-Fix-Code (per-op-assert) würde der Test fehlschlagen (früheres Op lief + konsumierte Grant).
-- Neues getracktes Finding: REV-F053-1b-1 (INFO, Kosmetik — Kommentartext-Einrückung WorkflowEngine.ts:2622). Details in remaining-work-plan.md.
+- Basis: 588fa62 vs. origin/develop 46a3afa; 34/34 tests green (approval-gate, deps-operations, engine, lifecycle-points).
+- REV-F053-1 verified as RESOLVED: all four loops (activateSession beforeEnter, runAfterEnter, submitLocked beforeEnter, afterExit) hoist resolution + assertApprovals before the first execution; consumeApprovals remains success-based per op; batch sites (completeWorkflowLocked, retryOperations, runOperation, submit gates 2491/2832/3122) unchanged; audit rename id → op.operationId is neutral (operationId = config key, WorkflowEngine.ts:330).
+- New tests pin the defect: pre-loop denial names repository-analysis, NO approval_consumed in history, build grant intact — on pre-fix code (per-op assert) the test would fail (an earlier op ran + consumed the grant).
+- New tracked finding: REV-F053-1b-1 (INFO, cosmetic — comment text indentation WorkflowEngine.ts:2622). Details in remaining-work-plan.md.
 
-## 2026-10-02 — REV-F053-1 All-or-Nothing + GDS-7-Doku + F2F3F4-2 (Guidance-Session session-a6005ca0)
+## 2026-10-02 — REV-F053-1 all-or-nothing + GDS-7 docs + F2F3F4-2 (Guidance session session-a6005ca0)
 
-- Die vier op-by-op-Lifecycle-Loops (activateSession-beforeEnter, runAfterEnter, submitLocked-beforeEnter/afterExit) validieren jetzt die gesamte Hook-Liste vor der ersten Ausführung (all-or-nothing); Konsum erfolgsbasiert pro Op. Audit-Events id→op.operationId (wertidentisch).
-- Regressionstests (approval-gate.test.ts, plan.beforeEnter Multi-Gate-Liste [ungated, build, RA]): Denial am letzten gated Op VOR jeder Ausführung, kein approval_consumed, früherer Grant intakt; Happy Path konsumiert genau 2 Grants.
-- GDS-7: Dual-Index-Prozedere in README verankert (lowercase-Pfad, --skip-skills, --force bei 'Already up to date', Container-/data-Split). F2F3F4-2: via-Label 'visible in run history' in 3 Katalogen.
-- Review (980283a0): APPROVED, 0 HIGH/CRIT; REV-F053-1b-1 (INFO, Einrückung) gefixt in 10cc5a9. Vollauf 532/532; tsc/prettier grün.
+- The four op-by-op lifecycle loops (activateSession-beforeEnter, runAfterEnter, submitLocked-beforeEnter/afterExit) now validate the entire hook list before the first execution (all-or-nothing); consumption success-based per op. Audit events id→op.operationId (value-identical).
+- Regression tests (approval-gate.test.ts, plan.beforeEnter multi-gate list [ungated, build, RA]): denial at the last gated op BEFORE any execution, no approval_consumed, earlier grant intact; happy path consumes exactly 2 grants.
+- GDS-7: dual-index procedure anchored in README (lowercase path, --skip-skills, --force on 'Already up to date', container /data split). F2F3F4-2: via label 'visible in run history' in 3 catalogs.
+- Review (980283a0): APPROVED, 0 HIGH/CRIT; REV-F053-1b-1 (INFO, indentation) fixed in 10cc5a9. Full run 532/532; tsc/prettier green.
 
-## 2026-10-02 — Approval-Policy-Config (Unattended-Rework, session-0861a7b4)
+## 2026-10-02 — approval policy config (unattended rework, session-0861a7b4)
 
-- Nutzer-Design-Korrektur: Workflows müssen unattended laufen — per-Execution-Approvals (Scope A) widersprachen dem. Trust-Act in die Konfiguration verschoben: policies.approvals (riskClass → allow|require, RID-1-Stil fail-closed validiert); Defaults: destructive/credential_sensitive → require (Zeremonie bleibt vollständig), alle anderen → allow (Unattended).
-- En route gefundener + gefixter Bug: validatePolicies early-returned bei fehlender submission-Sektion und übersprang die approvals-Validierung — Fail-closed-Test pinnt den Fix (scheitert unter Alt-Code).
-- requiresApproval(config, approvals) resolvt entry ?? default; assertApprovals/consumeApprovals übergeben config.approvals (Child-Engines nutzen ihre Workspace-Config); configVersion-Hash erfasst policies inkl. approvals.
-- Test-Umbau: Scope-A-Harness-Grants in 6 Suiten entfernt (redundant), approval-gate.test.ts auf Require-Policy-Fixtures umgestellt + Default-Unattended-Test + Config-Validation-Fail-closed-Test. Vollauf 534/534.
-- Review (b0690aa5): APPROVED, 0 HIGH/CRIT; REV-APPCFG-1 (LOW, Composite-RiskClass-Claim-Check re-scheduled), REV-APPCFG-2 (INFO) getrackt.
-- Deployment: neuer Build nötig; danach läuft der Betrieb unattended — die Zeremonie greift nur noch bei destructive/credential_sensitive (aktuell keine solche Op in den Profilen).
+- User design correction: workflows must run unattended — per-execution approvals (scope A) contradicted that. Trust decision moved into the configuration: policies.approvals (riskClass → allow|require, RID-1-style fail-closed validated); defaults: destructive/credential_sensitive → require (ceremony remains fully intact), all others → allow (unattended).
+- Bug found + fixed en route: validatePolicies early-returned on a missing submission section and skipped approvals validation — a fail-closed test pins the fix (fails under old code).
+- requiresApproval(config, approvals) resolves entry ?? default; assertApprovals/consumeApprovals pass config.approvals (child engines use their workspace config); the configVersion hash covers policies incl. approvals.
+- Test rework: scope-A harness grants removed in 6 suites (redundant), approval-gate.test.ts switched to require-policy fixtures + default-unattended test + config validation fail-closed test. Full run 534/534.
+- Review (b0690aa5): APPROVED, 0 HIGH/CRIT; REV-APPCFG-1 (LOW, composite riskClass claim check re-scheduled), REV-APPCFG-2 (INFO) tracked.
+- Deployment: a new build is needed; afterwards operation is unattended — the ceremony only applies to destructive/credential_sensitive (currently no such op in the profiles).
 
-## 2026-10-02 — Registry-Hot-Reload + Deps-Pre-Flight (Guidance-Session session-fae2aa34, feature/guidance-registry-hot-reload-deps-preflight)
+## 2026-10-02 — Registry hot-reload + deps pre-flight (Guidance session session-fae2aa34, feature/guidance-registry-hot-reload-deps-preflight)
 
-- Bug 1 (workspace_not_registered nach registry_register): Root Cause war ein zur Boot-Zeit eingefrorenes WorkspaceRegistry-Handle im start_workflow-Closure (registerWorkflowTools param 4), während registerWorkspaceLocked die Engine-Config (inkl. Registry) längst live neu komponierte. Fix 1A: registerWorkflowTools nimmt jetzt einen Provider () => WorkspaceRegistry; ComposedApp trägt engine; composeApplication liefert workspaces als Live-Getter (fixt auch stale /workspaces-Listings). Regression: register → start_workflow im selben Prozess (registry-rebind.test.ts, +2 Tests).
-- Bug 2 (niyama ohne node_modules): Nutzerentscheidung 2B — automatischer Pre-Flight. config.preFlight.enabled (default ON, opt-out); vor required Lifecycle-Gates (beforeEnter/beforeExit) prüft WorkflowEngine den Deps-State (node_modules fehlt = deterministisch; mtime best-effort) und ruft die konfigurierte deps-install-Operation, pro Workspace-Root serialisiert, fail-open, Audit deps_preflight. ABI-Mismatch bleibt bewusst reaktiv (deps-reinstall/nodeDepsHints).
-- Verifikation: tsc grün; registry-rebind 15/15; deps-preflight 8/8; Vollauf server-guidance 69 Dateien / 547 Tests grün (im Guidance-Container). gitnexus analyze --no-stats (Reindex, exakter Pfad /mnt/d/repos/thinking-mcp) + detect-changes --scope all: nur server-guidance-Symbole betroffen, keine Überraschungen.
-- Deployment-Hinweis: laufender Container läuft noch auf altem Build — docker compose build guidance && docker compose up -d vor dem Niyama-Dummy-Workflow mit den neuen Fixes (siehe remaining-work-plan PREFLIGHT-DEPLOY).
-- Final Review (Sub-Agent 4ab6fa12, über vollen Session-Diff beaf503..9e39159): APPROVED — 0 offene HIGH/CRITICAL; 3 LOW + 1 INFO als REV-FINAL-PF-1..3 getrackt (remaining-work-plan.md). Verify-Gates nach Format-Fix: prettier --check grün, build grün, Fokus-Suites 24/24, Vollauf 548/548.
-- 2026-10-02, Abschluss: PREFLIGHT-DEPLOY durch Nutzer ausgeführt (Container-Recreate) — beide Fixes sind live. Live-Verifikation (Niyama-Dummy-Workflow: register → start_workflow ohne Neustart, automatisches deps-install vor dem ersten Gate) macht der Nutzer selbst; Ergebnis steht aus.
+- Bug 1 (workspace_not_registered after registry_register): root cause was a WorkspaceRegistry handle frozen at boot time in the start_workflow closure (registerWorkflowTools param 4), while registerWorkspaceLocked had long recomposed the engine config (incl. registry) live. Fix 1A: registerWorkflowTools now takes a provider () => WorkspaceRegistry; ComposedApp carries engine; composeApplication returns workspaces as a live getter (also fixes stale /workspaces listings). Regression: register → start_workflow in the same process (registry-rebind.test.ts, +2 tests).
+- Bug 2 (niyama without node_modules): user decision 2B — automatic pre-flight. config.preFlight.enabled (default ON, opt-out); before required lifecycle gates (beforeEnter/beforeExit) the WorkflowEngine checks the deps state (node_modules missing = deterministic; mtime best-effort) and calls the configured deps-install operation, serialized per workspace root, fail-open, audit deps_preflight. ABI mismatch deliberately remains reactive (deps-reinstall/nodeDepsHints).
+- Verification: tsc green; registry-rebind 15/15; deps-preflight 8/8; full run server-guidance 69 files / 547 tests green (in the guidance container). gitnexus analyze --no-stats (reindex, exact path /mnt/d/repos/thinking-mcp) + detect-changes --scope all: only server-guidance symbols affected, no surprises.
+- Deployment note: the running container still runs the old build — docker compose build guidance && docker compose up -d before the niyama dummy workflow with the new fixes (see remaining-work-plan PREFLIGHT-DEPLOY).
+- Final review (sub-agent 4ab6fa12, over the full session diff beaf503..9e39159): APPROVED — 0 open HIGH/CRITICAL; 3 LOW + 1 INFO tracked as REV-FINAL-PF-1..3 (remaining-work-plan.md). Verify gates after format fix: prettier --check green, build green, focus suites 24/24, full run 548/548.
+- 2026-10-02, close: PREFLIGHT-DEPLOY executed by user (container recreate) — both fixes are live. Live verification (niyama dummy workflow: register → start_workflow without restart, automatic deps-install before the first gate) is done by the user; result pending.
 
-## 2026-10-03: WIZ-Serie getrackt — Config-Assistent-Rework (Planungs-Session)
+## 2026-10-03: WIZ series tracked — config assistant rework (planning session)
 
-- Nutzer-Tasks als WIZ-0..WIZ-4 in remaining-work-plan.md getrackt (Umsetzung noch nicht begonnen):
-  WIZ-1 target-Mode-Überarbeitung (`extraWorkspaces`-Frage entfällt, Ableitung automatisch), WIZ-2 projectName-Auto-Vorschlag, WIZ-3 Profil `plain/spec-kit` entfernen + alle Tools standardmäßig registrieren, WIZ-4 workspaceRoot-Default aus GUIDANCE_WORKSPACE_ROOT.
-- Je Eintrag sind die offenen Anforderungsfragen im remaining-work-plan notiert; Nutzer muss diese klären, bevor die Umsetzung startet (Reihenfolge-Vorschlag WIZ-4/2 → WIZ-1 → WIZ-3, Branch-Strategie offen = WIZ-0).
-- Meta: clear-thought-Server lief während der Planung mit Request-Timeouts (2× sequential_thinking) — Planung inline erfolgt; Hinweis in WIZ-0 dokumentiert.
-- 2026-10-03, Nachtrag: WIZ-1-Anforderungen durch Nutzer geklärt (Ein-Durchlauf = Repo-Konfig + Registry-Eintrag; Agent führt Merge aus; Pfad-Existenz wird geprüft; ja/nein-Frage für initiale Registry-Anlage) — Eintrag im remaining-work-plan auf "umsetzungsbereit" gesetzt. Offen: WIZ-2 (Fragen 4-5), WIZ-3 (Fragen 6-8), WIZ-4 (Detailfrage).
-- 2026-10-03, Nachtrag 2: WIZ-2-Anforderungen geklärt — Weg (b) serverseitiger Start-Parameter workspaceNameHint + Bestätigungspflicht (Nutzer kann überschreiben); kebab-case-Normalisierung durch WIZ-1-Doppelnutzung (project.name + Registry-Name) als Zusatzanforderung dokumentiert. Offen: WIZ-3 (Fragen 6-8), WIZ-4 (Detailfrage).
-- 2026-10-03, Nachtrag 3: WIZ-3-Anforderungen geklärt — profile-Feld vollständig streichen (Schema-Exit, Alt-Dateien mit Toleranz laden), Chain-Formen A+B immer zulassen bei chain.enabled (Form entscheidet je Kette über Manifest), alle Spec-Kit-Tools bedingungslos registriert. WIZ-Serie nur noch mit WIZ-4-Detailfrage offen.
-- 2026-10-03, Nachtrag 4: WIZ-4 geklärt (Variante ii — Default = GUIDANCE_WORKSPACE_ROOT + / + workspaceNameHint, wenn beide vorhanden; sonst keine Vorgabe; keine Plausibilitätslogik). WIZ-SERIE KOMPLETT SPEZIFIZIERT: WIZ-1..4 alle umsetzungsbereit. Ausstehend: Nutzerentscheid zur Branch-Strategie (aktueller Branch feature/guidance-registry-hot-reload-deps-preflight hat offene Arbeit; Vorschlag: feature/wiz-config-assistant-rework, Reihenfolge WIZ-4 → WIZ-2 → WIZ-1 → WIZ-3, ggf. im Worktree).
-- 2026-10-03, Independent Review fe25128 (WIZ-4 workspaceNameHint, feature/wiz-config-assistant-rework): APPROVED — 0 offene HIGH/CRITICAL. Verifiziert: git show --stat, Full-Diff je Datei, ConfigAssistant-Quelltext (nextQuestion/requireCompleted/generateFiles-Pfade unberührt — catalogOverview default {} inert), Contract-Suite 36 Dateien / 314 Tests grün. Findings REV-WIZ4-1..4 (2 LOW, 2 INFO) im remaining-work-plan.md getrackt.
+- User tasks tracked as WIZ-0..WIZ-4 in remaining-work-plan.md (implementation not yet started):
+  WIZ-1 target mode rework (`extraWorkspaces` question dropped, derivation automatic), WIZ-2 projectName auto-suggestion, WIZ-3 remove profile `plain/spec-kit` + register all tools by default, WIZ-4 workspaceRoot default from GUIDANCE_WORKSPACE_ROOT.
+- The open requirement questions are noted per entry in the remaining-work-plan; the user must clarify them before implementation starts (suggested order WIZ-4/2 → WIZ-1 → WIZ-3, branch strategy open = WIZ-0).
+- Meta: the clear-thought server ran with request timeouts during planning (2× sequential_thinking) — planning done inline; hint documented in WIZ-0.
+- 2026-10-03, addendum: WIZ-1 requirements clarified by user (one pass = repo config + registry entry; agent performs the merge; path existence is checked; yes/no question for initial registry creation) — entry set to "ready for implementation" in the remaining-work-plan. Open: WIZ-2 (questions 4-5), WIZ-3 (questions 6-8), WIZ-4 (detail question).
+- 2026-10-03, addendum 2: WIZ-2 requirements clarified — path (b) server-side start parameter workspaceNameHint + mandatory confirmation (user can override); kebab-case normalization via WIZ-1 dual use (project.name + registry name) documented as an additional requirement. Open: WIZ-3 (questions 6-8), WIZ-4 (detail question).
+- 2026-10-03, addendum 3: WIZ-3 requirements clarified — drop the profile field entirely (schema exit, load legacy files with tolerance), always allow chain forms A+B when chain.enabled (the form decides per chain via the manifest), all spec-kit tools registered unconditionally. WIZ series now only open with the WIZ-4 detail question.
+- 2026-10-03, addendum 4: WIZ-4 clarified (variant ii — default = GUIDANCE_WORKSPACE_ROOT + / + workspaceNameHint when both present; otherwise no default; no plausibility logic). WIZ SERIES FULLY SPECIFIED: WIZ-1..4 all ready for implementation. Pending: user decision on branch strategy (current branch feature/guidance-registry-hot-reload-deps-preflight has open work; suggestion: feature/wiz-config-assistant-rework, order WIZ-4 → WIZ-2 → WIZ-1 → WIZ-3, if needed in a worktree).
+- 2026-10-03, independent review fe25128 (WIZ-4 workspaceNameHint, feature/wiz-config-assistant-rework): APPROVED — 0 open HIGH/CRITICAL. Verified: git show --stat, full diff per file, ConfigAssistant source (nextQuestion/requireCompleted/generateFiles paths untouched — catalogOverview default {} inert), contract suite 36 files / 314 tests green. Findings REV-WIZ4-1..4 (2 LOW, 2 INFO) tracked in remaining-work-plan.md.
 
-## 2026-10-03, Abend: WIZ-4 completed, Chain abgebrochen (Nutzeranweisung), 6 Workflow-Follow-ups getrackt
+## 2026-10-03, evening: WIZ-4 completed, chain aborted (user instruction), 6 workflow follow-ups tracked
 
-- WIZ-4 FERTIG: feature/wiz-config-assistant-rework (fe25128 + 0f829ed), session-b1c62520 completed (alle Gates grün: docs-drift, final-review, index-freshness, repository-analysis, capture-session-lessons).
-- Successor-Cycle (session-b22053ef, steps[0]-Duplikat WIZ-4) auf Nutzeranweisung CANCELLED — WIZ-2/1/3 stehen noch aus (Wiederaufnahme-Struktur = WF-6, Nutzerentscheid).
-- Alle Workflow-Probleme als WF-1..WF-6 im remaining-work-plan getrackt (Clear-Thought-Timeouts, State-Transition-Timeouts, Root-Build/tsc-Bins + yarn.lock-Kollateral, stale final-review-Evidenz, index-freshness vs. Vitest-Artefakte, Chain-Head-Scope-Falle); Lektionen in lessonsLearned.md.
+- WIZ-4 DONE: feature/wiz-config-assistant-rework (fe25128 + 0f829ed), session-b1c62520 completed (all gates green: docs-drift, final-review, index-freshness, repository-analysis, capture-session-lessons).
+- Successor cycle (session-b22053ef, steps[0] duplicate WIZ-4) CANCELLED on user instruction — WIZ-2/1/3 still outstanding (resumption structure = WF-6, user decision).
+- All workflow problems tracked as WF-1..WF-6 in the remaining-work-plan (Clear-Thought timeouts, state-transition timeouts, root build/tsc bins + yarn.lock collateral, stale final-review evidence, index-freshness vs. vitest artifacts, chain-head scope trap); lessons in lessonsLearned.md.
 
-## 2026-10-03, Nacht: WIZ-Serie KOMPLETT (Chain session-7876f096: WIZ-2 Head + WIZ-1 + WIZ-3 Successors)
+## 2026-10-03, night: WIZ series COMPLETE (chain session-7876f096: WIZ-2 head + WIZ-1 + WIZ-3 successors)
 
-- Alle vier WIZ-Tasks umgesetzt und durch Guidance-Cycles abgenommen (0 HIGH/CRITICAL in allen Independent Reviews): WIZ-4 (b1c62520), WIZ-2 (7876f096 Head), WIZ-1 (abe752d7), WIZ-3 (57412c1b). Final Review 4600e5bb über den Gesamt-Diff: 0 HIGH/CRITICAL; F1 (docs-drift camelCase-Regex) + F2 (README-Zähler) gefixt (1957ec9); F3/F4/F5 LOW getrackt.
-- Branch feature/wiz-config-assistant-rework: 12 Commits (fe25128..1957ec9), Vollauf 572/572, tsc/prettier/docs-drift grün. Offen: Merge nach develop, Push, Container-Rebuild.
-- final-review.json headCommit 1957ec9 (Gate-Skript grün); session-lessons.json mit 5 Lessons geschrieben; Chain endet nach WIZ-3 (letzter Step).
+- All four WIZ tasks implemented and accepted via guidance cycles (0 HIGH/CRITICAL in all independent reviews): WIZ-4 (b1c62520), WIZ-2 (7876f096 head), WIZ-1 (abe752d7), WIZ-3 (57412c1b). Final review 4600e5bb over the total diff: 0 HIGH/CRITICAL; F1 (docs-drift camelCase regex) + F2 (README counters) fixed (1957ec9); F3/F4/F5 LOW tracked.
+- Branch feature/wiz-config-assistant-rework: 12 commits (fe25128..1957ec9), full run 572/572, tsc/prettier/docs-drift green. Open: merge into develop, push, container rebuild.
+- final-review.json headCommit 1957ec9 (gate script green); session-lessons.json written with 5 lessons; chain ends after WIZ-3 (last step).
 
-## 2026-10-03, Spät: WF-Follow-up-Auflösung (feature/wf-followups, session-cc9b8326)
+## 2026-10-03, late: WF follow-up resolution (feature/wf-followups, session-cc9b8326)
 
-- WF-1 GELÖST (Doku): Container-Route ist der sanktionierte Clear-Thought-Pfad; Attribution Editor-Client-Layer als Inferenz dokumentiert (AGENTS.md, Backup .bak vorhanden, generated Block unberührt).
-- WF-2 GELÖST: submit-once-then-poll in responses.json verify/complete (Instanz + Example) + README-Abschnitt.
-- WF-4 GELÖST: complete-Phase trägt explizites final-review.json-Mandat (Pflichtfelder, 40-hex, headCommit==HEAD, Re-Bless nach späten Commits, Checker-Kommando) + requiredAction.
-- WF-5 GELÖST (Code-Fix gewählt): check-index-freshness.mjs SKIP_DIRS auf alle Pfadsegmente; touch-Verifikation; README-Notiz.
-- WF-6 GELÖST (Closeout): WIZ-Kette komplett; Lektion in lessonsLearned.md verifiziert; Einträge resolved.
+- WF-1 SOLVED (docs): the container route is the sanctioned Clear-Thought path; attribution to the editor client layer documented as an inference (AGENTS.md, backup .bak exists, generated block untouched).
+- WF-2 SOLVED: submit-once-then-poll in responses.json verify/complete (instance + example) + README section.
+- WF-4 SOLVED: the complete phase carries an explicit final-review.json mandate (required fields, 40-hex, headCommit==HEAD, re-bless after late commits, checker command) + requiredAction.
+- WF-5 SOLVED (code fix chosen): check-index-freshness.mjs SKIP_DIRS on all path segments; touch verification; README note.
+- WF-6 SOLVED (closeout): WIZ chain complete; lesson verified in lessonsLearned.md; entries resolved.
 
-## 2026-10-03, Nachtrag: WF-6-Falle konstruktiv gehärtet (session-2f55537b, feature/wf-followups)
+## 2026-10-03, addendum: WF-6 trap constructively hardened (session-2f55537b, feature/wf-followups)
 
-- Stufe 1 bereits vorhanden (CHAIN-Replay-Guard, startWorkflow: request === steps[0].request → configuration_invalid fail-closed; Tests in retry-finalize.test.ts) — verifiziert statt neu implementiert.
-- Neu: CHAIN HEAD SCOPE-Annex in guidanceFor für chained Heads (chainFrom === null + steps): warnt den Head-Agenten, keine steps[]-Scopes unter der Head-Session zu implementieren (Disziplin-Form der Falle); Successoren/Form-B/Non-Chained tragen den Annex nicht. 4 neue Tests, 8/8 grün.
-- Templates bewusst unverändert (conditional engine-side statt statischem Template-Satz — Annahme im Plan-Review dokumentiert).
+- Level 1 already in place (CHAIN replay guard, startWorkflow: request === steps[0].request → configuration_invalid fail-closed; tests in retry-finalize.test.ts) — verified instead of newly implemented.
+- New: CHAIN HEAD SCOPE annex in guidanceFor for chained heads (chainFrom === null + steps): warns the head agent not to implement steps[] scopes under the head session (discipline form of the trap); successors/form-B/non-chained do not carry the annex. 4 new tests, 8/8 green.
+- Templates deliberately unchanged (conditional engine-side instead of a static template sentence — assumption documented in the plan review).
 
 ## 2026-10-03 (fault_tree top-gate fix, feature/fix-fault-tree-top-gate, session-a9c2d5b6)
 
-- Implementiert: fault_tree Top-Gate-Resolution aus top_event (id → unique name → unique unreferenced non-basic Gate → Legacy-Last-Element-Fallback); top_gate_type-Flag für Basic-Tops; assumption_xray no_marker-Note mit English-only-Hinweis; 12 neue Regressionstests (3 Report-Vektoren über mehrere Array-Reihenfolgen).
-- Verifikation: 178/178 Suite, Typecheck clean, Prettier/Build-Gates grün, GitNexus-Reindex. Independent Review (Sub-Agent): approve, 0 HIGH/CRITICAL; 2 MEDIUM + 2 LOW in-Review behoben (ID-Precedence vor Namens-Ambiguität, Multi-Top-Fallback gepinnt, Basic-by-Name-Test).
-- Offen (getrackt im remaining-work-plan): FT-AXRAY-DE (deutsche Marker), FT-FT-F1 (Multi-Root-Fallback-Transparenz), FT-CHAIN-DUP (Successoren-Duplikationsrisiko), Merge/Push nach Nutzer-Freigabe.
+- Implemented: fault_tree top-gate resolution from top_event (id → unique name → unique unreferenced non-basic gate → legacy last-element fallback); top_gate_type flag for basic tops; assumption_xray no_marker note with English-only hint; 12 new regression tests (3 report vectors across multiple array orders).
+- Verification: 178/178 suite, typecheck clean, prettier/build gates green, GitNexus reindex. Independent review (sub-agent): approve, 0 HIGH/CRITICAL; 2 MEDIUM + 2 LOW fixed in-review (ID precedence before name ambiguity, multi-top fallback pinned, basic-by-name test).
+- Open (tracked in the remaining-work-plan): FT-AXRAY-DE (German markers), FT-FT-F1 (multi-root fallback transparency), FT-CHAIN-DUP (successor duplication risk), merge/push after user approval.
 
-## 2026-10-03 (Severity-Gate Review-Findings, feature/severity-gate-review-findings, session-4e869880)
+## 2026-10-03 (severity gate review findings, feature/severity-gate-review-findings, session-4e869880)
 
-- Analysiert: die Review-Reason-Transitions (implementation_changes_required / major_plan_revision_required) waren im Engine toter Code — selectTransition matchte Reasons nur über den hartkodierten verification_failed; Policy reviewFindings.blockingSeverities wurde nirgends konsumiert.
-- Implementiert: neue Helper-Modul src/workflow/review-findings.ts (evaluateReviewFindings: blocking iff severity ∈ blockingSeverities UND status ∉ {fixed,tracked,accepted} — Semantik wie check-final-review.mjs); Gate in submitLocked (nach Validierung, vor Transition-Selection, deterministisch für Replay); selectTransition um gateReason-Parameter erweitert (verification_failed-Präzedenz unverändert); Audit-Event review_findings_gate_triggered; Loop-Zähler session.reviewGateLoops[phase] (Option A, kein Hard-Cap), aggregiert in guidanceFor als SEVERITY GATE LOOP-Note.
-- Schemas (F2 strikt): review-implementation + review-plan verlangen je Finding severity (Enum) + optional status (fixed|tracked|accepted); gespiegelt in examples, tests-Fixtures und scaffold.ts-Inline-Schemas. F1: Gate gilt für BEIDE Review-Phasen. Ohne Policy lenient (Gate aus).
-- Verifikation: 585/585 Tests (71 Files) grün, Typecheck clean. Nutzer-Entscheidungen F1=beide, F2=strikte Schemas, F3=Option A vorab im Chat bestätigt.
+- Analyzed: the review reason transitions (implementation_changes_required / major_plan_revision_required) were dead code in the engine — selectTransition matched reasons only via the hardcoded verification_failed; policy reviewFindings.blockingSeverities was consumed nowhere.
+- Implemented: new helper module src/workflow/review-findings.ts (evaluateReviewFindings: blocking iff severity ∈ blockingSeverities AND status ∉ {fixed,tracked,accepted} — semantics like check-final-review.mjs); gate in submitLocked (after validation, before transition selection, deterministic for replay); selectTransition extended with a gateReason parameter (verification_failed precedence unchanged); audit event review_findings_gate_triggered; loop counter session.reviewGateLoops[phase] (option A, no hard cap), aggregated in guidanceFor as a SEVERITY GATE LOOP note.
+- Schemas (F2 strict): review-implementation + review-plan each require per finding severity (enum) + optional status (fixed|tracked|accepted); mirrored in examples, test fixtures and scaffold.ts inline schemas. F1: gate applies to BOTH review phases. Without a policy lenient (gate off).
+- Verification: 585/585 tests (71 files) green, typecheck clean. User decisions F1=both, F2=strict schemas, F3=option A confirmed in chat beforehand.
 
-## 2026-10-03 (nach Merge 6b5fb3b): FINAL-REVIEW-RELOOP als Design-Gap getrackt
+## 2026-10-03 (after merge 6b5fb3b): FINAL-REVIEW-RELOOP tracked as a design gap
 
-- Nutzer-Entscheidung: Das Fehlen eines Re-Review-Zyklus für Fixes in der Completion-Phase ist ein Problem. Final-Review-Gate blockt offene HIGH/CRITICAL (kein Status-Fix → kein Abschluss), aber es gibt keinen Reason-Transition von `complete` zurück — Fixes laufen ohne erneute Review-Phase, Integrität hängt nur an der Gate-Strenge (FR-122 + recomputed openHighCritical).
-- Getrackt in memory-bank/remaining-work-plan.md (FINAL-REVIEW-RELOOP): proposed design = Reason-Transition final_review_changes_required → implement, angetrieben durch dieselbe blockingSeverities-Evaluation wie das Review-Gate (Feature 6b5fb3b); Vollzyklus implement → review → verify → complete für die Fixes. Trigger: nächster Scope an Completion-Phase/State-Machine/Gate-Semantik.
+- User decision: the absence of a re-review cycle for fixes in the completion phase is a problem. The final-review gate blocks open HIGH/CRITICAL (no status fix → no completion), but there is no reason transition back from `complete` — fixes run without another review phase, integrity hangs only on gate strictness (FR-122 + recomputed openHighCritical).
+- Tracked in memory-bank/remaining-work-plan.md (FINAL-REVIEW-RELOOP): proposed design = reason transition final_review_changes_required → implement, driven by the same blockingSeverities evaluation as the review gate (feature 6b5fb3b); full cycle implement → review → verify → complete for the fixes. Trigger: next scope on completion phase/state machine/gate semantics.
 
 ## 2026-10-03 (YARN-LOCK-TRAP Guard, feature/yarn-lock-guard, session-22f8339b)
 
-- Implementiert: pre-commit/pre-push Guard `scripts/check-yarn-lock.sh` (POSIX sh, kein Node-Dependency) via versioniertes `.githooks/` + `core.hooksPath` (auf diesem Checkout aktiviert). Blockt: Yarn-v1-Lockfile, nicht erkennbares Format (positiv/negativ-Erkennung: v1-Header ODER fehlende Berry-Marker `__metadata:`/Generator-Header — aus assumption_xray-Falsifikation gehärtet), Staged-Deletion, geprunten Root-Baum (frisch-clone-sicher).
-- Tests: `sh scripts/test-yarn-lock-guard.sh` — 7/7 grün. Docs: AGENTS.md WF-3 erweitert (Backup AGENTS.md.bak vor Edit), README-Abschnitt "Repository guards". Tracking YARN-LOCK-TRAP aufgelöst (fixed with coverage).
-- Lessons: Test-Harness-CWD-Falle (Guard lief im falschen Verzeichnis → expect_in-Fix) und CRLF-Falle (write_file schreibt CRLF, sh braucht LF → sed vor Commit).
+- Implemented: pre-commit/pre-push guard `scripts/check-yarn-lock.sh` (POSIX sh, no Node dependency) via versioned `.githooks/` + `core.hooksPath` (activated on this checkout). Blocks: Yarn-v1 lockfile, unrecognizable format (positive/negative detection: v1 header OR missing Berry markers `__metadata:`/generator header — hardened from assumption_xray falsification), staged deletion, pruned root tree (fresh-clone-safe).
+- Tests: `sh scripts/test-yarn-lock-guard.sh` — 7/7 green. Docs: AGENTS.md WF-3 extended (backup AGENTS.md.bak before edit), README section "Repository guards". Tracking YARN-LOCK-TRAP resolved (fixed with coverage).
+- Lessons: test-harness CWD trap (the guard ran in the wrong directory → expect_in fix) and CRLF trap (write_file writes CRLF, sh needs LF → sed before commit).
 
-## 2026-10-03 (Abend): YARN-LOCK-GUARD Review-Runde — H-1-Bypass + Fail-Closed behoben
+## 2026-10-03 (evening): YARN-LOCK-GUARD review round — H-1 bypass + fail-closed fixed
 
-- Independent Review (session-227c65a1) meldete 1 HIGH + 3 MEDIUM + 2 LOW. Alle behoben:
-  H-1 (git add -N + commit -a Bypass am Index vorbei) → Guard prüft zusätzlich Working-Tree-yarn.lock; M-1 (git-diff-Fehler fail-open) → fail-closed mit Block-Meldung; M-2 (Subdir-Invocation prüfte falsche Datei) → cd toplevel am Script-Anfang; M-3 (Pre-push-Hook sinnlos: Index zur Push-Zeit leer) → Guard prüft jetzt HEAD:yarn.lock (Push-Tip), fängt --no-verify/Hookless-Commits; L-1 (fehlende Exec-Bits im Index) → chmod +x committed; L-2 (Test-Harness vacuous) → Setup-Abbruch bei Fixture-Fehler + 4 neue Fälle (worktree-v1, subdir, index-failure, committed-tip).
-- Tests: 11/11 grün (vorher 7/7). Docs (AGENTS.md/README/pre-push-Kommentar) auf die echte Push-Prüfung korrigiert.
+- Independent review (session-227c65a1) reported 1 HIGH + 3 MEDIUM + 2 LOW. All fixed:
+  H-1 (git add -N + commit -a bypass past the index) → guard additionally checks the working-tree yarn.lock; M-1 (git-diff error fail-open) → fail-closed with a block message; M-2 (subdir invocation checked the wrong file) → cd toplevel at script start; M-3 (pre-push hook pointless: index empty at push time) → guard now checks HEAD:yarn.lock (push tip), catches --no-verify/hookless commits; L-1 (missing exec bits in the index) → chmod +x committed; L-2 (vacuous test harness) → setup abort on fixture failure + 4 new cases (worktree-v1, subdir, index-failure, committed-tip).
+- Tests: 11/11 green (previously 7/7). Docs (AGENTS.md/README/pre-push comment) corrected to the real push check.
 
-## 2026-10-03 (Abend): Spec-Kit-Pool-Modus-Wiring-Lücke entdeckt (specs/008 T6-Diskrepanz)
+## 2026-10-03 (evening): spec-kit pool mode wiring gap discovered (specs/008 T6 discrepancy)
 
-- **Finding (HIGH, Verhalten):** `discover_spec_kit_feature` schlägt im HTTP-Pool-Modus mit `spec_kit_feature_not_found: feature root missing: specs` fehl, obwohl `/workspaces/Thinking-MCP/specs` existiert (16 Features). Root Cause (verifiziert gegen laufenden Container + Quellcode): `registerSpecKitTools` in `servers/server-guidance/src/server.ts` (HTTP-Einstieg, ~L101-113) übergibt KEIN `getSessionWorkspace`; der stdio-Einstieg `src/index.ts` (L43-49) hat es korrekt. Folge: `SpecKitEngineResolver.resolve()` fällt auf Pool-Root `/workspaces` statt Session-Root `/workspaces/Thinking-MCP` zurück (`register-spec-kit-tools.ts` L138-144). specs/008 T6 ist in tasks.md als [x] markiert, aber nur im stdio-Modus umgesetzt — T6-Diskrepanz.
-- **Status:** getrackt als SKP-1 in `remaining-work-plan.md`; Umsetzung lief als Guidance-Workflow session-896320f1 — IMPLEMENTIERT (255bfd2, feature/speckit-pool-mode-wiring): server.ts übergibt getSessionWorkspace (composeApplication erzeugt die Engine-Instanz einmalig, registry_register recomponiert engine.config in place — kopiertes engine-Feld ist live-sicher); Contract-Tests speckit-pool-mode.test.ts (Session-Root-Resolution / Pool-Fallback / Pre-Fix-Regression / T6-Outside-Workspace-Check); T6-Notiz in specs/008. Verifikation: focused 12/12, volle Suite 589/589, LIVE im Container: discover_spec_kit_feature → /workspaces/Thinking-MCP/specs/008-multi-workspace. Workflow auf Nutzeranweisung gecancelt (Rest-Phasen review/completion übersprungen).
-- **Independent Review (2026-10-03, Sub-Agent bd833a54, frischer Kontext):** APPROVED, 0 unresolved CRITICAL/HIGH. Stale-Closure-Claim gegen main.ts L128 + WorkflowEngine.ts L764 (in-place `this.config = loadConfig`) verifiziert; Remote-Pfad unberührt; T6-Checks intakt (Tests vom Reviewer unabhängig 4/4 nachgestellt). Residual getrackt: SKP-2 (MEDIUM, Test-Tiefe: direkte registerSpecKitTools-Wiring deckt server.ts-Revert nicht ab) + SKP-3 (LOW, pre-existing Windows-Separator in discoverArtifacts) — siehe remaining-work-plan.md.
-- **2026-10-04 (session-8a3f5bf4):** SKP-1 + SKP-2 abgeschlossen: End-to-End-Wiring-Test (8c41768, Revert-Drill), volle Suite 591/591 grün, LIVE-Pool-Modus-Beweis am neu gebauten Container (Root-Compose), Fast-Forward-Merge nach develop (develop == merge-base d44fc34), Feature-Branch gelöscht. Merge-Sicherheit nur gegen lokalen develop-Ref geprüft (kein SSH-Key im Shell-Kontext, kein Fetch) — Push zeigt Remote-Drift. Übrig: SKP-3 (LOW).
-- **2026-10-04 (session-1bdb6fee):** SKP-3 — Impact-Analyse entlarvte discoverArtifacts als toten Code (nie wired seit 33255fa); getrackter Failure-Mode konnte nicht auftreten. Gemeinsame Intentions-Evaluation mit User → Entscheidung **C-Full**: volle Integration in importArtifacts (Traversal vereinheitlicht, checklists/** wird importierbar, Config-dir-Patterns funktional, relativePath auf echte Pfade vereinheitlicht — keine Snapshot-Migration nötig) statt Löschen. Shared isInsideWorkspace-Helper behebt Separator-Bug + Drift-Muster. 15 neue Tests (tests/speckit/artifact-discovery.test.ts), Suite 606/606 grün. User-Regel vermerkt: bei Alternativen-Unklarheit NACHFRAGEN (wurde beim C-Full-Scope befolgt — Stufe-2-Migrationsfrage vorab verifiziert statt angenommen).
+- **Finding (HIGH, behavior):** `discover_spec_kit_feature` fails in HTTP pool mode with `spec_kit_feature_not_found: feature root missing: specs` although `/workspaces/Thinking-MCP/specs` exists (16 features). Root cause (verified against the running container + source code): `registerSpecKitTools` in `servers/server-guidance/src/server.ts` (HTTP entry, ~L101-113) does NOT pass `getSessionWorkspace`; the stdio entry `src/index.ts` (L43-49) has it correctly. Consequence: `SpecKitEngineResolver.resolve()` falls back to the pool root `/workspaces` instead of the session root `/workspaces/Thinking-MCP` (`register-spec-kit-tools.ts` L138-144). specs/008 T6 is marked [x] in tasks.md but implemented only in stdio mode — T6 discrepancy.
+- **Status:** tracked as SKP-1 in `remaining-work-plan.md`; implementation ran as guidance workflow session-896320f1 — IMPLEMENTED (255bfd2, feature/speckit-pool-mode-wiring): server.ts passes getSessionWorkspace (composeApplication creates the engine instance once, registry_register recomposes engine.config in place — the copied engine field is live-safe); contract tests speckit-pool-mode.test.ts (session root resolution / pool fallback / pre-fix regression / T6 outside-workspace check); T6 note in specs/008. Verification: focused 12/12, full suite 589/589, LIVE in the container: discover_spec_kit_feature → /workspaces/Thinking-MCP/specs/008-multi-workspace. Workflow cancelled on user instruction (remaining phases review/completion skipped).
+- **Independent review (2026-10-03, sub-agent bd833a54, fresh context):** APPROVED, 0 unresolved CRITICAL/HIGH. Stale-closure claim verified against main.ts L128 + WorkflowEngine.ts L764 (in-place `this.config = loadConfig`); remote path untouched; T6 checks intact (tests independently reproduced by the reviewer 4/4). Residual tracked: SKP-2 (MEDIUM, test depth: direct registerSpecKitTools wiring does not cover a server.ts revert) + SKP-3 (LOW, pre-existing Windows separator in discoverArtifacts) — see remaining-work-plan.md.
+- **2026-10-04 (session-8a3f5bf4):** SKP-1 + SKP-2 completed: end-to-end wiring test (8c41768, revert drill), full suite 591/591 green, LIVE pool mode proof on the newly built container (root compose), fast-forward merge into develop (develop == merge-base d44fc34), feature branch deleted. Merge safety checked only against the local develop ref (no SSH key in the shell context, no fetch) — push reveals remote drift. Remaining: SKP-3 (LOW).
+- **2026-10-04 (session-1bdb6fee):** SKP-3 — impact analysis exposed discoverArtifacts as dead code (never wired since 33255fa); the tracked failure mode could not occur. Joint intention evaluation with user → decision **C-Full**: full integration into importArtifacts (traversal unified, checklists/** becomes importable, config-dir patterns functional, relativePath unified onto real paths — no snapshot migration needed) instead of deletion. Shared isInsideWorkspace helper fixes the separator bug + drift pattern. 15 new tests (tests/speckit/artifact-discovery.test.ts), suite 606/606 green. User rule noted: ASK when alternatives are unclear (followed for the C-Full scope — level-2 migration question verified beforehand instead of assumed).
 
-## 2026-10-04: specs/016 Stufe 2+3 implementiert (feature/016-async-transitions-progress, Guidance-Session session-62689b13)
+## 2026-10-04: specs/016 levels 2+3 implemented (feature/016-async-transitions-progress, Guidance session session-62689b13)
 
-- **Umfang:** Reference-Implementierung in `servers/server-guidance` (insight/clear-thought Adoption = Follow-up). Stufe 2: Async-Acceptance für `submit_*`/`complete_workflow`/`run_operation` — Opt-in via `_meta.async` (pro Request) oder `GUIDANCE_ASYNC_ACCEPTANCE=1` (Server-Default), synchron bleibt DEFAULT (FR-4/FR-10). Persistierte Operation-Registry (`state/operations/<session>.json`, Key `sessionId+tool` — Decision 016-idempotency-key: requestId/Arg-Hash als Key verworfen, Arg-Hash nur Diagnose-Fingerprint), In-Flight-Retry idempotent (FR-2), Outcome inkl. Gate-Ergebnissen/Failures via `get_workflow_state.asyncOperations` (FR-3). Stufe 3: SSE-Upgrade bei `Accept: text/event-stream` + `_meta.progressToken`, `notifications/progress` pro Gate (started/succeeded/failed, monoton, total, message; Gate-Observer in `OperationEngine.executeRequired` — keine Gate-Semantik-Änderung), Keepalives (`: keepalive`, Default 15 s, `GUIDANCE_SSE_KEEP_ALIVE_MS`), FR-8: Messages nur Gate-Name/Status.
-- **Kritischer Design-Befund:** Streamable HTTP verlangt auf POST IMMER beide Accept-Typen (SDK 406 sonst, Register-tools Zeile 470 webStandardStreamableHttp). Daher SSE-Umschaltung keyed auf progressToken-Opt-in, NICHT auf Accept allein — sonst brechen bestehende Clients (FR-9/AC4).
-- **Neue Dateien:** `src/workflow/transition-protocol.ts`, `src/workflow/operation-registry.ts`, `tests/contract/async-transition.test.ts`, `tests/contract/sse-progress.test.ts`, Fixture `tests/workflow/fixtures/guidance-slow/` (Slow-Gate node-sleep 1,2 s).
-- **Geändert:** `server.ts` (enableJsonResponse/keepAliveMs pro Request), `register-tools.ts` (`_meta`→TransitionContext), `ToolHandlers.ts` (Wrapper/Registry/getWorkflowState-Merge), `WorkflowEngine.ts` (TransitionHooks-Param an submit/completeWorkflow/retryOperations), `OperationEngine.ts` (Observer-Param executeRequired), `main.ts` (stateDir an WorkflowTools), README (neuer Abschnitt "Async acceptance and progress notifications").
-- **Verifikation:** 6 neue Contract-Tests grün (AC1 <1 s Acceptance, AC2 idempotenter Retry + Single-Execution-Beweis, AC3 Progress/Keepalive/No-Secrets, Sync-Default, FR-9 JSON); VOLLE Suite 612/612 grün (AC4, keine Pre-existing-Fails); typecheck: nur der bereits getrackte Prä-existing-Fehler (speckit-pool-mode.test.ts, Commit 7884ba4).
-- **detect_changes:** risk CRITICAL (Breite: 41 Symbole, 63 Prozesse — erwartbar bei Engine-Touch), KEIN partial/truncated. Evidenz-Klassifikation: CRITICAL durch volle Regression (612/612) + Default-Pfad unverändert (alle Alt-Suiten grün) + additive optionale Parameter abgedeckt.
+- **Scope:** reference implementation in `servers/server-guidance` (insight/clear-thought adoption = follow-up). Level 2: async acceptance for `submit_*`/`complete_workflow`/`run_operation` — opt-in via `_meta.async` (per request) or `GUIDANCE_ASYNC_ACCEPTANCE=1` (server default), synchronous remains DEFAULT (FR-4/FR-10). Persisted operation registry (`state/operations/<session>.json`, key `sessionId+tool` — decision 016-idempotency-key: requestId/arg hash as key discarded, arg hash only a diagnostic fingerprint), in-flight retry idempotent (FR-2), outcome incl. gate results/failures via `get_workflow_state.asyncOperations` (FR-3). Level 3: SSE upgrade on `Accept: text/event-stream` + `_meta.progressToken`, `notifications/progress` per gate (started/succeeded/failed, monotonic, total, message; gate observer in `OperationEngine.executeRequired` — no gate semantics change), keepalives (`: keepalive`, default 15 s, `GUIDANCE_SSE_KEEP_ALIVE_MS`), FR-8: messages only gate name/status.
+- **Critical design finding:** streamable HTTP ALWAYS requires both Accept types on POST (SDK 406 otherwise, register-tools line 470 webStandardStreamableHttp). Therefore the SSE switch is keyed on the progressToken opt-in, NOT on Accept alone — otherwise existing clients break (FR-9/AC4).
+- **New files:** `src/workflow/transition-protocol.ts`, `src/workflow/operation-registry.ts`, `tests/contract/async-transition.test.ts`, `tests/contract/sse-progress.test.ts`, fixture `tests/workflow/fixtures/guidance-slow/` (slow gate node-sleep 1.2 s).
+- **Changed:** `server.ts` (enableJsonResponse/keepAliveMs per request), `register-tools.ts` (`_meta`→TransitionContext), `ToolHandlers.ts` (wrapper/registry/getWorkflowState merge), `WorkflowEngine.ts` (TransitionHooks param on submit/completeWorkflow/retryOperations), `OperationEngine.ts` (observer param executeRequired), `main.ts` (stateDir to WorkflowTools), README (new section "Async acceptance and progress notifications").
+- **Verification:** 6 new contract tests green (AC1 <1 s acceptance, AC2 idempotent retry + single-execution proof, AC3 progress/keepalive/no-secrets, sync default, FR-9 JSON); FULL suite 612/612 green (AC4, no pre-existing failures); typecheck: only the already-tracked pre-existing error (speckit-pool-mode.test.ts, commit 7884ba4).
+- **detect_changes:** risk CRITICAL (breadth: 41 symbols, 63 processes — expected on an engine touch), NO partial/truncated. Evidence classification: CRITICAL covered by full regression (612/612) + default path unchanged (all legacy suites green) + additive optional parameters covered.
 
-### Review-Runde (Independent Sub-Agent, session 6660c9eb) + Fixes
+### Review round (independent sub-agent, session 6660c9eb) + fixes
 
-- Independent Review meldete 2 HIGH / 3 MEDIUM / 3 LOW. Behoben (Fix-Commit): F1 TOCTOU-Race im Idempotenz-Kern → `registry.begin()` atomar (per-Session-Mutex, Check+Register in einem Schritt, `created`-Flag); F2 permanenter in_flight-Latch nach Crash → bootId-Stamp + Reclassification `failed/operation_interrupted` beim ersten Read nach Neustart; F3 Progress nur für beforeExit → Cursor-Observer mit kumulativen Indizes über beforeExit/beforeEnter/afterExit (monoton); F4 nicht-atomare Registry-Writes → tmp+rename; F5 fremde Payload in-flight geschluckt → Fingerprint-Vergleich, Mismatch → `operation_in_progress` (Fehler, kein Retry); F7 potenzielle Unhandled Rejection → terminal `.catch`; F8 keepAliveMs-Env-Validierung (`> 0`). F6 (retry_operation ohne ctx/hooks) spec-konform offen gelassen → getrackt als S016-RETRY-OP.
-- Tests: 7/7 Contract-Tests (neu: F5-Mismatch-Case), volle Suite 613/613 grün; typecheck nur Prä-existing (7884ba4).
+- Independent review reported 2 HIGH / 3 MEDIUM / 3 LOW. Fixed (fix commit): F1 TOCTOU race in the idempotency core → `registry.begin()` atomic (per-session mutex, check+register in one step, `created` flag); F2 permanent in_flight latch after crash → bootId stamp + reclassification `failed/operation_interrupted` on first read after restart; F3 progress only for beforeExit → cursor observer with cumulative indices across beforeExit/beforeEnter/afterExit (monotonic); F4 non-atomic registry writes → tmp+rename; F5 foreign payload swallowed in-flight → fingerprint comparison, mismatch → `operation_in_progress` (error, no retry); F7 potential unhandled rejection → terminal `.catch`; F8 keepAliveMs env validation (`> 0`). F6 (retry_operation without ctx/hooks) left open per spec → tracked as S016-RETRY-OP.
+- Tests: 7/7 contract tests (new: F5 mismatch case), full suite 613/613 green; typecheck only pre-existing (7884ba4).
 
-## 2026-10-04: specs/016 S016-ADOPT implementiert (feature/016-adopt-async-sse, Guidance-Session session-7e49befd)
+## 2026-10-04: specs/016 S016-ADOPT implemented (feature/016-adopt-async-sse, Guidance session session-7e49befd)
 
-- **Umfang:** Adoption des Async-Acceptance- + SSE-Progress-Musters (Spec 016 §6 Schritt 2) in `server-insight` und `server-clear-thought`; `server-guidance` verhaltensidentisch auf die geteilte Implementierung umgestellt.
-- **Architektur-Entscheidung (R1, Review-HIGH):** KEIN yarn-workspace-Package als Dependency — insight-Dockerfile läuft `npm ci` im isolierten Server-Dir-Kontext (workspace:-Deps nicht auflösbar; MCPB/Smithery ebenso). Stattdessen: `servers/shared-workflow` = CANONICAL SOURCE OF TRUTH (eigene Tests), Vendored Copies je Server unter `src/workflow/` via `scripts/sync-shared-workflow.mjs` + Hash-Konsistenztests je Server (Drift-Guard). yarn.lock unberührt (WF-3).
-- **Neu:** `servers/shared-workflow/` (transition-protocol.ts mit neuem `createCumulativeGateObserver` für Multi-Group-Monotonie; operation-registry.ts mit S016-N1-Fix: get()/allFor() reconcile UNTER dem Session-Mutex, jetzt async; S016-N2-Fix: Mutex-Eviction im Idle-Fall), Sync-Skript, 12 Unit-/Fixture-Tests inkl. Restart-Fixture (S016-RESTART-TEST) und Multi-Group-Monotonie-Fixture (S016-N3).
-- **SDK-Spike (T1):** repo-weit einheitlich SDK 1.30.1 (hoisted); `extra._meta` erreicht den Handler vollständig, `extra.sendNotification` funktioniert (InMemory-Spike SPIKE-PASS); `keepAliveMs` in StreamableHTTPServerTransport vorhanden. Design-Befund: Progress-Notifications NUR während offener Anfrage — AC3-SSE ist der Sync-Pfad; nach der Acceptance-Antwort verwirft der Transport Notifications.
-- **insight:** Wrapper am `registerTool()`-Choke-Point (`_meta.async` / `EMMS_ASYNC_ACCEPTANCE=1`, Sync DEFAULT); Wrapped Set `experience_seed_lessons` + `experience_finalize`; `workflow_status` merged `asyncOperations` (auch in Error-Envelopes, nur wenn Ops existieren); SSE per Request-Transport in `server.ts` (teilt Storage, keyed auf progressToken); Fixture-Hook `EMMS_ASYNC_TEST_MIN_DURATION_MS`; README-Abschnitt. 7/7 Contract-Tests grün.
-- **clear-thought:** Wrapper am zentralen `tool.update()`-Callback in `index.ts` (`_meta.async` / `CLEAR_THOUGHT_ASYNC_ACCEPTANCE=1`); Wrapped Set `session_save` + `session_load` (Infrastruktur-Adoption, ehrlich dokumentiert); `session_info` merged `asyncOperations`; SSE per transientem `createSessionMcpServer` der die SessionState TEILT; Acceptance-Antworten mit `structuredContent` (SDK-Pflicht bei outputSchema). 7/7 Contract-Tests grün; volle Suite 187/187.
-- **Verifikation:** guidance 615/615 (613 + 2 Hash-Tests, NULL Test-Modifikationen), insight: alle zur Baseline grünen Files grün (AC4), clear-thought 187/187; typecheck clean (guidance nur Prä-existing S016-TYPECHECK).
-- **Prä-existing Env-Befund (neu getrackt):** better-sqlite3-Native-Crash beim Worker-Exit (Statement::~Statement, Node 24/WSL) in insight `tests/contracts/evaluation.test.ts` + `mcp-surface.test.ts` (+ flaky `seed-lessons` unter Volllast) — NICHT durch diesen Scope verursacht (Branch unverändert zu develop reproduziert); Einzellauf mcp-surface crasht auch singleFork.
-- **Final-Review (Fresh Sub-Agent 5eb3da64):** 0 offene HIGH/CRITICAL. R1 (MEDIUM) FR-3-Scope-Lücke im insight-SSE-Pfad gefixt (AsyncLocalStorage-Session-Scope + Regressionstest SSE-async → JSON-poll); R2/R4/R5 akzeptiert dokumentiert, R3 getrackt (S016-FINAL-REVIEW im remaining-work-plan).
+- **Scope:** adoption of the async acceptance + SSE progress pattern (spec 016 §6 step 2) in `server-insight` and `server-clear-thought`; `server-guidance` switched behavior-identically onto the shared implementation.
+- **Architecture decision (R1, review HIGH):** NO yarn-workspace package as a dependency — the insight Dockerfile runs `npm ci` in an isolated server-dir context (workspace: deps not resolvable; MCPB/Smithery likewise). Instead: `servers/shared-workflow` = CANONICAL SOURCE OF TRUTH (own tests), vendored copies per server under `src/workflow/` via `scripts/sync-shared-workflow.mjs` + hash consistency tests per server (drift guard). yarn.lock untouched (WF-3).
+- **New:** `servers/shared-workflow/` (transition-protocol.ts with new `createCumulativeGateObserver` for multi-group monotonicity; operation-registry.ts with S016-N1 fix: get()/allFor() reconcile UNDER the session mutex, now async; S016-N2 fix: mutex eviction in the idle case), sync script, 12 unit/fixture tests incl. restart fixture (S016-RESTART-TEST) and multi-group monotonicity fixture (S016-N3).
+- **SDK spike (T1):** repo-wide uniform SDK 1.30.1 (hoisted); `extra._meta` reaches the handler fully, `extra.sendNotification` works (InMemory spike SPIKE-PASS); `keepAliveMs` present in StreamableHTTPServerTransport. Design finding: progress notifications ONLY while the request is open — AC3 SSE is the sync path; after the acceptance response the transport discards notifications.
+- **insight:** wrapper at the `registerTool()` choke point (`_meta.async` / `EMMS_ASYNC_ACCEPTANCE=1`, sync DEFAULT); wrapped set `experience_seed_lessons` + `experience_finalize`; `workflow_status` merges `asyncOperations` (also in error envelopes, only when ops exist); SSE per request transport in `server.ts` (shares storage, keyed on progressToken); fixture hook `EMMS_ASYNC_TEST_MIN_DURATION_MS`; README section. 7/7 contract tests green.
+- **clear-thought:** wrapper at the central `tool.update()` callback in `index.ts` (`_meta.async` / `CLEAR_THOUGHT_ASYNC_ACCEPTANCE=1`); wrapped set `session_save` + `session_load` (infrastructure adoption, honestly documented); `session_info` merges `asyncOperations`; SSE via a transient `createSessionMcpServer` that SHARES the SessionState; acceptance responses with `structuredContent` (SDK requirement with outputSchema). 7/7 contract tests green; full suite 187/187.
+- **Verification:** guidance 615/615 (613 + 2 hash tests, NULL test modifications), insight: all files green that were green at baseline (AC4), clear-thought 187/187; typecheck clean (guidance only pre-existing S016-TYPECHECK).
+- **Pre-existing env finding (newly tracked):** better-sqlite3 native crash on worker exit (Statement::~Statement, Node 24/WSL) in insight `tests/contracts/evaluation.test.ts` + `mcp-surface.test.ts` (+ flaky `seed-lessons` under full load) — NOT caused by this scope (branch unchanged vs. develop reproduces); single run mcp-surface crashes also singleFork.
+- **Final review (fresh sub-agent 5eb3da64):** 0 open HIGH/CRITICAL. R1 (MEDIUM) FR-3 scope gap in the insight SSE path fixed (AsyncLocalStorage session scope + regression test SSE-async → JSON-poll); R2/R4/R5 accepted as documented, R3 tracked (S016-FINAL-REVIEW in the remaining-work-plan).
 
 ## 2026-10-04: Guidance schema-drift cleanup (feature/schema-drift-cleanup, session-d5a440cb)
 
@@ -1552,20 +1596,20 @@
 - 2026-10-07: chain session-3a03faf2 (head) resolved the tracked baseline typecheck (01071e9); Final#1/Final#2 owned by chain successors. Final review 11f1fef2: 0 HIGH/CRITICAL.
 - 2026-10-07: chain successor 1 (Final#1) complete — degradation marker implemented + reviewed (0 HIGH/CRITICAL, final review 96ebe53c); successor 2 (Final#2) next in chain feature/017-final-review-mediums.
 
-## 2026-10-08: CHAIN STEP 1 — wsl-Writer-Formalisierung + GN-5/D3/D4 (session-83693944, feature/gn-chain-step1)
+## 2026-10-08: CHAIN STEP 1 — wsl-writer formalization + GN-5/D3/D4 (session-83693944, feature/gn-chain-step1)
 
-- **Umgesetzt:** (1) Pool-weite Identitäts-Vereinheitlichung auf /mnt/d (Niyama + copilot per WSL --force + Registry-Rewrite; alle Checks/Queries grün); (2) GN-5 Port-Hardening: 127.0.0.1-Binding + Compose-DNS (Vorprobe 200), Egress + 3 Pool-Workspace-Konfigs umgestellt; (3) GN-D4: refGn.state-unbekannt-Throw, reindexCommand-Trim, parse/validate-Split; (4) GN-D3: guidance.json-Blob-Scan + AC-1b-Ops-Drift-Guard. Suite 696/696, tsc clean.
-- **Chain:** Head grün (session-928fa08c); Step 2 (Phase-2 dreiwertige Gates + Hybrid-Probe) und Step 3 (Doku-Konsolidierung) folgen automatisch.
+- **Implemented:** (1) pool-wide identity unification on /mnt/d (Niyama + copilot via WSL --force + registry rewrite; all checks/queries green); (2) GN-5 port hardening: 127.0.0.1 binding + compose DNS (pre-probe 200), egress + 3 pool workspace configs switched; (3) GN-D4: refGn.state unknown throw, reindexCommand trim, parse/validate split; (4) GN-D3: guidance.json blob scan + AC-1b ops drift guard. Suite 696/696, tsc clean.
+- **Chain:** head green (session-928fa08c); step 2 (phase-2 tri-state gates + hybrid probe) and step 3 (docs consolidation) follow automatically.
 
-## 2026-10-08: WF-1 vereinfacht — clear-thought zurück auf Default-Route
+## 2026-10-08: WF-1 simplified — clear-thought back on the default route
 
-Benutzerentscheidung: clear-thought-Tools werden wie ALLE anderen Tools initial DIREKT (Editor-MCP) gerufen; call_downstream/container-route/curl nur noch Fallback je einmalig pro Route. Die frühere WF-1-Spezialvorschrift (Primärroute + Kette) hatte in der Praxis dazu geführt, dass Agents call_downstream als Standard nutzten. Backup AGENTS.md.bak aktualisiert; Widerspruchscheck (Route 3) ohne Konflikte. Gilt auch für die laufende Chain (Step 2/3).
+User decision: clear-thought tools, like ALL other tools, are initially called DIRECTLY (editor MCP); call_downstream/container-route/curl only as a fallback, once per route. The earlier WF-1 special rule (primary route + chain) had in practice led agents to use call_downstream as the standard. Backup AGENTS.md.bak updated; contradiction check (route 3) without conflicts. Also applies to the running chain (step 2/3).
 
-## 2026-10-08: WF-1 vollständig entfernt (Benutzerentscheidung)
+## 2026-10-08: WF-1 fully removed (user decision)
 
-Statt der Vereinfachung wurde die dedizierte Clear-Thought-Regel KOMPLETT gestrichen — clear-thought unterliegt nun dem Default-Tool-Routing wie jeder MCP-Server. Das valueable Wissen (404/-32001 = evictete Session, Reconnect heilt, Route nicht wiederholen) wurde als GENERISCHE MCP-Lesson in lessonsLearned.md gesichert (gilt für clear-thought, gitnexus und alle HTTP-MCP-Server gleichermaßen). Backup AGENTS.md.bak steht. Übergabeprompt entsprechend korrigiert.
+Instead of the simplification, the dedicated clear-thought rule was COMPLETELY dropped — clear-thought now follows default tool routing like any MCP server. The valuable knowledge (404/-32001 = evicted session, reconnect heals, do not repeat the route) was preserved as a GENERIC MCP lesson in lessonsLearned.md (applies equally to clear-thought, gitnexus and all HTTP MCP servers). Backup AGENTS.md.bak exists. Handover prompt corrected accordingly.
 
-## 2026-10-08: GN-D6 getrackt — API-basiertes Reindexing (verifiziert), Agent-Rückzug vom Checkout
+## 2026-10-08: GN-D6 tracked — API-based reindexing (verified), agent retreat from the checkout
 
-- **GN-D6 (remaining-work-plan):** POST /api/analyze {\"path\":\"/mnt/d/repos/<repo>\"} + GET /api/analyze/<jobId> (Poll bis complete) — live verifiziert am 2026-10-08 (Job 0→100 %, Identität /mnt/d bleibt). Empfohlene Ablösung des wsl.exe-reindexCommand; Umstellung gehört der laufenden Chain (Step 3 oder nächster Trigger).
-- **Parallel-Work-Beobachtung:** WorkflowEngine.ts änderte sich um 19:06 durch eine andere Session (vermutlich Chain Step 2 mit Übergabeprompt aktiv). Dieser Agent (Sessions Head+Step1+Doku) zieht sich vom Checkout zurück — letzte Schreibaktion ist dieser Memory-Bank-Eintrag (gezielter Commit nur der zwei Memory-Bank-Dateien).
+- **GN-D6 (remaining-work-plan):** POST /api/analyze {"path":"/mnt/d/repos/<repo>"} + GET /api/analyze/<jobId> (poll until complete) — verified live on 2026-10-08 (job 0→100 %, identity /mnt/d preserved). Recommended replacement of the wsl.exe reindexCommand; the switch belongs to the running chain (step 3 or the next trigger).
+- **Parallel-work observation:** WorkflowEngine.ts changed at 19:06 through another session (presumably chain step 2 active with the handover prompt). This agent (sessions head+step1+docs) retreats from the checkout — the last write action is this memory-bank entry (targeted commit of only the two memory-bank files).

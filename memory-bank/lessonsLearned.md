@@ -4,73 +4,73 @@
 > update when resolving a recurring bug or making a strategic decision
 
 ## 2026-10-09 — GN-D6 API-Reindex lessons (feature/gn-d6-api-reindex)
-- **API-Analyze schreibt IMMER die Stats-Zeile (kein no-stats):** Der HTTP-API-Job kennt kein `--no-stats`-Äquivalent (Body: path|url, force, embeddings, dropEmbeddings, token, branch) und aktualisiert die Counts-Zeile in AGENTS.md/CLAUDE.md. Content-Restore allein ist NICHT genug: Die wiederhergestellte Datei ist mtime-neuer als der Index und lässt `check-index-freshness.mjs` (mtime-Signal) zwangsläufig failen. → Prevention: Restore der Stats-Zeile PLUS Mtime-Erhalt (`touch -d @<epoch>` mit Pre-Job-Mtime) — macht den Netto-Effekt des Jobs auf die Datei null (`scripts/reindex-via-api.sh` implementiert das Muster).
-- **write_file erzeugt CRLF in .sh-Dateien (Windows-Setup):** dash/bash in WSL werfen dann irreführende Syntaxfehler („word unexpected (expecting do/in)“) an völlig korrekten Case/For-Blöcken. → Prevention: Nach dem Anlegen von Shell-Skripten LF-normalisieren (`sed -i 's/\r$//' file`) und mit `sh -n` gegenchecken, BEVOR man die Logik verdächtigt.
+- **API analyze ALWAYS writes the stats line (no no-stats):** the HTTP API job has no `--no-stats` equivalent (body: path|url, force, embeddings, dropEmbeddings, token, branch) and updates the counts line in AGENTS.md/CLAUDE.md. Content restore alone is NOT enough: the restored file has a newer mtime than the index and inevitably makes `check-index-freshness.mjs` (mtime signal) fail. → Prevention: restore the stats line PLUS preserve the mtime (`touch -d @<epoch>` with the pre-job mtime) — this makes the job's net effect on the file null (`scripts/reindex-via-api.sh` implements the pattern).
+- **write_file produces CRLF in .sh files (Windows setup):** dash/bash in WSL then throw misleading syntax errors ("word unexpected (expecting do/in)") on completely correct case/for blocks. → Prevention: after creating shell scripts, normalize to LF (`sed -i 's/\r$//' file`) and cross-check with `sh -n` BEFORE suspecting the logic.
 ## 2026-10-09 — GND1-Session lessons (feature/gnd1-probe-residuals)
-- **retry_operation war ein kostenloser Phasen-Advance:** retryOperations advancte nach grünem Ops-Re-Run die Phase UNBEDINGT — ohne Prüfung, ob ein Submission für die Phase recorded ist. Bei leerem beforeExit (Standard-Phasen) konnte jede Session per retry_operation ohne Submission durch die Phasen geschoben werden; live 2x als Desync erlebt (Phase übersprungen, submissions:{} leer, Inhalt verloren geglaubt). → Prevention/Fix: Guard hält die Transition ohne Phase-Submission (complete ausgenommen — pendingCompletion-GDS-6); Regressionstest pinnt beide Richtungen. Agent-seitig: nach required_hook_failed auf eine Submission ERST get_workflow_state prüfen (submissions + Phase) und die Submission resubmitten — NICHT blind retry_operation (das heilt nur Ops, nie die Submission).
+- **retry_operation was a free phase advance:** retryOperations unconditionally advanced the phase after a green ops re-run — without checking whether a submission for the phase had been recorded. With an empty beforeExit (standard phases), any session could be pushed through phases via retry_operation without a submission; experienced live 2x as a desync (phase skipped, submissions:{} empty, content believed lost). → Prevention/Fix: a guard holds the transition without a phase submission (complete excepted — pendingCompletion GDS-6); a regression test pins both directions. Agent-side: after required_hook_failed on a submission, FIRST check get_workflow_state (submissions + phase) and resubmit the submission — do NOT blindly retry_operation (that only heals ops, never the submission).
 
-## 2026-10-08 — Chain-Step-workflowId ist seit specs/017 eine Registry-Referenz
-- **workflowId in chain.steps wird gegen die Workflow-Registry aufgelöst:** Seit specs/017 (FR-1) failt die Engine geschlossen mit `workflow_not_found` (erwartet `.guidance/workflows/<id>.json`), wenn ein Chain-Step eine workflowId trägt, die keine Registry-Definition ist — und zwar erst beim `complete_workflow` (Successor-Spawn), NICHT schon bei `start_workflow`. Freiform-Labels („gn-d6-api-reindex“ als Schrittname) sind Legacy-Semantik aus Pre-017-Zeiten. → Prevention: in chain.steps KEINE workflowId setzen (Successors erben standard-development) oder eine echte Registry-Datei referenzieren; Stolper-Symptom ist ein scheinbar erfolgreicher Head-Lauf, der erst in der Completion explodiert. Zusätzlich gelernt: check-final-review.mjs verlangt lowercase severities (low/high/…) und Status fixed|tracked|accepted sowie base+head im commits-Array.
+## 2026-10-08 — Chain-step workflowId is a registry reference since specs/017
+- **workflowId in chain.steps is resolved against the workflow registry:** since specs/017 (FR-1) the engine fails closed with `workflow_not_found` (expects `.guidance/workflows/<id>.json`) when a chain step carries a workflowId that is not a registry definition — and that only at `complete_workflow` (successor spawn), NOT already at `start_workflow`. Free-form labels ("gn-d6-api-reindex" as a step name) are legacy semantics from pre-017 times. → Prevention: do NOT set a workflowId in chain.steps (successors inherit standard-development) or reference a real registry file; the stumbling symptom is an apparently successful head run that only explodes at completion. Additionally learned: check-final-review.mjs requires lowercase severities (low/high/…) and status fixed|tracked|accepted as well as base+head in the commits array.
 
 ## 2026-10-08 — wsl-writer identity unification (GN chain step 1)
-- **Eine Storage-Identität pro Pool, sonst "foreign":** GitNexus validiert meta.repoPath gegen die Registry-Pfade — Writer und Reader MÜSSEN dieselbe Pfad-Identität nutzen. Im wsl-writer-Modus löst der Dual-Mount (`../:/mnt/d/repos` zusätzlich zu `../:/workspaces`) genau das: WSL-CLI schreibt `/mnt/d/repos/...`, Container liest denselben Index über denselben Präfix. Ein Container-Analyze in diesem Modus flippt die Identität auf `/workspaces/...` und der Server verliert das Repo (Heilung: WSL-Analyze mit `--force`). Preventive: Writer-Rolle pro Workspace EINMAL festlegen (gitnexus.mode), nie mischen.
-- **Docs folgen der Topologie, nicht umgekehrt:** nach jedem Topologie-Wechsel (Writer-Rolle, Ports, DNS-Namen) müssen ALLE Beschreibungsstellen synchron gehen — AGENTS.md-Topologie-Bullet, README-Deployment-Block, Compose-Kommentare UND die workspace-eigene responses.json (sie steuert künftige Agenten-Sessions). Ausgelassene Stellen erzeugen handlungsanleitende Fehlinstruktionen (z. B. verbotener Container-Analyze als Reindex).
+- **One storage identity per pool, otherwise "foreign":** GitNexus validates meta.repoPath against the registry paths — writer and reader MUST use the same path identity. In wsl-writer mode the dual mount (`../:/mnt/d/repos` in addition to `../:/workspaces`) solves exactly that: the WSL CLI writes `/mnt/d/repos/...`, the container reads the same index via the same prefix. A container analyze in this mode flips the identity to `/workspaces/...` and the server loses the repo (healing: WSL analyze with `--force`). Preventive: define the writer role ONCE per workspace (gitnexus.mode), never mix.
+- **Docs follow the topology, not the other way around:** after every topology change (writer role, ports, DNS names) ALL description locations must move in sync — the AGENTS.md topology bullet, the README deployment block, compose comments AND the workspace's own responses.json (it steers future agent sessions). Omitted locations produce actionable mis-instructions (e.g. a forbidden container analyze as a reindex).
 
 ## 2026-10-08 — GN-D1 Engine-Session lessons (feature/gn-chain-step2)
-- **README.md ist als Ganzes NICHT prettier-formatiert:** `prettier --write README.md` reformiert auch unbenannte, prä-existente Bereiche (Tabellen, JSON-Samples) — der Diff explodiert. Preventive: nur den eigenen Abschnitt editieren, README aus jedem `--write`-Batch rauslassen (der Repo-eigene Lint-Gate prüft prettier offenbar nicht über die ganze README).
-- **Stray character in großen edit_file-Inserts:** ein einziger Streubuchstabe (`n`) in einer eingefügten Methode erzeugt eine tsc-Fehlerkaskade von ~30 Meldungen, deren ERSTE erst NACH der Bruchstelle reported wird — bei Syntaxfehlern immer `head` der Fehlerliste nehmen und die früheste Zeile lesen, nicht `tail`.
-- **Transport-Fehler-Taxonomie für „Capability absent“:** ein `kind:"transport"`-Ergebnis beweist KEINE Abwesenheit — Timeouts und expired Sessions (404/-32001) laufen über denselben Zweig, obwohl der Server erreichbar ist. Klassifikationen dürfen nur auf Connection-Level-Fehlern ohne `timedOut`/`sessionExpired`-Flags aufbauen (GN-D1 Review F2).
+- **README.md is NOT prettier-formatted as a whole:** `prettier --write README.md` also reformats unnamed, pre-existing areas (tables, JSON samples) — the diff explodes. Preventive: edit only your own section, leave the README out of every `--write` batch (the repo's own lint gate apparently does not check prettier over the whole README).
+- **Stray character in large edit_file inserts:** a single stray letter (`n`) in an inserted method produces a tsc error cascade of ~30 messages whose FIRST is reported only AFTER the break point — with syntax errors always take `head` of the error list and read the earliest line, not `tail`.
+- **Transport error taxonomy for "capability absent":** a `kind:"transport"` result proves NO absence — timeouts and expired sessions (404/-32001) run through the same branch even though the server is reachable. Classifications may only be built on connection-level errors without `timedOut`/`sessionExpired` flags (GN-D1 review F2).
 > (AGENTS.md → Lessons Learned / Automatic Post-Bugfix Documentation).
 
 ## Avoid These Mistakes
 
-- **404/-32001 von MCP-HTTP-Servern = evictete Session, kein Tool-Defekt (2026-10-08, generalisiert aus WF-1):** Nach Server-Restarts/Rebuilds liefern direkte Tool-Calls an HTTP-MCP-Server (clear-thought, gitnexus, …) gelegentlich 404 oder JSON-RPC -32001 — die Session-ID ist verfallen, nicht das Tool kaputt. → Prevention: Editor-Context-Server einmal reconnecten (self-healed danach); dieselbe Route nach Fehlschlag NICHT wiederholen; höchstens ein Fallback (reconnect → call_downstream → ein direkter HTTP-Call). KEINE tool-spezifische Routing-Regel nötig — Default-Tool-Routing plus dieses Wissen reicht; für Downstream-Calls through guidance gilt ohnehin die generische Timeout-Policy aus den Phase-Instruktionen.
+- **404/-32001 from MCP HTTP servers = evicted session, not a tool defect (2026-10-08, generalized from WF-1):** after server restarts/rebuilds, direct tool calls to HTTP MCP servers (clear-thought, gitnexus, …) occasionally return 404 or JSON-RPC -32001 — the session ID has expired, the tool is not broken. → Prevention: reconnect the editor context server once (self-healed afterwards); do NOT repeat the same route after a failure; at most one fallback (reconnect → call_downstream → one direct HTTP call). NO tool-specific routing rule needed — default tool routing plus this knowledge suffices; for downstream calls through guidance the generic timeout policy from the phase instructions applies anyway.
 
-- **Server-required ≠ Capability-required (2026-10-08, Decouple-Session):** `required: true` auf dem Downstream-Server (Config-Zeit) wurde stillschweigend als Pflicht für die CAPABILITY (Laufzeit) gelesen — Abwesenheit blockierte Workflow-Completion, obwohl das Ziel „nutzen, SOFERN vorhanden“ war. Kopplung kroch über Compose-Services, Generator-Defaults und Prose-Regeln ein (fakultative → obligate Symbiose). → Prevention: Capability-Deklaration pro Workspace (gitnexus.state/mode in guidance.json), Alone-Test pinnt den off-Fall, Regeln konditional formulieren.
+- **Server-required ≠ capability-required (2026-10-08, Decouple session):** `required: true` on the downstream server (config time) was silently read as mandatory for the CAPABILITY (runtime) — absence blocked workflow completion although the goal was "use IF present". The coupling crept in via compose services, generator defaults and prose rules (optional → obligate symbiosis). → Prevention: capability declaration per workspace (gitnexus.state/mode in guidance.json), an alone test pins the off case, formulate rules conditionally.
 
-- **DrvFs-Partial-Write-Inkohärenz zwischen Windows-Writer und WSL-Reader (2026-10-08):** Ein `sed -i` aus Git Bash hinterließ eine Datei mit GEMISCHTEN Seiten (eine Zeile neu, eine alt); tsc/vitest (WSL) sahen den Mischzustand („parseGnSetup is not defined“), grep und esbuild-Output wirkten partiell korrekt — drei Tools, drei Ansichten desselben Pfades. → Prevention: nach schnellen Windows-Seiten-Schreiben IMMER mit dem konsumierenden Toolchain (WSL-tsc) verifizieren; bei inkohärenten Lesarten die Datei EINMAL vollständig über EINEN Writer neu schreiben.
+- **DrvFs partial-write incoherence between Windows writer and WSL reader (2026-10-08):** a `sed -i` from Git Bash left a file with MIXED pages (one line new, one old); tsc/vitest (WSL) saw the mixed state ("parseGnSetup is not defined"), grep and esbuild output looked partially correct — three tools, three views of the same path. → Prevention: after quick Windows-side writes ALWAYS verify with the consuming toolchain (WSL tsc); on incoherent read views rewrite the file ONCE completely through ONE writer.
 
-- **Zwei GitNexus-Index-Welten: CLI-Registry ≠ MCP-Server-Registry (2026-10-08, GN-Migration):** Der
-  gitnexus-MCP-Server (:4747, eigener Container) resolvierte Repos ausschließlich über seine EIGENE
-  Registry — ein WSL-CLI-`gitnexus analyze` schrieb nur in-repo `.gitnexus` + WSL-Registry und blieb
-  für den Server unsichtbar („Repository not found. Available: thinking-mcp"); Behebung erzwang
-  docker-cp des Repos IN DEN Server-Container (/tmp, ephemeral). Gate-Blindheit: repository-analysis
-  prüfte Queryability des Container-Index, index-freshness die WSL-meta.json — beide grün, obwohl
-  der servierte Index eine Woche stale war. → Prevention: EIN Index-Writer (seit der Migration der
-  Compose-gitnexus-server-Container), und bei „Index nicht verfügbar"-Symptomen IMMER beide
-  Registry-Dateien vergleichen (Server-Registry vs. `~/.gitnexus/registry.json`), bevor irgendwo
-  kopiert oder gelöscht wird. Pfad-Identität ist String-Vergleich: `/mnt/d/...` vs `/workspaces/...`
-  ist foreign — `--force` übernimmt den Storage.
+- **Two GitNexus index worlds: CLI registry ≠ MCP server registry (2026-10-08, GN migration):** the
+  gitnexus MCP server (:4747, its own container) resolved repos exclusively via its OWN
+  registry — a WSL CLI `gitnexus analyze` wrote only in-repo `.gitnexus` + the WSL registry and
+  remained invisible to the server ("Repository not found. Available: thinking-mcp"); the fix
+  required docker-cp of the repo INTO the server container (/tmp, ephemeral). Gate blindness:
+  repository-analysis checked the queryability of the container index, index-freshness the WSL
+  meta.json — both green although the served index was a week stale. → Prevention: ONE index
+  writer (since the migration the compose gitnexus-server container), and on "index not available"
+  symptoms ALWAYS compare both registry files (server registry vs. `~/.gitnexus/registry.json`)
+  before copying or deleting anything. Path identity is a string comparison: `/mnt/d/...` vs
+  `/workspaces/...` is foreign — `--force` takes over the storage.
 
-- **git `safe.directory` wird aus Env/Local-Config ignoriert (2026-10-08):** `GIT_CONFIG_COUNT/_KEY_/_VALUE_`
-  mit `safe.directory` zeigte im Container KEINE Wirkung — git respektiert safe.directory nur in
-  protected (system/global) config; Folge: still leere `lastCommit`-Werte im Index, weil analyze
-  `dubious ownership`-Fehler verschluckte. → Prevention: in Containern mit Root-Ownership-Mounts
-  den Command-Wrapper nutzen (`git config --global --add safe.directory '*' && exec <cmd>`); leere
-  lastCommit-Werte in meta.json sind das Symptom, nicht der Fehler.
+- **git `safe.directory` is ignored from env/local config (2026-10-08):** `GIT_CONFIG_COUNT/_KEY_/_VALUE_`
+  with `safe.directory` showed NO effect in the container — git honors safe.directory only in
+  protected (system/global) config; consequence: silently empty `lastCommit` values in the index,
+  because analyze swallowed `dubious ownership` errors. → Prevention: in containers with
+  root-ownership mounts use the command wrapper (`git config --global --add safe.directory '*' && exec <cmd>`);
+  empty lastCommit values in meta.json are the symptom, not the error.
 
-- **start_workflow ohne registrierten Workspace-Namen (SKP-1-Session, 2026-10-03):** `start_workflow` im Pool-Betrieb MUSS explizit `workspace: "thinking-mcp"` (bzw. den jeweiligen registrierten Namen) übergeben — ohne den Namen landet die Session unter dem generischen Default-Workspace (Pool-Root), mit anderem Antwort-Schema (z.B. Pflicht-`summary` bei submit_implementation statt Repo-Schema) und Registry-Pfaden. → Prevention: future sessions immer mit dem registrierten Workspace-Namen starten; Schema-Abweichungen (fehlende Pflicht-Felder) sind ein Symptom dafür, nicht ein Server-Bug.
+- **start_workflow without a registered workspace name (SKP-1 session, 2026-10-03):** `start_workflow` in pool operation MUST explicitly pass `workspace: "thinking-mcp"` (or the respective registered name) — without the name the session lands under the generic default workspace (pool root), with a different response schema (e.g. a mandatory `summary` at submit_implementation instead of the repo schema) and registry paths. → Prevention: always start future sessions with the registered workspace name; schema deviations (missing mandatory fields) are a symptom of this, not a server bug.
 
-- **GitNexus Storage-„foreign" durch Pfad-Casing-Drift (2026-10-02):** `gitnexus analyze` aus
-  `/mnt/d/repos/Thinking-MCP` scheiterte mit `Storage path is in state "foreign"`, weil `.gitnexus/meta.json`
-  den Index unter `/mnt/d/repos/thinking-mcp` (lowercase) referenziert — DrvFs ist case-insensitive
-  (beide Pfade funktionieren zum cd), aber die Storage-Ownership prüft den Pfad-STRING. → Prevention:
-  Index-Refresh immer vom exakt in `meta.json` (`repoPath`/`storagePath`) eingetragenen Pfad aufrufen;
-  bei „foreign“ zuerst `meta.json` lesen, nicht die Storage löschen. Betroffen ist jeder Agent, der den
-  Checkout über abweichendes Casing anspricht (Windows-/WSL-Mix).
-- **Timeout auf MCP-Mutation ≠ Fehlschlag (2026-10-02, rezidiv-tauglich):** `submit_verification` lief in
-  einen Context-Server-Timeout, der Workflow-State zeigte danach aber `accepted` + Phase-Advance — der
-  requestId-Ledger hatte die Submission bereits verarbeitet. → Prevention: nach einem Mutation-Timeout
-  IMMER erst `get_workflow_state` (read-only) gegenchecken, nie blind re-submitten (Doppel-Submission/
-  Replay-Risiko); der FR-035-Retry-once gilt nur für read-only/idempotente Calls.
+- **GitNexus storage "foreign" due to path casing drift (2026-10-02):** `gitnexus analyze` from
+  `/mnt/d/repos/Thinking-MCP` failed with `Storage path is in state "foreign"` because `.gitnexus/meta.json`
+  references the index under `/mnt/d/repos/thinking-mcp` (lowercase) — DrvFs is case-insensitive
+  (both paths work for cd), but storage ownership checks the path STRING. → Prevention:
+  always invoke the index refresh from the exact path recorded in `meta.json` (`repoPath`/`storagePath`);
+  on "foreign" first read meta.json, do not delete the storage. Affected is any agent that addresses
+  the checkout with differing casing (Windows/WSL mix).
+- **Timeout on an MCP mutation ≠ failure (2026-10-02, recurrence-prone):** `submit_verification` ran into
+  a context server timeout, but the workflow state afterwards showed `accepted` + phase advance —
+  the requestId ledger had already processed the submission. → Prevention: after a mutation timeout
+  ALWAYS cross-check `get_workflow_state` (read-only) first, never blindly resubmit (double
+  submission/replay risk); the FR-035 retry-once applies only to read-only/idempotent calls.
 - **Undocumented language conventions (2026-09-30):** user preferences like output
   language must be persisted in `AGENTS.md` immediately when stated, otherwise they
   are lost across sessions. Convention here: chat in German, all artifacts in English.
-- **`git diff`/`git log` ohne `--no-pager` im Agent-Terminal hängt (2026-09-28, rezidiv):** im
-  non-interaktiven pty startet der Pager und blockiert den Call endlos (User-Abbruch nötig).
-  AGENTS.md fordert `--no-pager` für JEADEN read-only-git-Befehl — der Verstoß passierte genau bei
-  `git diff --stat`. → Prevention: nie einen git-Befehl ohne `--no-pager` absetzen (oder `PAGER=cat`),
-  auch bei "sicher kurzen" Diffs; bei Hanging-Call primär Pager vermuten, nicht git selbst.
+- **`git diff`/`git log` without `--no-pager` hangs in the agent terminal (2026-09-28, recurring):** in
+  the non-interactive pty the pager starts and blocks the call indefinitely (user abort needed).
+  AGENTS.md demands `--no-pager` for EVERY read-only git command — the violation happened exactly at
+  `git diff --stat`. → Prevention: never issue a git command without `--no-pager` (or `PAGER=cat`),
+  even for "surely short" diffs; on a hanging call suspect the pager first, not git itself.
 - **Config-assistant generators must be target-agnostic (Niyama incident, 2026-09-28):** the FRESH
   generator hardcoded a Thinking-MCP lint glob (`npx prettier --check 'servers/*/src/**/*.{ts,tsx}'`)
   into every generated workspace config — exit 2 in any repo without that layout. Fix + rule now in
@@ -148,11 +148,11 @@
 - **read_file can serve stale editor-buffer content after external (sed/python) writes:**
   grep/disk showed the broken line, read_file showed clean content. → Trust grep/disk tools after
   out-of-band edits; verify with `sed -n` before re-editing. Hit during the session-timeout
-  debugging (2026-09-14).- **npm account 2FA mode „authorization and publishing" blocks OIDC trusted publishing:** with
+  debugging (2026-09-14).- **npm account 2FA mode "authorization and publishing" blocks OIDC trusted publishing:** with
   this mode the registry demands an OTP per publish — an OIDC workflow cannot supply one, so the
   publish fails with `403 OIDC permission denied for this action` even with a correctly
   configured trusted publisher. Deceptive: provenance SIGNING still succeeds (masking the
-  cause). → Switch the account 2FA mode to „authorization only" for OIDC releases. Found
+  cause). → Switch the account 2FA mode to "authorization only" for OIDC releases. Found
   during the 0.2.0 release (2026-09-14).
   **Second ring (same 403 after the account fix):** packages first published interactively get
   PACKAGE-level 2FA enforcement ("require 2FA to publish") — also incompatible with OIDC. →
@@ -239,80 +239,81 @@
 
 (dated log of resolved bugs / decisions will accumulate here)
 
-- **2026-09-15 — MCP-SDK-Timeout-Falle:** `new Client(info, { timeout })` wird
-  still ignoriert (Timeout blieb 60 s → MCP -32001 beim drvfs-Kaltstart).
-  Richtig: Constructor-Option `defaultRequestTimeoutMsec` UND pro Request
-  `{ timeout }` an `connect`/`listTools`/`callTool` (connect akzeptiert
+- **2026-09-15 — MCP SDK timeout trap:** `new Client(info, { timeout })` is
+  silently ignored (timeout stayed 60 s → MCP -32001 on the drvfs cold start).
+  Correct: constructor option `defaultRequestTimeoutMsec` AND per request
+  `{ timeout }` on `connect`/`listTools`/`callTool` (connect accepts
   `options?: RequestOptions`). Applies to every spawned-server script in
-  `evals/` — Kaltstarts auf drvfs brauchen >60 s.
-- **2026-09-15 — Startup-Proben unter drvfs-Last:** `bin-invocation.test.ts`
-  (Symlink-Startup-Probe) schlägt in der Full-Suite fehl, isoliert aber grün —
-  die Probe hat ein festes Zeitfenster und drvfs-Parallellast (collect 1200–1700 s
-  pro Suite-Lauf) sprengt es. Regel: Bei Full-Suite-Rot zuerst den Test isoliert
-  nachlaufen lassen und die Testdauer prüfen; erst bei isoliert-rot von einer
-  echten Regression ausgehen. Dauerhafter Fix (Backlog): Probe-Fenster in der
-  Umgebung konfigurierbar machen.
-- **2026-09-15 — Reasoning-Modelle können in Reasoning-Loops enden:** z.ai
-  glm-5.3-flash lieferte auf einem rechenlastigen Fault-Tree-Prompt >6 min
-  durchgehend reasoning_content-Deltas (2,8 MB!) ohne je zu rendern — 3× HTTP-
-  Timeout über drei Versuche, obwohl ein Ping in 3,2 s antwortete und der Stream
-  gesund war (SSE, first byte 4,2 s). Der Reihe nach falsch diagnostiziert als
-  „Timeout zu kurz" und „Gateway-Buffering". Richtig: rohen Stream anzapfen und
-  Byte-Ankunft messen; dann fixte `thinking:{type:'disabled'}` denselben Prompt
-  in 24 s. Regel: An Eval-/Agent-Endpoints das Think-Budget pro Rolle steuerbar
-  machen (Actor schnell, Judge gründlich) — nicht erst im Störfall suchen.
+  `evals/` — cold starts on drvfs need >60 s.
+- **2026-09-15 — startup probes under drvfs load:** `bin-invocation.test.ts`
+  (symlink startup probe) fails in the full suite but is green in isolation —
+  the probe has a fixed time window and drvfs parallel load (collect 1200–1700 s
+  per suite run) blows it. Rule: when the full suite is red, first re-run the
+  test in isolation and check the test duration; only assume a real regression
+  when it is red in isolation. Permanent fix (backlog): make the probe window
+  configurable via the environment.
+- **2026-09-15 — reasoning models can end up in reasoning loops:** z.ai
+  glm-5.3-flash delivered >6 min of continuous reasoning_content deltas
+  (2.8 MB!) on a compute-heavy fault-tree prompt without ever rendering —
+  3× HTTP timeout across three attempts, although a ping answered in 3.2 s
+  and the stream was healthy (SSE, first byte 4.2 s). Sequentially
+  misdiagnosed as "timeout too short" and "gateway buffering". Correct: tap
+  the raw stream and measure byte arrival; then `thinking:{type:'disabled'}`
+  fixed the same prompt in 24 s. Rule: make the think budget per role
+  controllable at eval/agent endpoints (actor fast, judge thorough) — don't
+  go searching for it only when things break.
 
 
 
 
-- 2026-09-15 (Avoid These Mistakes — nachgetragen via Terminal-Append, stale
-  Tool-Layer): **Edit tools can serve a stale layer for files changed by
-  external tooling** — read_file/grep_search/replace_string zeigten den alten
-  Inhalt (z. B. prä-1.0.0-Rename), während Terminal cat/grep den echten
-  Disk-Stand zeigte; Probe-Edits landeten in der Phantom-Schicht (nie auf
-  Disk). → Für extern veränderte Dateien zuerst per Terminal verifizieren;
-  wenn replace_string an disk-verifizierten Ankern scheitert: Probe gegen
-  einen nur-im-Altinhalt-existing String, dann (mit User-Konsens)
-  closeAllEditors bzw. Terminal-Append/Patch; create_file überschreibt keine
-  existierenden Dateien. Gefunden bei der Merge-Implementierung.
+- 2026-09-15 (Avoid These Mistakes — backfilled via terminal append, stale
+  tool layer): **Edit tools can serve a stale layer for files changed by
+  external tooling** — read_file/grep_search/replace_string showed the old
+  content (e.g. pre-1.0.0 rename) while terminal cat/grep showed the real
+  disk state; probe edits landed in the phantom layer (never on disk).
+  → For externally changed files verify via terminal first;
+  if replace_string fails on disk-verified anchors: probe against a
+  string existing only in the old content, then (with user consensus)
+  closeAllEditors or terminal append/patch; create_file does not overwrite
+  existing files. Found during the merge implementation.
 
-## 2026-09-25 — Capture-Gate erster produktiver Lauf (3. Lauf, grün nach Fix)
-- **Tool-vs.-Contract-Lücke**: `experience_seed_lessons` validiert `minItems 1` — der dokumentierte „leeres Array = No-Op"-Vertrag des `capture-session-lessons`-Gates scheiterte im ersten produktiven Lauf (`required_hook_failed`, complete blockiert). Fix: Guard im Thin-Client `seed-lessons.mjs` (leeres Array → Exit 0 vor MCP-Transport). Lehre: Gate-Verträge am Tool-Verhalten verifizieren, nicht nur an der Doku — der erste produktive Lauf eines neuen Gates IST der eigentliche Test.
-- **Clear-Thought-Duty live erfüllt**: understand (first_principles mental_model), plan (issue_tree-Zerlegung) — die Referenzierungs-Pflicht wurde in beiden Submissions umgesetzt.
+## 2026-09-25 — Capture gate first productive run (3rd run, green after fix)
+- **Tool-vs-contract gap**: `experience_seed_lessons` validates `minItems 1` — the documented "empty array = no-op" contract of the `capture-session-lessons` gate failed in the first productive run (`required_hook_failed`, complete blocked). Fix: guard in the thin client `seed-lessons.mjs` (empty array → exit 0 before MCP transport). Lesson: verify gate contracts against tool behavior, not just the docs — the first productive run of a new gate IS the actual test.
+- **Clear-Thought duty fulfilled live**: understand (first_principles mental_model), plan (issue_tree decomposition) — the referencing duty was implemented in both submissions.
 
-- **gitnexus detect-changes Index-Lag**: detect-changes meldete 'No changes detected' trotz frischer Edits — Ursache ungeklärt; Kompensation: analyze vor detect-changes in derselben Session neu ausführen, bei Widerspruch explizite Checks (JSON-Validierung, Full-Read) nutzen. (Auch als EMMS-Episode geseedet.)
-- **Guidance-Validator-Cache**: workflow.json-Äderungen wirken nicht in laufenden Sessions — 
-  `WorkflowEngine.validatorFor` cached kompilierte Schemas per schemaRef für die Session-Lifetime; Schema-Edits sind wie aller .guidance-Config erst nach Restart/Neuer Session wirksam.
+- **gitnexus detect-changes index lag**: detect-changes reported 'No changes detected' despite fresh edits — cause unclear; compensation: re-run analyze before detect-changes in the same session, use explicit checks (JSON validation, full read) on contradiction. (Also seeded as an EMMS episode.)
+- **Guidance validator cache**: workflow.json changes do not take effect in running sessions —
+  `WorkflowEngine.validatorFor` caches compiled schemas per schemaRef for the session lifetime; schema edits, like all .guidance config, only take effect after a restart/new session.
 
-## 2026-09-25 — Guidance-Gates: Config-Snapshot + Template-Platzhalter (GUID-1/3 abgeschlossen)
-- **Config-Snapshot pro Session**: Der Guidance-Server lädt `.guidance/` beim Session-Start (configurationVersion-SHA im Session-State). Operation-Config-Änderungen auf Disk wirken NICHT in laufenden Sessions — Fix + Container-Restart + resume nötig. Prevention: Operations-Config vor `start_workflow` verifizieren, nicht mid-session patchen.
-- **`${project.name}`-Platzhalter wird nie aufgelöst**: mcpTool-Arguments liefen mit Literal-String ("Repository \"${project.name}\" not found") — Literal-Passthrough ist kein Gate-Success. Workaround: konkrete Werte hartcodieren; echter Fix (Placeholder-Engine) = GUID-3.
-- **Gate-Debugging über retry_operation**: Der Retry führt die Phasen-Gates serverseitig erneut aus — Fehler Summaries dort sind die primäre Diagnosequelle; host-seitige Läufe (WSL `yarn build`, exit 0) sind gültige Gegenbeweise bei Container-Umgebungsproblemen.
+## 2026-09-25 — Guidance gates: config snapshot + template placeholders (GUID-1/3 completed)
+- **Config snapshot per session**: the guidance server loads `.guidance/` at session start (configurationVersion SHA in the session state). Operation config changes on disk do NOT take effect in running sessions — fix + container restart + resume needed. Prevention: verify the operations config before `start_workflow`, don't patch mid-session.
+- **`${project.name}` placeholder never resolved**: mcpTool arguments ran with the literal string ("Repository \"${project.name}\" not found") — literal passthrough is not a gate success. Workaround: hardcode concrete values; real fix (placeholder engine) = GUID-3.
+- **Gate debugging via retry_operation**: the retry re-executes the phase gates server-side — error summaries there are the primary diagnosis source; host-side runs (WSL `yarn build`, exit 0) are valid counter-evidence for container environment problems.
 
-## 2026-09-18: EMMS-Implementierung
-- **better-sqlite3 native build**: `--ignore-scripts`-Installation laesst die native Bindung fehlen ("Could not locate the bindings file"). Fix: `npm rebuild better-sqlite3`. Bei Workspace-Root-Installs: Bindung liegt am Root, nicht im Server-Ordner.
-- **better-sqlite3 named params**: alle benannten Parameter muessen uebergeben werden (auch `null` fuer optionale Spalten) — `...spread` mit `undefined`-Feldern wirft "Missing named parameter". Immer explizit mappen.
-- **FR-008-Assessment-Reihenfolge**: finalize muss plan/runs/attempts FRISCH aus dem Adapter lesen (read-after-write), nicht den beim mutate geladenen Ctx-Snapshot — sonst fehlt der gerade aufgeschriebene Run.
-- **Assessment read-only**: ein abgelehntes finalize (MISSING_REQUIRED_EVIDENCE) darf den Episode-State NICHT mutieren (kein PARTIALLY_VERIFIED-Zwangsuebergang), sonst kann der Agent nach Nachlegen der Evidenz nie mehr 'verified' erreichen.
-- **vitest + ESM-Imports in Tests**: `.js`-Endungen in Test-Imports resolveen unter vitest/node16-Mix nicht zuverlaessig — in Tests `.ts`-Endungen verwenden (Tests sind von tsconfig.build excluded).
-- **FTS5 MATCH-Injection**: Nutzertext mit Satzzeichen bricht MATCH-Syntax (`syntax error near ","`) — Query-Tokens vor MATCH auf `[\w\s]` sanitizen.
-- **SC-009-Demotion-Test**: Ranking-Demotion braucht >=2 Kandidaten mit GLEICHER Signatur-Hash (sonst kein echter Ranking-Vergleich) und der Peer muss voll kompatibel sein (sonst dominiert Applicability-first ohnehin).
+## 2026-09-18: EMMS implementation
+- **better-sqlite3 native build**: `--ignore-scripts` installation leaves the native binding missing ("Could not locate the bindings file"). Fix: `npm rebuild better-sqlite3`. For workspace-root installs: the binding sits at the root, not in the server folder.
+- **better-sqlite3 named params**: all named parameters must be passed (also `null` for optional columns) — `...spread` with `undefined` fields throws "Missing named parameter". Always map explicitly.
+- **FR-008 assessment order**: finalize must read plan/runs/attempts FRESH from the adapter (read-after-write), not the ctx snapshot loaded at mutate time — otherwise the just-written run is missing.
+- **Assessment read-only**: a rejected finalize (MISSING_REQUIRED_EVIDENCE) must NOT mutate the episode state (no forced PARTIALLY_VERIFIED transition), otherwise the agent can never reach 'verified' after supplying the evidence.
+- **vitest + ESM imports in tests**: `.js` extensions in test imports do not resolve reliably under the vitest/node16 mix — use `.ts` extensions in tests (tests are excluded from tsconfig.build).
+- **FTS5 MATCH injection**: user text with punctuation breaks MATCH syntax (`syntax error near ","`) — sanitize query tokens to `[\w\s]` before MATCH.
+- **SC-009 demotion test**: ranking demotion needs >=2 candidates with the SAME signature hash (otherwise no real ranking comparison) and the peer must be fully compatible (otherwise applicability-first dominates anyway).
 
-## 2026-09-25 — Guidance-Capture-Gate (2. produktiver End-to-End-Lauf, grün)
-- **spawnSync ohne env-Support**: Prozess-Operationen erben nur das Container-Environment (`OperationEngine.ts:188`) — ENV-Variablen für Gate-Scripts müssen heute per `sh -c`-Inline-Assignment gesetzt werden (siehe `capture-session-lessons`); saubere Lösung wäre ein `env`-Feld in der Operation-Config (→ GUID-5).
-- **Lessons-File-Vertrag**: Der Agent schreibt `.guidance/state/session-lessons.json` VOR dem `complete_workflow`-Call (Gates laufen on-transition); IMMER Datei anlegen (leeres Array = No-Op-Erfolg), sonst blockiert das required-Gate docs-only-Läufe. Redaction-Pflicht beim Agent — `seed-lessons.mjs` spricht Insight direkt an und umgeht Guidances Pattern-Redaction.
-- **Idempotenz live bestätigt**: erneuter Seed-Lauf meldet dieselben Slugs als `duplicate` (Exit 0) — Doppel-Episoden ausgeschlossen; Verifikation via `experience_search` mit exaktem Slug (Full-Text-Arm, semantischer Arm MVP-deaktiviert).
+## 2026-09-25 — Guidance capture gate (2nd productive end-to-end run, green)
+- **spawnSync without env support**: process operations inherit only the container environment (`OperationEngine.ts:188`) — ENV variables for gate scripts must today be set via `sh -c` inline assignment (see `capture-session-lessons`); a clean solution would be an `env` field in the operation config (→ GUID-5).
+- **Lessons file contract**: the agent writes `.guidance/state/session-lessons.json` BEFORE the `complete_workflow` call (gates run on-transition); ALWAYS create the file (empty array = no-op success), otherwise the required gate blocks docs-only runs. Redaction duty is on the agent — `seed-lessons.mjs` talks to insight directly and bypasses guidance's pattern redaction.
+- **Idempotency confirmed live**: a repeated seed run reports the same slugs as `duplicate` (exit 0) — double episodes excluded; verification via `experience_search` with the exact slug (full-text arm, semantic arm disabled in the MVP).
 
-## 2026-09-25 — GUID-3/4/5 abgeschlossen (Template-Resolution, env/shell, Regression)
-- **Template-Resolution fail-fast**: `${token}` in `mode: "template"` wird jetzt tief aufgelöst (`session.request`, `project.name`); unbekannte Tokens werfen `operation_arguments_invalid` statt literal durchzugehen (GUID-3-Wurzel: maskierte Gate-Bugs). Behavior-Change in README dokumentiert.
-- **Prozess-Ops: `env` + `shell`** (GUID-5): `spawnSync` merged `config.env` über process.env und reicht `shell` (boolean|string) durch — der `sh -c`-Wrapper-Workaround entfällt aus der eigenen operations.json.
-- **Regression-Muster für „nur im Build sichtbar“-Bugs** (GUID-4): public-API-Test über den echten Schema-Load-Pfad (validatorFor) + Source-Scan-Test gegen bare-`require("…")` — vitest allein hatte den Crash nie reproduziert.
+## 2026-09-25 — GUID-3/4/5 completed (template resolution, env/shell, regression)
+- **Template resolution fail-fast**: `${token}` in `mode: "template"` is now resolved deeply (`session.request`, `project.name`); unknown tokens throw `operation_arguments_invalid` instead of passing through literally (GUID-3 root cause: masked gate bugs). Behavior change documented in the README.
+- **Process ops: `env` + `shell`** (GUID-5): `spawnSync` merges `config.env` over process.env and passes `shell` (boolean|string) through — the `sh -c` wrapper workaround disappears from our own operations.json.
+- **Regression pattern for "only visible in build" bugs** (GUID-4): public-API test over the real schema load path (validatorFor) + source scan test against bare `require("…")` — vitest alone had never reproduced the crash.
 
-## 2026-09-25 — bare `require` in ESM-Quellcode (Rezidiv, 2. Fall)
-- **Issue**: `createRequireShim()` in `WorkflowEngine.ts` nutzte `require("node:module")` per Bare-`require` — in ESM ist `require` nicht definiert ⇒ ReferenceError: require is not defined bei JEDEM `submit_*`-Call (Schemavalidierung lädt über den Shim). Traf erst im Live-Docker-Betrieb auf, die vitest-Suite griff den Pfad nicht.
-- **Root Cause**: Wiederholung des SpecKitEngine-„2d-Fix"-Musters — dynmische `require()`-Aufrufe überleben den CJS→ESM-Wechsel im tests nicht abgedeckten Lazy-Load-Pfad.
-- **Fix**: statischer Import `import { createRequire } from "node:module"` + `createRequire(import.meta.url)` (Muster aus `schema-validator.ts`).
-- **Prävention**: Neue Regel für Code-Reviews: `grep -rn "require\(" servers/*/src` muss nur noch legale `createRequire`- Importe zeigen; jede neue `require(`-Stelle in `src/**` ist ein Blocker. Second-Occurrence → Muster gilt als rezidivierend.
+## 2026-09-25 — bare `require` in ESM source (recurrence, 2nd case)
+- **Issue**: `createRequireShim()` in `WorkflowEngine.ts` used `require("node:module")` as a bare `require` — in ESM `require` is not defined ⇒ ReferenceError: require is not defined on EVERY `submit_*` call (schema validation loads via the shim). It only surfaced in live Docker operation; the vitest suite never touched the path.
+- **Root cause**: repetition of the SpecKitEngine "2d fix" pattern — dynamic `require()` calls survive the CJS→ESM switch in lazy-load paths not covered by tests.
+- **Fix**: static import `import { createRequire } from "node:module"` + `createRequire(import.meta.url)` (pattern from `schema-validator.ts`).
+- **Prevention**: new rule for code reviews: `grep -rn "require\(" servers/*/src` must only show legal `createRequire` imports; every new `require(` occurrence in `src/**` is a blocker. Second occurrence → the pattern counts as recurring.
 
 ## 2026-09-17 — better-sqlite3 boolean bind (recurred, second root cause)
 - **Issue**: `experience_record_reuse_feedback` threw "SQLite3 can only bind numbers, strings, bigints, buffers, and null" even after the earlier `?? null` fix.
@@ -320,358 +321,358 @@
 - **Preventive measure**: For every optional boolean column bind, write `val == null ? null : (val ? 1 : 0)`, never `val ?? null`. Grep for `?? null` on boolean-typed fields after schema changes.
 - **Test note**: add regression tests for BOTH call shapes (optional fields omitted AND supplied) — the minimal-shape test alone passed while the full call crashed.
 
-## 2026-09-18 — Session capture (2 weitere validierte Lessons, gespielt in experience-memory scope `thinking-mcp-lessons`)
-- **mcp-service-method-unregistered**: `lesson_publish`/`lesson_unpublish` existierten als Service-Methoden mit grünen Service-Tests, waren aber nie via `registerTool` auf der MCP-Oberfläche registriert. Prevention: jede öffentliche Service-Fähigkeit registrieren + MCP-Surface-Test mit `listTools()`-Assertion.
-- **drvfs-edit-tool-silent-nowrite**: Editor-basierter Replace meldete SUCCESS, landete aber NICHT auf disk (Terminal-grep zeigte Alttext auf /mnt/d drvfs). Prevention: Source-Edits in diesem Repo per Terminal (python3 replace mit assert) + grep-Verifikation VOR build/test; Tool-Erfolgsmeldung ohne Terminal-Read als unverifiziert behandeln.
-- Fixture: `tests/fixtures/lessons-session-2026-09-18.json` — Seeder 3/3, Round-Trip via `experience_search` bestätigt (jede Query liefert Treffer).
+## 2026-09-18 — Session capture (2 more validated lessons, played into experience-memory scope `thinking-mcp-lessons`)
+- **mcp-service-method-unregistered**: `lesson_publish`/`lesson_unpublish` existed as service methods with green service tests but were never registered via `registerTool` on the MCP surface. Prevention: register every public service capability + MCP surface test with a `listTools()` assertion.
+- **drvfs-edit-tool-silent-nowrite**: editor-based replace reported SUCCESS but did NOT land on disk (terminal grep showed the old text on /mnt/d drvfs). Prevention: do source edits in this repo via terminal (python3 replace with assert) + grep verification BEFORE build/test; treat a tool success message without a terminal read as unverified.
+- Fixture: `tests/fixtures/lessons-session-2026-09-18.json` — seeder 3/3, round-trip confirmed via `experience_search` (every query returns hits).
 
-## 2026-09-19 — CI-Setup-Lessons (in experience-memory scope `thinking-mcp-lessons` gespielt)
-- **yarn4-v1-lockfile-immutable**: `yarn install --immutable` scheiterte mit YN0028, weil yarn.lock noch im Yarn-v1-Format war — Berry migriert die Datei beim ersten Install, was `--immutable` verbietet. Fix: einmal plain `yarn install`, migrierten Lockfile committen, danach `--immutable` grün.
-- **yarn4-blocks-native-build-scripts**: Yarn ≥4.9 blockiert Build-Scripts von Dependencies standardmäßig → better-sqlite3-Postinstall lief nie, natives Binding fehlte (CI wäre gescheitert trotz funktionierendem lokalen npm-Setup). Fix: Root-`package.json` → `dependenciesMeta: { "better-sqlite3": { "built": true } }`; Verifikation via Binding-Datei + Testsuite.
-- Fixture: seeder 2/2, `experience_search` Round-Trip bestätigt (beide Queries liefern beide neuen Episodes).
+## 2026-09-19 — CI setup lessons (played into experience-memory scope `thinking-mcp-lessons`)
+- **yarn4-v1-lockfile-immutable**: `yarn install --immutable` failed with YN0028 because yarn.lock was still in Yarn v1 format — Berry migrates the file on the first install, which `--immutable` forbids. Fix: one plain `yarn install`, commit the migrated lockfile, afterwards `--immutable` is green.
+- **yarn4-blocks-native-build-scripts**: Yarn ≥4.9 blocks build scripts of dependencies by default → the better-sqlite3 postinstall never ran, the native binding was missing (CI would have failed despite a working local npm setup). Fix: root `package.json` → `dependenciesMeta: { "better-sqlite3": { "built": true } }`; verification via binding file + test suite.
+- Fixture: seeder 2/2, `experience_search` round-trip confirmed (both queries return both new episodes).
 
-## 2026-09-19 — Replay-Revision-Fix-Lessons (in `thinking-mcp-lessons` gespielt)
-- **idempotent-replay-stale-revision**: FR-028-Literal-Replay von `workflow_start` lieferte die Original-Revision (meist 1) zurück → Addendum-Läufe rechneten ab da und crashten mit STALE_REVISION (Niyama-Befund „Rev 3 auf dem älteren Workflow"). Fix: Replay patcht `result.revision` auf die aktuelle Workflow-Revision + `replayed: true`; Regressionstest `replay-revision.test.ts`, Suite 95/95. Meta-Lesson: Literal-Replay ist unsicher für jedes Ergebnisfeld, das sich mit der Zeit ändert.
-- **emms-search-response-field-results**: `experience_search` liefert Treffer unter `result.results` — ein Verify-Probe, das `result.items` liest, maskiert echte Treffer als „0 hits". Fix: `results` lesen; bei 0 Treffern erst den Roh-Envelope dumpen, bevor Fehlschlag konstatiert wird.
-- Seeder 2/2, Round-Trip bestätigt.
+## 2026-09-19 — Replay revision fix lessons (played into `thinking-mcp-lessons`)
+- **idempotent-replay-stale-revision**: FR-028 literal replay of `workflow_start` returned the original revision (usually 1) → addendum runs computed against it from then on and crashed with STALE_REVISION (Niyama finding "Rev 3 on the older workflow"). Fix: replay patches `result.revision` to the current workflow revision + `replayed: true`; regression test `replay-revision.test.ts`, suite 95/95. Meta-lesson: literal replay is unsafe for every result field that changes over time.
+- **emms-search-response-field-results**: `experience_search` returns hits under `result.results` — a verify probe reading `result.items` masks real hits as "0 hits". Fix: read `results`; on 0 hits first dump the raw envelope before concluding failure.
+- Seeder 2/2, round-trip confirmed.
 
-## 2026-09-19 — drvfs-Verzeichnis-Rename-Falle (experiencememory → insight)
-- **Issue**: `git mv servers/server-experiencememory servers/server-insight` auf /mnt/d (WSL drvfs) vergiftete den Dentry-Cache: das Zielverzeichnis war danach für WSL dauerhaft unlesbar (`d?????????` / "No such file or directory"), obwohl Windows (`cmd.exe dir`) den vollständigen Inhalt zeigte. Negative Cache-Einträge verfielen auch nach >2 min nicht.
-- **Ursache**: WSL-seitige Umbenennungen auf drvfs hinterlassen stale positive/negative Dentry-Einträge für den Zielnamen; selbst Windows-seitige Neu-Erstellung desselben Namens bleibt für WSL unsichtbar.
-- **Validierte Workarounds** (in dieser Reihenfolge):
-  1. **Case-Variante als Seitentür**: `ls servers/Server-Insight/` (abweichende Groß-/Kleinschreibung) umgeht den negativen Dentry und zeigt den Inhalt.
-  2. **Heilung über Rename-Kette auf einen unbelasteten Namen**: `mv <fallVariant> servers/insight-heal && mv servers/insight-heal servers/insight` — der zweite Sprung auf einen nie gecachten Namen funktioniert; das Original-Ziel ('server-insight') blieb dauerhaft defekt.
-  3. Verzeichnis-Ops auf drvfs bevorzugt **Windows-seitig** ausführen (`cmd.exe /c move ...`), nie WSL-seitig bei#getrackten Ordnern.
-- Konsequenz: Server-Ordner heißt jetzt `servers/insight` (statt `server-insight`) — der saubere Name war frei.
+## 2026-09-19 — drvfs directory rename trap (experiencememory → insight)
+- **Issue**: `git mv servers/server-experiencememory servers/server-insight` on /mnt/d (WSL drvfs) poisoned the dentry cache: the target directory was then permanently unreadable for WSL (`d?????????` / "No such file or directory"), although Windows (`cmd.exe dir`) showed the full content. Negative cache entries did not expire even after >2 min.
+- **Cause**: WSL-side renames on drvfs leave stale positive/negative dentry entries for the target name; even a Windows-side re-creation of the same name stays invisible for WSL.
+- **Validated workarounds** (in this order):
+  1. **Case variant as a side door**: `ls servers/Server-Insight/` (differing case) bypasses the negative dentry and shows the content.
+  2. **Healing via a rename chain to an unburdened name**: `mv <caseVariant> servers/insight-heal && mv servers/insight-heal servers/insight` — the second jump to a never-cached name works; the original target ('server-insight') remained permanently broken.
+  3. Preferably execute directory ops on drvfs **Windows-side** (`cmd.exe /c move ...`), never WSL-side for tracked folders.
+- Consequence: the server folder is now called `servers/insight` (instead of `server-insight`) — the clean name was free.
 
-## 2026-09-19 — Compose-Service-Drift-Lesson (in `thinking-mcp-lessons` gespielt)
-- **server-local-compose-service-drift**: Nach Root-Compose-Rename (experience-memory → insight) erzeugte `docker compose up` einen dritten Container `experience-memory` — die server-lokale `docker-compose.yml` in `servers/server-insight` definierte den Service noch unter dem alten Namen. Fix: Service auch dort umbenennen, toten Container `docker rm`, Verifikation via `docker compose config --services` je Verzeichnis. Regel: Bei Service-Renames ALLE compose-Dateien im Repo greppen, nicht nur die Root.
-- Seeder 1/1, Round-Trip bestätigt (exp_353dfc99).
+## 2026-09-19 — Compose service drift lesson (played into `thinking-mcp-lessons`)
+- **server-local-compose-service-drift**: after the root compose rename (experience-memory → insight), `docker compose up` created a third container `experience-memory` — the server-local `docker-compose.yml` in `servers/server-insight` still defined the service under the old name. Fix: rename the service there too, `docker rm` the dead container, verify via `docker compose config --services` per directory. Rule: on service renames grep ALL compose files in the repo, not only the root.
+- Seeder 1/1, round-trip confirmed (exp_353dfc99).
 
-## 2026-09-19 — Release-Pipeline-Review (insight)
-- **publish-skript-Kopien validieren**: Das von clear-thought kopierte `publish-smithery.mjs` war nur halb angepasst (falsche Factory-Importe, `defaultConfig`-Export existierte nicht, clear-thought-configSchema/-Card) und wäre zur Laufzeit gecrasht. Regel: kopierte Skripte end-to-end ausführen (mindestens bis zur Netzwerk-Grenze trocken), nicht nur Syntax-checken.
-- **build-mcpb.mjs war nie lauffähig** (fehlender `dirname`-Import, invalides Manifest-Schema: tools als String-Array statt Objekte). Fix nach clear-thought-Muster: Laufzeit-Tool-Capture + schema-valide Manifeste.
-- **mcpb pack hängt bei ~300 MB node_modules** (onnxruntime) in dieser Umgebung — direkter tar.gz-Pack (`.mcpb` IST ein tar.gz mit manifest.json im Root) als Ersatz; Staging auf ext4 (/tmp) wegen drvfs-Dentry-Flackern.
-- **npm-OIDC kann Packages nicht erstellen**: Trusted Publisher muss pro Package auf npmjs.com existieren — Erst-Release immer manuell, dann Workflow. Guards: npm `REMOTE=none` → fail-fast mit Anleitung; Smithery `none` → skip mit Note.
+## 2026-09-19 — Release pipeline review (insight)
+- **Validate publish script copies**: the `publish-smithery.mjs` copied from clear-thought was only half adapted (wrong factory imports, the `defaultConfig` export did not exist, clear-thought-configSchema/-Card) and would have crashed at runtime. Rule: run copied scripts end-to-end (at least dry up to the network boundary), not just syntax-check them.
+- **build-mcpb.mjs was never runnable** (missing `dirname` import, invalid manifest schema: tools as a string array instead of objects). Fix following the clear-thought pattern: runtime tool capture + schema-valid manifests.
+- **mcpb pack hangs at ~300 MB node_modules** (onnxruntime) in this environment — direct tar.gz pack (`.mcpb` IS a tar.gz with manifest.json in the root) as a replacement; staging on ext4 (/tmp) because of drvfs dentry flicker.
+- **npm OIDC cannot create packages**: the trusted publisher must exist per package on npmjs.com — always do the first release manually, then the workflow. Guards: npm `REMOTE=none` → fail-fast with instructions; Smithery `none` → skip with a note.
 
-## 2026-09-19 — Workflow-Persistenz-Lücke (Niyama-Fund, wf_225bf751-af3)
-- **Root Cause**: STDIO-Default `storagePath = cwd/emms-store.db` — jeder Agent startete den Server aus seinem eigenen cwd und bekam eine frische, cwd-lokale DB. Workflows früherer Sessions waren "not found", obwohl der Server korrekt funktionierte.
-- **Fix**: Persistenter Default `~/.insight/emms-store.db` (mkdirSync recursive). Kette: config.storagePath > EMMS_STORAGE_PATH (resolveConfig) > ~/.insight. Docker/compose setzt weiter EMMS_STORAGE_PATH auf das Volume.
-- **Verifiziert**: Workflow in Server-Prozess A erstellt, in unabhängigem Prozess B gefunden. Suite 95/95.
-- **Meta-Lesson**: cwd-abhängige Defaults sind Persistence-Fallen für stdio-MCP-Server — Default-State gehört auf user-level Pfade.
+## 2026-09-19 — Workflow persistence gap (Niyama finding, wf_225bf751-af3)
+- **Root cause**: STDIO default `storagePath = cwd/emms-store.db` — every agent started the server from its own cwd and got a fresh, cwd-local DB. Workflows from earlier sessions were "not found" although the server worked correctly.
+- **Fix**: persistent default `~/.insight/emms-store.db` (mkdirSync recursive). Chain: config.storagePath > EMMS_STORAGE_PATH (resolveConfig) > ~/.insight. Docker/compose still sets EMMS_STORAGE_PATH to the volume.
+- **Verified**: workflow created in server process A, found in independent process B. Suite 95/95.
+- **Meta-lesson**: cwd-dependent defaults are persistence traps for stdio MCP servers — default state belongs on user-level paths.
 
-## 2026-09-19 — Finale Session-Lessons (in `thinking-mcp-lessons` gespielt)
-- **compose-project-context-determines-container-names**: Compose leitet den Projektnamen aus dem Verzeichnis der compose-Datei ab — server-lokale Compose-Dateien erzeugen eigene Projekte (server-insight-insight-1) statt des Root-Stacks (thinking-mcp-insight-1). Nicht kaputt, aber verwirrend; kanonischen Einstiegspunkt festlegen und `docker compose ls` bei Namensverwirrung nutzen.
-- **docker-restore-must-include-wal-sidecar-files**: SQLite WAL hält frische Commits in der -wal-Datei — .db-only-Kopien verlieren genau diese (Root-Mechanismus des Data Loss beim Rename). Backups UND Restores müssen -wal/-shm mitsichern; nach Restore Zeilenzahl verifizieren.
-- **reseed-lessons-from-fixtures-after-store-loss**: Lessons existieren doppelt außerhalb des Stores (JSON-Fixtures + lessonsLearned.md) — Store-Verlust wird so zum idempotenten Re-Seed statt Datenverlust (10/10 wiederhergestellt). Dual-Write-Disziplin beibehalten.
-- Seeder 3/3, Round-Trip bestätigt.
+## 2026-09-19 — Final session lessons (played into `thinking-mcp-lessons`)
+- **compose-project-context-determines-container-names**: compose derives the project name from the directory of the compose file — server-local compose files create their own projects (server-insight-insight-1) instead of the root stack (thinking-mcp-insight-1). Not broken, but confusing; define a canonical entry point and use `docker compose ls` on name confusion.
+- **docker-restore-must-include-wal-sidecar-files**: SQLite WAL keeps fresh commits in the -wal file — .db-only copies lose exactly those (root mechanism of the data loss during the rename). Backups AND restores must include -wal/-shm; verify the row count after a restore.
+- **reseed-lessons-from-fixtures-after-store-loss**: lessons exist twice outside the store (JSON fixtures + lessonsLearned.md) — store loss thus becomes an idempotent re-seed instead of data loss (10/10 restored). Keep the dual-write discipline.
+- Seeder 3/3, round-trip confirmed.
 
-## 2026-09-19 — Stale Import nach Rename überlebte lokalen Testlauf (CI rot)
-- **Issue**: CI failed mit "Failed to load url ../src/tools/agents-guide.js" in setup-clearthought.test.ts — lokal lief die Suite grün.
-- **Root Cause**: Der Rename-Commit (be4a4d2) benannte Dateien um, übersah aber den Test-Import. Der lokale "142/142 green" war wertlos: vitest-Cache/inkrementelles Verhalten maskierte den Load-Fehler, bzw. die Suite wurde nicht im Clean-State ausgeführt.
-- **Fix**: Import auf setup-clearthought.js korrigiert (feb4665), Suite 152/152.
-- **Prävention**: Vor "suite green"-Claims bei Rename/Move-Commits: `vitest run` in einem sauberen Zustand (mind. `npx vitest run --no-cache` oder frischer Checkout). `Failed to load url`-Fehler = tote Import-Pfade, die nur ohne Cache sichtbar sind.
+## 2026-09-19 — Stale import after rename survived the local test run (CI red)
+- **Issue**: CI failed with "Failed to load url ../src/tools/agents-guide.js" in setup-clearthought.test.ts — locally the suite ran green.
+- **Root cause**: the rename commit (be4a4d2) renamed files but overlooked the test import. The local "142/142 green" was worthless: vitest cache/incremental behavior masked the load error, or the suite was not run in a clean state.
+- **Fix**: import corrected to setup-clearthought.js (feb4665), suite 152/152.
+- **Prevention**: before "suite green" claims on rename/move commits: `vitest run` in a clean state (at least `npx vitest run --no-cache` or a fresh checkout). `Failed to load url` errors = dead import paths that are only visible without cache.
 
-## 2026-09-20 — Merge-Runde-Lessons (in `thinking-mcp-lessons` gespielt)
-- **native-module-unhandled-rejection-in-vitest**: CI rot trotz 95/95 grün — der abgefangene onnxruntime-Load-Fehler surfte als vitest-Unhandled-Rejection. Fix: `EMMS_DISABLE_EMBEDDINGS=1` (kurzschließt VOR dem dynamischen Import) + `it.skipIf` für die 2 echten Modell-Tests + env in test.yml. Meta: vor "green" die Unhandled-Errors-Sektion prüfen.
-- **npm-publish-from-wrong-directory-publishes-wrong-package**: Publish lief zweimal vom Monorepo-Root und versuchte `@paschbaer/thinking-mcp@0.0.1` (292 Dateien) zu pushen — nur `private: true` verhinderte Schlimmes. Fix: cd in den Workspace-Ordner, Intent via `node -p "require('./package.json').name"` verifizieren, Tarball-Contents-Listing LESEN.
-- **gitignore-pattern-lost-during-string-replace-edits**: Verkettete String-Replace-Edits an .gitignore verloren still das Pattern `/emms-store.db*` — Datei blieb untracked trotz dreimal "done". Fix: nach Ignore-Edit für JEDE Datei `git check-ignore` verifizieren und das komplette Pattern-Set greppen, Commit amenden bis alles exit 0.
-- Seeder 3/3, Round-Trip bestätigt (exp_3ebae212, exp_4d4ecd2b, exp_56e5bded).
+## 2026-09-20 — Merge round lessons (played into `thinking-mcp-lessons`)
+- **native-module-unhandled-rejection-in-vitest**: CI red despite 95/95 green — the caught onnxruntime load error surfaced as a vitest unhandled rejection. Fix: `EMMS_DISABLE_EMBEDDINGS=1` (short-circuits BEFORE the dynamic import) + `it.skipIf` for the 2 real model tests + env in test.yml. Meta: check the unhandled-errors section before claiming "green".
+- **npm-publish-from-wrong-directory-publishes-wrong-package**: the publish ran twice from the monorepo root and tried to push `@paschbaer/thinking-mcp@0.0.1` (292 files) — only `private: true` prevented worse. Fix: cd into the workspace folder, verify intent via `node -p "require('./package.json').name"`, READ the tarball contents listing.
+- **gitignore-pattern-lost-during-string-replace-edits**: chained string-replace edits on .gitignore silently lost the pattern `/emms-store.db*` — the file stayed untracked despite three "done"s. Fix: after ignore edits verify `git check-ignore` for EVERY file and grep the complete pattern set, amend the commit until everything is exit 0.
+- Seeder 3/3, round-trip confirmed (exp_3ebae212, exp_4d4ecd2b, exp_56e5bded).
 
-## 2026-09-20 — Smithery-Erst-Publish (insight live!)
-- **smithery-first-publish-needs-server-upsert**: PUT /servers/{q}/releases liefert 404 "Server not found" für neue Server — der Record muss zuerst via PUT /servers/{q} (Upsert mit displayName/description, HTTP 201) angelegt werden; danach funktioniert das Release-PUT. Skript macht jetzt create-fallback + retry.
-- **smithery-bundle-cap-25mb-trim**: Smithery-Cap 25 MB komprimiert. Roh-Install ~300 MB. Trim: onnxruntime darwin/win32/arm64-Binaries, onnxruntime-web, alle ort-wasm-Varianten außer simd-threaded, sourcemaps, protobufjs/cli, better-sqlite3 build-Toolchain (deps/, obj.target, *.mk) → 96 MB → 23.7 MB gz (gzip -9 statt default — allein das brachte 28→23.7).
-- **spawnSync-maxbuffer-kills-big-stdout**: tar -cf - mit stdout-Pipe (100 MB+) crashte spawnSync still (status≠0, ENOENT-ähnlich, keine Meldung) — Default-maxBuffer ist 1 MB. Fix: stdio-stderr auf 'pipe' + maxBuffer 512 MB, stderr loggen. Regel: spawnSync mit erwartetem Groß-Output NIE ohne maxBuffer.
-- **build-skript-claims-verify-end-to-end**: Das kopierte publish-skript referenzierte insight.mcpb, das Build aber insight-<version>.mcpb erzeugt — plus TDZ-Crash (pkg vor Nutzung). Regel: bei kopierten/umgebauten Skripten den ERSTEN echten Lauf im selben Commit verifizieren, nicht nur Syntax.
-- **insight ist jetzt LIVE auf Smithery**: https://insight--paschbaer.run.tools (Release 202, Record-Patch 200, Registry-Eintrag verifiziert).
+## 2026-09-20 — Smithery first publish (insight live!)
+- **smithery-first-publish-needs-server-upsert**: PUT /servers/{q}/releases returns 404 "Server not found" for new servers — the record must first be created via PUT /servers/{q} (upsert with displayName/description, HTTP 201); afterwards the release PUT works. The script now does create-fallback + retry.
+- **smithery-bundle-cap-25mb-trim**: Smithery cap 25 MB compressed. Raw install ~300 MB. Trim: onnxruntime darwin/win32/arm64 binaries, onnxruntime-web, all ort-wasm variants except simd-threaded, sourcemaps, protobufjs/cli, better-sqlite3 build toolchain (deps/, obj.target, *.mk) → 96 MB → 23.7 MB gz (gzip -9 instead of default — that alone brought 28→23.7).
+- **spawnSync-maxbuffer-kills-big-stdout**: tar -cf - with a stdout pipe (100 MB+) crashed spawnSync silently (status≠0, ENOENT-like, no message) — the default maxBuffer is 1 MB. Fix: stdio-stderr on 'pipe' + maxBuffer 512 MB, log stderr. Rule: never run spawnSync with expected large output without maxBuffer.
+- **build-skript-claims-verify-end-to-end**: the copied publish script referenced insight.mcpb, but the build produces insight-<version>.mcpb — plus a TDZ crash (pkg before use). Rule: verify the FIRST real run of copied/reworked scripts in the same commit, not just syntax.
+- **insight is now LIVE on Smithery**: https://insight--paschbaer.run.tools (release 202, record patch 200, registry entry verified).
 
-## 2026-09-20 — Smithery-Erst-Publish-Lessons (in `thinking-mcp-lessons` gespielt)
-- **smithery-first-publish-needs-server-upsert**: Release-PUT 404t für neue Server; Create ist PUT /servers/{q} (Upsert, HTTP 201), nicht POST. Skript hat jetzt Create-Fallback + Release-Retry (create 201 → release 202 → patch 200, end-to-end verifiziert).
-- **smithery-bundle-cap-25mb-trim**: 80-MB-Bundle (onnxruntime Multi-Platform + onnxruntime-web + wasm-Varianten + sourcemaps + better-sqlite3-Toolchain) auf 23.7 MB getrimmt; gzip -9 allein brachte 28→23.7.
-- **spawn-sync-maxbuffer-kills-big-stdout**: tar-stdout (100 MB+) über spawnSync-Pipe crashte still — Default-maxBuffer 1 MB. Fix: maxBuffer 512 MB + stderr pipen/loggen. Regel: spawnSync mit großem erwartetem Output nie ohne maxBuffer.
-- **bundle-filename-version-drift-between-build-and-publish**: publish suchte insight.mcpb, build erzeugt insight-<version>.mcpb (ENOENT) + TDZ-Crash beim ersten Fix. Fix: versionierte Auflösung + pkg nach oben. Regel: ersten echten Lauf kopierter/umgebauter Skripte im selben Commit verifizieren.
-- Seeder 4/4, Round-Trip bestätigt (exp_fa71d807, exp_2f92135e, exp_f99452a2, exp_4da4713b).
+## 2026-09-20 — Smithery first publish lessons (played into `thinking-mcp-lessons`)
+- **smithery-first-publish-needs-server-upsert**: the release PUT 404s for new servers; create is PUT /servers/{q} (upsert, HTTP 201), not POST. The script now has create-fallback + release-retry (create 201 → release 202 → patch 200, verified end-to-end).
+- **smithery-bundle-cap-25mb-trim**: 80 MB bundle (onnxruntime multi-platform + onnxruntime-web + wasm variants + sourcemaps + better-sqlite3 toolchain) trimmed to 23.7 MB; gzip -9 alone brought 28→23.7.
+- **spawn-sync-maxbuffer-kills-big-stdout**: tar stdout (100 MB+) over a spawnSync pipe crashed silently — default maxBuffer 1 MB. Fix: maxBuffer 512 MB + pipe/log stderr. Rule: never run spawnSync with large expected output without maxBuffer.
+- **bundle-filename-version-drift-between-build-and-publish**: publish looked for insight.mcpb, the build produces insight-<version>.mcpb (ENOENT) + TDZ crash on the first fix. Fix: versioned resolution + hoist pkg. Rule: verify the first real run of copied/reworked scripts in the same commit.
+- Seeder 4/4, round-trip confirmed (exp_fa71d807, exp_2f92135e, exp_f99452a2, exp_4da4713b).
 
 - (2026-09-22, insight) Split-store trap fixed structurally: seeding logic was a client-side script bound to a repo checkout path — unusable for MCP consumers in other repos. Lesson: server capabilities must be delivered BY the server (MCP tool), scripts only as thin transport wrappers. Prevention: any new capture/write workflow ships as an MCP tool first; a CLI wrapper is optional sugar. Also: on /mnt/d, verify load-bearing edit-tool changes with an immediate terminal grep — two replacement batches silently failed to land today and had to be reapplied via terminal.
 
-- (2026-09-22, insight) FTS-Retrieval war vollständig wirkungslos, aber schleichend: (1) `episodes_fts` hatte NIE einen Writer — nur Migration + Reader. Fix: Insert/Update-Trigger + Backfill im Adapter-Init. (2) `searchFullText` INNER-JOINte `signatures` und warf damit alle signaturlosen Episoden (Lessons!) weg; (3) FTS-Treffer flossen nicht ins Relevance-Scoring ein — Kandidatenfindung ohne Ranking ist bei limit-basierter Ausgabe wertlos. Lektion: "Silent empty result" muss zwischen "Index leer", "Join filtert weg" und "Score ignoriert Treffer" unterschieden werden — jedes Bug-Layer war einzeln grün im Test, weil die Tests nur über den Fallback liefen. Regressionstest muss die FTS-Arm-Adresse direkt prüfen (Relevance > Fallback-Floor, Top-Rank).
+- (2026-09-22, insight) FTS retrieval was completely ineffective, but creepingly so: (1) `episodes_fts` NEVER had a writer — only migration + reader. Fix: insert/update triggers + backfill in the adapter init. (2) `searchFullText` INNER-JOINed `signatures` and thereby threw away all episodes without a signature (lessons!); (3) FTS hits did not flow into relevance scoring — candidate finding without ranking is worthless with limit-based output. Lesson: "silent empty result" must be distinguished into "index empty", "join filters away" and "score ignores hits" — each bug layer was individually green in tests because the tests only ran through the fallback. The regression test must check the FTS arm address directly (relevance > fallback floor, top rank).
 
-- (2026-09-23, guidance) 12 Lessons aus der Guidance-Implementierung (Phasen 1-12) via experience_seed_lessons geseed (alle PARTIALLY_VERIFIED, keine Duplikate): python-patch-partial-replace, mntd-edit-tool-phantom-success (3. Rezidiv), guidance-profile-shallow-merge, guidance-transition-reason-vs-when, closure-tdz-runtime-crash, hollow-failure-path-tests, exposure-mode-field-hygiene, unwired-policy-dead-code, path-boundary-prefix-match, dispute-review-finding-with-targeted-repro, vitest-no-tests-fails-suite, ajv2020-esm-interop-constructor, mcp-sdk-register-tool-zod-shape, read-path-mutation-lock. Suche-Round-Trip: experience_search liefert derzeit nur Legacy-Episoden (0.25 Relevance, Signature/Full-Text-Arm) — neue Episoden sind per Seed-Status (experience_ids) bestätigt, semantische Suche ist im MVP deaktiviert.
-- Kernmuster dieser Session: (1) Reviewer-Findings nie ohne gezielten Repro widersprechen (TDZ-Fall: Suite grün, aber requestId-Pfad nie getestet). (2) Security-/Policy-Controls nach dem Implementieren sofort im Produktionspfad verdrahten (evaluateEgress war Dead Code trotz grüner Unit-Tests). (3) Workspace-Boundary-Checks brauchen separator-bewusste Prefix-Prüfung + echten Sibling-Repro. (4) Reason-only-Transitionen nur im Fehlerpfad matchen. (5) Atomic Persistence (tmp+rename) auch für Lock-Dateien — korrupte Locks hätten alles blockiert.
-- (2026-09-23, guidance F4) Terminal-phase submit assertions: die transition_rejected-Route im WorkflowEngine gibt Code `required_hook_failed` ("remaining in phase") zurück; ein zweiter Submit einer Phase mit `transitions: []` kann NIE Transition-Ergebnisse liefern. Hook-Effekte auf den Submit asserten, der die Transition durchführt. Optional failed beforeEnter-Ops erscheinen DOCH in `operations` (exposeOpResult filtert nicht). Lesson geseed: guidance-terminal-phase-submit-assertion (PARTIALLY_VERIFIED).
-- (2026-09-23, guidance HTTP/Docker) 6 neue Lessons via experience_seed_lessons geseed (alle PARTIALLY_VERIFIED, 0 Duplikate): (1) docker-compose-bind-mount-missing-config-crash-loop — leeres Host-Verzeichnis im Bind-Mount → configuration_not_found-Crash-Loop, ECONNREFUSED im Client; mounted content verifizieren, nicht nur den Mount. (2) dockerfile-healthcheck-curl-missing-in-image — HEALTHCHECK mit curl, aber curl nie installiert → ewig 'health: starting'; Diagnose via docker inspect State.Health.Log. (3) async-json-tojson-promise-empty-payload — fehlendes await → JSON.stringify(Promise)='{}', 142 grüne Tests sahen es nicht; Review fand es. (4) ts-duplicate-import-after-partial-edit-tool-failure + (5) python-patch-silent-noop-exact-match-required — /mnt/d-Patch-Fallen: replace-Tools melden Erfolg, tsc beweist das Gegenteil; count-printen + grep -c verifizieren. (6) mcp-http-post-requires-accept-header — POST /mcp braucht accept: application/json, text/event-stream, sonst 406 (irreführend nach Auth-Fix).
+- (2026-09-23, guidance) 12 lessons from the guidance implementation (phases 1-12) seeded via experience_seed_lessons (all PARTIALLY_VERIFIED, no duplicates): python-patch-partial-replace, mntd-edit-tool-phantom-success (3rd recurrence), guidance-profile-shallow-merge, guidance-transition-reason-vs-when, closure-tdz-runtime-crash, hollow-failure-path-tests, exposure-mode-field-hygiene, unwired-policy-dead-code, path-boundary-prefix-match, dispute-review-finding-with-targeted-repro, vitest-no-tests-fails-suite, ajv2020-esm-interop-constructor, mcp-sdk-register-tool-zod-shape, read-path-mutation-lock. Search round-trip: experience_search currently returns only legacy episodes (0.25 relevance, signature/full-text arm) — new episodes are confirmed via seed status (experience_ids), semantic search is disabled in the MVP.
+- Core patterns of this session: (1) never contradict reviewer findings without a targeted repro (TDZ case: suite green, but the requestId path never tested). (2) Wire security/policy controls into the production path immediately after implementing them (evaluateEgress was dead code despite green unit tests). (3) Workspace boundary checks need separator-aware prefix checking + a real sibling repro. (4) Match reason-only transitions only in the error path. (5) Atomic persistence (tmp+rename) also for lock files — corrupt locks would have blocked everything.
+- (2026-09-23, guidance F4) Terminal-phase submit assertions: the transition_rejected route in the WorkflowEngine returns code `required_hook_failed` ("remaining in phase"); a second submit of a phase with `transitions: []` can NEVER deliver transition results. Assert hook effects on the submit that performs the transition. Optional failed beforeEnter ops DO appear in `operations` (exposeOpResult does not filter). Lesson seeded: guidance-terminal-phase-submit-assertion (PARTIALLY_VERIFIED).
+- (2026-09-23, guidance HTTP/Docker) 6 new lessons seeded via experience_seed_lessons (all PARTIALLY_VERIFIED, 0 duplicates): (1) docker-compose-bind-mount-missing-config-crash-loop — empty host directory in the bind mount → configuration_not_found crash loop, ECONNREFUSED in the client; verify the mounted content, not just the mount. (2) dockerfile-healthcheck-curl-missing-in-image — HEALTHCHECK with curl, but curl never installed → forever 'health: starting'; diagnosis via docker inspect State.Health.Log. (3) async-json-tojson-promise-empty-payload — missing await → JSON.stringify(Promise)='{}', 142 green tests did not see it; review found it. (4) ts-duplicate-import-after-partial-edit-tool-failure + (5) python-patch-silent-noop-exact-match-required — /mnt/d patch traps: replace tools report success, tsc proves the opposite; print the count + verify with grep -c. (6) mcp-http-post-requires-accept-header — POST /mcp needs accept: application/json, text/event-stream, otherwise 406 (misleading after the auth fix).
 
-### Avoid These Mistakes (2026-09-23, Transport-Migration)
-- **MCP-Server-Transport-Wiring**: StreamableHTTPServerTransport OHNE `await server.connect(transport)` = Sessions werden erstellt, Antworten kommen nie (hängende Clients). Beim manuellen Session-Management IMMER connect vor handleRequest; Verifikation nur mit dem offiziellen SDK-Client gegen den gebauten Stand (nicht gegen tsx-Quelle und nicht per curl — SSE-Streams lassen curl ohne Session-Header hängen und suggerieren Fehlfunktionen).
-- **Express-App-Fehlerpfad mit offenen Responses**: shutdown/`uncaughtException`-Handler, die `server.close(cb)` mit Callback verwenden, hängen ewig, wenn der Server nie erfolgreich gelisten hat (EADDRINUSE) — immer Fallback-`setTimeout(...).unref()` ergänzen.
-- **WSL-Testhygiene**: Hintergrund-node-Prozesse auf /mnt/d hinterlassen Geister-Listen-Sockets; EADDRINUSE-Ketten und "leere" Logs täuschen über den eigentlichen Fehler hinweg. Vor Servertests Ports gezielt prüfen (ss -tln) und Prozesse per PID vom Socket killen, nicht per breitem pgrep (hasst VS-Code-Server-Prozesse).
+### Avoid These Mistakes (2026-09-23, transport migration)
+- **MCP server transport wiring**: StreamableHTTPServerTransport WITHOUT `await server.connect(transport)` = sessions get created, responses never arrive (hanging clients). With manual session management ALWAYS connect before handleRequest; verify only with the official SDK client against the built artifact (not against tsx source and not via curl — SSE streams make curl hang without session headers and suggest malfunction).
+- **Express app error path with open responses**: shutdown/`uncaughtException` handlers that use `server.close(cb)` with a callback hang forever when the server never successfully listened (EADDRINUSE) — always add a fallback `setTimeout(...).unref()`.
+- **WSL test hygiene**: background node processes on /mnt/d leave ghost listen sockets; EADDRINUSE chains and "empty" logs obscure the actual error. Before server tests check ports specifically (ss -tln) and kill processes by PID from the socket, not with a broad pgrep (it also hits VS Code server processes).
 
 
-### Avoid These Mistakes (2026-09-23, setup_clearthought Endless-Retry-Loop)
-- **Tool-Response-Feldreihenfolge für LLM-Clients**: Bei Antworten >15 KB stehen
-  Trailing-Felder (`status`, `nextSteps`) im truncierten/offgeloadeten
-  Tool-Result-View oft NICHT mehr im Modell-Kontext — das Modell hält einen
-  erfolgreichen Call für fehlgeschlagen und retryt endlos (beobachtet: 47 Calls
-  mit rotierenden `project_name`s). Regel: Bei großen Responses IMMER `status`
-  (und bei Einmal-Tools ein explizites `one_shot: true` + "do NOT call again")
-  als ERSTE Felder serialisieren, plus denselben Warnhinweis in die
-  Tool-Description. Generisch: Erfolgssignal nie hinter Megabytes verstecken.
+### Avoid These Mistakes (2026-09-23, setup_clearthought endless-retry-loop)
+- **Tool response field order for LLM clients**: with responses >15 KB, trailing
+  fields (`status`, `nextSteps`) are often NO LONGER present in the model context
+  in the truncated/offloaded tool result view — the model considers a successful
+  call failed and retries endlessly (observed: 47 calls with rotating
+  `project_name`s). Rule: with large responses ALWAYS serialize `status`
+  (and for one-shot tools an explicit `one_shot: true` + "do NOT call again")
+  as the FIRST fields, plus the same warning in the tool description.
+  Generic: never hide the success signal behind megabytes.
 
 ### Experience Memory Capture (2026-09-23)
-- Session-Lessons wurden per `experience_seed_lessons` in den EMMS-Store
-  (`thinking-mcp-lessons`) geseedet, beide `PARTIALLY_VERIFIED`,
-  Round-Trip per `experience_search` verifiziert:
-  - `large-tool-response-status-truncation` (exp_f3795b94-c9a) — siehe
-    "setup_clearthought Endless-Retry-Loop" oben; Fix in 38875a9/a8fb97d.
+- Session lessons were seeded into the EMMS store (`thinking-mcp-lessons`)
+  via `experience_seed_lessons`, both `PARTIALLY_VERIFIED`,
+  round-trip verified via `experience_search`:
+  - `large-tool-response-status-truncation` (exp_f3795b94-c9a) — see
+    "setup_clearthought endless-retry-loop" above; fix in 38875a9/a8fb97d.
   - `mnt-d-readfile-linewrap-edit-mismatch` (exp_8c20e8af-668) — read_file
-    liefert auf /mnt/d hart umgebrochene Zeilen; edit-Tools brauchen
-    Byte-Exaktheit. Fix: Terminal-Python-Patch mit Occurrence-Assertion +
-    sofortiger grep-Verifikation; Terminal-Lesen ist Disk-Autorität.
-- Hinweis: EMMS-Suche ist im MVP nur Full-Text/Signature (semantische Suche
-  inaktiv) — mit Slug-Fragmenten suchen (z.B. "status-truncation"), nicht
-  mit freier Beschreibung.
+    delivers hard-wrapped lines on /mnt/d; edit tools need byte-exactness.
+    Fix: terminal python patch with occurrence assertion + immediate grep
+    verification; terminal reads are disk authority.
+- Note: EMMS search in the MVP is full-text/signature only (semantic search
+  inactive) — search with slug fragments (e.g. "status-truncation"), not
+  with a free description.
 
-### Avoid These Mistakes (2026-09-23, Fortsetzung Loop-Defense)
-- **Kurze Erfolgs-Antworten stoppen Loops NICHT zuverlaessig**: Modelle
-  ignorieren selbst sichtbare status:'loop_detected'-Results (20+ Retries
-  beobachtet) — nur Protokoll-Fehler (isError:true) wirken zuverlaessig.
-  Eskalationsstufe einplanen, nicht nur Status-Felder.
-- **Templates duerfen Marker nicht selbst enthalten**: buildGuideBlock wrappt
-  den Body — ein im Template hinterlegter End-Marker verdoppelt ihn und
-  Merge-Mode faellt stumm in den Append-Fallback (block_replaced:false +
-  warning). Regel: Marker-Nur-Durch-Code; Test fehlt noch (getrackt).
-- **create_file auf /mnt/d**: diesmal sofort per grep verifiziert — okay.
-  Aber Heredoc-Anhaenge an Testdateien koennen bei abgebrochenen Terminals
-  Dateien duplizieren: vor Commit immer grep -c auf Helfer-Symbole.
+### Avoid These Mistakes (2026-09-23, continued loop defense)
+- **Short success responses do NOT reliably stop loops**: models ignore even
+  visible status:'loop_detected' results (20+ retries observed) — only
+  protocol errors (isError:true) work reliably. Plan an escalation level,
+  not just status fields.
+- **Templates must not contain the markers themselves**: buildGuideBlock wraps
+  the body — an end marker stored in the template doubles it and merge mode
+  silently falls into the append fallback (block_replaced:false + warning).
+  Rule: markers only through code; test still missing (tracked).
+- **create_file on /mnt/d**: this time verified immediately via grep — okay.
+  But heredoc appends to test files can duplicate files on aborted terminals:
+  always grep -c helper symbols before committing.
 
-### Avoid These Mistakes (2026-09-24, Codebase-Review)
-- **Session-Registry-Muster**: create-on-unknown-POST + Registry-Eintrag nur in
-  `onsessioninitialized` erzeugt reaper-blinde Orphans (in insight UND
-  clear-thought identisch vorhanden). Praevention: non-initialize-Requests ohne
-  Session-Header early-rejecten (body.method-Pruefung) oder Session sofort mit
-  pending-State registrieren. Beim Review nach `onsessioninitialized` +
-  `sessions.set` greppen.
-- **Branch-Disziplin: BRANCH VOR DEM ERSTEN COMMIT anlegen** (2x in dieser
-  Session direkt auf develop committet — jeweils per reset --mixed repariert,
-  aber vermeidbar). Regel: nach `git checkout -b feature/...` als ALLERERSTER
-  Schritt erst committen, dann weiterarbeiten; nie `git commit` ausführen,
-  ohne den Branch-Namen im Prompt-Prefix geprüft zu haben.
-- **Commit-/Memory-bank-Behauptungen grep-verifizieren**: „dbg-Logs entfernt"
-  (c22585a) war unvollstaendig — 1 [dbg] verblieb in src L132. Behauptungen ueber
-  abgeschlossene Bereinigungen nie trauen, immer selbst zaehlen.
-- **Deprecation braucht npm deprecate**: README-Hinweis allein verhindert
-  Installation nicht (package.json hat kein deprecated-Feld). Zusatzfalle:
-  `app.listen(PORT)` ohne Host-Arg bindet 0.0.0.0 — Loopback-Default immer
-  explizit setzen.
+### Avoid These Mistakes (2026-09-24, codebase review)
+- **Session registry pattern**: create-on-unknown-POST + registry entry only in
+  `onsessioninitialized` produces reaper-blind orphans (present identically in
+  insight AND clear-thought). Prevention: early-reject non-initialize requests
+  without a session header (body.method check) or register the session
+  immediately with a pending state. During reviews grep for
+  `onsessioninitialized` + `sessions.set`.
+- **Branch discipline: CREATE THE BRANCH BEFORE THE FIRST COMMIT** (2x in this
+  session committed directly on develop — each repaired via reset --mixed,
+  but avoidable). Rule: after `git checkout -b feature/...` commit FIRST as
+  the very first step, then continue working; never run `git commit` without
+  having checked the branch name in the prompt prefix.
+- **Grep-verify commit/memory-bank claims**: "dbg logs removed" (c22585a) was
+  incomplete — 1 [dbg] remained in src L132. Never trust claims about
+  completed cleanups, always count yourself.
+- **Deprecation needs npm deprecate**: a README note alone does not prevent
+  installation (package.json has no deprecated field). Additional trap:
+  `app.listen(PORT)` without a host argument binds 0.0.0.0 — always set the
+  loopback default explicitly.
 
-### Experience Memory Capture (2026-09-24, Review-Batches)
-6 validierte Lessons über `experience_seed_lessons` in den laufenden
-insight-Server (HTTP :3002, scope `thinking-mcp-lessons`) geseedet und per
-`experience_search` round-trip-verifiziert (6/6, tier PARTIALLY_VERIFIED):
+### Experience Memory Capture (2026-09-24, review batches)
+6 validated lessons seeded via `experience_seed_lessons` into the running
+insight server (HTTP :3002, scope `thinking-mcp-lessons`) and round-trip
+verified via `experience_search` (6/6, tier PARTIALLY_VERIFIED):
 session-registry-orphan-pattern, verify-cleanup-claims-by-grep,
 yarn-lockfile-format-mismatch, env-port-string-2arg-listen,
 validation-throw-swallowed-by-catch, fts5-bare-operators-survive-sanitization.
-Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
+Contents identical to the entries above (batch lessons).
 
-### Avoid These Mistakes (2026-09-24, Batch B/C+D)
-- **Validierungs-Throws nicht in allgemeine Catch-Blöcke legen**: Der neue
-  Malformed-Hash-Error in `evidence/store.ts pathFor()` wurde anfangs vom
-  Read-Miss-Catch in `read()` verschluckt („Artifact content not found") —
-  der Test mit genauer MessageAssertion hat es sofort aufgedeckt. Regel:
-  pfad-/inputvalidierung VOR try-Blöcken auflösen; Tests auf die konkrete
-  Fehlermeldung, nicht nur „wirft irgendwas".
-- **Lockfile-Format-Konflikt schläft im Repo**: v1-Format + yarn@4-Pin fiel
-  nicht auf, weil test.yml nicht bei develop-Pushes läuft. Bei CI-Problemen
-  erst die Trigger-Matrix prüfen, bevor man „CI grün" als Beweis zitiert.
-- **listen(port)-String-Falle (2. Vorkommnis!)**: `process.env.PORT` ist ein
-  String — der 1-Arg-Overload von `app.listen` schluckt das, aber beim
-  Nachziehen des Host-Arguments (2-Arg-Overload) knallt TS2769. insight hatte
-  den identischen Bug (+ Fix-Kommentar dort). Regel: `Number(process.env.PORT)`
-  von Anfang an; IMMER `tsc`/`yarn build` für jeden getouchten Server laufen
-  lassen — vitest (esbuild) typecheckt NICHT und ist kein Build-Ersatz.
-- **MCP SDK Client-Transport heißt anders als das Server-Pendant**: Server:
-  `StreamableHTTPServerTransport` (server/streamableHttp.js) — Client:
-  `StreamableHTTPClientTransport` (client/streamableHttp.js), NICHT
-  `StreamableClientTransport`. Der Name ist erst zur Laufzeit weggebrochen
-  („is not a constructor"), weil vitest/esbuild nicht typecheckt. Regel: bei
-  neuen SDK-Importen Klassenname per Blick in die SDK-D.ts verifizieren.
-- **Node-Toolchain in WSL ist nur in interaktiven Shells auf PATH**: `wsl.exe
-  bash -c` lädt nvm nicht (nvm sitzt in .bashrc). Direkter Pfad:
-  `export PATH=$HOME/.nvm/versions/node/v24.16.0/bin:$PATH` mit `\$`-Escaping —
-  das Windows-seitige sh interpoliert `$VAR` sonst VOR wsl.exe. Workspaces
-  hoisten vitest/tsc ins Repo-Root (`node_modules/.bin/vitest` dort aufrufen).
-- **ECONNREFUSED beweist kein Timeout-Wiring**: Ein Test gegen einen
-  Verbindung-verwerfenden Port (z.B. 127.0.0.1:9) schlägt sofort mit
-  ECONNREFUSED fehl — nie über den Timeout-Pfad. Um Handshake-/Request-Timeouts
-  zu verdrahten, braucht es einen HANGING Transport (im Test über den
-  useTransport-Seam: start() never resolves). Erst dann zeigt elapsed<5s bei
-  Default 10s, dass der per-Call-Timeout wirklich greift.
+### Avoid These Mistakes (2026-09-24, batch B/C+D)
+- **Do not put validation throws into general catch blocks**: the new
+  malformed-hash error in `evidence/store.ts pathFor()` was initially
+  swallowed by the read-miss catch in `read()` ("Artifact content not found")
+  — the test with an exact message assertion exposed it immediately. Rule:
+  resolve path/input validation BEFORE try blocks; test for the concrete
+  error message, not just "throws something".
+- **Lockfile format conflict sleeps in the repo**: v1 format + yarn@4 pin did
+  not surface because test.yml does not run on develop pushes. With CI
+  problems first check the trigger matrix before citing "CI green" as proof.
+- **listen(port) string trap (2nd occurrence!)**: `process.env.PORT` is a
+  string — the 1-arg overload of `app.listen` swallows that, but when adding
+  the host argument afterwards (2-arg overload) TS2769 strikes. insight had
+  the identical bug (+ fix comment there). Rule: `Number(process.env.PORT)`
+  from the start; ALWAYS run `tsc`/`yarn build` for every touched server —
+  vitest (esbuild) does NOT typecheck and is not a build replacement.
+- **MCP SDK client transport is named differently than the server counterpart**:
+  server: `StreamableHTTPServerTransport` (server/streamableHttp.js) — client:
+  `StreamableHTTPClientTransport` (client/streamableHttp.js), NOT
+  `StreamableClientTransport`. The name only broke at runtime
+  ("is not a constructor") because vitest/esbuild does not typecheck. Rule:
+  verify class names of new SDK imports by looking into the SDK .d.ts.
+- **Node toolchain in WSL is only on PATH in interactive shells**: `wsl.exe
+  bash -c` does not load nvm (nvm sits in .bashrc). Direct path:
+  `export PATH=$HOME/.nvm/versions/node/v24.16.0/bin:$PATH` with `\$` escaping —
+  otherwise the Windows-side sh interpolates `$VAR` BEFORE wsl.exe. Workspaces
+  hoist vitest/tsc into the repo root (call `node_modules/.bin/vitest` there).
+- **ECONNREFUSED proves no timeout wiring**: a test against a
+  connection-refusing port (e.g. 127.0.0.1:9) fails immediately with
+  ECONNREFUSED — never via the timeout path. To wire handshake/request
+  timeouts you need a HANGING transport (in the test via the
+  useTransport seam: start() never resolves). Only then does elapsed<5s at
+  default 10s show that the per-call timeout really bites.
 
 ## Avoid These Mistakes
-- **requestId reuse an Guidance-Submit-Tools:** submit_plan_review/submit_plan/submit_understanding mit bereits registrierter requestId geben still `accepted: true` zurück (idempotenter Replay des gecachten Results, WorkflowEngine.submitLocked L1617) OHNE den Phase-Advance auszulösen → Agent stolpert in eine Retry-Schleife (3× akzeptiert, Phase wechselt nie). Preventive: (1) pro Phase-Submission IMMER eine frische requestId (`req-<phase>-<purpose>-<n>`); (2) `accepted:true` + unveränderte currentPhase ist ein Signal, NICHT ein Retry-Trigger — erst get_workflow_state (requestIds: previousPhase ≠ currentPhase = Request hat schon gewirkt) und get_current_guidance (requiredActions/operations) prüfen; (3) Server-seitig: Replay-Result mit `replayed:true` markieren (siehe remaining-work-plan Hardening-Plan).
-- **sed -i auf CRLF-Dateien (Windows-Checkout):** `sed -i` rewrote komplette Datei (132/132 Zeilen im Diff) statt nur der gematchten Zeile — Zeilenenden wurden normalisiert. Preventive: edits in CRLF-Dateien mit `perl -pi -e` (erhält \r) oder `edit_file`-Tool; danach immer `git diff --stat` auf Zeilenzahl-Plausibilität prüfen.
+- **requestId reuse on guidance submit tools:** submit_plan_review/submit_plan/submit_understanding with an already registered requestId silently return `accepted: true` (idempotent replay of the cached result, WorkflowEngine.submitLocked L1617) WITHOUT triggering the phase advance → the agent stumbles into a retry loop (3× accepted, phase never changes). Preventive: (1) ALWAYS use a fresh requestId per phase submission (`req-<phase>-<purpose>-<n>`); (2) `accepted:true` + unchanged currentPhase is a signal, NOT a retry trigger — first check get_workflow_state (requestIds: previousPhase ≠ currentPhase = the request already took effect) and get_current_guidance (requiredActions/operations); (3) server-side: mark replay results with `replayed:true` (see the remaining-work-plan hardening plan).
+- **sed -i on CRLF files (Windows checkout):** `sed -i` rewrote the whole file (132/132 lines in the diff) instead of only the matched line — line endings were normalized. Preventive: edit CRLF files with `perl -pi -e` (preserves \r) or the `edit_file` tool; afterwards always check `git diff --stat` for line-count plausibility.
 
-## 2026-09-27: specs/011 — Latente Adopt-Bugs erst durch echten e2e sichtbar
-- generateFiles-Unit-Tests prüften nur die generierten Strings, nie loadConfig/Workflow-Boot. Dadurch überlebten 2 Bugs aus 009 unentdeckt: (1) mainConfigSchema hatte additionalProperties:false und kein "adoption"-Property → jede adopt-Config scheiterte am Config-Load; (2) Insight-Erkennung hing am Op-Namen "capture-session-lessons", das Template heute "store-completion-insight" heißt. Preventive: Generator-Änderungen immer mit einem e2e (generate → auf Disk schreiben → composeApplication → startWorkflow) absichern; namensbasierte Erkennungen (Op-IDs) als geteilte Konstante führen statt String-Literalen zu duplizieren.
+## 2026-09-27: specs/011 — latent adopt bugs only became visible through a real e2e
+- generateFiles unit tests only checked the generated strings, never loadConfig/workflow boot. Two bugs from 009 therefore survived undetected: (1) mainConfigSchema had additionalProperties:false and no "adoption" property → every adopt config failed at config load; (2) insight detection hung on the op name "capture-session-lessons", while the template today is called "store-completion-insight". Preventive: always secure generator changes with an e2e (generate → write to disk → composeApplication → startWorkflow); introduce name-based detections (op IDs) as a shared constant instead of duplicating string literals.
 
-## 2026-09-28: Guidance-Phase-Advance hängt an frischem requestId (Niyama session-46a43aeb)
-- **Issue:** Niyama-Agent steckte 3 Submissions lang in `review_and_adjust_plan`, obwohl jede `submit_plan_review`-Antwort `accepted: true` war. **Root cause:** dieselbe requestId (`req-plan-v2-impl-c0c1`) wiederverwendet — `WorkflowEngine.submitLocked` replays still das gecachte Result (das den Transition plan→review bereits ausgelöst hatte); ein Phase-Advance passiert nur bei NEUER requestId. **Fix:** Resubmission mit frischer requestId (`req-plan-review-adjusted-c0c1`) → Phase sofort `implement`. **Preventive:** siehe Avoid-These-Mistakes-Eintrag oben; Regel zusätzlich in die Config-Assistant-Templates (examples/default-guidance/responses-wisdom.json) und Server-Hardening (duplicate-marker) eingebracht.
+## 2026-09-28: Guidance phase advance depends on a fresh requestId (Niyama session-46a43aeb)
+- **Issue:** the Niyama agent was stuck in `review_and_adjust_plan` for 3 submissions although every `submit_plan_review` response was `accepted: true`. **Root cause:** the same requestId (`req-plan-v2-impl-c0c1`) reused — `WorkflowEngine.submitLocked` silently replays the cached result (which had already triggered the plan→review transition); a phase advance only happens with a NEW requestId. **Fix:** resubmission with a fresh requestId (`req-plan-review-adjusted-c0c1`) → phase immediately `implement`. **Preventive:** see the Avoid-These-Mistakes entry above; rule also added to the config assistant templates (examples/default-guidance/responses-wisdom.json) and server hardening (duplicate marker).
 
-## 2026-09-28: Zustandslose HTTP-Server können Verbindungsstatus nicht im RAM führen
-- **Issue:** `get_downstream_status` meldete dauerhaft "disconnected", obwohl alle Downstream-Server lebendig waren und Calls erfolgreich liefen. **Root cause:** Der guidance-HTTP-Endpoint baut pro Request einen frischen WorkflowEngine+ClientManager (server.ts: "Stateless streamable HTTP: fresh server+transport per request") — in-memory Verbindungsstatus wird nach jedem Request verworfen, das Tool fällt auf den Default "disconnected" zurück. **Preventive:** (1) Observability-Tools dürfen nie aus per-Request-Konstrukt-Zustand lesen — Status entweder aus persistierten Metriken oder via on-demand Probe ermitteln. (2) Bei der Diagnose "Status tool sagt X, aber Calls funktionieren": zuerst klären, ob das Tool pro Request einen frischen Kontext bekommt, bevor Transport-/Netzwerk-Ursachen verfolgt werden. (3) Ein "forced first use" über eine stale Session-ID beweist nichts — `session_not_found` schlägt still fehl, bevor ensureReady jemals läuft; immer die Run-Operation-Response prüfen und get_metrics gegenprüfen.
+## 2026-09-28: Stateless HTTP servers cannot keep connection state in RAM
+- **Issue:** `get_downstream_status` permanently reported "disconnected" although all downstream servers were alive and calls ran successfully. **Root cause:** the guidance HTTP endpoint builds a fresh WorkflowEngine+ClientManager per request (server.ts: "Stateless streamable HTTP: fresh server+transport per request") — in-memory connection state is discarded after every request, the tool falls back to the default "disconnected". **Preventive:** (1) observability tools must never read from per-request construct state — determine status either from persisted metrics or via an on-demand probe. (2) When diagnosing "status tool says X, but calls work": first clarify whether the tool gets a fresh context per request before pursuing transport/network causes. (3) A "forced first use" via a stale session ID proves nothing — `session_not_found` fails silently before ensureReady ever runs; always check the run-operation response and cross-check get_metrics.
 
-## 2026-09-28: Git-Worktrees + Windows/WSL-Split
-- **Issue:** In einem Windows-gecheckten Worktree (.git = Datei mit 'gitdir: D:/...') scheitern WSL-git und Gate-Scripts: WSL-git kann den Windows-Pfad nicht folgen; check-final-review/check-index-freshness resolvieren den Pointer falsch; Tests, die .git/HEAD direkt lesen, brechen mit ENOTDIR. **Fix (GDS-5):** Pointer-Resolution mit Kandidatenliste (POSIX-relativ, /mnt/<drive>, /workspace/<rest>, /workspaces/<name>), commondir für packed-refs UND loose refs prüfen; im Test-Helper dieselbe Logik. **Preventive:** Neuer Code darf nie .git/HEAD direkt lesen — immer über die Pointer-Auflösung; Worktree-Regel ist jetzt instructions.global.
-- **Issue:** npm-Install im Guidance-Container (NODE_ENV=production) überspringt devDependencies → Build-Gate exit 127 (tsc not found). **Preventive:** container-seitig `npm install --include=dev`; Worktree-Workflows müssen die Dep-Installation als ersten Schritt einplanen.
+## 2026-09-28: Git worktrees + Windows/WSL split
+- **Issue:** in a Windows-checked-out worktree (.git = file with 'gitdir: D:/...') WSL git and gate scripts fail: WSL git cannot follow the Windows path; check-final-review/check-index-freshness resolve the pointer wrongly; tests that read .git/HEAD directly break with ENOTDIR. **Fix (GDS-5):** pointer resolution with a candidate list (POSIX-relative, /mnt/<drive>, /workspace/<rest>, /workspaces/<name>), check commondir for packed refs AND loose refs; the same logic in the test helper. **Preventive:** new code must never read .git/HEAD directly — always via the pointer resolution; the worktree rule is now instructions.global.
+- **Issue:** npm install in the guidance container (NODE_ENV=production) skips devDependencies → build gate exit 127 (tsc not found). **Preventive:** container-side `npm install --include=dev`; worktree workflows must plan the dep installation as the first step.
 
-## 2026-09-29 — Guidance-Testsuite: Last-Flakiness (WSL /mnt/d)
-- **Issue:** server-guidance-Vollläufe zeigten unter Last 2-4 Fehler (teils mit
-  variierender Datei-/Testanzahl), saubere Wiederholungsläufe 437/437 grün.
-- **Root cause:** IO/CPU-Last auf /mnt/d (9p) verlängert collect-Phasen drastisch
-  (66-167s) und kippt timing-sensible Tests — nicht inhaltsbezogen.
-- **Preventive measure:** Bei Suite-Fehlern immer einen sauberen Volllauf als
-  Zweitlese vor der Fehleranalyse fahren; Fehler nur werten, wenn sie in einem
-  unlasteten Lauf reproduzieren (Baseline-aware, konsequent auf Vollläufe
-  ausgeweitet). Vollläufe möglichst mit geminderter Parallelität oder auf
-  ext4-Worktree ausführen.
+## 2026-09-29 — Guidance test suite: load flakiness (WSL /mnt/d)
+- **Issue:** server-guidance full runs showed 2-4 errors under load (partly with
+  varying file/test counts), clean repeat runs 437/437 green.
+- **Root cause:** IO/CPU load on /mnt/d (9p) drastically lengthens collect
+  phases (66-167s) and tips timing-sensitive tests — not content-related.
+- **Preventive measure:** with suite errors always run a clean full run as a
+  second reading before the error analysis; only count errors if they
+  reproduce in an unloaded run (baseline-aware, consistently extended to
+  full runs). Run full runs preferably with reduced parallelism or on an
+  ext4 worktree.
 
-### RID-Reuse-Stall bei Phasen-Submissions (bestätigt 2026-09-29, WC-1-Session)
-- **Issue:** `submit_verification` lief in einen Context-Server-Timeout; der
-  Retry mit GLEICHER requestId hätte den bekannten requestId-Reuse-Stall
-  (Lesson 2026-09-28, session-46a43aeb) ausgelöst.
-- **Why it failed:** Phasen-Submissions sind requestId-keyed — gleiche ID nach
-  Timeout wirkt wie Duplikat/Replay; unterschiedliche Payloads ⇒ payloadMismatch.
-- **Preventive measure:** Nach Timeout einer Phasen-Submission IMMER mit neuem
-  requestId retryen (Submissions sind pro Phase mit frischer ID idempotent);
-  bei `invalid_active_phase: expected X, got Y` ist die erste Submission
-  trotzdem angekommen — Status prüfen statt erneut submitieren.
-- **Beobachtet:** Genau dieses Muster trat auf (Retry fresh-ID →
-  `invalid_active_phase: expected complete, got verify`) — erste Submission
-  hatte die Phase bereits gewechselt. Kein Datenverlust.
+### RID reuse stall on phase submissions (confirmed 2026-09-29, WC-1 session)
+- **Issue:** `submit_verification` ran into a context server timeout; the
+  retry with the SAME requestId would have triggered the known
+  requestId-reuse stall (lesson 2026-09-28, session-46a43aeb).
+- **Why it failed:** phase submissions are requestId-keyed — the same ID after
+  a timeout acts like a duplicate/replay; different payloads ⇒ payloadMismatch.
+- **Preventive measure:** after a timeout of a phase submission ALWAYS retry
+  with a new requestId (submissions are idempotent per phase with a fresh ID);
+  on `invalid_active_phase: expected X, got Y` the first submission still
+  arrived — check the status instead of submitting again.
+- **Observed:** exactly this pattern occurred (retry fresh-ID →
+  `invalid_active_phase: expected complete, got verify`) — the first
+  submission had already changed the phase. No data loss.
 
-### Verify-Gate-Fails im Container sind umweltbedingt — State prüfen statt retryen (bestätigt 2026-09-30, CT-1-Session)
-- **Issue:** submit_verification lief 2× in Client-Timeouts; danach zeigte der
-  State: Submission AKZEPTIERT, Phase advanced — aber Gates lint/test
-  serverseitig failed (exit 1). Beinahe Fehlinterpretation als Diff-Regression.
-- **Why it failed:** (a) Der Guidance-Container führt die Gates am Repo-Root
-  ohne Linux-native node_modules aus → prettier/root-workspaces-Tests failen
-  umweltbedingt (beide required:false, Phase advanced trotzdem); (b) die
-  Gate-Ausführung (Vollauf-Suite, ~80 s+) sprengt das Client-MCP-Timeout —
-  der Client timeoutet, der Server arbeitet weiter.
-- **Preventive measure:** Vor submit_verification: prettier --check auf
-  servers/*/src lokal (WSL) ausführen — der Gate prüft genau das. Nach
-  Client-Timeout: get_workflow_state prüfen (nie blind retryen, RID-Lesson).
-  Gate-Fails gegen den lokalen WSL-Referenzlauf abgleichen: lokaler Lauf
-  grün + Container-Fail ⇒ umweltbedingt (GATE-1/DB-1-Kontext), nicht
-  Diff-Regression. Authoritative Testroute bleibt WSL
-  (npm test in servers/server-guidance), Container-Gates erst nach
-  deps-install (DB-1-Rest) als verbindlich behandeln.
+### Verify gate failures in the container are environmental — check the state instead of retrying (confirmed 2026-09-30, CT-1 session)
+- **Issue:** submit_verification ran into client timeouts 2×; afterwards the
+  state showed: submission ACCEPTED, phase advanced — but the gates lint/test
+  failed server-side (exit 1). Almost misinterpreted as a diff regression.
+- **Why it failed:** (a) the guidance container runs the gates at the repo
+  root without Linux-native node_modules → prettier/root-workspaces tests
+  fail environmentally (both required:false, phase advanced anyway); (b)
+  gate execution (full suite run, ~80 s+) breaks the client MCP timeout —
+  the client times out, the server keeps working.
+- **Preventive measure:** before submit_verification: run prettier --check on
+  servers/*/src locally (WSL) — the gate checks exactly that. After a
+  client timeout: check get_workflow_state (never blindly retry, RID
+  lesson). Match gate failures against the local WSL reference run: local
+  run green + container fail ⇒ environmental (GATE-1/DB-1 context), not a
+  diff regression. The authoritative test route remains WSL
+  (npm test in servers/server-guidance); treat container gates as binding
+  only after deps-install (DB-1 rest).
 
-### 2026-09-30 — Guidance-Container-Start-Crash: falscher /workspaces-Mount an einem veralteten Container (EACCES)
-- **Issue:** Der Guidance-Container crashete beim Start mit `Error: EACCES:
+### 2026-09-30 — Guidance container start crash: wrong /workspaces mount on a stale container (EACCES)
+- **Issue:** the guidance container crashed at start with `Error: EACCES:
   permission denied, mkdir '/workspaces/.guidance'` (scaffold.js →
-  ensureConfiguration). `D:\repos\.guidance` existierte auf dem Host nicht;
-  ein Isoliertest mit dem korrekten Mount (`docker run --user node -v
-  D:/repos:/workspaces ...`) zeigte: Mount ist `drwxrwxrwx`, mkdir als `node`
-  funktioniert.
-- **Root cause:** Der laufende Container war NICHT aus den aktuellen
-  Compose-Dateien erzeugt: `docker inspect` zeigte `bind /mnt ->
-  /workspaces` (das root-gehörige `/mnt` der Docker-VM, `drwxr-xr-x`) plus
-  ein Relikt-Volume `/workspace` — vermutlich aus einer früheren/WSL-seitigen
-  Erzeugung mit falsch aufgelöstem Pfad. `USER node` darf dort nicht
-  anlegen → EACCES. `docker compose config` im Compose-Verzeichnis löste
-  korrekt auf (`D:\repos -> /workspaces`).
-- **Fix:** `docker compose up -d --force-recreate` aus
-  `servers/server-guidance` → Scaffold legt `D:\repos\.guidance` sauber an,
-  `/health` liefert `configured:true, reachable:true`. Alt-Container mit
-  `docker rm -v` entfernt.
-- **Preventive measure:** Container-Start via `docker compose up -d` aus
-  `servers/server-guidance` ODER aus der Repo-Wurzel (Root-Compose startet
-  alle drei Server) — Mount-Auflösung beider Files im Sync halten
-  (Root: `../`, Server: `../../../`); bei Startup-EACCES zuerst `docker inspect
-  <name>` (Mounts/User) gegen `docker compose config` abgleichen, bevor
-  Permission-/Code-Ursachen verfolgt werden. Regel in AGENTS.md
-  (Guidance-Sektion) dokumentiert.
+  ensureConfiguration). `D:\repos\.guidance` did not exist on the host;
+  an isolated test with the correct mount (`docker run --user node -v
+  D:/repos:/workspaces ...`) showed: the mount is `drwxrwxrwx`, mkdir as
+  `node` works.
+- **Root cause:** the running container was NOT created from the current
+  compose files: `docker inspect` showed `bind /mnt ->
+  /workspaces` (the Docker VM's root-owned `/mnt`, `drwxr-xr-x`) plus a
+  relic volume `/workspace` — presumably from an earlier/WSL-side creation
+  with a wrongly resolved path. `USER node` may not create there → EACCES.
+  `docker compose config` in the compose directory resolved correctly
+  (`D:\repos -> /workspaces`).
+- **Fix:** `docker compose up -d --force-recreate` from
+  `servers/server-guidance` → the scaffold creates `D:\repos\.guidance`
+  cleanly, `/health` returns `configured:true, reachable:true`. The old
+  container was removed with `docker rm -v`.
+- **Preventive measure:** container start via `docker compose up -d` from
+  `servers/server-guidance` OR from the repo root (the root compose starts
+  all three servers) — keep the mount resolution of both files in sync
+  (root: `../`, server: `../../../`); on startup EACCES first compare
+  `docker inspect <name>` (mounts/user) against `docker compose config`
+  before pursuing permission/code causes. Rule documented in AGENTS.md
+  (guidance section).
 
-### 2026-09-30 — Falsy-Checks genügen nicht bei Config-Objekten; Gate-Fails im Container sind umweltbedingt (Chain-Läufe CT/WW/WC)
-- **Issue 1:** Der erste WC-1-CT-1-Guard prüfte nur Falsiness von
-  `config.workflow` — ein truthy-leeres Objekt (workflow: {} ohne file)
-  wäre durchgerutscht und hätte den TypeError-Crash behalten.
-  **Preventive:** Bei Config-Objekten auf die benötigte STRUKTUR prüfen
-  (z. B. workflow.id/initialPhase), nicht auf Falsiness; Present-but-empty
-  immer als Testfall aufnehmen.
-- **Issue 2:** Vollauf-Suite failte 2× mit Timeout-Flakes (metrics/engine,
-  30-s-Limit) obwohl der Diff unrelated war.
-  **Preventive:** Fokussierte Re-Runs der betroffenen Dateien vor jeder
-  Regressionseinschätzung (Baseline-aware, AGENTS.md); Flakes als
-  umweltbedingt labeln, nicht fixen.
-- **Issue 3 (Prozess):** Massen-Parallel-Reads einer großen Datei führen zu
-  Abbrüchen und Token-Verschwendung. **Preventive:** Gezielte Edits aus
-  bereits bekannten Code-Stellen; ein gelesener Ausschnitt reicht — nicht
-  dieselbe Datei in Dutzenden Window-Reads erneut anfassen.
+### 2026-09-30 — Falsy checks are not enough for config objects; gate failures in the container are environmental (chain runs CT/WW/WC)
+- **Issue 1:** the first WC-1-CT-1 guard only checked falsiness of
+  `config.workflow` — a truthy-empty object (workflow: {} without file)
+  would have slipped through and kept the TypeError crash.
+  **Preventive:** for config objects check the required STRUCTURE
+  (e.g. workflow.id/initialPhase), not falsiness; always include
+  present-but-empty as a test case.
+- **Issue 2:** the full suite failed 2× with timeout flakes (metrics/engine,
+  30-s limit) although the diff was unrelated.
+  **Preventive:** focused re-runs of the affected files before every
+  regression assessment (baseline-aware, AGENTS.md); label flakes as
+  environmental, don't fix them.
+- **Issue 3 (process):** mass parallel reads of a large file lead to aborts
+  and token waste. **Preventive:** targeted edits from already known code
+  locations; one read excerpt suffices — do not touch the same file again
+  in dozens of window reads.
 
-## 2026-10-01 — Guidance-Completion: First-Try grün fahren, Retry finalisiert nicht (GDS-6)
-- **Issue:** Nach Hook-Fehlschlag bei complete_workflow (z.B. index-freshness mtime-Race) und erfolgreichem retry_operation bleibt die Session in status=active/phase=completed stecken — kein Terminal-Übergang, kein Audit, kein Chain-Successor; erneutes complete_workflow → invalid_active_phase.
-- **Root cause:** Finalisierung (Terminal-Transition + Successor-Erzeugung) läuft nur im ersten complete_workflow-Pfad; der Retry-Pfad führt nur die Operationen aus.
-- **Preventive measure:** Vor complete_workflow ALLE Gates lokal vorab prüfen (check-final-review.mjs, check-index-freshness.mjs, docs-drift) und `gitnexus analyze --no-stats --force` als LETZTEN Schritt vor dem Completion-Call fahren (plain analyze short-circuitet „already up to date" ohne mtime-Refresh). Bei eingefrorener Session: canceln + frische Session statt Retry-Schleife.
+## 2026-10-01 — Guidance completion: drive it green on the first try, a retry does not finalize (GDS-6)
+- **Issue:** after a hook failure at complete_workflow (e.g. index-freshness mtime race) and a successful retry_operation, the session stays stuck in status=active/phase=completed — no terminal transition, no audit, no chain successor; a repeated complete_workflow → invalid_active_phase.
+- **Root cause:** finalization (terminal transition + successor creation) only runs in the first complete_workflow path; the retry path only executes the operations.
+- **Preventive measure:** before complete_workflow pre-check ALL gates locally (check-final-review.mjs, check-index-freshness.mjs, docs-drift) and run `gitnexus analyze --no-stats --force` as the LAST step before the completion call (plain analyze short-circuits "already up to date" without an mtime refresh). With a frozen session: cancel + fresh session instead of a retry loop.
 
-## 2026-10-01 — Dual-GITNEXUS_HOME (WSL-Index vs. gitnexus-server-Container)
-- **Issue:** guidance repository-analysis-Gate fragt den Container-gitnexus (:4747) ab; dessen Registry kennt das WSL-indexierte Repo nicht („No indexed repositories") bzw. „foreign" bei geteiltem .gitnexus (unterschiedliche repoPath: /mnt/d/... vs /workspace).
-- **Fix (arbeitshaft):** Container mit Repo-Mount /workspace + `GITNEXUS_STORAGE_PATH=/data/gitnexus/index-thinking-mcp gitnexus analyze /workspace --no-stats` (eigenes Duplikat-Index im Volume); zusätzlich `git config --global --add safe.directory /workspace` im Container und MSYS_NO_PATHCONV=1 bei docker exec aus Git-Bash (sonst Pfad-Verstümmelung C:/Program Files/Git/...).
-- **Offen:** Dauerhafte Verankerung als compose-env (GDS-7) — nur außerhalb von Guidance-Sessions ändern.
+## 2026-10-01 — Dual GITNEXUS_HOME (WSL index vs. gitnexus-server container)
+- **Issue:** the guidance repository-analysis gate queries the container gitnexus (:4747); its registry does not know the WSL-indexed repo ("No indexed repositories") or reports "foreign" with a shared .gitnexus (different repoPath: /mnt/d/... vs /workspace).
+- **Fix (workable):** container with repo mount /workspace + `GITNEXUS_STORAGE_PATH=/data/gitnexus/index-thinking-mcp gitnexus analyze /workspace --no-stats` (its own duplicate index in the volume); additionally `git config --global --add safe.directory /workspace` in the container and MSYS_NO_PATHCONV=1 on docker exec from Git Bash (otherwise path mangling C:/Program Files/Git/...).
+- **Open:** permanent anchoring as compose env (GDS-7) — only change outside guidance sessions.
 
-## 2026-10-01 — Handgeschriebene JSON-RPC-Payloads über file+curl: fehlende/überzählige schließende Klammern
-- **Issue:** Große Guidance-Submissions (submit_understanding/submit_plan) als handgeschriebenes JSON via write_file + curl: zweimal Syntax-/Bad-Request-Fehler durch falsche Klammerbilanz am Dateiende (depth ±1) — parse errors auf Serverseite waren nicht diagnostizierbar (nur HTTP 400).
-- **Fix:** Vor jedem POST Klammer-Tiefe (String-aware Scanner) + JSON.parse in WSL prüfen; ab dem zweiten Vorfall die Payload mit einem Node-Builder-Script konstruiert (JS-Objekt-Literal → JSON.stringify) — deterministisch korrekt.
-- **Preventive measure:** Für Guidance-HTTP-Submissions NIEMALS hand-escapen: immer Builder-Script oder mindestens depth-Scan vor dem POST; bei HTML "Bad Request" zuerst JSON-Validität des Bodies prüfen, nicht die Server-Logik verdächtigen.
+## 2026-10-01 — Handwritten JSON-RPC payloads via file+curl: missing/superfluous closing brackets
+- **Issue:** large guidance submissions (submit_understanding/submit_plan) as handwritten JSON via write_file + curl: twice syntax/bad-request errors from wrong bracket balance at the end of the file (depth ±1) — parse errors on the server side were not diagnosable (only HTTP 400).
+- **Fix:** before every POST check bracket depth (string-aware scanner) + JSON.parse in WSL; from the second occurrence onwards construct the payload with a Node builder script (JS object literal → JSON.stringify) — deterministically correct.
+- **Preventive measure:** NEVER hand-escape guidance HTTP submissions: always use a builder script or at least a depth scan before the POST; on an HTML "Bad Request" first check the JSON validity of the body, don't suspect the server logic.
 
-## 2026-10-01 — Composite firstAvailable stoppt beim ersten Erfolg (deps-reinstall Design-Falle)
-- **Issue:** deps-reinstall als 2-Step-Composite (rm node_modules → npm install) modelliert: firstAvailable liefert nach dem ERFOLGREICHEN rm-Step zurück — npm install läuft nie; via-Label zeigte fälschlich den Clean-Step.
-- **Fix:** deps-reinstall als einzelner process-Step (node -e: rmSync + spawnSync npm install, exit propagate).
-- **Preventive measure:** Composite-strategies kennen: sequential/firstAvailable sind ODER-Verknüpfungen (Alternativen), keine sequentiellen Pipelines — jede Step-Kette mit "erst X, dann Y"-Semantik gehört in EINEN process-Step (sh -c / node -e) oder in einen Workflow.
+## 2026-10-01 — Composite firstAvailable stops at the first success (deps-reinstall design trap)
+- **Issue:** deps-reinstall modeled as a 2-step composite (rm node_modules → npm install): firstAvailable returns after the SUCCESSFUL rm step — npm install never runs; the via label wrongly showed the clean step.
+- **Fix:** deps-reinstall as a single process step (node -e: rmSync + spawnSync npm install, propagate exit).
+- **Preventive measure:** know the composite strategies: sequential/firstAvailable are OR links (alternatives), not sequential pipelines — every step chain with "first X, then Y" semantics belongs in ONE process step (sh -c / node -e) or in a workflow.
 
-## 2026-10-01 — Zero-Dependency-npm-Installs erzeugen kein node_modules
-- **Issue:** Contract-Tests für deps-Ops mit dep-freiem package.json: npm install/ci succeedet, aber existsSync(node_modules)=false — Assertion "Tree installiert" schlägt trotz Success zu.
-- **Fix:** Lokale file:-Dependency (deps/tiny) in das Fixture — npm materialisiert dann node_modules/tiny; Lockfile für den npm-ci-Test per echtem npm install generieren (handgeschriebene Lockfiles sind fragil).
-- **Preventive measure:** npm-behavior-Tests immer mit mindestens einer (lokalen) Dependency fahren; Lockfiles generieren, nicht tippen.
+## 2026-10-01 — Zero-dependency npm installs create no node_modules
+- **Issue:** contract tests for deps ops with a dependency-free package.json: npm install/ci succeeds, but existsSync(node_modules)=false — the assertion "tree installed" fails despite success.
+- **Fix:** local file: dependency (deps/tiny) into the fixture — npm then materializes node_modules/tiny; generate the lockfile for the npm-ci test via a real npm install (handwritten lockfiles are fragile).
+- **Preventive measure:** always run npm behavior tests with at least one (local) dependency; generate lockfiles, don't type them.
 
-## 2026-10-01 — gitnexus -32001 "Session not found": ClientManager re-initialisiert nicht, guidance-Sessions sind workflow-run-scoped
-- **Issue:** repository-analysis-Gate failte mit "Session not found. Re-initialize." (-32001) auf jedem Versuch: der guidance ClientManager hält die MCP-Session-ID zum gitnexus-Server (:4747) prozessintern und re-initialisiert bei -32001 NICHT (reconnect greift nur auf Transportebene). Restart des gitnexus-Servers allein hilft nicht (die ID bleibt invalide). Ein guidance-Container-Restart (gleiches Image) löst es — killt ABER alle laufenden Sessions: "sessions are workflow-run-scoped and do not survive a server restart" (der Disk-State unter .guidance/state/sessions wird beim Boot NICHT als laufende Session wiederhergestellt).
-- **Fix (arbeitshaft):** gitnexus-Server + guidance-Container neu starten (gleiches Image, kein Deploy), dann frische Session mit Replay aller Submissions.
-- **Preventive measure:** Bei -32001 auf einem Downstream-MCP: NICHT retryen (wickelt sich nicht), sondern guidance-Container neu starten und frische Session starten — Submissions vorher als Replay-Script konservieren. Guidance-Phasen-Submissions sind Text — Replay ist billig, wenn Payloads als Builder-Script vorliegen.
+## 2026-10-01 — gitnexus -32001 "Session not found": ClientManager does not re-initialize, guidance sessions are workflow-run-scoped
+- **Issue:** the repository-analysis gate failed with "Session not found. Re-initialize." (-32001) on every attempt: the guidance ClientManager holds the MCP session ID to the gitnexus server (:4747) in-process and does NOT re-initialize on -32001 (reconnect only works at the transport level). Restarting the gitnexus server alone does not help (the ID stays invalid). A guidance container restart (same image) resolves it — but kills all running sessions: "sessions are workflow-run-scoped and do not survive a server restart" (the disk state under .guidance/state/sessions is NOT restored as a running session at boot).
+- **Fix (workable):** restart the gitnexus server + guidance container (same image, no deploy), then a fresh session with a replay of all submissions.
+- **Preventive measure:** on -32001 from a downstream MCP: do NOT retry (it does not resolve itself), instead restart the guidance container and start a fresh session — preserve the submissions beforehand as a replay script. Guidance phase submissions are text — replay is cheap if the payloads exist as a builder script.
 
-## 2026-10-01 — index-freshness-Gate: Scratch-Dateien im Repo zählen als Quellen
-- **Issue:** Der index-freshness-Gate vergleicht mtimes ALLER Dateien (auch ungetrackte) gegen den gitnexus-Index. Diagnose-/Payload-Dateien im Repo (tmp/, .us2-*.txt) machten den Index bei JEDEM complete/retry-Versuch erneut stale — Schleife aus analyze → neuer Scratch → stale.
-- **Fix:** Sämtliche Session-Artefakte (Replay-Scripts, Diagnose-Outputs) ausschließlich unter /tmp (außerhalb des Repos) halten; Repo vor complete auf sauberen Tree prüfen; analyze --no-stats --force als LETZTER Schritt vor complete (plain analyze short-circuitet ohne mtime-Refresh).
-- **Preventive measure:** Wie GDS-6-Lesson, erweitert um: NIE Dateien im Repo anfassen, während eine Session in complete ist — auch keine Log-/Statusausgaben dorthin schreiben.
+## 2026-10-01 — index-freshness gate: scratch files in the repo count as sources
+- **Issue:** the index-freshness gate compares the mtimes of ALL files (including untracked ones) against the gitnexus index. Diagnostic/payload files in the repo (tmp/, .us2-*.txt) made the index stale again on EVERY complete/retry attempt — a loop of analyze → new scratch → stale.
+- **Fix:** keep all session artifacts (replay scripts, diagnostic outputs) exclusively under /tmp (outside the repo); check the repo for a clean tree before complete; analyze --no-stats --force as the LAST step before complete (plain analyze short-circuits without an mtime refresh).
+- **Preventive measure:** like the GDS-6 lesson, extended by: NEVER touch files in the repo while a session is in complete — don't even write log/status outputs there.
 
-## 2026-10-01 — DEPLOY-015 ausgeführt: Container-Gates geheilt und verschärft
-- **Issue/Fix:** Nach dem Deploy wurden deps-install/deps-reinstall in die Instanz-.guidance/operations.json übernommen (Commit 0837069), `test` auf required:true gezogen. Beim Heal (npm ci im Container) zwei Fallen: (1) better-sqlite3 braucht node-gyp → python3/make/g++ mussten per apt in den Container (root); (2) npm ≥11.19 blockiert Install-Scripts per Default → `npm install-scripts approve` + `allowScripts` in package.json (versioniert, Commit 0837069). npm hat dabei die yarn.lock zerschossen (Projekt nutzt yarn 4) → restored.
-- **Ergebnis:** lint + test Gates im Container grün (test: Root-Suite 43/43; Vollauf server-guidance bleibt WSL-authoritativ: 496 passed).
-- **Offen (DEPLOY-015b):** Build-Tools leben nur im laufenden Container — ins Image backen oder Prebuilds sicherstellen, sonst schlägt der nächste Rebuild-Reinstall fehl.
-- **Preventive measure:** npm ci in frischen Containern IMMER mit Allowlist-Check starten; nach npm-Installationsaktionen `git status` auf package.json/yarn.lock-Kollateral prüfen (npm fängt an, yarn.lock zu schreiben, wenn kein lockfile-respect greift).
+## 2026-10-01 — DEPLOY-015 executed: container gates healed and tightened
+- **Issue/Fix:** after the deploy, deps-install/deps-reinstall were adopted into the instance .guidance/operations.json (commit 0837069), `test` pulled to required:true. During the heal (npm ci in the container) two traps: (1) better-sqlite3 needs node-gyp → python3/make/g++ had to go into the container via apt (as root); (2) npm ≥11.19 blocks install scripts by default → `npm install-scripts approve` + `allowScripts` in package.json (versioned, commit 0837069). npm thereby wrecked the yarn.lock (the project uses yarn 4) → restored.
+- **Result:** lint + test gates green in the container (test: root suite 43/43; the full server-guidance run remains WSL-authoritative: 496 passed).
+- **Open (DEPLOY-015b):** the build tools live only in the running container — bake them into the image or ensure prebuilds, otherwise the next rebuild reinstall fails.
+- **Preventive measure:** ALWAYS start npm ci in fresh containers with an allowlist check; after npm installation actions check `git status` for package.json/yarn.lock collateral (npm starts writing yarn.lock when no lockfile-respect kicks in).
 
-### 2026-10-01 — DEPLOY-015b erledigt (feature/015-deploy-015b-image-tools)
-- **What works:** make + g++ in der Dockerfile-apt-Layer (node-gyp-Toolchain komplett im Image); duplizierter unbedingter dotnet-Block entfernt (INSTALL_CSHARP=false funktioniert wieder, README-Aussage stimmt). Verifiziert per `docker compose build guidance` + Throwaway-Probe: make/g++/python3 ✅, dotnet absent ✅.
-- **Lesson:** Beim Zusammenführen von Dockerfile-Abschnitten opt-in-Blöcke duplizieren sich leicht — der zweite Block lief ohne if-Guard und machte das Build-ARG wirkungslos; Image-Eigenschaften immer per Throwaway-`docker run --rm`-Probe verifizieren statt der Dockerfile zu vertrauen.
-- **Offen:** Roll-out (`docker compose up -d --force-recreate`) nach Session-Completion; danach heilt ein frischer Container native Deps ohne manuelle apt-Nacharbeit. NEU dabei entdeckt: Container-Testsuite crasht beim Worker-Teardown (DEPLOY-015c) — test-Gate zurück auf required:false, WSL bleibt autoritativ; separates Debug-Follow-up.
+### 2026-10-01 — DEPLOY-015b done (feature/015-deploy-015b-image-tools)
+- **What works:** make + g++ in the Dockerfile apt layer (node-gyp toolchain completely in the image); the duplicated unconditional dotnet block was removed (INSTALL_CSHARP=false works again, the README statement is correct). Verified via `docker compose build guidance` + throwaway probe: make/g++/python3 ✅, dotnet absent ✅.
+- **Lesson:** when merging Dockerfile sections, opt-in blocks duplicate easily — the second block ran without an if guard and made the build ARG ineffective; always verify image properties via a throwaway `docker run --rm` probe instead of trusting the Dockerfile.
+- **Open:** roll-out (`docker compose up -d --force-recreate`) after session completion; afterwards a fresh container heals native deps without manual apt rework. Newly discovered during this: the container test suite crashes during worker teardown (DEPLOY-015c) — test gate back to required:false, WSL remains authoritative; separate debug follow-up.
 
-### 2026-10-02 — Eingefrorene Config-Handles bei Boot-Wiring (session-fae2aa34)
-- **Issue:** registry_register persistierte korrekt und die Engine komponierte neu — aber start_workflow lehnte weiter mit workspace_not_registered ab; erst ein Container-Restart "fixte" es.
-- **Root cause:** Beim Boot-Wiring wurde EIN WorkspaceRegistry-Objekt in einen Tool-Closure kopiert (capture-at-boot), während die Engine dasselbe Feld bei jedem register neu zuweist (new object). Zwei Mount-Points auf "die Registry", einer davon stale — ein Alias-für-Immunität-Fehler.
-- **Preventive measure:** Niemals engine.config.<X> als Wert an langlebige Closures/Module übergeben — immer einen Provider () => engine.config.<X> reichen (oder Live-Getter am Composition-Root). Beim Neuladen von Konfiguration: grep nach allen Aliases des alten Objekts ist Teil der Root-Cause-Prüfung ("who captured this?").
+### 2026-10-02 — Frozen config handles at boot wiring (session-fae2aa34)
+- **Issue:** registry_register persisted correctly and the engine recomposed — but start_workflow still rejected with workspace_not_registered; only a container restart "fixed" it.
+- **Root cause:** during boot wiring ONE WorkspaceRegistry object was copied into a tool closure (capture-at-boot), while the engine reassigns the same field on every register (new object). Two mount points on "the registry", one of them stale — an alias-for-immunity error.
+- **Preventive measure:** never pass engine.config.<X> as a value into long-lived closures/modules — always pass a provider () => engine.config.<X> (or live getters at the composition root). When reloading configuration: grepping for all aliases of the old object is part of the root-cause check ("who captured this?").
 
-## 2026-10-03: Guidance-Chained-Workflow-Lektionen (session-b1c62520/b22053ef)
+## 2026-10-03: Guidance chained-workflow lessons (session-b1c62520/b22053ef)
 
-- **Chain-Head-Scope-Falle (WF-6):** Bei `start_workflow` mit `chain.steps` läuft die Head-Session unter dem Top-Level-Request mit EIGENEM Scope; Successors starten IMMER bei `steps[0]`. WIZ-4 wurde unter der Head-Session implementiert → der Successor trug denselben Schritt erneut (Duplikat-Zyklen drohen). **Nächstes Mal:** Head-Request als eigenständigen Scope fassen und `steps[0]` weglassen (Head = Step 1), oder unter der Head-Session NICHTS aus den steps implementieren.
-- **State-Transitions sind asynchron-lang (WF-2):** verify/complete-Hooks (lint+build, final-review, index-freshness) laufen Minuten — der MCP-Client-Timeout greift, die Transition wird aber serverseitig fertig ausgeführt. **Nächstes Mal:** Submit absetzen, dann `get_workflow_state` pollen (mit Sleep), NICHT den Original-Call retryen (Single-Flight-Lock lässt Retries ebenfalls timeouten).
-- **Gate-Reihenfolge deterministisch (WF-5):** Letzter Vitest-Lauf macht den GitNexus-Index stale (`.vite/vitest/results.json` zählt als Source). **Nächstes Mal:** Reindex (`gitnexus analyze --no-stats`, exakter Pfad) IMMER als letzte Aktion vor `complete_workflow`, nach dem letzten Testlauf.
-- **final-review-Evidenz pro Session (WF-4):** `.guidance/state/final-review.json` muss jede Session neu geschrieben werden (headCommit == HEAD, Schema in `servers/server-guidance/scripts/check-final-review.mjs`); Delta-Commits nach dem Review durch denselben Reviewer re-blessen lassen.
-- **Root-Build ist Gate-relevant (WF-3):** `npm run build --workspaces` failt auf frischen Checkouts (`tsc: not found` — keine Bins in Workspace-node_modules). **Nächstes Mal:** vor Gate-Läufen `npm install` am Root; dabei beachten: npm install kollidiert mit koexistierender `yarn.lock` (Kollateral-Änderung → revert; Zugehörigkeit klären, WF-3b).
-- **Clear-Thought-Routing (WF-1, Stand 2026-10-05):** Primärroute ist wieder der eingebaute Editor-MCP-Client (`clear_thought_*`); Fallback-Kette mit genau EINEM Versuch pro Route: Container-Route (`call_downstream` serverId clearthought bzw. reasoning-pass/ct-*) → ein direkter HTTP-JSON-RPC-Call. Nie dieselbe Route retry-en. Nach Server-Restarts/TTL-Eviction kann ein Reconnect des Clear-Thought-Context-Servers in Zed nötig sein; der serverseitige 404-Gate (stale-session fix) macht Sessions seitdem self-healing-fähig.
+- **Chain head scope trap (WF-6):** with `start_workflow` with `chain.steps`, the head session runs under the top-level request with its OWN scope; successors ALWAYS start at `steps[0]`. WIZ-4 was implemented under the head session → the successor carried the same step again (duplicate cycles loom). **Next time:** frame the head request as its own scope and omit `steps[0]` (head = step 1), or implement NOTHING from the steps under the head session.
+- **State transitions are asynchronous-long (WF-2):** verify/complete hooks (lint+build, final-review, index-freshness) run for minutes — the MCP client timeout fires, but the transition is still completed server-side. **Next time:** submit, then poll `get_workflow_state` (with sleep), do NOT retry the original call (the single-flight lock makes retries time out too).
+- **Gate order is deterministic (WF-5):** the last vitest run makes the GitNexus index stale (`.vite/vitest/results.json` counts as a source). **Next time:** reindex (`gitnexus analyze --no-stats`, exact path) ALWAYS as the last action before `complete_workflow`, after the last test run.
+- **final-review evidence per session (WF-4):** `.guidance/state/final-review.json` must be written anew for every session (headCommit == HEAD, schema in `servers/server-guidance/scripts/check-final-review.mjs`); have delta commits after the review re-blessed by the same reviewer.
+- **Root build is gate-relevant (WF-3):** `npm run build --workspaces` fails on fresh checkouts (`tsc: not found` — no bins in workspace node_modules). **Next time:** `npm install` at the root before gate runs; note: npm install collides with a coexisting `yarn.lock` (collateral change → revert; clarify ownership, WF-3b).
+- **Clear-Thought routing (WF-1, as of 2026-10-05):** the primary route is again the built-in editor MCP client (`clear_thought_*`); fallback chain with exactly ONE attempt per route: container route (`call_downstream` serverId clearthought or reasoning-pass/ct-*) → one direct HTTP JSON-RPC call. Never retry the same route. After server restarts/TTL eviction a reconnect of the Clear-Thought context server in Zed may be necessary; the server-side 404 gate (stale-session fix) has since made sessions self-healing.
 
-- **Guidance-Phasen-Reihenfolge (WIZ-1/WIZ-3, 2026-10-03):** Implementierung VOR den Phase-Submissions erzwingt retrospektives Nacherfassen (invalid_active_phase). Nächstes Mal: submit_understanding → submit_plan → submit_plan_review IMMER vor dem ersten Code-Edit; die Engine toleriert keine Reihenfolge-Abkürzungen.
-- **40-hex-Pflicht in final-review.json:** Kurze Hashes im commits-Array lassen das Gate failen (evidence.commits must be 40-hex). Nächstes Mal: ausschließlich `git rev-parse`-Vollhashes einsetzen.
+- **Guidance phase order (WIZ-1/WIZ-3, 2026-10-03):** implementing BEFORE the phase submissions forces retrospective re-capture (invalid_active_phase). Next time: submit_understanding → submit_plan → submit_plan_review ALWAYS before the first code edit; the engine tolerates no order shortcuts.
+- **40-hex requirement in final-review.json:** short hashes in the commits array make the gate fail (evidence.commits must be 40-hex). Next time: use exclusively `git rev-parse` full hashes.
 
 ### 2026-10-03 — fault_tree top-gate selection bug (silent HIGH)
 - **Issue:** fault_tree ignored its top_event parameter and evaluated the last gates-array element as the top gate — silently, even when it was a basic event (under-reported probability by ~11x in the report tree).
@@ -694,12 +695,12 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Root cause:** The running stack belongs to the ROOT docker-compose project (`thinking-mcp`, all three servers orchestrated); the member directory has its own compose file with the same published port. Recreating from the member context creates a container of a DIFFERENT project that collides with the healthy one instead of replacing it.
 - **Prevention:** Always recreate the guidance container from the repo root (`docker compose up -d --build guidance`). Before recreating, check `docker ps --format "{{.Names}}\t{{.Ports}}"` to identify the owning project by container name prefix; remove stray containers from the wrong project (`docker rm -f <name>`).
 
-## Avoid These Mistakes (2026-10-04 — spec 016 SSE/Async-Implementierung)
+## Avoid These Mistakes (2026-10-04 — spec 016 SSE/async implementation)
 
-- **Accept-Header-Signal-Falle:** Streamable HTTP verlangt auf JEDEM POST beide Accept-Typen (SDK antwortet sonst 406), bevor der Handler läuft. Ein „exklusives text/event-stream" ist protokollseitig unmöglich — SSE-Opt-in daher über `_meta.progressToken` signalisieren, nicht über den Header. (Validated lesson: guidance-sse-upgrade-keys-on-progresstoken-not-accept)
-- **Persistierte In-Flight-Registries:** Check-then-begin ohne Mutex = TOCTOU-Doppel-Ausführung; Crash ohne Boot-Stempel = permanenter in_flight-Latch. Immer atomar begin()en und Foreign-Boot-Records beim ersten Read als interrupted reklassifizieren. (Validated lesson: persisted-in-flight-registry-needs-boot-staleness-and-atomic-begin)
-- **Idempotenz-Key-Design:** requestId ist bei submit_* ein normales Tool-Argument und damit als Key-Signal ungeeignet (RID-Reuse-Stall + neue RequestIds bei echten Retries). Single-Flight-Scope (session+tool) IST der Idempotenz-Scope. (Validated lesson: idempotency-key-must-not-include-client-controlled-retry-fields)
-- **final-review.json Schema:** Severities lowercase, commits[] muss base+head enthalten, alle Hashes voll 40-hex via git rev-parse — Script vorher lesen statt Schema raten. (Validated lesson: guidance-final-review-json-schema-gotchas)
+- **Accept header trap:** streamable HTTP requires BOTH accept types on EVERY POST (the SDK otherwise answers 406) before the handler runs. An "exclusive text/event-stream" is impossible on the protocol side — therefore signal the SSE opt-in via `_meta.progressToken`, not via the header. (Validated lesson: guidance-sse-upgrade-keys-on-progresstoken-not-accept)
+- **Persisted in-flight registries:** check-then-begin without a mutex = TOCTOU double execution; crash without a boot stamp = permanent in_flight latch. Always begin() atomically and reclassify foreign boot records as interrupted on first read. (Validated lesson: persisted-in-flight-registry-needs-boot-staleness-and-atomic-begin)
+- **Idempotency key design:** requestId is a normal tool argument at submit_* and therefore unsuitable as a key signal (RID reuse stall + new requestIds on real retries). The single-flight scope (session+tool) IS the idempotency scope. (Validated lesson: idempotency-key-must-not-include-client-controlled-retry-fields)
+- **final-review.json schema:** severities lowercase, commits[] must contain base+head, all hashes full 40-hex via git rev-parse — read the script beforehand instead of guessing the schema. (Validated lesson: guidance-final-review-json-schema-gotchas)
 
 ## 2026-10-04 — S016-ADOPT lessons (Avoid These Mistakes)
 
@@ -734,7 +735,7 @@ Inhalte deckungsgleich mit den Einträgen oben (Batch-Lessons).
 - **Issue:** session-expiry detection failed silently — the SDK error message is only "Streamable HTTP error: <response body>"; the status code lives on the error's `code` property.
 - **Prevention:** when classifying HTTP transport failures from the MCP SDK client, always read `err.code`, never parse the message alone. Also: guidance's reconnect only runs when `connection.reconnect.enabled` is configured — session-expiry is now exempt (minAttempts=1).
 
-- **UNAUFGEFORDERTE FIXES sind Regelverstoß (2026-10-05):** Nach Befunden/Analysen nur Beobachtung + Optionen; jeden Fix (Config, Registry, Dateien außerhalb des Auftrags) VORHER konkret anfragen und auf Bestätigung warten. Zweiter Vorfall (Registry-Register + Niyama-operations.json ohne Auftrag). Ambiguität löst zu NICHT-Handeln auf.
+- **UNREQUESTED FIXES are a rule violation (2026-10-05):** after findings/analyses only observation + options; request every fix (config, registry, files outside the assignment) concretely BEFOREHAND and wait for confirmation. Second incident (registry-register + Niyama operations.json without an assignment). Ambiguity resolves to NOT acting.
 
 ## 2026-10-05 — specs/017 implementation lessons
 - **$include inherits transitions too:** inheriting a base phase via `$include` also inherits its transitions — a variant that inserts phases between inherited ones MUST override `transitions` explicitly (plan initially jumped straight to `review_and_adjust_plan`, bypassing the new checklist/tasks phases). Preventive: after authoring a variant, walk the transition graph end-to-end.

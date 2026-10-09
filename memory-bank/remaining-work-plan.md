@@ -7,500 +7,516 @@
 > Entry format:
 > `[ID] severity | finding | trigger point | status (action required / accepted with rationale)`
 >
-> **Batch-Status 2026-09-29:** TMPL-1 ✅, TMPL-2 ✅ (glibc-Basis, commit
-> 8134a46), TMPL-3 ✅ (Divergenz-Fingerprint, 81faece+4da7f44), REV-2 ✅
-> (03952b3) — alle vier Scopes des abends 2026-09-29 abgeschlossen und auf
-> develop; offen: CHAIN-1 (Guidance-Server-Defekt), TMPL-4 (accepted),
-> REV-1-HISTORIE/REV-3 (Regel/Verhalten), CHN-/R-Serien (akzeptiert),
-> NIY-CFG-3/NIY-Seite (Niyama-Owner).
+> **Batch status 2026-09-29:** TMPL-1 ✅, TMPL-2 ✅ (glibc base, commit
+> 8134a46), TMPL-3 ✅ (divergence fingerprint, 81faece+4da7f44), REV-2 ✅
+> (03952b3) — all four scopes of the evening of 2026-09-29 completed and on
+> develop; open: CHAIN-1 (Guidance server defect), TMPL-4 (accepted),
+> REV-1-HISTORIE/REV-3 (rule/behavior), CHN-/R series (accepted),
+> NIY-CFG-3/NIY-side (Niyama owner).
 
 ## Tracked Follow-ups
 
-- [GN-D6] MEDIUM (2026-10-08, live-verifiziert, Empfehlung) — **GELÖST (2026-10-09, Chain Successor 1, feature/gn-d6-api-reindex)** | Kanonischer Reindex läuft jetzt über `scripts/reindex-via-api.sh` (Submit+Poll gegen die gitnexus-HTTP-API; reindexCommand/AGENTS.md/responses.json synchron, REMEDY rendert automatisch, WSL-CLI als Fallback + --force-Heilung dokumentiert). API-Vertrag per Container-Source gepinnt: kein no-stats — Skript restauriert Stats-Zeile + Mtime nach Job-Ende (sonst failt index-freshness). Live verifiziert: Job 0→100 %, Frische-Gate grün, Identität /mnt/d erhalten. | resolved
+- [GN-D6] MEDIUM (2026-10-08, live-verified, recommendation) — **RESOLVED (2026-10-09, Chain Successor 1, feature/gn-d6-api-reindex)** | The canonical reindex now runs via `scripts/reindex-via-api.sh` (submit+poll against the gitnexus HTTP API; reindexCommand/AGENTS.md/responses.json in sync, REMEDY renders automatically, WSL-CLI documented as fallback + --force healing). API contract pinned via container source: no no-stats — the script restores the stats line + mtime after job completion (otherwise index-freshness fails). Live verified: job 0→100 %, freshness gate green, identity /mnt/d preserved. | resolved
 
-- [GN-D6-R1] LOW (2026-10-09, Final Review GN-D6 F2/F4/F8 — accepted) | (F2) `field_string`/`field_number` im Reindex-Skript parsen gierig (letzte Übereinstimmung) — falsch nur bei genesteten Duplicat-Keys, nicht der gepinnte API-Vertrag. (F4) Mtime-Rollback nach Job könnte eine konkurrierende Fremdänderung an AGENTS.md/CLAUDE.md im Job-Fenster vom Frische-Gate verschleiern (schmales Race; Repo-Politik verbietet parallele Writer ohnehin). (F8) Server-Job-Dedup-Annahme trägt allein (kein client-seitiger Lock); autorseitig per Container-Source + Live-Lauf belegt, nicht re-verifiziert im Review. | Trigger: nächste Änderung an scripts/reindex-via-api.sh bzw. erster Doppel-Submit-Verdacht. | Accepted with rationale.
-- [GN-D5-R1] LOW (2026-10-09, Final Review GN-D5 F-1/F-2/F-3 — accepted) | (F-1) Host-Extraktion in deriveAdoptGn klassifiziert exotische URLs (IPv6-[::1], Userinfo, Grossbuchstaben, Non-http) zu compose-dns — deterministisch falsch, kein Silent-Passthrough; Generator-URLs (3 literale Hosts) korrekt. (F-2) topology wird nicht in guidance.json persistiert (nur state/mode/reindexCommand) — gefuehrte Setup-Re-Runs muessen die Topologie neu beantworten; funktionell folgenneutral. (F-3) kein E2E-Test der Adopt-Verkettung (generateFiles adopt + compose-DNS-Ref-URL -> downstream-servers.json); auf deriveAdoptGn-Ebene gepinnt, Verkettung ist 3 Zeilen Straight-line. | Trigger: naechste Generator-/Adopt-Aenderung an der URL-Derivation; F-2 zusaetzlich bei einer kuenftigen guidance.json-Roundtrip-Anforderung. | Accepted with rationale.
+- [GN-D6-R1] LOW (2026-10-09, Final Review GN-D6 F2/F4/F8 — accepted) | (F2) `field_string`/`field_number` parsing in the reindex script is greedy (last match) — wrong only with nested duplicate keys, not the pinned API contract. (F4) The mtime rollback after the job could conceal a competing foreign change to AGENTS.md/CLAUDE.md within the job window from the freshness gate (narrow race; repo policy forbids parallel writers anyway). (F8) The server job dedup assumption stands alone (no client-side lock); verified author-side via container source + live run, not re-verified in the review. | Trigger: next change to scripts/reindex-via-api.sh or the first suspected double-submit. | Accepted with rationale.
+- [GN-D5-R1] LOW (2026-10-09, Final Review GN-D5 F-1/F-2/F-3 — accepted) | (F-1) Host extraction in deriveAdoptGn classifies exotic URLs (IPv6-[::1], userinfo, uppercase, non-http) as compose-dns — deterministically wrong, no silent passthrough; generator URLs (3 literal hosts) correct. (F-2) topology is not persisted in guidance.json (only state/mode/reindexCommand) — guided setup re-runs must re-answer the topology; functionally inconsequential. (F-3) No E2E test of the adopt chaining (generateFiles adopt + compose-DNS ref URL -> downstream-servers.json); pinned at the deriveAdoptGn level, the chaining is 3 lines of straight-line code. | Trigger: next generator/adopt change to the URL derivation; F-2 additionally on a future guidance.json round-trip requirement. | Accepted with rationale.
 
-- [GN-D6] MEDIUM (2026-10-08, live-verifiziert, Empfehlung) | **Reindex auf die gitnexus-HTTP-API umstellen** statt wsl.exe-CLI: `POST /api/analyze` mit `{"path":"/mnt/d/repos/<repo>"}` liefert eine jobId, `GET /api/analyze/<jobId>` pollt Progress/Phase bis "complete" — echte Job-Semantik (Submit→Poll, read-only Polling, kein Timeout-Risiko, kein nvm). Am 2026-10-08 vollständig verifiziert: Job durchlief komplett (0→100 %), meta.repoPath blieb `/mnt/d/repos/thinking-mcp` (identitätstreu, koexistent mit der WSL-CLI-Welt). Umstellung: gitnexus.reindexCommand in guidance.json auf die curl-Form (Submit + Poll-Hinweis), AGENTS.md-Regel + REMEDY-Text synchronisieren; Endpoint existiert seit 1.6.12 (api.js L1392ff, `requireTrustedOrigin` lässt Origin-lose curl-Requests durch; Server loopback-gebunden). | Trigger: laufende Chain Step 3 (Doku-Konsolidierung) oder nächste Reindex-Anpassung. | Action required at trigger.
+- [GN-D6] MEDIUM (2026-10-08, live-verified, recommendation) | **Switch the reindex to the gitnexus HTTP API** instead of the wsl.exe CLI: `POST /api/analyze` with `{"path":"/mnt/d/repos/<repo>"}` returns a jobId, `GET /api/analyze/<jobId>` polls progress/phase until "complete" — real job semantics (submit→poll, read-only polling, no timeout risk, no nvm). Fully verified on 2026-10-08: the job ran to completion (0→100 %), meta.repoPath stayed `/mnt/d/repos/thinking-mcp` (identity-faithful, coexistent with the WSL-CLI world). Migration: gitnexus.reindexCommand in guidance.json to the curl form (submit + poll note), synchronize the AGENTS.md rule + REMEDY text; the endpoint exists since 1.6.12 (api.js L1392ff, `requireTrustedOrigin` lets curl requests without an Origin through; server loopback-bound). | Trigger: ongoing chain step 3 (documentation consolidation) or the next reindex adjustment. | Action required at trigger.
 
-- [GN-D5] MEDIUM (2026-10-08, Final Review Chain Step 1 F-1/F-2) — **GELÖST (2026-10-09, Chain Successor 2, feature/gn-d5-url-topology)** | URL-Topologie (compose-dns|host-gateway) als eigene optionale Frage `gitnexusTopology` vom Writer-Mode entkoppelt (Default mode-ablegeleitet, fail-closed auf unbekannte Werte); gitnexusUrl/buildPolicies keyed on topology; Adopt leitet aus der Live-Referenz-Downstream-URL ab (Mixed-Shape regenerierbar); F-2 GITNEXUS_URL-Token-Render regressionsgetestet. Suite 727/727, tsc clean. | resolved
+- [GN-D5] MEDIUM (2026-10-08, Final Review Chain Step 1 F-1/F-2) — **RESOLVED (2026-10-09, Chain Successor 2, feature/gn-d5-url-topology)** | URL topology (compose-dns|host-gateway) decoupled from the writer mode as its own optional question `gitnexusTopology` (default mode-derived, fail-closed on unknown values); gitnexusUrl/buildPolicies keyed on topology; Adopt derives from the live reference downstream URL (mixed shape regenerable); F-2 GITNEXUS_URL token rendering regression-tested. Suite 727/727, tsc clean. | resolved
 
-- [GN-D4] MEDIUM (2026-10-08, Final Review Decouple-Session GN-FR-2/6/7) — **GELÖST (2026-10-08, Chain Step 1, feature/gn-chain-step1)** | Adopt-Asymmetrien geschlossen: unbekannter nicht-leerer refGn.state wirft configuration_invalid; refGn.reindexCommand wird getrimmt (whitespace-only fällt durch die Cross-Checks); parse/validate-Split mit validateGnSetup als einziger Prüfstelle NACH der Adopt-Derivation — Leftover-Antworten können im Adopt-Modus nicht mehr fehlziehen. Unit-Tests für alle Pfade; Suite 696/696. | resolved
+- [GN-D4] MEDIUM (2026-10-08, Final Review Decouple-Session GN-FR-2/6/7) — **RESOLVED (2026-10-08, Chain Step 1, feature/gn-chain-step1)** | Adopt asymmetries closed: unknown non-empty refGn.state throws configuration_invalid; refGn.reindexCommand is trimmed (whitespace-only falls through the cross-checks); parse/validate split with validateGnSetup as the single checking point AFTER the adopt derivation — leftover responses can no longer be misdirected in adopt mode. Unit tests for all paths; suite 696/696. | resolved
 
-- [GN-D3] LOW (2026-10-08, Review F-6 der Decouple-Session) — **GELÖST (2026-10-08, Chain Step 1)** | Alone-Test scannt jetzt auch den vollständigen guidance.json-Blob; neuer AC-1b-Ops-Drift-Guard pinnt jede Generator-Op gegen das Template (Carry-Ops final-review-gate/docs-drift auf Existenz geprüft). | resolved
+- [GN-D3] LOW (2026-10-08, Review F-6 of the decouple session) — **RESOLVED (2026-10-08, Chain Step 1)** | The alone test now also scans the complete guidance.json blob; a new AC-1b ops drift guard pins every generator op against the template (carry-ops final-review-gate/docs-drift checked for existence). | resolved
 
-- [GN-D1] MEDIUM (neu, 2026-10-08, Decouple-Session session-791af4dc) — **GELÖST (2026-10-08, Chain Step 2, feature/gn-chain-step2, Commits a75a3a6+44571ae+Fix-Commits)** | Phase 2 Engine-Scope umgesetzt: dreiwertige Gate-Zustände — mcpTool-Gates auf state=optional-Servern reporten bei Connection-Level-Transport-Fehlern `skipped(capability-absent)` mit lauter Warnung (nur NON-required; required fail-closed unverändert, regression-gepinnt); erreichbare-aber-fehlernde Server bleiben `failed` + `optional_capability_broken`-Warnung; Timeouts/expired Sessions zählen als erreichbar (Review F2). Hybrid-Probe: deklarierte State vs. Live-Verfügbarkeit bei Session-Start UND Chain-Successor-Creation, fire-and-forget, timeout-gebunden (max(5s, konfigurierter Handshake+1s)), off-Case pingt nur http-Leftovers (kein stdio-Spawn), Audit-Event `capability_state_deviation` exactly-once pro Session+Kind (Probe+Gate teilen den Guard; Per-Process-Rest-Duplikate dokumentiert). Minimal-additiver Config-Read-Pfad (config.main.gitnexus.state), GateEvent.phase/OperationStatus/OperationOutcome additiv um `skipped` erweitert, vendored Kopien synchron. Suite 721/721, tsc clean; Independent Review (1b74ed1e) + Re-Bless + Final Review (f0532eee): 0 offene HIGH/CRITICAL. | resolved
+- [GN-D1] MEDIUM (new, 2026-10-08, Decouple-Session session-791af4dc) — **RESOLVED (2026-10-08, Chain Step 2, feature/gn-chain-step2, commits a75a3a6+44571ae+fix commits)** | Phase 2 engine scope implemented: three-valued gate states — mcpTool gates on state=optional servers report `skipped(capability-absent)` with a loud warning on connection-level transport errors (only NON-required; required fail-closed unchanged, regression-pinned); reachable-but-failing servers remain `failed` + `optional_capability_broken` warning; timeouts/expired sessions count as reachable (review F2). Hybrid probe: declared state vs. live availability at session start AND chain-successor creation, fire-and-forget, timeout-bounded (max(5s, configured handshake+1s)), the off-case pings only http leftovers (no stdio spawn), audit event `capability_state_deviation` exactly-once per session+kind (probe and gate share the guard; per-process restart duplicates documented). Minimal-additive config read path (config.main.gitnexus.state), GateEvent.phase/OperationStatus/OperationOutcome additively extended with `skipped`, vendored copies synchronized. Suite 721/721, tsc clean; Independent Review (1b74ed1e) + re-bless + Final Review (f0532eee): 0 open HIGH/CRITICAL. | resolved
 
-- [GND1-DOC-1] MEDIUM (2026-10-08, Chain Step 2 Session-Beobachtung) — **GELÖST (2026-10-08, Chain Step 3, feature/gn-chain-step2)** | Topologie-Dokumenten-Drift vereinheitlicht auf wsl-writer-Welt: AGENTS.md-Topologie-Bullet (WSL-CLI = single index writer, Container = read-only Dual-Mount-Reader, Container-Analyze verboten + --force-Heilung, beide gitnexus.mode neutral dokumentiert, Backup AGENTS.md.bak aktualisiert + Clear-Thought-Widerspruchscheck ohne Konflikte); .guidance/responses.json Complete-Instruction trägt jetzt den wsl.exe-Reindex (surgical Sentence-Replace, Rebind-Pfad live verifiziert — Session überlebte den Config-Wechsel); docker-compose.gitnexus.yml-Header auf Reader/Writer-Rollen nach Mode gebracht; README-Deployment-Block + Working-Sample-Tabelle auf wsl-writer umgestellt (generisches Container-Mode-Beispiel bleibt). Konsistenz-Grep: keine ungewollten Stale-Claims. | resolved
+- [GND1-DOC-1] MEDIUM (2026-10-08, Chain Step 2 session observation) — **RESOLVED (2026-10-08, Chain Step 3, feature/gn-chain-step2)** | Topology documentation drift unified on the wsl-writer world: AGENTS.md topology bullet (WSL CLI = single index writer, container = read-only dual-mount reader, container analyze forbidden + --force healing, both gitnexus.mode documented neutrally, backup AGENTS.md.bak updated + Clear-Thought contradiction check without conflicts); the .guidance/responses.json complete instruction now carries the wsl.exe reindex (surgical sentence replace, rebind path live verified — the session survived the config change); docker-compose.gitnexus.yml header brought to reader/writer roles by mode; README deployment block + working-sample table switched to wsl-writer (the generic container-mode example remains). Consistency grep: no unwanted stale claims. | resolved
 
-- [CHFIX-9] HIGH (2026-10-08, live validated, session-78776317-Verlust) — **GELÖST mit Evidence (2026-10-09, Chain Successor 4, feature/chfix-9-session-persistence; User-Sign-off A+B)** | Prämisse widerlegt auf beiden Ebenen: SessionRepository ist rein file-backed (keine In-Memory-Map), frische Engine über demselben stateDir lädt aktive Sessions (Regressionstest 1), und auch die Pool-Topologie (registry-only Instanz + registrierter Workspace + Neustart-Simulation) re-resolvt Sessions über Platte (Regressionstest 2). Der Live-Verlust stammt aus einer Schicht oberhalb (MCP-Transport-Session 404/-32001 oder Boot-/Mount-Timing der Instanz-Komposition) — in-process nicht reproduzierbar. Abschluss Pfad A: README-Recovery-Rezept präzisiert (was überlebt: Sessions/Chain/Phasen file-backed + Rebind; was nicht: MCP-Transport-Session, in-flight Ops → unknown/retry_operation; session_not_found trotz existierender Datei = Kompositionsproblem, niemals Dateien löschen). Pfad B (Live-Restart-Experiment nach Merge + Rebuild) beauftragt. | resolved with evidence; live experiment pending
+- [CHFIX-9] HIGH (2026-10-08, live validated, session-78776317 loss) — **RESOLVED with evidence (2026-10-09, Chain Successor 4, feature/chfix-9-session-persistence; user sign-off A+B)** | Premise refuted on both levels: SessionRepository is purely file-backed (no in-memory map), a fresh engine over the same stateDir loads active sessions (regression test 1), and even the pool topology (registry-only instance + registered workspace + restart simulation) re-resolves sessions from disk (regression test 2). The live loss originates from a layer above (MCP transport session 404/-32001 or boot/mount timing of the instance composition) — not reproducible in-process. Completion path A: README recovery recipe made precise (what survives: sessions/chain/phases file-backed + rebind; what does not: MCP transport session, in-flight ops → unknown/retry_operation; session_not_found despite an existing file = composition problem, never delete files). Path B (live restart experiment after merge + rebuild) commissioned. | resolved with evidence; live experiment pending
 
-- [CHFIX-12] MEDIUM (2026-10-09, Final Review CHFIX-9 F-1) | **Widersprüchliche Fehlermeldung:** Die session_not_found-Meldungen (SessionRepository.load + remote-session-manager 2x) behaupten sessions "do not survive a server restart" — durch die Restart-Survival-Regressionstests und die README-Sektion widerlegt. Im forensischen Szenario (session_not_found trotz existierender Datei) führt die kaschierte Kausalität in die falsche Diagnose-Richtung. Fix: Meldung auf den tatsächlichen Fall umschreiben (Datei an erwarteter Stelle nicht gefunden — Komposition/Routing prüfen, README-Abschnitt zitieren). | Trigger: nächste Berührung der session_not_found-Pfade, idealerweise gemeinsam mit CHFIX-11. | Action required at trigger.
+- [CHFIX-12] MEDIUM (2026-10-09, Final Review CHFIX-9 F-1) | **Contradictory error message:** the session_not_found messages (SessionRepository.load + remote-session-manager 2x) claim sessions "do not survive a server restart" — refuted by the restart-survival regression tests and the README section. In the forensic scenario (session_not_found despite an existing file) the covered-up causality points the diagnosis in the wrong direction. Fix: rewrite the message to the actual case (file not found at the expected location — check composition/routing, cite the README section). | Trigger: next touch of the session_not_found paths, ideally together with CHFIX-11. | Action required at trigger.
 
-- [CHFIX-11] MEDIUM (2026-10-09, aus CHFIX-9 C-T4 ausgekoppelt) | **In-Process-Re-Pin für Capability-Pins:** Pins werden im Engine-Konstruktor aus capability-hashes.json geladen; Drift wirft downstream_capability_changed (non-recoverable). Ein bewusster Infra-Event (z. B. GitNexus-Reindex mit Schema-Pin-Drift) erfordert heute Datei-Edit + Restart. Fix-Richtung: Admin-Op oder automatische Re-Pin-Nachfrage bei erkanntem Drift (mutation von pinnedHashes + saveCapabilityPins in-process, mit Audit-Event und bewusstem Freigabe-Schritt). | Trigger: nächster Capability-Pin-Drift nach Infra-Event oder nächste Engine-Admin-Ops-Arbeit. | Action required at trigger.
+- [CHFIX-11] MEDIUM (2026-10-09, split out of CHFIX-9 C-T4) | **In-process re-pin for capability pins:** pins are loaded in the engine constructor from capability-hashes.json; drift throws downstream_capability_changed (non-recoverable). A deliberate infra event (e.g. a GitNexus reindex with schema pin drift) today requires a file edit + restart. Fix direction: an admin op or an automatic re-pin prompt on detected drift (mutation of pinnedHashes + saveCapabilityPins in-process, with an audit event and a deliberate release step). | Trigger: next capability pin drift after an infra event or the next engine admin-ops work. | Action required at trigger.
 
-- [GND1-R2] MEDIUM/LOW (2026-10-09, Final Review session-0046f81b F-1/F-2 — accepted) | (F-1, MEDIUM, präexistent, neu beobachtet) Desync-Guard prüft Submission-PRAESENZ, nicht Frische: in re-eingetretenen Phasen (verification_failed-Loops, z. B. verify→review_implementation) bleibt die Runde-1-Submission erhalten — failed Resubmit + gruener retry advanct auf stale Content. Guard verkleinert die Free-Advance-Klasse, schliesst sie nicht; beim Tracken dokumentierenden Test nachziehen (Runden-2-Advance ohne Runden-2-Submission pinnen). (F-2, LOW, praecistent) Complete-Exemption finalisiert auch ohne complete_workflow-Aufruf (Phase complete via verify-Submit erreichbar; retry mit gruenen Completion-Ops + pending===undefined finalisiert ohne Report) — praktisch vermutlich durch store-completion-insight-Kontextabhaengigkeit blockiert (unverifiziert). | Trigger: naechster Touch von retryOperations/Submissions-Semantik; F-2 zusaetzlich bei Completion-Finalize-Anomalien. | Accepted with rationale.
+- [GND1-R2] MEDIUM/LOW (2026-10-09, Final Review session-0046f81b F-1/F-2 — accepted) | (F-1, MEDIUM, pre-existing, newly observed) The desync guard checks submission PRESENCE, not freshness: in re-entered phases (verification_failed loops, e.g. verify→review_implementation) the round-1 submission remains — a failed resubmit + a green retry advance on stale content. The guard shrinks the free-advance class, it does not close it; add the documenting test when tracking it (pin round-2 advance without a round-2 submission). (F-2, LOW, pre-existing) The complete-exemption finalizes even without a complete_workflow call (phase complete reachable via the verify submit; retry with green completion ops + pending===undefined finalizes without a report) — in practice presumably blocked by store-completion-insight context dependence (unverified). | Trigger: next touch of retryOperations/submissions semantics; F-2 additionally on completion-finalize anomalies. | Accepted with rationale.
 
-- [GND1-R1] LOW (2026-10-09, Independent Implementation Review b97d208 F1/F2/F3 — accepted) | (F1, neu) Hold-Path des Desync-Guards signalisiert in der Response nicht maschinenlesbar (accepted:true + Phase unverändert, Grund nur im Audit-Event transitionHeld) — Ergonomie, kein State-Schaden. (F2, präexistent) fehlgeschlagene Submits appenden submission_received, obwohl die Submission nie persistiert wird (Persistierung erst im Success-Update) — Audit misleading. (F3, präexistent) Retry-Advance läuft ohne beforeEnter/afterEnter der ZIEL-Phase — eine per beforeEnter blockierte Transition ließe sich per retry überschreiten. | Trigger: nächster Touch von retryOperations/Response-Shapes/Hook-Semantik. | Accepted with rationale.
+- [GND1-R1] LOW (2026-10-09, Independent Implementation Review b97d208 F1/F2/F3 — accepted) | (F1, new) The hold path of the desync guard is not machine-readably signaled in the response (accepted:true + phase unchanged, reason only in the audit event transitionHeld) — ergonomics, no state damage. (F2, pre-existing) failed submits append submission_received even though the submission is never persisted (persistence happens only in the success update) — misleading audit. (F3, pre-existing) the retry advance runs without the target phase's beforeEnter/afterEnter — a transition blocked by beforeEnter could be jumped over via retry. | Trigger: next touch of retryOperations/response shapes/hook semantics. | Accepted with rationale.
 
-- [GND1-TEST-1] LOW (2026-10-08, Final Review Finding 1, Rest) — **GELÖST (2026-10-09, Chain Successor 3, feature/gnd1-probe-residuals)** | Dedizierter Chain-Successor-Probe-Test in capability-skip-semantics.test.ts: Successor bekommt genau ein probe-Event (bounded Poll), Exactly-once über Creation+manuellen Re-Probe, Head-Event unabhängig. | resolved
+- [GND1-TEST-1] LOW (2026-10-08, Final Review Finding 1, remainder) — **RESOLVED (2026-10-09, Chain Successor 3, feature/gnd1-probe-residuals)** | Dedicated chain-successor probe test in capability-skip-semantics.test.ts: the successor gets exactly one probe event (bounded poll), exactly-once across creation + manual re-probe, head event independent. | resolved
 
-- [GND1-RESIDUALS] INFO (2026-10-08, Reviews 1b74ed1e/f0532eee, alle accepted) — **RE-KONFIRMIRT (2026-10-09, Chain Successor 3; alle 7 unverändert accepted, Entscheidungstabelle in activeContext)** (a) Transport-Fehler OHNE Flags klassifizieren capability-absent; (b) stdio-Spawn requireder Server beim Session-Start; (c) Deviation-Duplikat pro Prozess-Lebenszeit nach Restart; (d) Composite erzwingt required; (e) Grants bei Skip; (f) sticky unreachable; (g) REAL-Ping-Ordering. Trigger unverändert: (d) beim ersten optionalen Composite-Gate; (f)/(g) bei Flakiness-/Fehlalarm-Berichten. | Accepted with rationale.
+- [GND1-RESIDUALS] INFO (2026-10-08, Reviews 1b74ed1e/f0532eee, all accepted) — **RE-CONFIRMED (2026-10-09, Chain Successor 3; all 7 unchanged accepted, decision table in activeContext)** (a) transport errors WITHOUT flags classify as capability-absent; (b) stdio spawn of required servers at session start; (c) deviation duplicate per process lifetime after restart; (d) composite forces required; (e) grants on skip; (f) sticky unreachable; (g) REAL ping ordering. Trigger unchanged: (d) at the first optional composite gate; (f)/(g) on flakiness/false-alarm reports. | Accepted with rationale.
 
-- [GND1-DESYNC-1] — **GELÖST bei Entstehung (2026-10-09, Chain Successor 3)** retryOperations advancte Phasen ohne recorded Submission (kostenloser Advance bei leerem beforeExit; Live-Desync 2x am 2026-10-09). Guard + Regressionstest in chain.test.ts. | resolved
+- [GND1-DESYNC-1] — **RESOLVED at creation (2026-10-09, Chain Successor 3)** retryOperations advanced phases without a recorded submission (free advance with an empty beforeExit; live desync 2x on 2026-10-09). Guard + regression test in chain.test.ts. | resolved
 
-- [GN-D2] LOW (2026-10-08) | Config-Assistent: Adopt-Modus leitet den GitNexus-Modus nur aus refGuidance.gitnexus ab, NICHT aus refOpsMap-Heuristiken (z. B. compose-hinweisende Op-Beschreibungen). Builtin-Template → local-cli. | Trigger: erster Mounted-Adopt einer Container-Deployment-Referenz ohne gitnexus-Block. | Accepted observation.
+- [GN-D2] LOW (2026-10-08) | Config assistant: adopt mode derives the GitNexus mode only from refGuidance.gitnexus, NOT from refOpsMap heuristics (e.g. op descriptions indicating compose). Builtin template → local-cli. | Trigger: first mounted adopt of a container-deployment reference without a gitnexus block. | Accepted observation.
 
-- [GN-1] HIGH (2026-10-08, Evidence: docker inspect + `/data/gitnexus/registry.json` + Guidance-Audit session-bbbf628c/bdb24391) — **GELÖST (2026-10-08, feature/gn-gitnexus-compose-integration)** | Zwei divergierende GitNexus-Registries: der alte Standalone-gitnexus-server-Container servierte einen stale thinking-mcp-Index (2026-10-01), WSL-CLI-Index aktuell, Gates blind dafür. Fix: Compose-managter gitnexus-server mit vollem `/workspaces`-Mount + in-repo-Storage; thinking-mcp frisch im Container indiziert (10.380 Nodes / 480 Flows), MCP-Check liefert echte Graph-Antworten. Beide Gates prüfen jetzt denselben Indexbestand.
+- [GN-1] HIGH (2026-10-08, evidence: docker inspect + `/data/gitnexus/registry.json` + guidance audit session-bbbf628c/bdb24391) — **RESOLVED (2026-10-08, feature/gn-gitnexus-compose-integration)** | Two diverging GitNexus registries: the old standalone gitnexus-server container served a stale thinking-mcp index (2026-10-01), the WSL-CLI index was current, the gates blind to this. Fix: compose-managed gitnexus-server with a full `/workspaces` mount + in-repo storage; thinking-mcp freshly indexed in the container (10,380 nodes / 480 flows), the MCP check returns real graph answers. Both gates now check the same index stock.
 
-- [GN-2] HIGH (2026-10-08) — **GELÖST (2026-10-08, feature/gn-gitnexus-compose-integration)** | Pool-Onboarding neuer Repos war für den gitnexus-server-Container unsichtbar (docker cp nach /tmp als Workaround). Fix: alle drei Pool-Repos (thinking-mcp, copilot-repo-template, Niyama) per `docker compose exec gitnexus analyze` mit in-repo-StoragePath registriert; MCP-Check für alle drei grün; `--force` umgeht die Foreign-State-Sperre bei WSL-vorbelasteten .gitnexus-Verzeichnissen. Kanonischer Reindex-Befehl in AGENTS.md + REMEDY-Zeile dokumentiert.
+- [GN-2] HIGH (2026-10-08) — **RESOLVED (2026-10-08, feature/gn-gitnexus-compose-integration)** | Pool onboarding of new repos was invisible to the gitnexus-server container (docker cp to /tmp as a workaround). Fix: all three pool repos (thinking-mcp, copilot-repo-template, Niyama) registered via `docker compose exec gitnexus analyze` with in-repo storage path; MCP check green for all three; `--force` bypasses the foreign-state lock on WSL-preloaded .gitnexus directories. Canonical reindex command documented in AGENTS.md + REMEDY line.
 
-- [GN-3] MEDIUM (2026-10-08) — **GELÖST (2026-10-08)** | Der tote `spawn gitnexus`-Fallback-Schritt im `repository-analysis`-Composite wurde entfernt: die Operation ist jetzt ein direktes mcpTool (check) in `.guidance/operations.json` UND im Generator (ConfigAssistant.ts) + Template (examples/default-guidance) synchron — Template/generator sync pin grün.
+- [GN-3] MEDIUM (2026-10-08) — **RESOLVED (2026-10-08)** | The dead `spawn gitnexus` fallback step in the `repository-analysis` composite was removed: the operation is now a direct mcpTool (check) in `.guidance/operations.json` AND synchronized in the generator (ConfigAssistant.ts) + template (examples/default-guidance) — template/generator sync pin green.
 
-- [GN-7] LOW (2026-10-08, Review F4, feature/gn-gitnexus-compose-integration) | REMEDY-Ableitung `basename(resolve(repoRoot))` in `check-index-freshness.mjs` liefert bei einem repoRoot, der ein INNERHALB eines Pool-Repos liegender Worktree ist (`/workspaces/<repo>/worktrees/wt1`), ein `-w /workspaces/wt1`, das im Container nicht existiert. Failure bleibt laut und damit agent-recoverable; Pool-Root-Workspaces (Normalfall) korrekt. Fix-Idee: Worktree-Erkennung (.git ist Datei) und Ableitung des zugehörigen Pool-Repos. | Trigger: erster Guidance-Session-Betrieb in einem nested Worktree. | Action required at trigger.
+- [GN-7] LOW (2026-10-08, Review F4, feature/gn-gitnexus-compose-integration) | The REMEDY derivation `basename(resolve(repoRoot))` in `check-index-freshness.mjs` yields, for a repoRoot that is a worktree INSIDE a pool repo (`/workspaces/<repo>/worktrees/wt1`), a `-w /workspaces/wt1` that does not exist in the container. The failure remains loud and thus agent-recoverable; pool-root workspaces (the normal case) correct. Fix idea: worktree detection (.git is a file) and derivation of the parent pool repo. | Trigger: first guidance session operation in a nested worktree. | Action required at trigger.
 
-- [GN-8] LOW (2026-10-08, Review F6) | Für `repository-analysis` existiert kein eigener Generator↔Template-Drift-Guard (der AC-1-Guard deckt nur responses.json byte-identisch ab; ops-Lockstep aktuell manuell verifiziert). | Trigger: nächste Änderung an buildOperations für repository-analysis. | Accepted observation mit Handlungsauflage beim Trigger.
+- [GN-8] LOW (2026-10-08, Review F6) | For `repository-analysis` there is no dedicated generator↔template drift guard (the AC-1 guard only covers responses.json byte-identical; ops lockstep currently verified manually). | Trigger: next change to buildOperations for repository-analysis. | Accepted observation with action obligation at trigger.
 
-- [GN-5] LOW (neu, 2026-10-08) — **GELÖST (2026-10-08, Chain Step 1)** | gitnexus-server jetzt `127.0.0.1:4747:4747` (Loopback-only); der guidance-Container erreicht ihn über Compose-DNS `http://gitnexus-server:4747` (gleiches Projekt-Netzwerk via -f-Kette; DNS-Vorprobe 200 VOR dem Umbau). Egress-Allowlist (`gitnexus-server:4747`) + alle Pool-Workspace-Konfigs (thinking-mcp, Niyama, copilot-repo-template: downstream-servers + policies) umgestellt; Host-Zugriff (Editor) bleibt über 127.0.0.1 erhalten. Dokumentiert: die -f-Kette ist Pflicht, solange das Overlay aktiv ist (DNS-Name existiert nur mit beiden Files). | resolved
+- [GN-5] LOW (new, 2026-10-08) — **RESOLVED (2026-10-08, Chain Step 1)** | gitnexus-server now `127.0.0.1:4747:4747` (loopback-only); the guidance container reaches it via compose DNS `http://gitnexus-server:4747` (same project network via the -f chain; DNS pre-probe 200 BEFORE the rework). Egress allowlist (`gitnexus-server:4747`) + all pool workspace configs (thinking-mcp, Niyama, copilot-repo-template: downstream-servers + policies) switched; host access (editor) remains via 127.0.0.1. Documented: the -f chain is mandatory as long as the overlay is active (the DNS name exists only with both files). | resolved
 
-- [GN-6] LOW (neu, 2026-10-08) | `lastCommit` in Registry/meta.json bleibt "" wenn git im Container das Repo nicht liest; gefixt per `safe.directory`-Command-Wrapper im Compose-Service (glob '*' im wegwerfbaren Analyse-Container). Populate bestätigt sich erst beim NÄCHSTEN Analyze (Transition-Analyze lief vor dem Fix). Commit-Coverage-Signal von check-index-freshness ist bis dahin inaktiv — mtime-Signal greift. | Trigger: nächster Reindex; Verifikation dass lastCommit == HEAD. | Action required at trigger.
+- [GN-6] LOW (new, 2026-10-08) | `lastCommit` in registry/meta.json stays "" when git in the container cannot read the repo; fixed via a `safe.directory` command wrapper in the compose service (glob '*' in the disposable analyze container). Populate confirms itself only at the NEXT analyze (the transition analyze ran before the fix). The commit coverage signal of check-index-freshness is inactive until then — the mtime signal applies. | Trigger: next reindex; verification that lastCommit == HEAD. | Action required at trigger.
 
-- [GN-4] LOW (2026-10-08) — **GELÖST (2026-10-08, Regel-Edit mit Backup `AGENTS.md.bak`, Clear-Thought-Widerspruchscheck: keine Widersprüche; 2026-10-08 Topologie-Abschnitt auf Ein-Welt-Architektur nachgezogen)** | AGENTS.md-Topologie-Wording war irreführend. Architektur-Entscheidung A+D umgesetzt.
+- [GN-4] LOW (2026-10-08) — **RESOLVED (2026-10-08, rule edit with backup `AGENTS.md.bak`, Clear-Thought contradiction check: no contradictions; 2026-10-08 the topology section brought up to the one-world architecture)** | The AGENTS.md topology wording was misleading. Architecture decision A+D implemented.
 
-- [CHFIX-9] HIGH (2026-10-08, live validated, session-78776317-Verlust) | Guidance-Sessions sind workflow-run-scoped und überleben KEINEN Guidance-Server-Restart (Fehler: "sessions are workflow-run-scoped and do not survive a server restart"), obwohl die Session-JSONs auf Disk persistieren. Zwei Konsequenzen: (1) Das CHFIX-3-Recovery-Rezept gilt NUR für Agent-Restarts — bei Guidance-Server-Restart ist die Kette/Session operational verloren (Disk-Datei nur Archiv); README-Abschnitt muss das präzisieren. (2) Capability-Pin-Resets (downstream_capability_changed nach Infra-Events wie Reindex+GitNexus-Restart) erfordern derzeit Datei-Edit + Guidance-Restart = Session-Verlust mid-completion. Fix-Optionen: (a) Sessions beim Boot von Disk re-loaden (engine-seitig), (b) In-Process-Re-Pin (Admin-Op oder automatische Re-Pin-Nachfrage bei erkanntem Drift mit bewusstem Infra-Event), (c) mindestens Doku-Warnung im Recovery-Rezept. **Trigger:** JEDER zukünftige Guidance-Container-Restart mit laufenden Sessions; spätestens vor dem ersten Langzeit-Chain-Lauf. Action required.
+- [CHFIX-9] HIGH (2026-10-08, live validated, session-78776317 loss) | Guidance sessions are workflow-run-scoped and do NOT survive a guidance server restart (error: "sessions are workflow-run-scoped and do not survive a server restart"), even though the session JSONs persist on disk. Two consequences: (1) The CHFIX-3 recovery recipe applies ONLY to agent restarts — on a guidance server restart the chain/session is operationally lost (the disk file is archive only); the README section must make that precise. (2) Capability pin resets (downstream_capability_changed after infra events like reindex+GitNexus restart) currently require a file edit + guidance restart = session loss mid-completion. Fix options: (a) re-load sessions from disk at boot (engine-side), (b) in-process re-pin (admin op or an automatic re-pin prompt on detected drift with a deliberate infra event), (c) at minimum a documentation warning in the recovery recipe. **Trigger:** EVERY future guidance container restart with running sessions; at the latest before the first long-term chain run. Action required.
 
-- [CHFIX-10] LOW (2026-10-08) | `.guidance/state/pending-lessons-chfix235.json` ist ein transportiertes Artefakt des EMMS-Fallbacks (Editor-MCP-Client stale) und kann nach Kontrolle gelöscht werden; die 4 Lessons sind im EMMS-Store bestätigt gesät (4/4 SEEDED). **Trigger:** nächster Aufräum-Commit. Accepted observation.
+- [CHFIX-10] LOW (2026-10-08) | `.guidance/state/pending-lessons-chfix235.json` is a transported artifact of the EMMS fallback (stale editor MCP client) and can be deleted after checking; the 4 lessons are confirmed seeded in the EMMS store (4/4 SEEDED). **Trigger:** next cleanup commit. Accepted observation.
 
-- [CHFIX-6] MEDIUM (2026-10-08, independent final review F-1, session-78776317) — **GELÖST (2026-10-08, feature/gn-gitnexus-compose-integration)** | Die REMEDY-Zeile in `check-index-freshness.mjs` ist jetzt repo-spezifisch (workdir `-w /workspaces/<basename-von-repoRoot>`), Regressionstest deckt unterschiedliche repoRoots ab (index-freshness-remedy.test.ts, 4 Tests grün).
+- [CHFIX-6] MEDIUM (2026-10-08, independent final review F-1, session-78776317) — **RESOLVED (2026-10-08, feature/gn-gitnexus-compose-integration)** | The REMEDY line in `check-index-freshness.mjs` is now repo-specific (workdir `-w /workspaces/<basename-of-repoRoot>`), a regression test covers differing repoRoots (index-freshness-remedy.test.ts, 4 tests green).
 
-- [CHFIX-7] LOW (2026-10-08, final review F-2, präexistent) — **GELÖST (2026-10-08, mit GN-4-Regel-Edit)** | AGENTS.md enthielt ZWEI abweichende Reindex-Befehle (Mixed-Case vs. lowercase). Der verbleibende Mixed-Case-Bullet wurde im Zuge der GN-4-Topologie-Präzisierung auf lowercase `/mnt/d/repos/thinking-mcp` vereinheitlicht; Backup `AGENTS.md.bak` aktualisiert.
+- [CHFIX-7] LOW (2026-10-08, final review F-2, pre-existing) — **RESOLVED (2026-10-08, together with the GN-4 rule edit)** | AGENTS.md contained TWO diverging reindex commands (mixed-case vs. lowercase). The remaining mixed-case bullet was unified to lowercase `/mnt/d/repos/thinking-mcp` as part of the GN-4 topology clarification; backup `AGENTS.md.bak` updated.
 
-- [CHFIX-8] LOW (2026-10-08, final review F-3) | README Recovery-Schritt 1 ist für einen `activating`-Successor unpräzise: `get_workflow_state` wirft für activating Sessions fail-closed `chain_activation_incomplete` (verweist direkt auf retry_operation), zeigt also keinen Status. Recovery funktioniert trotzdem; Formulierung präzisieren (activating → direkt retry_operation; Status via Sessions-Dir-JSON lesbar). **Trigger:** nächste README-Änderung am Chain-Abschnitt. Action required at trigger.
+- [CHFIX-8] LOW (2026-10-08, final review F-3) | README recovery step 1 is imprecise for an `activating` successor: `get_workflow_state` throws fail-closed `chain_activation_incomplete` for activating sessions (points directly to retry_operation), so it shows no status. Recovery still works; sharpen the wording (activating → retry_operation directly; status readable via the sessions-dir JSON). **Trigger:** next README change to the chain section. Action required at trigger.
 
-- [CHFIX-1] MEDIUM (2026-10-08, Form-B chain fix, feature/form-b-chain-fix) | SC-011-Deviation dokumentieren: `import_spec_kit_artifacts` mappt checked Checkboxen jetzt auf `status:"completed"` (widerruft specs/017 FR-066/SC-011 "checkbox alone never completes"). Code-Kommentar + README + adapter-Test dokumentieren die Abweichung; die specs/017-Spec selbst (specs/017-spec-kit-mode/) wurde NOCH NICHT nachgezogen. **Trigger:** nächste Änderung an specs/017 oder dessen Review. Action required at trigger.
+- [CHFIX-1] MEDIUM (2026-10-08, Form-B chain fix, feature/form-b-chain-fix) | Document the SC-011 deviation: `import_spec_kit_artifacts` now maps checked checkboxes to `status:"completed"` (revokes specs/017 FR-066/SC-011 "checkbox alone never completes"). Code comment + README + adapter test document the deviation; the specs/017 spec itself (specs/017-spec-kit-mode/) has NOT yet been updated. **Trigger:** next change to specs/017 or its review. Action required at trigger.
 
-- [CHFIX-2] MEDIUM (2026-10-08) — **GELÖST (2026-10-08, session-78776317, feature/form-b-chain-fix)** | Index-Freshness-Gate: statt server-seitigem Reindex (unmöglich — kein gitnexus-Binary im Container, KA-4-foreign-Storage-Falle) failt das Gate jetzt laut mit agent-geeigneter REMEDY-Zeile (exakter wsl.exe-Reindex-Befehl) im stderr von `check-index-freshness.mjs` → landet via OperationEngine VERBATIM in exposedOpResult.errors[0].message; AGENTS.md-Regel ergänzt (retry statt Session-Neustart). Regressionstest: tests/workflow/index-freshness-remedy.test.ts (3 Tests). Residual: Ausführung des REMEDY bleibt Agent-Disziplin (Worst Case = lautes Failen wie vorher).
+- [CHFIX-2] MEDIUM (2026-10-08) — **RESOLVED (2026-10-08, session-78776317, feature/form-b-chain-fix)** | Index freshness gate: instead of a server-side reindex (impossible — no gitnexus binary in the container, KA-4 foreign-storage trap) the gate now fails loudly with an agent-suitable REMEDY line (the exact wsl.exe reindex command) in the stderr of `check-index-freshness.mjs` → lands VERBATIM via OperationEngine in exposedOpResult.errors[0].message; AGENTS.md rule added (retry instead of session restart). Regression test: tests/workflow/index-freshness-remedy.test.ts (3 tests). Residual: executing the REMEDY remains agent discipline (worst case = a loud failure as before).
 
-- [CHFIX-3] LOW (2026-10-08) — **GELÖST (2026-10-08, session-78776317)** | Chain-Recovery-Rezept dokumentiert: README-Abschnitt "Recovering a chain after agent/context death" (Session-Discovery via nextSessionId/.guidance/state/sessions/, activating→retry_operation, active→Phase-Loop, KEIN Head-Neustart, chainSpec.chainedTaskIds als Fortschrittsträger) + Pointer in AGENTS.md (Rule-Update-Protokoll, Backup aktualisiert). Ein dediziertes chain_status-Tool bleibt bewusst out of scope.
+- [CHFIX-3] LOW (2026-10-08) — **RESOLVED (2026-10-08, session-78776317)** | Chain recovery recipe documented: README section "Recovering a chain after agent/context death" (session discovery via nextSessionId/.guidance/state/sessions/, activating→retry_operation, active→phase loop, NO head restart, chainSpec.chainedTaskIds as the progress carrier) + pointer in AGENTS.md (rule-update protocol, backup updated). A dedicated chain_status tool deliberately remains out of scope.
 
-- [CHFIX-4] LOW (2026-10-08) | Phase-Grenzen in Form B (aktiver Kontext F1 aus 018, 2026-10-07): die Kette leitet über Phasen hinweg Tasks ab (nach T018 → T019+). Mit Checkbox-Mapping entschärft (checked Tasks werden übersprungen), aber ein `taskFilter` nach Phase/Abschnitts-Sektion existiert nicht. **Trigger:** wenn specs/018-Phasen wieder mit Gate-Reviews getrennt werden sollen. Accepted observation bis dahin.
+- [CHFIX-4] LOW (2026-10-08) | Phase boundaries in Form B (active context F1 from 018, 2026-10-07): the chain hands tasks across phases (after T018 → T019+). Defused with the checkbox mapping (checked tasks are skipped), but a `taskFilter` by phase/section does not exist. **Trigger:** if specs/018 phases are to be separated with gate reviews again. Accepted observation until then.
 
-- [CHFIX-5] LOW (2026-10-08, environmental) — **GELÖST (2026-10-08, session-78776317)** | engine.test.ts FR-004: explizites per-Test-Timeout 60.000 ms (statt 30s-Default); Vollsuite 683/683 grün inkl. FR-004 unter Last (vorher 25s isoliert / 30s-Limit). Globales testTimeout bewusst NICHT angehoben (Hang-Signal für ~680 andere Tests bleibt scharf).
+- [CHFIX-5] LOW (2026-10-08, environmental) — **RESOLVED (2026-10-08, session-78776317)** | engine.test.ts FR-004: explicit per-test timeout 60,000 ms (instead of the 30s default); full suite 683/683 green incl. FR-004 under load (previously 25s isolated / 30s limit). The global testTimeout deliberately NOT raised (the hang signal for ~680 other tests stays sharp).
 
 - [GBEA-F016] MEDIUM (2026-10-07, external review v0.4.0, findings doc `SDD/guidance-beads-adapter-review-findings-v0.4.0.md`) | Independently reconcilable execution partitions for the Beads adapter (50k–100k+ work items, partition-local checkpoints, partition-aware readiness, parallel reconciliation) deliberately NOT adopted in spec v0.5.0 — normative scalability targets fixed instead (GBEA §21.2: 100k items, full recon < 30 min, incremental < 5 min, readiness p95 < 2 s). **Trigger:** production evidence that §21.2 targets are missed, or a Guidance deployment planning single executions beyond ~100k work items. Constraint on any future design: MUST preserve per-execution total event order (§18.1) and suspension scopes (§16.4). Action required at trigger; until then accepted with rationale (partitioning conflicts with current ordering/suspension model).
 
-- [KA-4] LOW (2026-10-02) — **GELÖST (2026-10-02, Option 1 + 4)** | `gitnexus analyze` brach mit Storage-Status `foreign` ab — Root Cause: Case-Mismatch, Storage registriert als `/mnt/d/repos/thinking-mcp` (lowercase), Shell-Cwd war `/mnt/d/repos/Thinking-MCP`. Fix: Reindex mit exakt kleingeschriebenem Cwd — erfolgreich (8.988 Nodes / 21.534 Edges, 177 s). detect-changes: "No changes detected"; die `foreign`-Warning bei read-only Checks ist kosmetisch (Storage-Pfad wird vom CLI ohnehin kanonisiert). Regel in AGENTS.md dokumentiert (Backup `AGENTS.md.bak`): künftig jeden Reindex mit `cd /mnt/d/repos/thinking-mcp` ausführen.
+- [KA-4] LOW (2026-10-02) — **RESOLVED (2026-10-02, Option 1 + 4)** | `gitnexus analyze` aborted with storage status `foreign` — root cause: case mismatch, storage registered as `/mnt/d/repos/thinking-mcp` (lowercase), the shell cwd was `/mnt/d/repos/Thinking-MCP`. Fix: reindex with an exactly lowercase cwd — successful (8,988 nodes / 21,534 edges, 177 s). detect-changes: "No changes detected"; the `foreign` warning on read-only checks is cosmetic (the CLI canonicalizes the storage path anyway). Rule documented in AGENTS.md (backup `AGENTS.md.bak`): from now on run every reindex with `cd /mnt/d/repos/thinking-mcp`.
 
-- [KA-1] LOW (2026-10-02, Review feature/mcp-keep-alive-timeout, APPROVED 0 HIGH/CRIT) | server-stochasticthinking SIGTERM/SIGINT-Handler haben keinen `setTimeout(process.exit, 5000).unref()`-Fallback (Asymmetrie zu clear-thought/insight). Empirisch harmlos: Node ≥19 `server.close()` schließt idle Keep-Alive-Sockets selbst (Repro: 1 ms). **Trigger:** nächste Änderung am Shutdown-Pfad von server-stochasticthinking. Accepted observation.
+- [KA-1] LOW (2026-10-02, Review feature/mcp-keep-alive-timeout, APPROVED 0 HIGH/CRIT) | The server-stochasticthinking SIGTERM/SIGINT handlers lack a `setTimeout(process.exit, 5000).unref()` fallback (asymmetry vs. clear-thought/insight). Empirically harmless: Node ≥19 `server.close()` closes idle keep-alive sockets itself (repro: 1 ms). **Trigger:** next change to the shutdown path of server-stochasticthinking. Accepted observation.
 
-- [KA-2] LOW (2026-10-02, Review feature/mcp-keep-alive-timeout) | `Number(process.env.KEEP_ALIVE_TIMEOUT_MS) || 65000` frisst absichtliche `0`-Werte (""/"0" → Fallback 65000). Kein gültiger Use-Case für einen Server; bewusst so gewählt. **Trigger:** falls ein bewusster Opt-out (`KEEP_ALIVE_TIMEOUT_MS=0`) benötigt wird → explizites `!== undefined`-Handling. Accepted with rationale.
+- [KA-2] LOW (2026-10-02, Review feature/mcp-keep-alive-timeout) | `Number(process.env.KEEP_ALIVE_TIMEOUT_MS) || 65000` swallows deliberate `0` values (""/"0" → fallback 65000). No valid use case for a server; chosen deliberately. **Trigger:** if a deliberate opt-out (`KEEP_ALIVE_TIMEOUT_MS=0`) is needed → explicit `!== undefined` handling. Accepted with rationale.
 
-- [KA-3] LOW (2026-10-02, ops) — **GELÖST (2026-10-02)** | Container neu gebaut + neu gestartet; Live-Verifikation: Port 3000 (clear-thought), 3002 (insight), 3003 (guidance) alle `Keep-Alive: timeout=65` ✓. Port 3001 (stochastic) nicht deployed — **Server ist deprecated**, kein Rebuild/Re-Deploy nötig (Fix bleibt im Source für den Fall einer Reaktivierung).
+- [KA-3] LOW (2026-10-02, ops) — **RESOLVED (2026-10-02)** | Container rebuilt + restarted; live verification: port 3000 (clear-thought), 3002 (insight), 3003 (guidance) all `Keep-Alive: timeout=65` ✓. Port 3001 (stochastic) not deployed — **the server is deprecated**, no rebuild/re-deploy needed (the fix stays in the source in case of reactivation).
 
-- [CT-ARGS-2] INFO (2026-10-02, re-review affa7f0, APPROVED) — zwei nicht-blockierende Beobachtungen aus dem unabhängigen Re-Review: (1) `callDownstream` prüft `outcome.structuredContent` per Truthiness statt `!== undefined/null` (strukturierter Content `0`/`""`/`false` würde verworfen — per MCP-Protokoll immer Objekt, praktisch irrelevant); (2) kein dedizierter cancel_workflow-während-callDownstream-Test (Code-Pfad spiegelt runOperation). **Trigger:** nächste Änderung an WorkflowEngine.callDownstream. Accepted observation.
+- [CT-ARGS-2] INFO (2026-10-02, re-review affa7f0, APPROVED) — two non-blocking observations from the independent re-review: (1) `callDownstream` checks `outcome.structuredContent` by truthiness instead of `!== undefined/null` (structured content `0`/`""`/`false` would be discarded — always an object per the MCP protocol, practically irrelevant); (2) no dedicated cancel_workflow-during-callDownstream test (the code path mirrors runOperation). **Trigger:** next change to WorkflowEngine.callDownstream. Accepted observation.
 
-- [CT-ARGS-1] MEDIUM (2026-10-02) — **GELÖST (feature/ct-args-passthrough, 2026-10-02)** | `call_downstream`-Passthrough + `run_operation`-Arguments-Parameter implementiert: (1) `WorkflowEngine.callDownstream(sessionId, serverId, toolName, args)` — session-routed, gleicher Single-Flight/Workspace-Lock wie runOperation, durchläuft die geteilte `agentInvoker`-Closure (WC-1 Allowlist, WC-1-B Wildcard-Rejection, FR-053 Egress, Capability-Pin, Container-Route-Fallback read_only), GDS-5 raw Exposure, Audit `operation_invoked/denied` via `call_downstream`; (2) `run_operation(…, arguments?)` — Deep-Merge Agent-Keys > fixed/template-resolved Args (mcpTool only; process/composite ignorieren mit `argument_overrides_ignored`-Warning, kein argv-Injection), neues `argumentsLocked`-Flag rejected Overrides fail-closed (Review-F2 gegen Template-Pin-Spoofing); (3) Metrics-Wrapper reichen den 5. Parameter durch. Tests: `tests/contract/call-downstream.test.ts` (9, real HTTP-MCP-Stub in-process) + http-transport Tool-Count 22→23. Full-Suite 513 passed / 9 skipped, tsc clean. Args werden NICHT schema-validiert (Input-Validierung bleibt beim Downstream-Tool, dokumentiert im README).
+- [CT-ARGS-1] MEDIUM (2026-10-02) — **RESOLVED (feature/ct-args-passthrough, 2026-10-02)** | `call_downstream` passthrough + `run_operation` arguments parameter implemented: (1) `WorkflowEngine.callDownstream(sessionId, serverId, toolName, args)` — session-routed, same single-flight/workspace lock as runOperation, runs through the shared `agentInvoker` closure (WC-1 allowlist, WC-1-B wildcard rejection, FR-053 egress, capability pin, container-route fallback read_only), GDS-5 raw exposure, audit `operation_invoked/denied` via `call_downstream`; (2) `run_operation(…, arguments?)` — deep-merge agent keys > fixed/template-resolved args (mcpTool only; process/composite ignore with an `argument_overrides_ignored` warning, no argv injection), the new `argumentsLocked` flag rejects overrides fail-closed (review F2 against template-pin spoofing); (3) the metrics wrapper passes the 5th parameter through. Tests: `tests/contract/call-downstream.test.ts` (9, a real in-process HTTP MCP stub) + http-transport tool count 22→23. Full suite 513 passed / 9 skipped, tsc clean. Args are NOT schema-validated (input validation stays with the downstream tool, documented in the README).
 
-- [CHAIN-1] MEDIUM — **GELÖST (US1 implementiert a40f485/04a2b4c/b09f74b auf develop; Rest-Scopes GDS-6 + CHAIN-Replay durch feature/gds6-chain-replay-hardening)** | Rebind-Semantik AC-13..17 in getWorkflowState (R2: completed überlebt, active/blocked Rebind + Re-Validierung, session_rebound-Audit, AC-15 fail-closed), registry_register (R1=B), Successor-born-invalid via Probe-Routing-Delegation (AC-16) — Regressionsschutz registry-rebind.test.ts (12 Tests). Mid-Session-Config-Änderungen invalidieren Sessions nicht mehr (Rebind); Chained Workflows wieder voll nutzbar.
+- [CHAIN-1] MEDIUM — **RESOLVED (US1 implemented a40f485/04a2b4c/b09f74b on develop; remainder scopes GDS-6 + CHAIN replay via feature/gds6-chain-replay-hardening)** | Rebind semantics AC-13..17 in getWorkflowState (R2: completed survives, active/blocked rebind + re-validation, session_rebound audit, AC-15 fail-closed), registry_register (R1=B), successor-born-invalid via probe-routing delegation (AC-16) — regression protection registry-rebind.test.ts (12 tests). Mid-session config changes no longer invalidate sessions (rebind); chained workflows fully usable again.
 
 - [REV-1] LOW (Session-Review 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-28) |
-  FR-035-Timeout-Fallback für GitNexus: gitnexus hatte keine Container-Route
-  → GEFIXT: `containerRoute` für gitnexus definiert (live
-  .guidance/downstream-servers.json + Template + buildDownstream-Generator;
-  Endpoint `:4747/api/mcp`, per Initialize-Probe verifiziert; Egress-
-  Allowlist :4747 war bereits vorhanden; Live-Config im Container per
-  loadConfig validiert; Regressionstest für beide Transports; Suite 430/430).
-  Commit ff3dc1d. Regeltext-Klärung (report_blocker vs. CLI-Fallback nach 2. Timeout) verbleibt als akzeptierte Anmerkung in REV-1-Historie — der
-  praktische Fall (route unavailable → lokal) ist nun obsolet.
+  FR-035 timeout fallback for GitNexus: gitnexus had no container route
+  → FIXED: `containerRoute` defined for gitnexus (live
+  .guidance/downstream-servers.json + template + buildDownstream generator;
+  endpoint `:4747/api/mcp`, verified via initialize probe; the egress
+  allowlist :4747 already existed; live config validated in the container via
+  loadConfig; regression test for both transports; suite 430/430).
+  Commit ff3dc1d. The rule-text clarification (report_blocker vs. CLI fallback
+  after the 2nd timeout) remains as an accepted remark in REV-1-HISTORIE — the
+  practical case (route unavailable → local) is now obsolete.
   | — | resolved
 - [REV-1-HISTORIE] LOW (Session-Review 2026-09-28, session-2c0c15fe, accepted
-  with rationale) | FR-035-Timeout-Fallback-Reihenfolge: nach 2× Timeout von
-  GitNexus-MCP `impact` direkt auf grep/terminal-CLI statt report_blocker/
-  Container-Route. Fundstelle siehe REV-1 (resolved). | — | resolved
+  with rationale) | FR-035 timeout fallback order: after 2× timeout of the
+  GitNexus-MCP `impact` go directly to grep/terminal-CLI instead of
+  report_blocker/container route. Source location see REV-1 (resolved).
+  | — | resolved
   (subsumed)
 - [REV-2] LOW (Session-Review 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-29) |
-  `get_next_task` ohne importierte Spec-Kit-Artefakte wirft
-  `spec_kit_artifact_missing` mit irreführendem Import-Only-Hinweis —
-  GEFIXT (commit 03952b3): Message nennt jetzt beide Wege (import für
-  Task-Tracking ODER Task-Tools meiden → plan-level submissions);
-  Contract-Test (tests/speckit/state-store-message.test.ts) pinnt Code +
-  recoverable + beide Marker; README Spec-Kit-Bullet dokumentiert die
-  Zwei-Wege-Behavior. main.ts CHN-4 (silent auf diesem Code) unberührt.
+  `get_next_task` without imported Spec-Kit artifacts throws
+  `spec_kit_artifact_missing` with a misleading import-only hint —
+  FIXED (commit 03952b3): the message now names both ways (import for
+  task tracking OR avoid the task tools → plan-level submissions);
+  a contract test (tests/speckit/state-store-message.test.ts) pins code +
+  recoverable + both markers; the README Spec-Kit bullet documents the
+  two-way behavior. main.ts CHN-4 (silent on this code) unaffected.
   | — | resolved
 - [REV-2-ALT] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
-  required) | Original-Beschreibung (Fehlaufruf-Kontext, reproduziert
-  auch post-completion) — siehe REV-2 (resolved). | — | resolved
+  required) | Original description (mis-invocation context, also reproduced
+  post-completion) — see REV-2 (resolved). | — | resolved
   (subsumed)
 - [REV-3] LOW (Session-Review 2026-09-28, session-2c0c15fe, action
-  required — Regelverstoß) | `git diff --stat` ohne `--no-pager` in WSL
-  ließ das Terminal hängen (User musste abbrechen); Retry mit `--no-pager`
-  sofort grün. Verstoß gegen AGENTS.md-Terminal-Regel ("read-only git
-  commands MUST include --no-pager"). Reproduzierbar: Pager-Start bei
-  langem Diff im non-interaktiven pty.
-  | Trigger: ab sofort JEDER git-Lesebefehl mit `--no-pager` (steht schon
-  in AGENTS.md); Lesson in lessonsLearned.md ergänzt. | action required
-  (Verhaltensregel, kein Code-Fix).
+  required — rule violation) | `git diff --stat` without `--no-pager` in WSL
+  hung the terminal (the user had to abort); the retry with `--no-pager`
+  was immediately green. Violation of the AGENTS.md terminal rule ("read-only
+  git commands MUST include --no-pager"). Reproducible: the pager starts on a
+  long diff in the non-interactive pty.
+  | Trigger: from now on EVERY git read command with `--no-pager` (already
+  stated in AGENTS.md); lesson added to lessonsLearned.md. | action required
+  (behavior rule, no code fix).
 
-- [TMPL-1] LOW (Guidance-Session 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-29) |
-  Prettier-Drift in 5 Dateien (src/config.ts, metrics/MetricsRepository.ts,
+- [TMPL-1] LOW (Guidance session 2026-09-28, session-2c0c15fe, RESOLVED 2026-09-29) |
+  Prettier drift in 5 files (src/config.ts, metrics/MetricsRepository.ts,
   remote/remote-session-manager.ts, state/SessionRepository.ts,
-  workflow/WorkflowEngine.ts) — lint-Gate (required:false) failt seit
-  Container-Lauf. Keine dieser Dateien ist Teil des Genericity-Diffs.
-  | Trigger: nächster Touch einer der 5 Dateien ODER Aufräumdurchlauf —
-  gezielt `npx prettier --write` auf genau diese 5 Dateien — erledigt
-  (Commit auf feature/tmpl1-prettier-drift; check gruen gesamt src, tsc
-  clean, Suite 430/430). Wurzelursache (floating ^3.1.0) als
-  Pin-Follow-up-Kandidat notiert. | resolved
-- [TMPL-2] MEDIUM (Guidance-Session 2026-09-28, dieselbe Session,
-  RESOLVED 2026-09-29) | server-insight-Tests failen im Guidance-Container
-  komplett (72 Failures): better-sqlite3 glibc/musl dlopen — GEFIXT
-  (commit 8134a46, TMPL-2-Session 5cc970dd): Image auf node:24-trixie-slim
-  (glibc 2.41 = Host, node 24 = ABI 137 = Host-Toolchain); in-container
-  insight 118/118 (vorher 72), guidance 430/430, clear-thought 166/166,
-  stochastic 43/43; procps ergänzt (FR-202 ps ax). Ermittlung empirisch
-  zweistufig: musl → ABI-Mismatch → procps. Dauerhaft im Image gebacken.
+  workflow/WorkflowEngine.ts) — the lint gate (required:false) failing since
+  the container run. None of these files is part of the genericity diff.
+  | Trigger: next touch of any of the 5 files OR a cleanup pass —
+  targeted `npx prettier --write` on exactly these 5 files — done
+  (commit on feature/tmpl1-prettier-drift; check green across src, tsc
+  clean, suite 430/430). Root cause (floating ^3.1.0) noted as a
+  pin follow-up candidate. | resolved
+- [TMPL-2] MEDIUM (Guidance session 2026-09-28, same session,
+  RESOLVED 2026-09-29) | The server-insight tests failed completely in the
+  guidance container (72 failures): better-sqlite3 glibc/musl dlopen — FIXED
+  (commit 8134a46, TMPL-2 session 5cc970dd): image to node:24-trixie-slim
+  (glibc 2.41 = host, node 24 = ABI 137 = host toolchain); in-container
+  insight 118/118 (previously 72), guidance 430/430, clear-thought 166/166,
+  stochastic 43/43; procps added (FR-202 ps ax). The determination was
+  empirically two-step: musl → ABI mismatch → procps. Permanently baked into
+  the image.
   | — | resolved
-- [TMPL-3] LOW (Round-2-Review 2026-09-28, session-2c0c15fe,
+- [TMPL-3] LOW (Round-2 review 2026-09-28, session-2c0c15fe,
   RESOLVED 2026-09-29) |
-  Divergenz-Erkennung auf Top-Level-args beschraenkt — GEFIXT (commit
-  81faece + 4da7f44): Fingerprint ueber {type, server, capability, args,
-  arguments, steps} mit ${project.name}-Normalisierung; divergentOps im
-  adoption-Block (guidance.json) maschinenlesbar; Note-Text generalisiert
-  ('reference invocation details'). Fingerprint fing sofort 3 echte
-  Builtin-Template-Drifts (repository-analysis analyze→check +
+  Divergence detection limited to top-level args — FIXED (commits
+  81faece + 4da7f44): fingerprint over {type, server, capability, args,
+  arguments, steps} with ${project.name} normalization; divergentOps
+  machine-readable in the adoption block (guidance.json); note text
+  generalized ('reference invocation details'). The fingerprint immediately
+  caught 3 real builtin template drifts (repository-analysis analyze→check +
   noStats→repo, query-project-insights query_insights→experience_search +
-  scope→scope_id) — Template aligned, Builtin-Sync-Pin assertet
-  divergentOps [] (Review-F-1). F-3 (nested key-order advisory
-  false-positives, by design) + F-4 (description ausserhalb Fingerprint)
-  accepted. Semantik unveraendert (Preset-Ops regenerieren immer).
+  scope→scope_id) — template aligned, the builtin sync pin asserts
+  divergentOps [] (review F-1). F-3 (nested key-order advisory
+  false positives, by design) + F-4 (description outside the fingerprint)
+  accepted. Semantics unchanged (preset ops always regenerate).
   | — | resolved
-- [TMPL-5] LOW ( TMPL-3-Follow-up 2026-09-29, action required → teils erledigt) |
-  Tote Insight-Tool-Namen im Builtin-Template: `store-completion-insight`
-  rief `store_insight` auf (Tool existiert nicht mehr — Insight-Server
-  exposeed nur experience__/lesson__/workflow__/validation__), downstream-
-  Allowlist + Fixtures trugen `store_insight`/`query_insights`.
-  GEFIXT: Op + beforeExit-Referenz aus Template entfernt (Capture-Session-
-  Lessons ist der moderne Ersatz, kommt via buildOperations), downstream
-  → [experience_search, experience_record_observation], Fixtures aligniert;
-  Independent Review 6cab6fbe: 0 HIGH/CRIT, 55/55 gezielt, 432/432 settled.
-  REST (LOW, accepted mit Trigger): SDD-/specs-002-Baseline-Dokumente
-  nennen store-completion-insight/store_insight noch (historische Records —
-  Update wenn 002-Doku nächstes Mal in Scope); stale Testkommentar behoben.
-  | Trigger: 002-Doku-Auffrischung. | teils resolved, Rest accepted.
-- [TMPL-4] LOW (Round-1/2-Reviews, accepted with rationale) | catch→
-  freshOpsMap={}-Fallback und empty-refOpsMap-Adopt ungetestet (by-inspection
-  korrekt + konservativ); capture-session-lessons-Divergenz und
-  mcpTool-arguments-Adopt-Pfad nur transitiv abgedeckt.
-  | Trigger: nächster Test-Ausbau an config-assistant-extensions.test.ts.
+- [TMPL-5] LOW ( TMPL-3 follow-up 2026-09-29, action required → partially done) |
+  Dead insight tool names in the builtin template: `store-completion-insight`
+  called `store_insight` (the tool no longer exists — the insight server
+  exposes only experience__/lesson__/workflow__/validation__), the downstream
+  allowlist + fixtures carried `store_insight`/`query_insights`.
+  FIXED: op + beforeExit reference removed from the template (capture-session-
+  lessons is the modern replacement, comes via buildOperations), downstream
+  → [experience_search, experience_record_observation], fixtures aligned;
+  independent review 6cab6fbe: 0 HIGH/CRIT, 55/55 targeted, 432/432 settled.
+  REMAINDER (LOW, accepted with trigger): the SDD/specs-002 baseline
+  documents still mention store-completion-insight/store_insight (historical
+  records — update when the 002 docs are next in scope); a stale test comment
+  fixed.
+  | Trigger: 002 documentation refresh. | partially resolved, remainder accepted.
+- [TMPL-4] LOW (Round-1/2 reviews, accepted with rationale) | catch→
+  freshOpsMap={} fallback and empty-refOpsMap adopt untested (by-inspection
+  correct + conservative); the capture-session-lessons divergence and the
+  mcpTool-arguments adopt path only covered transitively.
+  | Trigger: next test expansion on config-assistant-extensions.test.ts.
   | accepted with rationale.
 
-- [NIY-CFG-1] MEDIUM (Infrastruktur-Blocker 2026-09-28, session-46a43aeb-6a87-4730-ac64-c73e613ae8d9,
+- [NIY-CFG-1] MEDIUM (infrastructure blocker 2026-09-28, session-46a43aeb-6a87-4730-ac64-c73e613ae8d9,
   RESOLVED 2026-09-29) |
-  Lint-Glob im Niyama-.guidance/operations.json
-  (`servers/*/src/**/*.{ts,tsx}`) → ersetzt durch `npm run lint` (Niyama
-  hat echtes lint-Script `eslint .`). Restliche Config geprüft: build/test/
-  repository-analysis generisch korrekt. Ursachenklasse generell behoben
-  durch Config-Assistant-Fix 709ed15 (Thinking-MCP develop). Niyama-Repo
-  hat uncommittete Änderungen (Task-1-Scope + dieser Fix) — Commit
-  obliegt dem Niyama-Owner. | — | resolved
-- [NIY-CFG-2] MEDIUM (Infrastruktur-Blocker 2026-09-28, dieselbe Session,
-  RESOLVED 2026-09-29 mit Dauerhaftigkeits-Vorbehalt) |
-  Test-Runtime im Guidance-Container (`server-guidance-guidance-1`,
-  Niyama unter /workspaces/Niyama) repariert: corepack-pnpm 12.4.2
-  aktiviert + `pnpm install --frozen-lockfile` (36.7s); danach noch
-  `apk add git bash` nötig (Niyama-Tests spawnen git init / bash —
-  Alpine-Image hatte beides nicht; 10 → 0 Failures). Baseline im
-  Container: build ✅, lint ✅ (0 errors), test 440/440 ✅.
-  | Restrisiko/Trigger: apk/corepack/node_modules sind Container-RUNTIME-
-  State — DAUERHAFT GEFIXT 2026-09-29: Guidance-Dockerfile backt nun
-  git + bash + corepack-pnpm-Shim ein (commit cecc9da, `build(guidance):
-bake workspace toolchain into the image`); Shim löst je Workspace deren
-  packageManager-Pin auf (Niyama 12.4.2 verifiziert über echten Mount).
-  node_modules je Workspace bleiben Workspace-State (pnpm install nach
-  Rebuild/Erstmount — frozen-lockfile). TMPL-2 (better-sqlite3) seit
-  2026-09-29 durch die glibc-Basis selbst gelöst. | resolved (mit
-  Dockerfile-Follow-up)
-- [NIY-CFG-3] INFO (gleicher Ursachenkomplex, accepted with rationale) |
-  Verbleibende C0-Tasks (Task 1 war abgeschlossen) laufen in einer FRISCHEN
-  Guidance-Session pro Batch, nicht in der abgebrochenen — Session war
-  bereits in Phase `complete`; Weiterbetrieb würde die Lifecycle-Gates
-  (release_batch/start_task/verify_task) umgehen.
-  | Trigger: Start des nächsten C0-Batches. | accepted with rationale.
+  Lint glob in the Niyama .guidance/operations.json
+  (`servers/*/src/**/*.{ts,tsx}`) → replaced with `npm run lint` (Niyama
+  has a real lint script `eslint .`). Remaining config checked: build/test/
+  repository-analysis generically correct. The cause class generally fixed
+  by the config assistant fix 709ed15 (Thinking-MCP develop). The Niyama
+  repo has uncommitted changes (task-1 scope + this fix) — committing
+  is up to the Niyama owner. | — | resolved
+- [NIY-CFG-2] MEDIUM (infrastructure blocker 2026-09-28, same session,
+  RESOLVED 2026-09-29 with a durability reservation) |
+  Test runtime repaired in the guidance container (`server-guidance-guidance-1`,
+  Niyama under /workspaces/Niyama): corepack-pnpm 12.4.2
+  activated + `pnpm install --frozen-lockfile` (36.7s); afterwards
+  `apk add git bash` still necessary (Niyama tests spawn git init / bash —
+  the Alpine image had neither; 10 → 0 failures). Baseline in the
+  container: build ✅, lint ✅ (0 errors), test 440/440 ✅.
+  | Residual risk/trigger: apk/corepack/node_modules are container RUNTIME
+  state — PERMANENTLY FIXED 2026-09-29: the guidance Dockerfile now bakes
+  in git + bash + a corepack-pnpm shim (commit cecc9da, `build(guidance):
+  bake workspace toolchain into the image`); the shim resolves each
+  workspace's packageManager pin (Niyama 12.4.2 verified via a real mount).
+  node_modules per workspace remain workspace state (pnpm install after
+  rebuild/first mount — frozen-lockfile). TMPL-2 (better-sqlite3) since
+  2026-09-29 solved by the glibc base itself. | resolved (with
+  Dockerfile follow-up)
+- [NIY-CFG-3] INFO (same cause complex, accepted with rationale) |
+  The remaining C0 tasks (task 1 was completed) run in a FRESH
+  guidance session per batch, not in the aborted one — the session was
+  already in phase `complete`; continued operation would bypass the
+  lifecycle gates (release_batch/start_task/verify_task).
+  | Trigger: start of the next C0 batch. | accepted with rationale.
 
 - [CHN-R2-1] LOW (Final Comprehensive Review 2026-09-26, bb37f6c, accepted) |
-  Replay-Staleness durch CHN-5-Fix: Crasht der Wrapper NACH Successor-
-  Aktivierung, aber VOR Re-Cache des requestIds-Resultats, liefert ein
-  Replay der complete_workflow den gecachten chain-Entry mit status
-  'activating', obwohl der Successor längst active/blocked ist (Wrapper
-  überspringt die Aktualisierung bei status != activating, WorkflowEngine
-  ~L1311). Rein informativ — der Client-Loop folgt nextSessionId und holt
-  den Realstatus via get_current_guidance. | Trigger: nächster Touch von
-  `completeWorkflow` — Entry-Status im Replay-Zweig finalisieren oder
-  dokumentieren. | accepted with rationale (ersetzt die veraltete
-  Beschreibung in [CHN-5] LOW-6 unten).
-- [CHN-R2-2] RESOLVED 2026-09-26 (Final Comprehensive Review, war LOW/accepted) |
-  Testlücke FR-119 geschlossen: Test „CHN-R2-2 mixed manifest (steps +
-  source) in plain profile rejected entirely“ in chain.test.ts (19
-  Chain-Tests). Commit 7cb55be. | — | resolved
+  Replay staleness from the CHN-5 fix: if the wrapper crashes AFTER successor
+  activation but BEFORE re-caching the requestIds result, a replay of
+  complete_workflow returns the cached chain entry with status
+  'activating' even though the successor is long active/blocked (the wrapper
+  skips the update when status != activating, WorkflowEngine
+  ~L1311). Purely informational — the client loop follows nextSessionId and
+  fetches the real status via get_current_guidance. | Trigger: next touch of
+  `completeWorkflow` — finalize the entry status in the replay branch or
+  document it. | accepted with rationale (replaces the outdated
+  description in [CHN-5] LOW-6 below).
+- [CHN-R2-2] RESOLVED 2026-09-26 (Final Comprehensive Review, was LOW/accepted) |
+  Test gap FR-119 closed: test "CHN-R2-2 mixed manifest (steps +
+  source) in plain profile rejected entirely" in chain.test.ts (19
+  chain tests). Commit 7cb55be. | — | resolved
 - [CHN-R2-3] NIT (Final Comprehensive Review 2026-09-26, bb37f6c, accepted) |
-  CHN-1-Recovery reaktiviert ohne FR-043-Reconciliation: `retryOperations`
-  lädt raw (`sessions.load`) und ruft `activateSession` erneut — Hooks, die
-  beim Crash schon liefen, werden komplett neu ausgeführt;
-  `reconcileRunningOperations` greift hier nicht (nur in getWorkflowState).
-  Identische Semantik wie der etablierte FR-040-Retry-Pfad, kein Regression —
-  Rest-Risiko nur im Doppel-Crash-Fenster (Crash mid-Hook auf activating
-  Successor). | Trigger: falls required Hooks state-changing werden.
+  CHN-1 recovery reactivates without FR-043 reconciliation: `retryOperations`
+  loads raw (`sessions.load`) and calls `activateSession` again — hooks that
+  already ran before the crash are executed completely anew;
+  `reconcileRunningOperations` does not apply here (only in getWorkflowState).
+  Identical semantics to the established FR-040 retry path, no regression —
+  the residual risk lies only in the double-crash window (crash mid-hook on
+  an activating successor). | Trigger: if required hooks become state-changing.
   | accepted with rationale.
 - [CHN-R2-4] NIT (Final Comprehensive Review 2026-09-26, bb37f6c) |
-  memory-bank-Hygiene: die superseded CHN-4/5/6-Original-Einträge (unten,
-  'accepted/action required') tragen keinen Rückverweis auf die RESOLVED-
-  Einträge oben (nur CHN-3-R1/R2 haben -HISTORIE-Aliase). | Trigger:
-  nächster Aufräumdurchlauf von remaining-work-plan.md. | accepted with
+  memory-bank hygiene: the superseded CHN-4/5/6 original entries (below,
+  'accepted/action required') carry no back-reference to the RESOLVED
+  entries above (only CHN-3-R1/R2 have -HISTORIE aliases). | Trigger:
+  next cleanup pass of remaining-work-plan.md. | accepted with
   rationale.
 
-- [CHN-4] RESOLVED 2026-09-26 | Form-B-Silent-End auditert jetzt
-  `chain_end {reason: no_pending_tasks, chainedCount}` (nur wenn source
-  gesetzt; reine Form-A-Erschöpfung bleibt still, §3.2); Bridge-Fehler in
-  composeApplication laufen auf stderr statt still zu verschwinden
-  (Verhalten [] unverändert). | — | resolved
-- [CHN-5] RESOLVED 2026-09-26 | completeWorkflowLocked cacht das
-  Successor-Result bereits im Lock mit vollständigem chain-Entry (status
-  'activating'), Wrapper finalisiert — Crash-Replays haben immer ein
-  vollständiges chain-Entry (Test CHN-5). | — | resolved
-- [CHN-6] RESOLVED 2026-09-26 | startWorkflow lädt nach activateSession
-  die Session frisch (sessions.load) für Guidance + Status — kein
-  Pre-Aktivierungs-Snapshot mehr (NIT-7 holsch). | — | resolved
-- [CHN-3-R1] RESOLVED 2026-09-26 (war HIGH) | Form-B-Cursor-Reset
-  (Details der Fundstelle siehe Historie unten): GEFIXT — Form-B-Zweig
-  liefert `upNext: steps.length` (Successor chainUpNext ≥ steps.length,
-  für reines Form B inert); Regressionstest „CHN-3 HIGH-1 regression“
-  (2 Form-A-Steps + source + 1 Task → nach T001 stummes Ende, kein
-  step-two-Re-Run). 17 Chain-Tests / 249 gesamt grün. | — | resolved
-- [CHN-3-R2] RESOLVED 2026-09-26 (war MEDIUM) | Scope-Abweichung
-  verifiziert und behoben: die 25 Out-of-Scope-Dateien waren reines
-  Prettier-Reformatting (LF/Zeilenumbruch) durch einen zu breit
-  laufenden `prettier --write` über das gesamte src-Verzeichnis —
-  `git checkout --` auf alle nicht intendierten Dateien, Diff wieder auf
-  die 7 intended Files begrenzt. Lehre: prettier nie breiter als die
-  intendierten Files ausführen. | — | resolved (reverted)
-- [CHN-3-R1-HISTORIE] HIGH (CHN-3 Review, 2026-09-26) | Mixed-Chain Form-B-Cursor-
-  Reset: `resolveChainStep` liefert für Form-B-Schritte `upNext: 0`
-  (WorkflowEngine.ts:743), `completeWorkflowLocked` setzt daraus
-  `chainUpNext = upNext + 1 = 1` (WorkflowEngine.ts:1543). Bei Manifesten
-  mit `steps.length >= 2` + `source` zeigt der Cursor damit ZURÜCK in Form
-  A: nach JEDEM Form-B-Task wird `steps[1]` erneut ausgeführt, bis der
-  Depth-Gate (`chain_depth_exceeded`) die Kette abwürgt — Verstoß gegen
-  §12. Reproduziert durch den Reviewer; Regressionstest
-  „CHN-3 HIGH-1 regression“ nachgeliefert → siehe CHN-3-R1 RESOLVED oben.
+- [CHN-4] RESOLVED 2026-09-26 | The Form-B silent end now audits
+  `chain_end {reason: no_pending_tasks, chainedCount}` (only when source
+  is set; pure Form-A exhaustion stays silent, §3.2); bridge errors in
+  composeApplication go to stderr instead of disappearing silently
+  (behavior [] unchanged). | — | resolved
+- [CHN-5] RESOLVED 2026-09-26 | completeWorkflowLocked caches the
+  successor result within the lock with a complete chain entry (status
+  'activating'), the wrapper finalizes — crash replays always have a
+  complete chain entry (test CHN-5). | — | resolved
+- [CHN-6] RESOLVED 2026-09-26 | startWorkflow reloads the session fresh
+  after activateSession (sessions.load) for guidance + status — no more
+  pre-activation snapshot (NIT-7 addressed). | — | resolved
+- [CHN-3-R1] RESOLVED 2026-09-26 (was HIGH) | Form-B cursor reset
+  (details of the finding see the history below): FIXED — the Form-B branch
+  returns `upNext: steps.length` (successor chainUpNext ≥ steps.length,
+  inert for pure Form B); regression test "CHN-3 HIGH-1 regression"
+  (2 Form-A steps + source + 1 task → after T001 a silent end, no
+  step-two re-run). 17 chain tests / 249 total green. | — | resolved
+- [CHN-3-R2] RESOLVED 2026-09-26 (was MEDIUM) | Scope deviation
+  verified and resolved: the 25 out-of-scope files were pure Prettier
+  reformatting (LF/line wrapping) from a `prettier --write` run that was too
+  broad over the whole src directory — `git checkout --` on all unintended
+  files, the diff again limited to the 7 intended files. Lesson: never run
+  prettier more broadly than the intended files. | — | resolved (reverted)
+- [CHN-3-R1-HISTORIE] HIGH (CHN-3 review, 2026-09-26) | Mixed-chain Form-B
+  cursor reset: `resolveChainStep` returns `upNext: 0` for Form-B steps
+  (WorkflowEngine.ts:743), `completeWorkflowLocked` derives
+  `chainUpNext = upNext + 1 = 1` from it (WorkflowEngine.ts:1543). For
+  manifests with `steps.length >= 2` + `source` the cursor thus points BACK
+  into Form A: after EVERY Form-B task `steps[1]` runs again until the
+  depth gate (`chain_depth_exceeded`) strangles the chain — a violation of
+  §12. Reproduced by the reviewer; the regression test
+  "CHN-3 HIGH-1 regression" supplied afterwards → see CHN-3-R1 RESOLVED
+  above.
   | — | resolved (fixed)
-- [CHN-3-R2-HISTORIE] MEDIUM | Scope-Abweichung: 25 Dateien reformattet
-  (Prettier zu breit gelaufen) — siehe CHN-3-R2 RESOLVED oben (reverted).
+- [CHN-3-R2-HISTORIE] MEDIUM | Scope deviation: 25 files reformatted
+  (prettier run too broad) — see CHN-3-R2 RESOLVED above (reverted).
   | — | resolved (reverted)
-- [CHN-3-R2] MEDIUM (CHN-3 Review, 2026-09-26) | Review-Scope-Abweichung:
-  der deklarierte Review-Scope (register-tools.ts, WorkflowEngine.ts,
-  README, Spec §12, chain.test.ts) deckt nur einen Teil des tatsächlichen
-  uncommitteten Diffs ab — 25 weitere Dateien mit substanziellen Änderungen
-  (u. a. SpecKitEngine.ts +755 Zeilen, ConfigAssistant.ts, remote-tools.ts,
-  server.ts) sind unreviewed; der Feature-Branch hat NULL Commits
-  (HEAD == develop 49a18bc). Zudem markiert der bestehende Eintrag
-  [CHN-3] „RESOLVED“ — mit CHN-3-R1 offen ist das präzisieren.
-  | Trigger: Commit/PR-Erstellung des Branches — Out-of-Scope-Diff entweder
-  separieren, nachreviewen oder explizit als separater Scope deklarieren.
+- [CHN-3-R2] MEDIUM (CHN-3 review, 2026-09-26) | Review scope deviation:
+  the declared review scope (register-tools.ts, WorkflowEngine.ts,
+  README, Spec §12, chain.test.ts) covers only part of the actual
+  uncommitted diff — 25 further files with substantial changes
+  (including SpecKitEngine.ts +755 lines, ConfigAssistant.ts, remote-tools.ts,
+  server.ts) are unreviewed; the feature branch has ZERO commits
+  (HEAD == develop 49a18bc). Additionally the existing entry
+  [CHN-3] is marked "RESOLVED" — with CHN-3-R1 open that needs to be made
+  precise.
+  | Trigger: commit/PR creation of the branch — either separate the
+  out-of-scope diff, review it afterwards, or explicitly declare it a
+  separate scope.
   | action required
-- [CHN-3] RESOLVED 2026-09-26 | Mixed-Manifeste (Q-B revidiert):
-  `steps` + `source` kombinierbar (Spec-Amendment 002 v1.1, §12/FR-119);
-  Engine resolveChainStep zwei-phasig (Form A bis Erschöpfung, dann Form
-  B), chainedTaskIds nur durch Task-Steps fortgeschrieben, plain + source
-  abgelehnt. Tests: Mixed-Happy-Path + Validierung + HIGH-1-Regression
-  (17 Chain-Tests / 249 gesamt). | — | resolved
-- [CHN-2] RESOLVED 2026-09-26 | Dogfooding aktiviert: `chain: {enabled:
-true, maxChainDepth: 8, maxStepsPerManifest: 16}` in
-  `.guidance/guidance.json` (plain-Profil ⇒ Form A). KRITISCHER Hinweis:
-  Aktivierung OHNE Image-Rebuild würde den nächsten Container-Restart
-  brechen (alte Boot-Validierung kennt 'chain' nicht,
-  additionalProperties:false) — Image wurde im selben Zug neu gebaut
-  (`docker compose build && up -d`, /health ok). loadConfig-Smoke +
-  247/247 Tests grün. | — | resolved
-- [CHN-1] RESOLVED 2026-09-26 | Re-Activation-Pfad implementiert:
-  `retryOperations` fängt Status `activating` ab (vor dem
-  `chain_activation_incomplete`-Wurf von getSession), führt
-  `activateSession` erneut aus — Erfolg → active + Audit
-  `chain_activation_recovered`, FR-040-Fail → blocked + recoverable
+- [CHN-3] RESOLVED 2026-09-26 | Mixed manifests (Q-B revised):
+  `steps` + `source` combinable (Spec Amendment 002 v1.1, §12/FR-119);
+  engine resolveChainStep two-phase (Form A to exhaustion, then Form
+  B), chainedTaskIds advanced only by task steps, plain + source
+  rejected. Tests: mixed happy path + validation + HIGH-1 regression
+  (17 chain tests / 249 total). | — | resolved
+- [CHN-2] RESOLVED 2026-09-26 | Dogfooding activated: `chain: {enabled:
+  true, maxChainDepth: 8, maxStepsPerManifest: 16}` in
+  `.guidance/guidance.json` (plain profile ⇒ Form A). CRITICAL note:
+  activation WITHOUT an image rebuild would break the next container
+  restart (the old boot validation does not know 'chain',
+  additionalProperties:false) — the image was rebuilt in the same step
+  (`docker compose build && up -d`, /health ok). loadConfig smoke +
+  247/247 tests green. | — | resolved
+- [CHN-1] RESOLVED 2026-09-26 | Re-activation path implemented:
+  `retryOperations` intercepts status `activating` (before the
+  `chain_activation_incomplete` throw from getSession), runs
+  `activateSession` again — success → active + audit
+  `chain_activation_recovered`, FR-040 failure → blocked + recoverable
   `required_hook_failed`. Tests §10.11b/§10.11c in chain.test.ts
-  (14 Chain-Tests / 247 gesamt grün). | — | resolved
-- [CHN-7] LOW (CHN-1 Review #3, accepted) | Response-Kontrast: der neue
-  Recovery-Fail-Pfad in `retryOperations` liefert `status` (wie
-  reportBlocker/resumeWorkflow), der bestehende FR-040-Retry-Fail-Pfad
-  verzichtet darauf; Recovery-Erfolg hat kein `previousPhase` (kein
-  Phasenübergang). Loose SubmitResult-Union ⇒ kein Consumer-Break.
-  | Trigger: nächster Touch von `retryOperations`. | accepted with rationale
-  (optionale Alignment-Follow-up).
-- [CHN-4] MEDIUM (Post-Merge-Review MEDIUM-2, accepted) | Form-B-Brücke
-  (specKitTasks-Callback in `composeApplication`) fängt jede Exception als
-  `[]` — ein defekter Spec-Kit-State beendet die Kette "regulär stumm"
-  (FR-117-Silent-End) statt diagnostisch unterscheidbar zu sein.
-  | Trigger: Form-B produktiver Einsatz oder nächster Touch der Brücke.
-  | action required: Load-Fehler von leerer Liste unterscheiden oder
-  `chain_end`-Audit-Event mit Bridge-Status ergänzen.
-- [CHN-5] LOW (Post-Merge-Review LOW-6, accepted) | Crash nach Successor-
-  Aktivierung, aber vor Re-Cache des requestIds-Resultats: Replay liefert
-  `nextSessionId` ohne `chain`-Entry (rein informativ; Client-Loop folgt
-  nextSessionId). | Trigger: nächster Touch von `completeWorkflow`.
+  (14 chain tests / 247 total green). | — | resolved
+- [CHN-7] LOW (CHN-1 review #3, accepted) | Response contrast: the new
+  recovery fail path in `retryOperations` returns `status` (like
+  reportBlocker/resumeWorkflow), the existing FR-040 retry fail path
+  omits it; recovery success has no `previousPhase` (no phase
+  transition). Loose SubmitResult union ⇒ no consumer break.
+  | Trigger: next touch of `retryOperations`. | accepted with rationale
+  (optional alignment follow-up).
+- [CHN-4] MEDIUM (post-merge review MEDIUM-2, accepted) | The Form-B bridge
+  (specKitTasks callback in `composeApplication`) catches every exception as
+  `[]` — a broken Spec-Kit state ends the chain "regularly silently"
+  (FR-117 silent end) instead of being diagnostically distinguishable.
+  | Trigger: productive use of Form B or the next touch of the bridge.
+  | action required: distinguish load errors from an empty list or add
+  a `chain_end` audit event with the bridge status.
+- [CHN-5] LOW (post-merge review LOW-6, accepted) | Crash after successor
+  activation but before re-caching the requestIds result: the replay returns
+  `nextSessionId` without a `chain` entry (purely informational; the client
+  loop follows nextSessionId). | Trigger: next touch of `completeWorkflow`.
   | accepted with rationale.
-- [CHN-6] NIT (Post-Merge-Review NIT-7, accepted) | `startWorkflow` baut
-  die Response-Guidance aus dem Pre-Aktivierungs-Snapshot (lokal
-  veraltetes Session-Objekt); aktuell wirkungslos, da `guidanceFor` nur
-  statische Texte + chainTaskScope liest. | Trigger: falls `guidanceFor`
-  künftig dynamischen Session-Zustand einbezieht. | accepted with rationale.
-- [CHN-1] MEDIUM | Workflow-Chaining (Amendment 002, implementiert auf
-  `feature/workflow-chaining`): eine im Crash-Fenster zurückbleibende
-  `activating`-Session wird fail-closed abgelehnt (`chain_activation_incomplete`),
-  aber `retry_operation` nimmt sie nicht automatisch wieder auf (Re-Activation
-  erfordert manuellen Eingriff/Neustart). Fail-closed verhindert jeden
-  Gate-Bypass; die komfortable Wiederaufnahme fehlt. | Trigger: nächster
-  Touch von `WorkflowEngine.retryOperation` oder ein Chaining-Feedback aus
-  produktiver Nutzung. | action required: Re-Activation-Pfad ergänzen
-  (retry_operation oder Startup-Recovery) + Test.
-- [CHN-2] LOW | Chain-Dogfooding: `chain` ist implementiert, aber in der
-  repo-eigenen `.guidance/guidance.json` noch nicht aktiviert (Default
-  `enabled:false`, Arbeits-Annahme Q-A). | Trigger: Merge von
-  `feature/workflow-chaining` nach develop. | action required: Nutzer-
-  Entscheidung — `chain.enabled: true` setzen oder bewusst deaktiviert lassen.
-- [CHN-3] LOW | Mixed-Chain-Manifest (Form A steps + Form B source kombiniert)
-  ist aktuell exklusiv (z.union) abgelehnt (Arbeits-Annahme Q-B). | Trigger:
-  falls ein Anwendungsfall „erst Steps, dann task-abgeleitet“ auftritt.
-  | accepted with rationale; ggf. Folgearbeit im Spec.
+- [CHN-6] NIT (post-merge review NIT-7, accepted) | `startWorkflow` builds
+  the response guidance from the pre-activation snapshot (a locally
+  stale session object); currently ineffective since `guidanceFor` reads
+  only static texts + chainTaskScope. | Trigger: if `guidanceFor`
+  ever includes dynamic session state. | accepted with rationale.
+- [CHN-1] MEDIUM | Workflow chaining (Amendment 002, implemented on
+  `feature/workflow-chaining`): an `activating` session left behind in the
+  crash window is rejected fail-closed (`chain_activation_incomplete`),
+  but `retry_operation` does not automatically resume it (re-activation
+  requires manual intervention/restart). Fail-closed prevents every
+  gate bypass; the convenient resumption is missing. | Trigger: the next
+  touch of `WorkflowEngine.retryOperation` or chaining feedback from
+  productive use. | action required: add a re-activation path
+  (retry_operation or startup recovery) + test.
+- [CHN-2] LOW | Chain dogfooding: `chain` is implemented but not yet
+  activated in the repo's own `.guidance/guidance.json` (default
+  `enabled:false`, working assumption Q-A). | Trigger: merge of
+  `feature/workflow-chaining` to develop. | action required: user
+  decision — set `chain.enabled: true` or deliberately leave it disabled.
+- [CHN-3] LOW | A mixed-chain manifest (Form A steps + Form B source
+  combined) is currently rejected as exclusive (z.union) (working
+  assumption Q-B). | Trigger:
+  if a use case "first steps, then task-derived" arises.
+  | accepted with rationale; possibly follow-up work in the spec.
 
-- [GUID-6] CLOSED 2026-09-25 | Frische-Prüfung deterministisch im Gate:
-  neue blocking-Operation `index-freshness` (Skript
-  `servers/server-guidance/scripts/check-index-freshness.mjs`, reiner Node
-  ohne git-Binary) vergleicht `.gitnexus/branches/*/meta.json` (lastCommit)
-  gegen git HEAD (loose ref + packed-refs-Fallback, detached-HEAD-tolerant)
-  und failt bei Staleness mit Differenzdetail — live demonstriert: Commit
-  `4ee166e` nach dem letzten Analyze → Gate-Fail „no index covers HEAD“,
-  nach `gitnexus analyze --no-stats` → grün. Root-meta.json ist KEIN
-  Frische-Indikator (Inkremental-Analyze aktualisiert nur branches/_).
-  Rest: gitnexus-native Staleness-API bleibt Nice-to-have (Skript macht sie
-  überflüssig, solange branches/_ zuverlässig gepflegt wird). | — | resolved
-- [GUID-3] CLOSED 2026-09-25 | Template-Platzhalter werden jetzt aufgelöst:
-  `OperationContext.templateVars` (befüllt von `WorkflowEngine.ctxFor` mit
-  `session.request` + `project.name`), tiefe `${token}`-Resolution für
-  `mode: "template"` in OperationEngine (Fail-fast `operation_arguments_invalid`
-  bei unbekannten Tokens — Literal-Passthrough ausgeschlossen); `mode: "fixed"`
-  bleibt literal. Regressionstests in
+- [GUID-6] CLOSED 2026-09-25 | Freshness check deterministic in the gate:
+  the new blocking operation `index-freshness` (script
+  `servers/server-guidance/scripts/check-index-freshness.mjs`, pure Node
+  without a git binary) compares `.gitnexus/branches/*/meta.json` (lastCommit)
+  against git HEAD (loose ref + packed-refs fallback, detached-HEAD tolerant)
+  and fails on staleness with the difference detail — live demonstrated:
+  commit `4ee166e` after the last analyze → gate fail "no index covers HEAD",
+  after `gitnexus analyze --no-stats` → green. The root meta.json is NOT a
+  freshness indicator (incremental analyze updates only branches/_).
+  Remainder: a gitnexus-native staleness API remains nice-to-have (the script
+  makes it superfluous as long as branches/_ is reliably maintained).
+  | — | resolved
+- [GUID-3] CLOSED 2026-09-25 | Template placeholders are now resolved:
+  `OperationContext.templateVars` (populated by `WorkflowEngine.ctxFor` with
+  `session.request` + `project.name`), deep `${token}` resolution for
+  `mode: "template"` in OperationEngine (fail-fast `operation_arguments_invalid`
+  on unknown tokens — literal passthrough excluded); `mode: "fixed"`
+  stays literal. Regression tests in
   tests/orchestration/operation-engine-env-template.test.ts. | — | resolved
-- [GUID-4] CLOSED 2026-09-25 | Regression-Coverage für den ESM-createRequire-
-  Fix nachgereicht: (a) Schema-Load über public API (`submit` understand→plan,
-  valid + invalid durch den echten validatorFor-Pfad), (b) Source-Scan-Test
-  gegen bare-`require("…")`-Rezidiv in WorkflowEngine.ts
+- [GUID-4] CLOSED 2026-09-25 | Regression coverage for the ESM
+  createRequire fix supplied afterwards: (a) schema load via the public API
+  (`submit` understand→plan, valid + invalid through the real validatorFor
+  path), (b) source-scan test against a bare-`require("…")` recurrence in
+  WorkflowEngine.ts
   (tests/workflow/schema-load-regression.test.ts). | — | resolved
-- [GUID-7] CLOSED 2026-09-25 | Umschaltbares `workspaceRoot` pro Session —
-  als Server-Feature nicht nötig: `start_workflow` nimmt `workspaceRoot`
-  bereits pro Session entgegen (`assertWorkspaceInside` akzeptiert alles
-  unter `/workspace`), und `docker-compose.override.yml` mountet seit heute
-  `D:/repos/Thinking-MCP-worktrees` nach `/workspace/worktrees`. Muster:
-  `git worktree add` auf dem Host unter Thinking-MCP-worktrees, dann
-  `start_workflow` mit `workspaceRoot: /workspace/worktrees/<name>` — alle
-  Gates (inkl. index-freshness via Worktree-eigenem .gitnexus) laufen im
-  Worktree; einmal `npm install` im Worktree für build/test-Gates. Live
-  verifiziert: start_workflow mit Worktree-Root → accepted.
-  | — | resolved (Deployment-Muster statt Server-Feature)
-- [GUID-1] CLOSED 2026-09-25 | Gate feuerte produktiv im complete-Lauf und
-  ging grün: `repository-analysis` succeeded (check `{repo:"thinking-mcp"}`
-  nach GUID-3-Workaround + Container-Restart). Session
-  `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` completed. Restrisiko
-  dokumentiert in activeContext (Docker-Mounts vs. Indexstand, vgl. HD-4)
-  bleibt Beobachtungspunkt für künftige Läufe. | resolved (grüner Lauf)
-- [GUID-2] CLOSED 2026-09-25 (subsumed) | `store-completion-insight`-Args
-  unvollständig — die Operation wurde im Zuge der Capture-lessons-Integration
-  **komplett entfernt** und durch `capture-session-lessons` ersetzt
-  (Prozess-Gate, seed-lessons.mjs, idempotent, blocking; Commit `2e72c9a`).
-  Ursprünglicher Trigger existiert nicht mehr. Duplikat-Eintrag konsolidiert.
+- [GUID-7] CLOSED 2026-09-25 | Switchable `workspaceRoot` per session —
+  not needed as a server feature: `start_workflow` already accepts
+  `workspaceRoot` per session (`assertWorkspaceInside` accepts anything
+  under `/workspace`), and `docker-compose.override.yml` has mounted
+  `D:/repos/Thinking-MCP-worktrees` to `/workspace/worktrees` since today.
+  Pattern: `git worktree add` on the host under Thinking-MCP-worktrees, then
+  `start_workflow` with `workspaceRoot: /workspace/worktrees/<name>` — all
+  gates (incl. index-freshness via the worktree's own .gitnexus) run in the
+  worktree; run `npm install` once in the worktree for the build/test gates.
+  Live verified: start_workflow with a worktree root → accepted.
+  | — | resolved (deployment pattern instead of a server feature)
+- [GUID-1] CLOSED 2026-09-25 | The gate fired productively in the complete
+  run and went green: `repository-analysis` succeeded (check `{repo:"thinking-mcp"}`
+  after the GUID-3 workaround + container restart). Session
+  `session-7192a3e7-fcbf-4f01-b297-93efc2da9d9d` completed. The residual
+  risk documented in activeContext (Docker mounts vs. index state, cf. HD-4)
+  remains an observation point for future runs. | resolved (green run)
+- [GUID-2] CLOSED 2026-09-25 (subsumed) | `store-completion-insight` args
+  incomplete — the operation was **completely removed** as part of the
+  capture-lessons integration and replaced by `capture-session-lessons`
+  (process gate, seed-lessons.mjs, idempotent, blocking; commit `2e72c9a`).
+  The original trigger no longer exists. Duplicate entry consolidated.
   | — | resolved (subsumed)
-- [x] HD-2 | LOW | `connection.startupTimeoutSeconds` war nicht verdrahtet —
-      `ClientManager.handshakeTimeoutMs` hardcoded 10 s. GELÖST (Commit „wire
-      per-server handshake timeout"): `ensureReady` nimmt
-      `connection.handshakeTimeoutSeconds` (aus `startupTimeoutSeconds`) pro Server;
-      Config-Validierung positiv-finit; invalid value ⇒ failed status (kein Crash);
-      Test mit hängendem Transport beweist die Verdrahtung (fail ~200 ms bei
-      Default 10 s). detect-changes: risk MEDIUM, nur erwartete Symbole. | — |
+- [x] HD-2 | LOW | `connection.startupTimeoutSeconds` was not wired —
+      `ClientManager.handshakeTimeoutMs` hardcoded 10 s. RESOLVED (commit "wire
+      per-server handshake timeout"): `ensureReady` takes
+      `connection.handshakeTimeoutSeconds` (from `startupTimeoutSeconds`) per
+      server; config validation positive-finite; invalid value ⇒ failed status
+      (no crash); a test with a hanging transport proves the wiring (fail ~200
+      ms with the default 10 s). detect-changes: risk MEDIUM, only expected
+      symbols. | — |
       resolved
-- [GUID-2] CLOSED 2026-09-25 (subsumed) | `store-completion-insight`-Args
-  unvollständig — die Operation wurde im Zuge der Capture-lessons-Integration
-  **komplett entfernt** und durch `capture-session-lessons` ersetzt
-  (Prozess-Gate, seed-lessons.mjs, idempotent, blocking; Commit `2e72c9a`).
-  Ursprünglicher Trigger existiert nicht mehr. | — | resolved (subsumed)
-- [GUID-5] CLOSED 2026-09-25 | `env`- und `shell`-Optionen für Prozess-
-  Operationen implementiert (OperationConfig + spawnSync: env-Merge über
-  process.env, shell boolean|string; Validierung in config.ts; Unit-Tests
-  inkl. Negativ-Nachweis ohne env). eigene operations.json auf env umgestellt
-  (sh -c-Wrapper entfallen). Rest: umschaltbares workspaceRoot → GUID-7.
+- [GUID-2] CLOSED 2026-09-25 (subsumed) | `store-completion-insight` args
+  incomplete — the operation was **completely removed** as part of the
+  capture-lessons integration and replaced by `capture-session-lessons`
+  (process gate, seed-lessons.mjs, idempotent, blocking; commit `2e72c9a`).
+  The original trigger no longer exists. | — | resolved (subsumed)
+- [GUID-5] CLOSED 2026-09-25 | `env` and `shell` options for process
+  operations implemented (OperationConfig + spawnSync: env merge over
+  process.env, shell boolean|string; validation in config.ts; unit tests
+  incl. a negative proof without env). Own operations.json switched to env
+  (the sh -c wrapper dropped). Remainder: switchable workspaceRoot → GUID-7.
   | — | resolved
-- [GUID-5] CLOSED 2026-09-25 | `env`- und `shell`-Optionen für Prozess-
-  Operationen implementiert (OperationConfig + spawnSync: env-Merge über
-  process.env, shell boolean|string; Validierung in config.ts; Unit-Tests
-  inkl. Negativ-Nachweis ohne env). eigene operations.json auf env umgestellt
-  (sh -c-Wrapper entfallen). Rest: umschaltbares workspaceRoot → GUID-7.
+- [GUID-5] CLOSED 2026-09-25 | `env` and `shell` options for process
+  operations implemented (OperationConfig + spawnSync: env merge over
+  process.env, shell boolean|string; validation in config.ts; unit tests
+  incl. a negative proof without env). Own operations.json switched to env
+  (the sh -c wrapper dropped). Remainder: switchable workspaceRoot → GUID-7.
   | — | resolved
-- [HD-3] CLOSED 2026-09-25 | Stateful-Downstream-Regression automatisiert:
-  tests/orchestration/client-manager-http-stateful.test.ts — in-process
-  stateful MCP-HTTP-Server (echtes StreamableHTTPServerTransport mit
-  sessionIdGenerator + mcp-session-id); ClientManager über die HTTP-Branch
-  von transportFor. Gedeckt: ensureReady/Discovery in Session, invokeTool
-  success + Server-seitiger Session-Header-Nachweis, verlorene Session →
-  deterministische transport-Klassifikation (Server-404-Zähler). 3/3 Tests
-  grün. Dokumentierte Grenze: Stub antwortet JSON statt SSE
-  (Live-Server-Antwortformat) — Rest als Coverage-Notiz im Eintrag. | — | resolved
-- [HD-1] MEDIUM | HTTP-Downstream-Reconnect fehlt: `connection.reconnect`
-  war dokumentiert, aber nicht implementiert. GELÖST (Commit „feat(guidance):
-  reconnect downstream after transport failures"): ClientManager merkt sich
-  Transport-/Handshake-Parameter pro Server; nach transport failure werden
-  toter Client verworfen, Handshake bis zu `maximumAttempts`-mal wiederholt
-  (`delayMilliseconds` dazwischen) und der Call erneut ausgeführt. Invalid
-  config (z.B. requestTimeoutSeconds) wird NIE retryt. Validierung: reconnect
-  = Objekt mit enabled:boolean, maximumAttempts: positive int,
-  delayMilliseconds: non-negative int (fail-closed). Tests: Reconnect-After-
-  Death, Exhausted-Attempts („reconnect attempt 2/2"), Disabled/Unconfigured,
-  Invalid-Timeout-Kein-Retry. Rest: Backoff-Strategie (exponentiell/Jitter)
-  bewusst nicht implementiert — fixed delay, dokumentiert.
-  **Review-Nachschub (2026-09-25): F1 (MEDIUM, gefixt):** Reconnect griff
-  zunächst auch auf Request-Timeouts — der Call lief downstream bereits
-  (kein AbortSignal) und wäre automatisch wiederholt worden ⇒
-  Duplication-Risiko für nicht-idempotente Tools, Widerspruch zu FR-035.
-  Fix: Transport-Failures tragen jetzt `timedOut: true` und werden vom
-  Reconnect explizit ausgenommen (Regressionstest: Transport-Factory nach
-  Timeout genau 1× gerufen). **F2 (LOW, gefixt):** README klärt, dass
-  `maximumAttempts` für Wirkung erforderlich ist. | — | resolved
-- [HD-2] LOW | `connection.startupTimeoutSeconds` ist nicht verdrahtet —
-  `ClientManager.handshakeTimeoutMs` ist hardcoded 10 s (pre-existing, für kalt
-  startende HTTP-Downstreams relevanter). | Trigger: nächster Touch von
-  ClientManager.ensureReady. | accepted with rationale (klein, bewusst
-  zurückgestellt)
-- [HD-3] LOW | HTTP-E2E-Test deckt nur stateless Downstream (guidance
-  createHttpApp) ab; stateful-Session-Verhalten des
-  StreamableHTTPClientTransport gegen insight (sessionIdGenerator) ist nicht
-  automatisiert getestet. | Trigger: insight als Downstream in einer
-  guidance-Config produktiv gesetzt wird. | GELÖST (2026-09-25, manuell
-  verifiziert): Live-Check mit echtem ClientManager gegen die statefulen
-  Server — insight: ready, 20 Tools, invoke → tool_reported (korrekte
-  Fehlerklassifikation ohne Args); gitnexus :4747/api/mcp: ready, 17 Tools,
-  invoke list_repos → success. Session-Handling (mcp-session-id) vom SDK-Client
-  bestätigt. Regressionsschutz als automatisierter Test bleibt offen — das
-  Live-System ist von CI aus nicht adressierbar; Ersatz über einen statefulen
-  In-Process-HTTP-Stub beim nächsten Touch des Tests. | action required
-  (nur der automatisierte Test)
-- [x] HD-4 | INFO | MCP-Toolzugriff 2026-09-25: (a) Clear-Thought/GitNexus
-      Context-Server-Timeouts (Impact grep-substituiert). (b) Docker-MCP (:4747)
-      hat eigenen leeren Registry (sieht nur …\\GitNexus\\workspace) — WSL-CLI ist
-      separater Wahrheitsraum. (c) WSL-Index war inkonsistent (quarantined WAL,
-      /mnt/c-Duplikat). GELÖST: gitnexus remove /mnt/c-Duplikat + clean +
-      analyze --no-stats → detect-changes läuft vollständig (11 files, 41 symbols,
-      risk HIGH — erwartbar: loadConfig/WorkflowEngine sind Startup-kritisch;
-      Änderungen additiv/rückwärtskompatibel, 206/206 Tests + tsc grün als
-      Kompensation). Offen (akzeptiert): Docker-MCP sieht D:\repos nicht — für
-      MCP-seitige Tools wäre ein zusätzlicher Container-Mount nötig; bis dahin
-      CLI (WSL) als Quelle. | Trigger: Nutzung der GitNexus-MCP-Tools für dieses
-      Repo. | resolved (Rest: accepted with rationale)
+- [HD-3] CLOSED 2026-09-25 | Stateful downstream regression automated:
+  tests/orchestration/client-manager-http-stateful.test.ts — an in-process
+  stateful MCP HTTP server (real StreamableHTTPServerTransport with
+  sessionIdGenerator + mcp-session-id); ClientManager via the HTTP branch
+  of transportFor. Covered: ensureReady/discovery in session, invokeTool
+  success + server-side session-header proof, lost session →
+  deterministic transport classification (server 404 counter). 3/3 tests
+  green. Documented boundary: the stub answers JSON instead of SSE
+  (the live server response format) — remainder as a coverage note in the
+  entry. | — | resolved
+- [HD-1] MEDIUM | HTTP downstream reconnect missing: `connection.reconnect`
+  was documented but not implemented. RESOLVED (commit "feat(guidance):
+  reconnect downstream after transport failures"): ClientManager remembers
+  the transport/handshake parameters per server; after a transport failure
+  the dead client is discarded, the handshake retried up to
+  `maximumAttempts` times (`delayMilliseconds` in between) and the call
+  executed again. Invalid config (e.g. requestTimeoutSeconds) is NEVER
+  retried. Validation: reconnect = object with enabled:boolean,
+  maximumAttempts: positive int, delayMilliseconds: non-negative int
+  (fail-closed). Tests: reconnect-after-death, exhausted-attempts
+  ("reconnect attempt 2/2"), disabled/unconfigured,
+  invalid-timeout-no-retry. Remainder: a backoff strategy
+  (exponential/jitter) deliberately not implemented — fixed delay,
+  documented.
+  **Review follow-up (2026-09-25): F1 (MEDIUM, fixed):**
+  Reconnect initially also applied to request timeouts — the call had
+  already gone downstream (no AbortSignal) and would have been repeated
+  automatically ⇒ duplication risk for non-idempotent tools, contradiction
+  with FR-035.
+  Fix: transport failures now carry `timedOut: true` and are explicitly
+  excluded from reconnect (regression test: transport factory called
+  exactly 1× after a timeout). **F2 (LOW, fixed):** the README clarifies
+  that `maximumAttempts` is required to take effect. | — | resolved
+- [HD-2] LOW | `connection.startupTimeoutSeconds` is not wired —
+  `ClientManager.handshakeTimeoutMs` is hardcoded 10 s (pre-existing, more
+  relevant for cold-starting HTTP downstreams). | Trigger: next touch of
+  ClientManager.ensureReady. | accepted with rationale (small, deliberately
+  deferred)
+- [HD-3] LOW | The HTTP E2E test covers only a stateless downstream
+  (guidance createHttpApp); the stateful session behavior of the
+  StreamableHTTPClientTransport against insight (sessionIdGenerator) is not
+  tested automatically. | Trigger: insight productively set as a
+  downstream in a guidance config. | RESOLVED (2026-09-25, manually
+  verified): live check with a real ClientManager against the stateful
+  servers — insight: ready, 20 tools, invoke → tool_reported (correct
+  error classification without args); gitnexus :4747/api/mcp: ready, 17
+  tools, invoke list_repos → success. Session handling (mcp-session-id)
+  confirmed by the SDK client. Regression protection as an automated test
+  remains open — the live system is not addressable from CI; substitute
+  via a stateful in-process HTTP stub at the next touch of the test.
+  | action required
+  (only the automated test)
+- [x] HD-4 | INFO | MCP tool access 2026-09-25: (a) clear-thought/GitNexus
+      context server timeouts (impact substituted with grep). (b) Docker MCP
+      (:4747) has its own empty registry (sees only …\GitNexus\workspace) — the
+      WSL CLI is a separate truth space. (c) The WSL index was inconsistent
+      (quarantined WAL, /mnt/c duplicate). RESOLVED: gitnexus remove /mnt/c
+      duplicate + clean + analyze --no-stats → detect-changes runs fully (11
+      files, 41 symbols, risk HIGH — expected: loadConfig/WorkflowEngine are
+      startup-critical; changes additive/backward-compatible, 206/206 tests +
+      tsc green as compensation). Open (accepted): Docker MCP does not see
+      D:\repos — an additional container mount would be needed for MCP-side
+      tools; until then the CLI (WSL) as the source. | Trigger: use of the
+      GitNexus MCP tools for this repo. | resolved (remainder: accepted with
+      rationale)
 
 - [RB-10] LOW (pending rescan) | clear-thought published to Smithery:
   paschbaer/clear-thought created (PUT /servers 201), release 954d7892
@@ -623,941 +639,979 @@ true, maxChainDepth: 8, maxStepsPerManifest: 16}` in
   only, no tests, no HTTP) | fixed by the HTTP-MCP rebuild on
   `feature/stochastic-http-mcp` (phases 0–5): factory + zod config, stdio dev
   entry, Streamable HTTP server with /health, vitest suite (15 tests), live
-  funktionstest (6 checks), Docker recipe ported from clear-thought.
+  smoke test (6 checks), Docker recipe ported from clear-thought.
 
-- [EV-1] MEDIUM | Eval Run 2 (easy tasks, glm-5.3 Actor+Judge): alle Tasks
-  Δ = 0 — Selbst-Bias-Konfounder + zu leichte Tasks | trigger: nächste
-  Eval-Messung | action required: Run 3 mit `evals/tasks-hard.json`
-  (Ground-Truth-Rubrics) und unabhängigem Judge (`EVAL_JUDGE_MODEL` +
-  `EVAL_JUDGE_BASE_URL`/`EVAL_JUDGE_API_KEY` auf anderen Provider); rig ist
-  gebaut (Branch `feature/harder-evals-actor-judge-split`), needs API keys + Go.
+- [EV-1] MEDIUM | Eval Run 2 (easy tasks, glm-5.3 Actor+Judge): all tasks
+  Δ = 0 — self-bias confounder + tasks too easy | trigger: next eval
+  measurement | action required: Run 3 with `evals/tasks-hard.json`
+  (ground-truth rubrics) and an independent judge (`EVAL_JUDGE_MODEL` +
+  `EVAL_JUDGE_BASE_URL`/`EVAL_JUDGE_API_KEY` on another provider); the rig is
+  built (branch `feature/harder-evals-actor-judge-split`), needs API keys +
+  go.
 
-- [EV-2] FIXED 2026-09-15 (review finding, was MEDIUM) | Bandit-Rubrik-Konstanten
-  (regret 16.14, pulls 31/13/96, mean 0.271) waren seed-locked ohne Regressionsschutz
-  — RNG-Änderung würde Rubrik still invalidieren | **Behoben mit Pinning-Test**
+- [EV-2] FIXED 2026-09-15 (review finding, was MEDIUM) | Bandit rubric
+  constants (regret 16.14, pulls 31/13/96, mean 0.271) were seed-locked without
+  regression protection — an RNG change would silently invalidate the rubric
+  | **Fixed with a pinning test**
   `tests/algorithms.test.ts` (thompson/seed 7, 80+60 via createBanditRun/runBanditCall,
-  exakte Assertions; 17/17 grün). Trigger falls er rot wird: Rubrik-Ground-Truth in
-  tasks-hard.json per echten Tool-Läufen regenerieren, bevor ein Eval-Lauf gewertet wird.
-- [EV-3] FIXED 2026-09-15 (review findings, LOW) | Runner-Argument-Guards
-  (`--max-tasks` NaN → exit 2 statt still „alle Tasks"; `--tasks` ohne Wert → exit 2
-  statt TypeError), Judge-Antwort-Cap 6000→12000 Zeichen, stdio-Transport-Cleanup bei
-  fehlgeschlagenem connect, Game-Matrix-Rubrik: `chaotic` wird auch von `aggressive`
-  dominiert (beide Begründungen jetzt als korrekt akzeptiert).
-- [EV-4] ACCEPTED with rationale (review NIT) | Self-Bias-Warnung vergleicht volle
-  URLs — gleiches Modell hinter URL-Alias/Proxy wird nicht erkannt; dokumentiertes
-  Heuristik-Verhalten. `chat()` gibt bei attempts<=0 undefined zurück — mit aktuellen
-  Call-Sites (3/1) unerreichbar, latenter Kontrakt-Wartezustand. | trigger: falls
-  Proxy-basierte Judge-Setups genutzt werden, Heuristik auf Hostnormalisierung ausbauen.
-- [EV-5] ACCEPTED with rationale (infra, pre-existing) | `bin-invocation.test.ts`
-  (npx-Symlink-Startup-Probe) ist lastempfindlich auf drvfs: isoliert grün
-  (58,5 s Testzeit — Probe-Fenster knapp), in Full-Suite unter Parallel-Last 2× rot.
-  Nicht durch diesen Diff verursacht (kein src/dist-Change). | trigger: falls in CI
-  (natives Linux, kein drvfs) rot → echt untersuchen; lokal: fokussiert nachlaufen
-  lassen, bevor ein Regression angenommen wird.
+  exact assertions; 17/17 green). Trigger if it turns red: regenerate the rubric
+  ground truth in tasks-hard.json from real tool runs before an eval run is
+  scored.
+- [EV-3] FIXED 2026-09-15 (review findings, LOW) | Runner argument guards
+  (`--max-tasks` NaN → exit 2 instead of silently "all tasks"; `--tasks`
+  without a value → exit 2 instead of TypeError), judge answer cap
+  6000→12000 characters, stdio transport cleanup on a failed connect,
+  game-matrix rubric: `chaotic` is also dominated by `aggressive`
+  (both justifications now accepted as correct).
+- [EV-4] ACCEPTED with rationale (review NIT) | The self-bias warning compares
+  full URLs — the same model behind a URL alias/proxy is not detected;
+  documented heuristic behavior. `chat()` returns undefined for attempts<=0 —
+  unreachable with the current call sites (3/1), a latent contract waiting
+  state. | trigger: if proxy-based judge setups are used, extend the
+  heuristic to host normalization.
+- [EV-5] ACCEPTED with rationale (infra, pre-existing) |
+  `bin-invocation.test.ts` (npx symlink startup probe) is load-sensitive on
+  drvfs: green in isolation (58.5 s test time — the probe window is tight),
+  in the full suite under parallel load 2× red.
+  Not caused by this diff (no src/dist change). | trigger: if it turns red
+  in CI (native Linux, no drvfs) → investigate for real; locally: re-run
+  focused before assuming a regression.
 
-- [EV-1] RESOLVED 2026-09-15 | Run 3 mit tasks-hard.json + unabhängigem Judge
-  (glm-5.3-flash Actor [thinking off] ↔ glm-5.3 Judge) ausgeführt: Δ +11 Bandit /
-  +2 Fault-Tree / 0 Fermi / −4 Game (Transcribe-Slip). Hard Set differenziert wie
-  konzipiert — der statefulle Bandit-Task ist der saubeste Tool-Wert-Nachweis.
-- [EV-6] MEDIUM (neu, Run 3) | Scoring-Anzeige-Bug: Judge-Rohsumme (max 16 bei
-  4 Kriterien) wird gegen gewichtetes rubricMax (40) ins Report geschrieben —
-  Prozentangaben deflationiert, Deltas unverändert valide | trigger: vor Run 4 |
-  action required: total = Σ score×weight im Runner rechnen; Kompatibilität zu
-  alten Reports in README vermerken.
-- [EV-7] MEDIUM (freigegeben) | Run-4-Härtung: verbatim-parameter System-Prompt
-  für den Server-Modus (Fixt Game-Matrix-Transcribe-Fehler-Klasse), EVAL_MAX_TOOL_
-  ROUNDS (Default 8), Tool-Call-Log (Args + Result-Preview) in report.json,
-  Rundungstoleranz/Äquivalenz in H1-Rubrik | trigger: nach EV-6, dann Run 4.
+- [EV-1] RESOLVED 2026-09-15 | Run 3 with tasks-hard.json + an independent
+  judge (glm-5.3-flash Actor [thinking off] ↔ glm-5.3 Judge) executed:
+  Δ +11 bandit / +2 fault-tree / 0 Fermi / −4 game (transcribe slip). The
+  hard set differentiates as designed — the stateful bandit task is the
+  cleanest tool-value proof.
+- [EV-6] MEDIUM (new, Run 3) | Scoring display bug: the judge raw sum (max 16
+  for 4 criteria) is written into the report against the weighted rubricMax
+  (40) — percentages deflated, the deltas remain valid | trigger: before
+  Run 4 | action required: compute total = Σ score×weight in the runner; note
+  the compatibility with old reports in the README.
+- [EV-7] MEDIUM (approved) | Run-4 hardening: verbatim-parameter system prompt
+  for server mode (fixes the game-matrix transcribe error class),
+  EVAL_MAX_TOOL_ROUNDS (default 8), tool-call log (args + result preview) in
+  report.json, rounding tolerance/equivalence in the H1 rubric | trigger:
+  after EV-6, then Run 4.
 
-- [EV-6] RESOLVED 2026-09-15 | gewichtetes Scoring im Runner (total = Σ
-  score×weight, clamp 0-4), Report-Skala jetzt konsistent (40er) — alte
-  Reports (Rohsummen) nicht vergleichbar, README-Doku dazu.
-- [EV-7] RESOLVED 2026-09-15 | Operator-Prompt (verbatim params, runId reuse,
-  full precision), EVAL_MAX_TOOL_ROUNDS (8), Tool-Call-Log in report.json,
-  Judge-Äquivalenzregel, H1-Rundungstoleranz. Bewirkt: Bandit/Fault-Tree 40/40.
-- [EV-8] OBSERVATION (Run 4, kein sofortiger Handlungsbedarf) | Tool-Schema-
-  Flailing: flash-no-think schickte 4× payoff_matrix als String-Arrays statt
-  {row,col}-Objekten (Erstaufruf-Formatfehler, Budgetverlust), übernahm danach
-  den Full-Game-Dominanz-Output ungefiltert statt nextSteps zu folgen
-  ("aggregating strategies to reach a 2×2 form"). | trigger: falls game_matrix-
-  Fehlaufrufe wieder auftreten | action: payoff_matrix-Beispiel-JSON in die
-  Tool-Beschreibung; nextSteps-Prominenz prüfen. Fermi-Task: fermi_estimate
-  wurde übersprungen (VoI zweimal falsch parametrisiert) — Operator-Prompt-
-  Variante "compute every requested number WITH the matching tool" denkbar.
+- [EV-6] RESOLVED 2026-09-15 | Weighted scoring in the runner (total = Σ
+  score×weight, clamp 0-4), the report scale is now consistent (40) — old
+  reports (raw sums) are not comparable, README docs on it.
+- [EV-7] RESOLVED 2026-09-15 | Operator prompt (verbatim params, runId reuse,
+  full precision), EVAL_MAX_TOOL_ROUNDS (8), tool-call log in report.json,
+  judge equivalence rule, H1 rounding tolerance. Effect: bandit/fault-tree
+  40/40.
+- [EV-8] OBSERVATION (Run 4, no immediate action needed) | Tool-schema
+  flailing: flash-no-think sent payoff_matrix 4× as string arrays instead of
+  {row,col} objects (first-call format error, budget loss), afterwards adopted
+  the full-game dominance output unfiltered instead of following nextSteps
+  ("aggregating strategies to reach a 2×2 form"). | trigger: if game_matrix
+  mis-calls reappear | action: payoff_matrix example JSON in the tool
+  description; check nextSteps prominence. Fermi task: fermi_estimate
+  was skipped (VoI mis-parameterized twice) — an operator-prompt variant
+  "compute every requested number WITH the matching tool" is conceivable.
 
-- [EV-8] RESOLVED 2026-09-15 | payoff_matrix-Beispiel in game_matrix-Schema-
-  Beschreibung (Commit 9bd6812, dist neu gebaut) + Operator-Prompt „matching
-  tool / real JSON objects". Run 5: beide Run-4-Fehlerklassen verschwunden
-  (Game 38/40 mit sauberen Calls, Fermi 40/40 mit fermi_estimate-Nutzung).
-  Kein weiterer Handlungsbedarf; Rig-Freeze auf Run-5-Stand empfohlen.
+- [EV-8] RESOLVED 2026-09-15 | payoff_matrix example in the game_matrix
+  schema description (commit 9bd6812, dist rebuilt) + operator prompt
+  "matching tool / real JSON objects". Run 5: both Run-4 error classes gone
+  (game 38/40 with clean calls, Fermi 40/40 using fermi_estimate).
+  No further action needed; a rig freeze at the Run-5 state recommended.
 
-## Tracked Follow-ups (appended 2026-09-15, Merge-Implementierung)
+## Tracked Follow-ups (appended 2026-09-15, merge implementation)
 
-- [MG-1] RESOLVED 2026-09-16 | Merge Phase 6: stochastic-Jobs aus `publish-npm.yml`,
-  `publish-containers.yml`, `publish-smithery.yml` entfernt (Commit `42010d1`,
-  gepusht) + `npm deprecate @paschbaer/stochasticthinking` ausgeführt und per
-  `npm view` verifiziert (deprecated-Meldung live, Verweis auf
-  `@paschbaer/clear-thought@>=2.0.0`, Version 0.1.1 bleibt installierbar).
-  Ursprung: Merge Phase 6 pending …
-  UPDATE 2026-09-16: Release-Version vom User auf 2.0.0 gesetzt (decisions.md
-  Update 2); Merge-Branch-Inhalte sind bereits auf develop — Release-Trigger ist
-  jetzt der PR `develop → main`. Version-Bump auf `feature/release-2-0-0`.
-  UPDATE 2026-09-16 (II): Trigger ERREICHT — User hat develop → main gemergt und
-  Publish angestoßen (2.0.0). Action jetzt fällig: 2.0.0 auf npm/ghcr/Smithery
-  verifizieren, dann `npm deprecate @paschbaer/stochasticthinking` (Verweis auf
-  `@paschbaer/clear-thought@>=2.0.0`) + stochastic-Jobs aus `publish-npm.yml`,
-  `publish-containers.yml`, `publish-smithery.yml` entfernen.
-- [MG-2] LOW | `servers/server-stochasticthinking/` bleibt bis auf Weiteres im Repo
-  (CI `test.yml` baut beide Workspaces); Ordner später archivieren und aus der
-  CI-Matrix nehmen | trigger: nach MG-1 + einer Deprecations-Periode | accepted
-  with rationale: README dient als Parameter-Referenz.
-- [MG-3] LOW | `scripts/funktionstest.mjs` (clear-thought) nutzt für die
-  Legacy-Tools noch die prä-1.0.0 kompakten Namen — Live-Checks gegen einen
-  aktuellen Server schlagen dafür fehl; die neuen stochastic-Checks (2026-09-15)
-  nutzen die aktuellen Namen | trigger: nächste Wartungsrunde | action required:
-  Namen heben und gegen einen laufenden Server verifizieren.
-- [MG-4] LOW | `evals/run.mjs` (clear-thought) attached bei LLM-Evals weiterhin
-  den deprecated sibling `../server-stochasticthinking/dist/dev.js` (falls
-  vorhanden) | evidence: run.mjs Zeile ~291, `existsSync`-guarded, "first server
-  wins"-Routing macht den Attach redundant (merged Server ist erster Client) |
-  trigger: MG-2 (Ordner-Archivierung) oder nächste Eval-Harness-Wartung |
-  accepted with rationale: harmlos — Routing geht an den merged Server; nach
-  Archivierung greift der existsSync-Fallback still.
-  UPDATE 2026-09-16: RESOLVED — attach block + Doku-Stellen entfernt
-  (Review-Fix F3, branch feature/skill-generator-docs); Eintrag obsolet.
+- [MG-1] RESOLVED 2026-09-16 | Merge phase 6: stochastic jobs removed from
+  `publish-npm.yml`, `publish-containers.yml`, `publish-smithery.yml` (commit
+  `42010d1`, pushed) + `npm deprecate @paschbaer/stochasticthinking` executed
+  and verified via `npm view` (deprecation message live, reference to
+  `@paschbaer/clear-thought@>=2.0.0`, version 0.1.1 remains installable).
+  Origin: merge phase 6 pending …
+  UPDATE 2026-09-16: release version set by the user to 2.0.0 (decisions.md
+  update 2); the merge branch contents are already on develop — the release
+  trigger is now the PR `develop → main`. Version bump on
+  `feature/release-2-0-0`.
+  UPDATE 2026-09-16 (II): trigger REACHED — the user merged develop → main
+  and initiated the publish (2.0.0). Action now due: verify 2.0.0 on
+  npm/ghcr/Smithery, then `npm deprecate @paschbaer/stochasticthinking`
+  (reference to `@paschbaer/clear-thought@>=2.0.0`) + remove the stochastic
+  jobs from `publish-npm.yml`, `publish-containers.yml`,
+  `publish-smithery.yml`.
+- [MG-2] LOW | `servers/server-stochasticthinking/` stays in the repo until
+  further notice (CI `test.yml` builds both workspaces); archive the folder
+  later and remove it from the CI matrix | trigger: after MG-1 + a
+  deprecation period | accepted with rationale: the README serves as a
+  parameter reference.
+- [MG-3] LOW | `scripts/funktionstest.mjs` (clear-thought) still uses the
+  pre-1.0.0 compact names for the legacy tools — live checks against a
+  current server fail for those; the new stochastic checks (2026-09-15)
+  use the current names | trigger: next maintenance round | action required:
+  lift the names and verify against a running server.
+- [MG-4] LOW | `evals/run.mjs` (clear-thought) still attaches the deprecated
+  sibling `../server-stochasticthinking/dist/dev.js` for LLM evals (if
+  present) | evidence: run.mjs line ~291, `existsSync`-guarded, "first server
+  wins"-routing makes the attach redundant (the merged server is the first
+  client) | trigger: MG-2 (folder archival) or the next eval harness
+  maintenance | accepted with rationale: harmless — routing goes to the
+  merged server; after archival the existsSync fallback applies silently.
+  UPDATE 2026-09-16: RESOLVED — attach block + doc spots removed
+  (review fix F3, branch feature/skill-generator-docs); entry obsolete.
 
 ## EMMS Spec Follow-ups (Review 2026-09-17, spec 001-experience-memory-server)
 
-Trigger: /speckit-plan fuer 001-experience-memory-server
+Trigger: /speckit-plan for 001-experience-memory-server
 
-1. Actor/Identity-Modell definieren (was ist ein Actor im Local-MVP?) | required
-2. Revision-Semantik + Conflict-Response festlegen (FR-029 konkretisieren) | required
-3. Eval-Korpus fuer SC-001/SC-006/SC-009 definieren (Mindestumfang, golden paths) | required
-4. Guidance-Objekt-Schema skizzieren (FR-010/011 vor Umsetzung) | required
-5. Messbare Schwellen fuer FR-021 (Duplikat-/Kontradiktionserkennung) festlegen | required
-6. Fabricated-Evidence-Mitigation — RESOLVED 2026-09-18: als FR-008a in der Spec verankert (MVP-Grenze: Artefakt-Hash-Verifikation bei finalize; kryptografische Attestierung explizit Team-Phase). Akzeptanzkriterium: geloeschtes/modifiziertes Artefakt zwischen record_run und finalize MUSS finalize fehlschlagen lassen (ARTIFACT_HASH_MISMATCH / MISSING_REQUIRED_EVIDENCE). Implementierung: finalize(verified) liest jetzt JEDES Evidence-Artefakt via EvidenceStore.read (Hash-Verifikation); Tamper-Artefakt zwischen record_run und finalize blockt mit ARTIFACT_HASH_MISMATCH. Contract-Test in capture.test.ts. Commit 1027a21. GESCHLOSSEN.
-7. Export-Format fuer Episoden (portable, zukunftsfaehig) | accepted observation, rationale: Nice-to-have, nicht MVP-blockierend
+1. Define the actor/identity model (what is an actor in the local MVP?) | required
+2. Define revision semantics + conflict response (concretize FR-029) | required
+3. Define the eval corpus for SC-001/SC-006/SC-009 (minimum scope, golden paths) | required
+4. Sketch the guidance object schema (FR-010/011 before implementation) | required
+5. Define measurable thresholds for FR-021 (duplicate/contradiction detection) | required
+6. Fabricated-evidence mitigation — RESOLVED 2026-09-18: anchored as FR-008a in the spec (MVP limit: artifact hash verification at finalize; cryptographic attestation explicitly a team phase). Acceptance criterion: a deleted/modified artifact between record_run and finalize MUST make finalize fail (ARTIFACT_HASH_MISMATCH / MISSING_REQUIRED_EVIDENCE). Implementation: finalize(verified) now reads EVERY evidence artifact via EvidenceStore.read (hash verification); a tampered artifact between record_run and finalize blocks with ARTIFACT_HASH_MISMATCH. Contract test in capture.test.ts. Commit 1027a21. CLOSED.
+7. Export format for episodes (portable, future-proof) | accepted observation, rationale: nice-to-have, not MVP-blocking
 
-## 2026-09-19 — Verifizieren: Addendum-Revision-Konflikt bei episode-extend
+## 2026-09-19 — Verify: addendum revision conflict on episode-extend
 
-- **Befund** (Niyama-Bericht): Ein Addendum an Episode `exp_160d2db7-4d8` (niyama-lessons, Docker-Store) sollte an der aktuellen Episode-Revision (Rev 6) anhängen, landete aber als Rev 3 auf dem älteren Workflow der selben Episode. Inhalte sind serverseitig persistent, aber der Revisionsbezug ist vermutlich falsch verdrahtet.
-- **Trigger-Point**: Nächste Scope-Arbeit an Episode-Extend/Addendum-Fluss (`record_observation` gegen bestehende Episode / finalize-Addendum-Pfad in `src/service.ts`).
-- **Aktion erforderlich**: ~~offen~~ **GELÖST 2026-09-19 (Commit siehe git log: fix(emms) replay revision)**: Root Cause war der Idempotenz-Replay von `workflow_start` (FR-028) — er lieferte das ORIGINAL-Ergebnis mit der damaligen Revision zurück; Addendum-Läufe rechneten ab Rev 1 und crashten mit STALE_REVISION. Fix: Replay patcht auf die aktuelle Workflow-Revision + `replayed: true`-Flag; Regressionstest `tests/contracts/replay-revision.test.ts`, Suite 95/95.
+- **Finding** (Niyama report): An addendum to episode `exp_160d2db7-4d8` (niyama-lessons, Docker store) should have attached to the current episode revision (Rev 6) but landed as Rev 3 on the older workflow of the same episode. Content is persistent server-side, but the revision reference is presumably miswired.
+- **Trigger point:** Next scope work on the episode-extend/addendum flow (`record_observation` against an existing episode / the finalize addendum path in `src/service.ts`).
+- **Action required:** ~~open~~ **RESOLVED 2026-09-19 (commit see git log: fix(emms) replay revision)**: the root cause was the idempotency replay of `workflow_start` (FR-028) — it returned the ORIGINAL result with the then-current revision; addendum runs computed from Rev 1 and crashed with STALE_REVISION. Fix: replay patches to the current workflow revision + a `replayed: true` flag; regression test `tests/contracts/replay-revision.test.ts`, suite 95/95.
 
 ## Tracked follow-ups (2026-09-22)
 
-- [x] Golden-Test-Flake: GEFIXT (2026-09-22) — Ursache war der vitest threads-Pool (napi-Instabilität mit better-sqlite3, auch als stilles FTS-Versagen) plus zu knappes 5s-Timeout. Fix: `pool: 'forks'` + `testTimeout: 30_000` in `servers/server-insight/vitest.config.ts`. Suite: 99/99. Action done.
-- [x] Prompt-Kopien von `.github/prompts/capture-lessons.prompt.md` in anderen Repos aus dem Master syncen — GESCHLOSSEN ALS OBSOLET (2026-09-26, User-Entscheid Option 3): Verteilung läuft über Paket/Smithery bzw. den Master-Prompt; keine Repos-Kopien nötig. Verifiziert: kein anderes Repo unter D:/repos enthielt je eine Kopie/Referenz (grep 0 Treffer). Action done (obsolet).
-- [x] Docker-Image neu bauen + deployen (VERIFIZIERT 2026-09-24: HTTP-Server läuft auf :3002, experience_seed_lessons per HTTP erfolgreich genutzt — Werkzeug vorhanden). Action done.
-- [x] FTS-Retrieval wirkungslos (2026-09-22 entdeckt, direkt gefixt): fehlender `episodes_fts`-Writer (Trigger + Backfill in `sqlite.ts` init), INNER JOIN auf `signatures` in `searchFullText` → LEFT JOIN, FTS-Treffer-Bonus (+0.30) im Relevance-Scoring. Live verifiziert: Slug-Suche liefert Ziel-Episode auf Platz 1 (rel 0.55). Action done.
-- [x] FTS-Index deckt nur `goal_summary` ab — GELÖST (2026-09-26, L256): neuer FTS-Index `observations_fts` (insert-Trigger + idempotenter Backfill in `SqliteAdapter.init()`, 500-Zeichen-Cap je Observation); `searchFullText` matcht beide Indizes. Regressionstests `tests/contracts/fts-observation-coverage.test.ts` (Trigger, Backfill, Scope-Filter, Cap, CB-12-Parität). Suite 116/116. Action done.
-- [x] Postgres-Adapter: FTS-Parität zu SQLite — GELÖST (2026-09-26, L257): `searchFullText` jetzt sanitized AND-joined `tsquery` über goal_summary + erste 500 Zeichen der Observations, **LEFT JOIN** signatures (INNER-Join-Bug-Klasse 2026-09-22 behoben), GIN-Expression-Indexe in Migration; Tests `tests/contracts/postgres-fts-parity.test.ts` (SQL-Contract gepinnt, gemockter pg-Client). Offen: Live-Smoke-Test bei erster Aktivierung von EMMS_STORAGE_BACKEND=postgres (siehe Trigger unten). Action done (Contract-Level); Live-Verifikation getrackt.
-- [x] Global `testTimeout: 30_000` (vitest.config.ts) kann Performance-Regressionen maskieren: AKZEPTIERT als Risiko (2026-09-22, Basis-Review). Trigger für Re-Evaluation: nächste Suite-Tuning-Runde (per-Test-Timeouts für Load/Golden, Global Richtung 10s). Accepted observation.
-- [x] Guidance (specs/002): Bearer-Token-AuthN RESOLVIERT (2026-09-24-Inventur): GUIDANCE_AUTH_TOKEN + timing-safe authHeader-Middleware implementiert (server.ts, getestet in http-transport.test.ts; siehe L280-Eintrag). Trigger entfällt.
-- [x] index-freshness-Race bei Parallel-Work (2026-09-26, Guidance-Completion-Gate): GESCHLOSSEN — Prozessregel in AGENTS.md verankert (Abschnitt "Guidance MCP Server (Docker-Deployment)", Bullet "Completion-Gate vs. Parallel-Work"): vor complete_workflow keine parallelen Schreiber auf dem Checkout, Worktree-Isolation als Alternative, Meta-Updates vor dem finalen analyze, fremde Gate-Failures als Scope-fremd klassifizieren (report_blocker statt Reindex-Schleife). Backup: AGENTS.md.bak. Action done.
-- [ ] L256/257 Review-Follow-ups (Independent Reviews 2026-09-26, APPROVED 0 HIGH/CRIT): (F1-LOW, Final-Review) Observation mit ORPHEM episode_id (kein FK auf observations.episode_id) → Trigger insertiert 0 FTS-Zeilen → Count-Divergenz → Backfill-Scan bei jedem init ohne Konvergenz (kein Retrieval-Verlust; Service-Layer legt Episoden zuerst an) — Kandidat: FK oder Trigger-Guard. (F2-LOW) SQLite-Backfill-Idempotenz keyed auf (episode_id, content-prefix) — zwei Observationen mit identischen ersten 500 Zeichen → Zähl-Divergenz fts↔observations (kein Retrieval-Verlust). (F4-LOW) signatures ohne UNIQUE(episode_id) in beiden Adaptern → LEFT-Join-Zeilenvervielfachung bei Doppelt-Signierung; DISTINCT/UNIQUE beim nächsten Retrieval-Touch. (F5-INFO) observations_fts hat nur Insert-Trigger — bei künftiger scope_id-Mutabilität wird der Index stale (Trigger-Pflicht in jeden Scope-Update-Scope). (F6-INFO) Unicode-Sanitization ([\w\s] ist ASCII) — Unicode-only Queries liefern []; künftig \p{L}\p{N} in BEIDEN Adaptern gemeinsam. (MED-Backfill behoben via Count-Guard; Live-Postgres-Smoke-Test s. Trigger oben.) Trigger: siehe jeweilige Bemerkung; F4/F6 beim nächsten Retrieval-Quality-Scope. Action required.
-- [x] Guidance (specs/002): Administratives Metrics-Tool implementieren (Operation-Counts/Durations/Error-Rates, Connection-Health über Zeit) — FR-059 scope-Team-Entscheid: nur Logs+Status-Tools in dieser Iteration. Trigger: erste Produktions-Nutzung von Guidance oder Betrieb-Monitoring-Runde. Action required. Quelle: /speckit-clarify 2026-09-22 (User: "B, but track C for later").
+- [x] Golden test flake: FIXED (2026-09-22) — the cause was the vitest threads pool (napi instability with better-sqlite3, also as a silent FTS failure) plus a too-tight 5s timeout. Fix: `pool: 'forks'` + `testTimeout: 30_000` in `servers/server-insight/vitest.config.ts`. Suite: 99/99. Action done.
+- [x] Sync prompt copies of `.github/prompts/capture-lessons.prompt.md` in other repos from the master — CLOSED AS OBSOLETE (2026-09-26, user decision option 3): distribution runs via package/Smithery or the master prompt; no repo copies needed. Verified: no other repo under D:/repos ever contained a copy/reference (grep 0 hits). Action done (obsolete).
+- [x] Rebuild + deploy the Docker image (VERIFIED 2026-09-24: HTTP server runs on :3002, experience_seed_lessons successfully used via HTTP — tool available). Action done.
+- [x] FTS retrieval ineffective (discovered 2026-09-22, fixed immediately): missing `episodes_fts` writer (trigger + backfill in the `sqlite.ts` init), INNER JOIN on `signatures` in `searchFullText` → LEFT JOIN, FTS-hit bonus (+0.30) in the relevance scoring. Live verified: the slug search returns the target episode at rank 1 (rel 0.55). Action done.
+- [x] FTS index covers only `goal_summary` — RESOLVED (2026-09-26, L256): new FTS index `observations_fts` (insert trigger + idempotent backfill in `SqliteAdapter.init()`, 500-character cap per observation); `searchFullText` matches both indexes. Regression tests `tests/contracts/fts-observation-coverage.test.ts` (trigger, backfill, scope filter, cap, CB-12 parity). Suite 116/116. Action done.
+- [x] Postgres adapter: FTS parity with SQLite — RESOLVED (2026-09-26, L257): `searchFullText` now a sanitized AND-joined `tsquery` over goal_summary + the first 500 characters of the observations, **LEFT JOIN** signatures (INNER-join bug class 2026-09-22 fixed), GIN expression indexes in the migration; tests `tests/contracts/postgres-fts-parity.test.ts` (SQL contract pinned, mocked pg client). Open: a live smoke test at the first activation of EMMS_STORAGE_BACKEND=postgres (see the trigger below). Action done (contract level); live verification tracked.
+- [x] Global `testTimeout: 30_000` (vitest.config.ts) can mask performance regressions: ACCEPTED as a risk (2026-09-22, baseline review). Trigger for re-evaluation: the next suite tuning round (per-test timeouts for load/golden, global toward 10s). Accepted observation.
+- [x] Guidance (specs/002): bearer token authN RESOLVED (2026-09-24 inventory): GUIDANCE_AUTH_TOKEN + timing-safe authHeader middleware implemented (server.ts, tested in http-transport.test.ts; see the L280 entry). Trigger obsolete.
+- [x] index-freshness race with parallel work (2026-09-26, guidance completion gate): CLOSED — process rule anchored in AGENTS.md (section "Guidance MCP Server (Docker deployment)", bullet "Completion gate vs. parallel work"): before complete_workflow no parallel writers on the checkout, worktree isolation as an alternative, meta updates before the final analyze, classify foreign gate failures as out of scope (report_blocker instead of a reindex loop). Backup: AGENTS.md.bak. Action done.
+- [ ] L256/257 review follow-ups (independent reviews 2026-09-26, APPROVED 0 HIGH/CRIT): (F1-LOW, final review) an observation with an ORPHAN episode_id (no FK on observations.episode_id) → the trigger inserts 0 FTS rows → count divergence → backfill scan on every init without convergence (no retrieval loss; the service layer creates episodes first) — candidate: FK or a trigger guard. (F2-LOW) SQLite backfill idempotency keyed on (episode_id, content-prefix) — two observations with an identical first 500 characters → counting divergence fts↔observations (no retrieval loss). (F4-LOW) signatures without UNIQUE(episode_id) in both adapters → LEFT-join row multiplication on double signing; DISTINCT/UNIQUE at the next retrieval touch. (F5-INFO) observations_fts has only an insert trigger — with future scope_id mutability the index goes stale (trigger obligation in every scope-update scope). (F6-INFO) Unicode sanitization ([\w\s] is ASCII) — Unicode-only queries return []; in the future \p{L}\p{N} in BOTH adapters together. (MED backfill solved via a count guard; live Postgres smoke test see the trigger above.) Trigger: see the respective remark; F4/F6 at the next retrieval-quality scope. Action required.
+- [x] Guidance (specs/002): implement an administrative metrics tool (operation counts/durations/error rates, connection health over time) — FR-059 scope team decision: only logs + status tools in this iteration. Trigger: first production use of guidance or an operations monitoring round. Action required. Source: /speckit-clarify 2026-09-22 (user: "B, but track C for later").
 
-- [ ] Guidance (specs/002) Phase 3 review follow-ups (APPROVE, 0 HIGH/CRIT): F1 completeWorkflow requestId ledger check must move ABOVE status checks (replay-after-completion should return recorded result, not workflow_already_completed) — trigger: next engine-touching scope or Phase 5 wiring. F2 submission_received audit/accept-persist ordering on op failure — same trigger. F3 stale-copy reassignment pattern in submitLocked (partially fixed via targeted mutation) — audit remaining sites next scope. F4 GuidanceErrors thrown past public methods need structured-response shim at MCP dispatch — trigger: Phase 5 tool registration. F6 in-process-only mutex — trigger: any multi-process/CLI scope. F7 requestId replay test still to add — trigger: next engine-touching scope. Action required. Quelle: Phase 3 review 2026-09-22.
+- [ ] Guidance (specs/002) Phase 3 review follow-ups (APPROVE, 0 HIGH/CRIT): F1 completeWorkflow requestId ledger check must move ABOVE status checks (replay-after-completion should return recorded result, not workflow_already_completed) — trigger: next engine-touching scope or Phase 5 wiring. F2 submission_received audit/accept-persist ordering on op failure — same trigger. F3 stale-copy reassignment pattern in submitLocked (partially fixed via targeted mutation) — audit remaining sites next scope. F4 GuidanceErrors thrown past public methods need structured-response shim at MCP dispatch — trigger: Phase 5 tool registration. F6 in-process-only mutex — trigger: any multi-process/CLI scope. F7 requestId replay test still to add — trigger: next engine-touching scope. Action required. Source: Phase 3 review 2026-09-22.
 
-- [x] Guidance (specs/002) Phase 5 review follow-ups RESOLVIERT (2026-09-24, Code+Test-Verifikation im Container, 197/197 grün): (a) Capability-Hash-Pinning persistiert jetzt über Restarts (`loadCapabilityPins`/`saveCapabilityPins` in stateDir/capability-hashes.json, Merge-on-save, korrupte Datei → Re-Pin; Regressionstest tests/workflow/capability-pins.test.ts, 5 Tests inkl. Restart-Semantik — L264-Test-Lücke geschlossen); Write ist atomar (tmp+rename). (b) Sanitization-Seam: `redactUnknown()` Deep-Walk redigiert Downstream-`content` UND `protocolMetadata.structuredContent` vor agent-facing use (OperationEngine.ts, Test redaction-seams.test.ts). (c) Redaction deckt Multi-Line-Quotes ab ([\s\S]*?-Value-Alternation, Test „previously missed"). Quelle: Phase 5 review 2026-09-22.
+- [x] Guidance (specs/002) Phase 5 review follow-ups RESOLVED (2026-09-24, code+test verification in the container, 197/197 green): (a) capability hash pinning now persists across restarts (`loadCapabilityPins`/`saveCapabilityPins` in stateDir/capability-hashes.json, merge-on-save, corrupt file → re-pin; regression test tests/workflow/capability-pins.test.ts, 5 tests incl. restart semantics — the L264 test gap closed); the write is atomic (tmp+rename). (b) Sanitization seam: `redactUnknown()` deep walk redacts downstream `content` AND `protocolMetadata.structuredContent` before agent-facing use (OperationEngine.ts, test redaction-seams.test.ts). (c) Redaction covers multi-line quotes ([\s\S]*? value alternation, test "previously missed"). Source: Phase 5 review 2026-09-22.
 
-- [x] Guidance (specs/002) Phase 6 review follow-ups (F4/F5, MEDIUM) RESOLVIERT (2026-09-24, Code+Test-Verifikation, 197/197 grün): (F4) Egress-Inhaltsprüfung für restricted-Server — `containsSecretPattern` (SECRET_VALUE_PATTERNS: Private-Key, AWS/GH/OpenAI/Slack-Keys, JWT) blockt skalare Credential-Werte mit `data_egress_denied` (PolicyEngine.ts L44-47, Test redaction-seams.test.ts „egress content-level secret rejection"). (F5) Raw/Normalized-Exposure-Pfade: protocolMetadata.structuredContent läuft vor agent-facing use durch `redactUnknown()` (OperationEngine.ts L133-144, Test „OperationEngine sanitization seam"). Verbleibende Randnotiz (akzeptiert): Secret-Wert-Erkennung bewusst schmal gehalten (False-Positive-Balance); Egress-Inhaltscheck nur für restricted — konsistent mit FR-052. Quelle: Phase 6 review 2026-09-22.
+- [x] Guidance (specs/002) Phase 6 review follow-ups (F4/F5, MEDIUM) RESOLVED (2026-09-24, code+test verification, 197/197 green): (F4) Egress content check for restricted servers — `containsSecretPattern` (SECRET_VALUE_PATTERNS: private keys, AWS/GH/OpenAI/Slack keys, JWT) blocks scalar credential values with `data_egress_denied` (PolicyEngine.ts L44-47, test redaction-seams.test.ts "egress content-level secret rejection"). (F5) Raw/normalized exposure paths: protocolMetadata.structuredContent runs through `redactUnknown()` before agent-facing use (OperationEngine.ts L133-144, test "OperationEngine sanitization seam"). Remaining marginal note (accepted): secret value detection deliberately kept narrow (false-positive balance); the egress content check only for restricted — consistent with FR-052. Source: Phase 6 review 2026-09-22.
 
-- [ ] Guidance (specs/002) Phase 7a review follow-ups (NOT APPROVED → H1 fixed; remaining MEDIUM deferred to Phase 7b): snapshot chaining (previousSnapshotId hardwired null, no refresh API); staleness machinery (evaluateCompletionInvariants takes caller-supplied snapshotCurrent — must recompute hashes); SpecKitState persistence of task lifecycle across restarts; PlanChange approve/apply methods (hasPendingPlanChanges currently blocks on permanently-pending changes); applyReconciliation unimplemented (pure diff only); parser dead code (TASK_LINE/ID_TOKEN/hasSection usage, requireFs in ESM); criteria parser only matches bold SC lines; batch cap/phaseGroup edges; maxEntities/maxExcerptBytes/requireUniqueMatch unused. Action required (Phase 7b). Quelle: Phase 7a review 2026-09-22.
+- [ ] Guidance (specs/002) Phase 7a review follow-ups (NOT APPROVED → H1 fixed; remaining MEDIUM deferred to Phase 7b): snapshot chaining (previousSnapshotId hardwired null, no refresh API); staleness machinery (evaluateCompletionInvariants takes caller-supplied snapshotCurrent — must recompute hashes); SpecKitState persistence of task lifecycle across restarts; PlanChange approve/apply methods (hasPendingPlanChanges currently blocks on permanently-pending changes); applyReconciliation unimplemented (pure diff only); parser dead code (TASK_LINE/ID_TOKEN/hasSection usage, requireFs in ESM); criteria parser only matches bold SC lines; batch cap/phaseGroup edges; maxEntities/maxExcerptBytes/requireUniqueMatch unused. Action required (Phase 7b). Source: Phase 7a review 2026-09-22.
 
-- [ ] Guidance (specs/002) Phase 7b/8/9 review follow-ups (APPROVED, 0 HIGH/CRIT): M1 contracts artifacts store absolute relativePath (relocation breaks staleness falsely conservative); M2 glob relativePath trap; M3 removed-task reconciliation lacks superseded marker/audit + dead `superseded` binding, buildReconciledState has no src caller yet; F4 previousSnapshotOverride dead field (chain not consumed at persist); F5 waiver audit uses plan_change_approved event instead of dedicated spec_kit_criterion_waived; F6 plan-change lifecycle unguarded (approve/reject terminality, markPlanChangeApplied unknown-id TypeError); F7 dead conjunct in coverageSummary; F8 test gaps (contracts artifact, removed-task, terminality, waiver audit fields). Trigger: Phase 7c/next SpecKitEngine maintenance. Action required. Quelle: Phase 7b/8/9 review 2026-09-22.
+- [ ] Guidance (specs/002) Phase 7b/8/9 review follow-ups (APPROVED, 0 HIGH/CRIT): M1 contracts artifacts store absolute relativePath (relocation breaks staleness falsely conservative); M2 glob relativePath trap; M3 removed-task reconciliation lacks superseded marker/audit + dead `superseded` binding, buildReconciledState has no src caller yet; F4 previousSnapshotOverride dead field (chain not consumed at persist); F5 waiver audit uses plan_change_approved event instead of dedicated spec_kit_criterion_waived; F6 plan-change lifecycle unguarded (approve/reject terminality, markPlanChangeApplied unknown-id TypeError); F7 dead conjunct in coverageSummary; F8 test gaps (contracts artifact, removed-task, terminality, waiver audit fields). Trigger: Phase 7c/next SpecKitEngine maintenance. Action required. Source: Phase 7b/8/9 review 2026-09-22.
 
-- [ ] Guidance (specs/002) Full-codebase review follow-ups: F1 composition root FIXED (8eeba9c), F2 audit redaction FIXED (e0b911d), F3 exposure FIXED (e217ddf), F4 beforeEnter/afterExit FIXED (2054691 + a8a5082 incl. review MEDIUMs: requiredFailed over afterEnter-only, start-path downstream state, status field). Remaining from F4 review (LOW): blocked-start session continues afterEnter ops (asymmetric vs submit early-return — decide: break loop + skip afterEnter, or document); operation_not_configured thrown mid-submit leaves partial state (afterExit variant transitions first, hook never runs); test 1 lacks ordering assertion; test 4 lacks hook_failed-audit + start.operations assertions. Trigger: next lifecycle/engine maintenance scope. Action required (or accepted-observation with rationale). Quelle: F4 review 2026-09-22.
+- [ ] Guidance (specs/002) Full-codebase review follow-ups: F1 composition root FIXED (8eeba9c), F2 audit redaction FIXED (e0b911d), F3 exposure FIXED (e217ddf), F4 beforeEnter/afterExit FIXED (2054691 + a8a5082 incl. review MEDIUMs: requiredFailed over afterEnter-only, start-path downstream state, status field). Remaining from F4 review (LOW): blocked-start session continues afterEnter ops (asymmetric vs submit early-return — decide: break loop + skip afterEnter, or document); operation_not_configured thrown mid-submit leaves partial state (afterExit variant transitions first, hook never runs); test 1 lacks ordering assertion; test 4 lacks hook_failed-audit + start.operations assertions. Trigger: next lifecycle/engine maintenance scope. Action required (or accepted-observation with rationale). Source: F4 review 2026-09-22.
 
-- [ ] Guidance (specs/002) M2/M3 review follow-ups (both APPROVED, 0 HIGH/CRIT): M2 fixed in 7efaa16 + 2b7bbb2 (requestTimeoutSeconds enforced as transport failure; unhandled-rejection guard; validation finite>0; stub timeout mode + unref). Remaining LOWs: (a) downstream request NOT cancelled on timeout (MCP callTool has no AbortSignal) — retry after timeout may duplicate side effects on non-idempotent tools; revisit if SDK adds signal support; (b) invalid trustLevel fails open to "trusted" without warning log — add warn on unknown values; (c) timeout validation after clientFor: unknown server + invalid timeout reports connection error (cosmetic); (d) requestTimeoutSeconds not yet covered by schema-validator (validate there too). M3 fixed in 6cdc842 (all `as never` removed; toTrustLevel normalizer — eliminates silent no-op egress mode for invalid trustLevel). Trigger: next MCP-SDK upgrade / policy maintenance scope. Quelle: M2/M3 reviews 2026-09-23.
+- [ ] Guidance (specs/002) M2/M3 review follow-ups (both APPROVED, 0 HIGH/CRIT): M2 fixed in 7efaa16 + 2b7bbb2 (requestTimeoutSeconds enforced as transport failure; unhandled-rejection guard; validation finite>0; stub timeout mode + unref). Remaining LOWs: (a) downstream request NOT cancelled on timeout (MCP callTool has no AbortSignal) — retry after timeout may duplicate side effects on non-idempotent tools; revisit if SDK adds signal support; (b) invalid trustLevel fails open to "trusted" without warning log — add warn on unknown values; (c) timeout validation after clientFor: unknown server + invalid timeout reports connection error (cosmetic); (d) requestTimeoutSeconds not yet covered by schema-validator (validate there too). M3 fixed in 6cdc842 (all `as never` removed; toTrustLevel normalizer — eliminates silent no-op egress mode for invalid trustLevel). Trigger: next MCP-SDK upgrade / policy maintenance scope. Source: M2/M3 reviews 2026-09-23.
 
-- [x] Guidance (specs/002) Finding 7 (Option C) follow-ups RESOLVIERT (2026-09-24-Inventur, Code-Verifikation): (a) withState läuft unter Per-Session-Mutex `withLock` (register-spec-kit-tools.ts L123-148, Lost-Update-Schutz auch für async Handler); (b) Registrierungstest mit exakter Surface-Equality inkl. Duplikat-Erkennung vorhanden (L278, Commits ab985b9/5c34f3d).
+- [x] Guidance (specs/002) Finding 7 (Option C) follow-ups RESOLVED (2026-09-24 inventory, code verification): (a) withState runs under the per-session mutex `withLock` (register-spec-kit-tools.ts L123-148, lost-update protection also for async handlers); (b) a registration test with exact surface equality incl. duplicate detection exists (L278, commits ab985b9/5c34f3d).
 
-- [x] Guidance (specs/002) Remaining LOW findings RESOLVED (commits ab985b9 + 5c34f3d, review APPROVED 0 HIGH/CRIT): trustLevel warn-once per (serverId,value); requestTimeoutSeconds validated at config load (validateDownstreamServers) + invokeTool-before-clientFor; startWorkflow fail-fast (break + skip afterEnter when blocked, symmetric to submit); Spec-Kit withState under per-session mutex; test 1 audit-ordering assertion; test 4 hook_failed-audit + start.operations assertions; registration test exact-surface equality incl. duplicate detection; withState payload regression test (caught the missing-await '{}' HIGH immediately). Accepted observations (no action): operation_not_configured mid-submit partial state (pre-existing consistent pattern, error contract unchanged); AbortSignal non-cancellation (SDK limit); sessionLocks map entries per session (negligible). Quelle: LOW-fix round 2026-09-23.
+- [x] Guidance (specs/002) Remaining LOW findings RESOLVED (commits ab985b9 + 5c34f3d, review APPROVED 0 HIGH/CRIT): trustLevel warn-once per (serverId,value); requestTimeoutSeconds validated at config load (validateDownstreamServers) + invokeTool-before-clientFor; startWorkflow fail-fast (break + skip afterEnter when blocked, symmetric to submit); Spec-Kit withState under per-session mutex; test 1 audit-ordering assertion; test 4 hook_failed-audit + start.operations assertions; registration test exact-surface equality incl. duplicate detection; withState payload regression test (caught the missing-await '{}' HIGH immediately). Accepted observations (no action): operation_not_configured mid-submit partial state (pre-existing consistent pattern, error contract unchanged); AbortSignal non-cancellation (SDK limit); sessionLocks map entries per session (negligible). Source: LOW-fix round 2026-09-23.
 
-- [x] Guidance (specs/002) HTTP-Betrieb implementiert (c5495b2 + Review-Fix e0b4d6d, APPROVED): streamable HTTP stateless at POST /mcp, GET/DELETE 405; GUIDANCE_AUTH_TOKEN bearer (timing-safe, 401); GUIDANCE_BIND_HOST explicit opt-in für Container (FR-027-Default loopback fail-closed bleibt); GUIDANCE_WORKSPACE_ROOT; Dockerfile/compose nach clear-thought/insight-Muster (node:22-alpine, healthcheck, non-root, /workspace-Volume, 3003). Review-HIGHs sofort geschlossen: (1) client-workspaceRoot-Containment (resolve+prefix, Regressionstest + Container-Verifikation), (2) Komposition gehoistet (SessionRepository-Locks intakt). Rest-LOWs akzeptiert/getrackt: npm-install-ohne-lockfile im Dockerfile (Workspaces hoisten Lockfile ins Repo-Root — Supply-Chain-Hinweis), /health offen (bewusst, keine sensiblen Daten), Bind-Host-Test nur Unit-Ebene. Trigger: HTTP-/Deployment-Maintenance. Quelle: HTTP review 2026-09-23.
+- [x] Guidance (specs/002) HTTP operation implemented (c5495b2 + review fix e0b4d6d, APPROVED): streamable HTTP stateless at POST /mcp, GET/DELETE 405; GUIDANCE_AUTH_TOKEN bearer (timing-safe, 401); GUIDANCE_BIND_HOST explicit opt-in for containers (the FR-027 default loopback fail-closed remains); GUIDANCE_WORKSPACE_ROOT; Dockerfile/compose following the clear-thought/insight pattern (node:22-alpine, healthcheck, non-root, /workspace volume, 3003). Review HIGHs closed immediately: (1) client workspaceRoot containment (resolve+prefix, regression test + container verification), (2) composition hoisted (SessionRepository locks intact). Remaining LOWs accepted/tracked: npm install without a lockfile in the Dockerfile (workspaces hoist the lockfile into the repo root — supply-chain note), /health open (deliberate, no sensitive data), bind-host test only at unit level. Trigger: HTTP/deployment maintenance. Source: HTTP review 2026-09-23.
 
-- [x] Insight (EMMS) Dockerfile LOW (npm-install-ohne-lockfile, Supply-Chain) RESOLVED: server-lokales package-lock.json committed (force-add, Root-.gitignore ignoriert package-lock.json global — Precedent server-clear-thought), Dockerfile auf npm ci umgestellt; Docker-Build + Container-Health verifiziert (dd065b4).
-- [x] HTTP-Transport-Migration clear-thought+insight (bc5326c, dd065b4, 1caa690) Review-HIGHs RESOLVED: (1) Root-docker-compose.yml setzt jetzt CLEAR_THOUGHT_BIND_HOST/EMMS_BIND_HOST=0.0.0.0, (2) Idle-Session-Reaper (TTL 60min, Sweep 5min, unref'd) + MAX_SESSIONS=500 LRU-Eviction begrenzt Session-Wachstum. Tests 152+99 grün, Container-E2E re-verifiziert.
-- [ ] Akzeptierte Beobachtungen aus Review 1caa690: (a) GELÖST (Batch B: malformed JSON → 400/-32700), (b) GELÖST (Batch B: CB-3 Early-Reject, c416bba), (c) Smithery-Reste: build:smithery/deploy-Scripts + smithery.yaml in VIER Servern (inkl. guidance!) — Cluster 3 des Bestandsplans, Trigger: Smithery-Decision + Discovery-Check (Build-Pfad ohne @smithery/sdk). (INFO).
-- [x] Guidance (EMMS-Vorlage) Dockerfile LOW (npm-install-ohne-lockfile) RESOLVED (632b31e): server-lokales package-lock.json force-added, Dockerfile auf npm ci + COPY package*.json umgestellt; Docker-Build + Health + MCP-Initialize(200) gegen gemountetes Example-Workspace verifiziert. Damit sind alle drei Server deterministisch.
+- [x] Insight (EMMS) Dockerfile LOW (npm install without a lockfile, supply chain) RESOLVED: a server-local package-lock.json committed (force-add, the root .gitignore ignores package-lock.json globally — precedent server-clear-thought), the Dockerfile switched to npm ci; Docker build + container health verified (dd065b4).
+- [x] HTTP transport migration clear-thought+insight (bc5326c, dd065b4, 1caa690) review HIGHs RESOLVED: (1) the root docker-compose.yml now sets CLEAR_THOUGHT_BIND_HOST/EMMS_BIND_HOST=0.0.0.0, (2) an idle session reaper (TTL 60min, sweep 5min, unref'd) + MAX_SESSIONS=500 LRU eviction bounds session growth. Tests 152+99 green, container E2E re-verified.
+- [ ] Accepted observations from review 1caa690: (a) RESOLVED (batch B: malformed JSON → 400/-32700), (b) RESOLVED (batch B: CB-3 early reject, c416bba), (c) Smithery remnants: build:smithery/deploy scripts + smithery.yaml in FOUR servers (incl. guidance!) — cluster 3 of the inventory plan, trigger: Smithery decision + discovery check (build path without @smithery/sdk). (INFO).
+- [x] Guidance (EMMS template) Dockerfile LOW (npm install without a lockfile) RESOLVED (632b31e): a server-local package-lock.json force-added, the Dockerfile switched to npm ci + COPY package*.json; Docker build + health + MCP initialize (200) verified against a mounted example workspace. All three servers are thereby deterministic.
 
-## Getrackte Follow-ups (2026-09-23, setup_clearthought)
+## Tracked Follow-ups (2026-09-23, setup_clearthought)
 
-- [x] ERL. (develop 024ddf4) Marker-Paar-Einzigartigkeit im Compact-Output testen
-      (doc.split(START).length-1 === 1). Trigger: jede kuenftige
-      Template-Aenderung an setup-clearthought-templates.ts. [Review a5c5c98 #2]
-- [x] ERL. (develop 024ddf4) Eskalation (isError) ueber Utility-Toolset-Dispatcher testen.
-      Trigger: naechste Aenderung an toolsets/registry.ts oder Loop-Guard.
-      [Review 44063c6 #4]
-- [x] Akzeptierte Beobachtung: section:'recipes' ohne Guard (statisch,
-      ~2-3KB) - nur bei beobachtetem Spam Rate-Limit ergaenzen.
+- [x] DONE. (develop 024ddf4) Test marker-pair uniqueness in the compact
+      output (doc.split(START).length-1 === 1). Trigger: every future
+      template change on setup-clearthought-templates.ts. [Review a5c5c98 #2]
+- [x] DONE. (develop 024ddf4) Test escalation (isError) via the utility
+      toolset dispatcher. Trigger: the next change to toolsets/registry.ts or
+      the loop guard. [Review 44063c6 #4]
+- [x] Accepted observation: section:'recipes' without a guard (static,
+      ~2-3KB) - only add a rate limit if spam is observed.
 
 ## Post-Implementation-Review Trigger: Remote-Mode (Amendment 001)
 
-Findings liegen in specs/002-guidance-workflow-server/amendments/
-001-remote-mode-review-findings.md (2 MEDIUM, 6 LOW). Implementierung läuft
-parallel in separatem Chat. Trigger: sobald die Remote-Mode-Implementierung
-merged/committet wird, MUSS der Post-Implementation-Review jede Zeile der
-Findings-Datei gegen den Code prüfen ([x] + Code-Referenz), bevor der Scope
-geschlossen wird. Insbesondere M1 (init_session-Idempotenz vs. Multi-Session)
-und M2 (401 vs. session_not_found Kanaltrennung) sind Merge-Blocker-Kandidaten.
+Findings are in specs/002-guidance-workflow-server/amendments/
+001-remote-mode-review-findings.md (2 MEDIUM, 6 LOW). The implementation is
+running in parallel in a separate chat. Trigger: as soon as the remote-mode
+implementation is merged/committed, the post-implementation review MUST check
+every line of the findings file against the code ([x] + code reference)
+before the scope is closed. In particular M1 (init_session idempotency vs.
+multi-session) and M2 (401 vs. session_not_found channel separation) are
+merge-blocker candidates.
 
-- [ ] Guidance Remote-Mode (spec amendment 001) — implementiert auf feature/remote-mode-session-binding (7327349 + Review-Fixes 877d89e, 2 CRITICAL + 2 HIGH behoben, ClientOpEngine-Wiring, TTL, list_sessions-Restriktion, Pfadschutz). Getrackte Rest-Follow-ups: (a) M2-Restart-Persistenz — Idempotenz/Per-Key-Limit/workflowToRemote sind Cache-only, nach Container-Restart dupliziert init_session und Workflow-Sids verlieren ihr Binding (Meta.json sollte canonical + key→sessions-Index führen); (b) M3 — Per-Key-Limit zählt nur Cache und hat Off-by-one (Prüfung vor Insert), anonymous-Sharing kann globales Budget erschöpfen; Fehlercode sollte quota-domain sein; (c) M4 — init_session Rate-Limit 20/min (Q4-Entscheidung) noch NICHT implementiert; (d) MCP-Downstream-Ops im Remote-Modus laufen als awaiting_client (dokumentierte v1-Einschränkung — Downstream-Support nachspezifizieren); (e) Client-Reports = Vertrauensanker (FR-104.5) — keine Integritätsprüfung möglich. Tests: 155 grün inkl. FR-104-Gate-Flow-E2E. Trigger: Remote-Mode-Produktivsetzung. Quelle: Remote-Mode-Review 2026-09-23.
-- [x] Remote-Mode-Hardening umgesetzt (feature/remote-mode-hardening, fb0a350 + a69b699 + c22585a, Review APPROVED 0 HIGH/CRIT): M2-Restart-Persistenz (canonicalHash in meta.json, Index-Rebuild), M3 (Disk-Count, >=-Grenze, quota_exceeded), M4 (Rate-Limit 20/min pro IP, 429), N1 (Quota-Rollback bei invalid config + Orphan-Cleanup), dbg-Logs entfernt. 160/160 Tests. Merge nach develop erfolgt (FF).
-- [x] Fix-Review 877d89e (2. Runde, APPROVED, 0 HIGH/CRIT): C1/C2/H1/H2 genuin verifiziert. Neue Findings F1-F3 sofort gefixt (9aa944e): F1 Retry-Phase aus result.currentPhase abgeleitet (harter Review-Phasen-Mismatch); F2 Pfadschutz wirklich separator-bewusst; F3 gcg-dbg entfernt. F4 (lastAttempt auch bei submission_invalid gesetzt — harmlos) dokumentiert. Merge nach develop freigegeben (Rest-Follow-ups oben bleiben getrackt).
+- [ ] Guidance remote mode (spec amendment 001) — implemented on feature/remote-mode-session-binding (7327349 + review fixes 877d89e, 2 CRITICAL + 2 HIGH fixed, ClientOpEngine wiring, TTL, list_sessions restriction, path protection). Tracked remaining follow-ups: (a) M2 restart persistence — idempotency/per-key limit/workflowToRemote are cache-only; after a container restart init_session duplicates and workflow sids lose their binding (meta.json should carry the canonical + a key→sessions index); (b) M3 — the per-key limit counts only the cache and has an off-by-one (check before insert); anonymous sharing can exhaust the global budget; the error code should be quota-domain; (c) M4 — the init_session rate limit 20/min (Q4 decision) NOT yet implemented; (d) MCP downstream ops in remote mode run as awaiting_client (documented v1 limitation — re-spec downstream support); (e) client reports = trust anchor (FR-104.5) — no integrity check possible. Tests: 155 green incl. FR-104 gate flow E2E. Trigger: remote-mode production adoption. Source: remote-mode review 2026-09-23.
+- [x] Remote-mode hardening implemented (feature/remote-mode-hardening, fb0a350 + a69b699 + c22585a, review APPROVED 0 HIGH/CRIT): M2 restart persistence (canonicalHash in meta.json, index rebuild), M3 (disk count, >=-boundary, quota_exceeded), M4 (rate limit 20/min per IP, 429), N1 (quota rollback on invalid config + orphan cleanup), dbg logs removed. 160/160 tests. Merged to develop (FF).
+- [x] Fix review 877d89e (2nd round, APPROVED, 0 HIGH/CRIT): C1/C2/H1/H2 genuinely verified. New findings F1-F3 fixed immediately (9aa944e): F1 the retry phase derived from result.currentPhase (hard review phase mismatch); F2 path protection genuinely separator-aware; F3 gcg-dbg removed. F4 (lastAttempt also set on submission_invalid — harmless) documented. Merge to develop approved (the remaining follow-ups above stay tracked).
 
-## Getrackte Follow-ups (2026-09-24, Full-Codebase-Review develop 2d580fa)
+## Tracked Follow-ups (2026-09-24, Full-Codebase Review develop 2d580fa)
 
-Quelle: Review-Evidence-Protocol-Durchlauf; Snapshot develop@2d580fa (clean, ahead 4). Tests in der Session nicht ausführbar (Node-Toolchain fehlt) — CI autoritativ. 0 HIGH/CRITICAL offen. CB-1 pre-existing (identisch in origin/develop), CB-2-Lücke wurde erst mit c22585a-Rollback relevant.
+Source: review evidence protocol pass; snapshot develop@2d580fa (clean, ahead 4). Tests not executable in the session (Node toolchain missing) — CI authoritative. 0 HIGH/CRITICAL open. CB-1 pre-existing (identical in origin/develop), the CB-2 gap only became relevant with the c22585a rollback.
 
-- [x] CB-1 MEDIUM Guidance GELÖST (2026-09-24 verifiziert): `remote-session-manager.ts` `resolve()` ruft jetzt `this.touch(effectiveId)` (mit Kommentar „CB-1-Fix", ~L298) in beiden Pfaden (cache + restore-from-disk). TTL-Prüfung/lastAccessAt-Refresh intakt.
-- [x] CB-2 MEDIUM Guidance GELÖST (2026-09-24 verifiziert): initSession führt Datei-Writes (configFiles) INNERHALB des Rollback-try (Kommentar „CB-2-Fix", ~L196) — Quota-Slot + Orphan-Verzeichnis werden bei invalid content/path escape/fs error freigegeben.
-- [x] CB-3 MEDIUM (Re-Evaluation des akzeptierten LOW aus L284b, GELÖST c416bba): insight + clear-thought POST /mcp early-reject — ohne bekannte Session-Id nur noch echte initialize-Requests erzeugen Server+Transport; garbage/batch/non-initialize → 400/-32600. Zusätzlich 1caa690(a) mitgeschlossen: malformed JSON → 400/-32700 statt 500. Tests: http-transport.test.ts je Server (4 Tests).
-- [x] CB-4 MEDIUM Deployment (GELÖST a17be38, Option B): Root-Compose bindet 3000+3002 auf 127.0.0.1 — kein LAN-Zugriff mehr auf die unauthentifizierten Endpunkte. Option A (Auth) bleibt Future-Work für Fernzugriff.
-- [x] CB-5 LOW (GELÖST b2aa1bc): stochastic `app.listen(PORT, HOST)` mit `STOCHASTIC_BIND_HOST`-Pattern (loopback-Default wie die anderen Server); Dockerfile setzt ENV 0.0.0.0 für Port-Mapping. npm deprecate laut User-Entscheid NEIN.
-- [x] CB-6 LOW (GELÖST 04c6b13): `publish:insight`/`npm:publish:insight` zeigen jetzt auf `servers/server-insight`.
-- [x] CB-7 LOW (GELÖST 10d0c3f): `emms-store.db-wal` aus dem Index entfernt (Datei bleibt lokal); `.gitignore`-Eintrag greift ab jetzt.
-- [x] CB-8 LOW (GELÖST 66d3d8a): Guidance-POST-Handler rejected Batch/Array-Bodies mit 400/-32600 VOR den Pre-Checks (Defense-in-Depth; SDK verwirft Batches weiterhin vor dem Dispatch).
-- [x] CB-9 LOW GELÖST (2026-09-24 verifiziert): kein `[dbg]`-Vorkommen mehr in server-guidance/src (grep 0 Treffer).
-- [x] CB-10 LOW (GELÖST 66d3d8a): initSession schreibt meta.json EINMAL inklusive canonicalHash — Crash-Fenster ohne M2-Rebuild-Key geschlossen.
-- [x] CB-11 LOW (GELÖST c416bba): `pathFor()` validiert `^[a-f0-9]{64}$` vor `join()`; `read()` resolved den Pfad VOR dem Read-Miss-Catch, damit der Malformed-Error nicht verschluckt wird. Test: traversal/malformed/non-hex-64 → ARTIFACT_REJECTED „Malformed artifact hash".
-- [x] CB-12 LOW (GELÖST c416bba): verifiziert UND gefixt — Bare-Operatoren (NOT/AND/OR/NEAR) überlebten die Sanitization und warfen rohe FTS5-Syntaxfehler. Fix: Tokens werden als FTS5-Stringliterale gequotet (nach Sanitization nur noch \w-Zeichen → eindeutig). Test: searchFullText('NOT'|'AND OR NEAR'|'install not dependencies') → [].
-- [x] CB-13 LOW (GELÖST 04c6b13): README-Duplikat entfernt; Root-`engines.node` auf `>=20` angehoben (Align mit Servern + README; yarn-Immutable-Check grün).
-- [x] L305(a) Restart-Persistenz (GELÖST 7dbfa92): workflowToRemote-Bindings + ClientOpLedger + lastAttempt überleben Restarts via state.json je Session (formatVersion 2, geschrieben bei Registrierung/Reports/Submits, Rebuild beim Boot neben canonicalIndex). v1-Sessions ohne state.json migrieren tolerant. Tests: Restart-zwischen-start_workflow-und-Folgetool + v1-Toleranz (164/164, tsc, yarn build grün). REST: L305(d) awaiting_client-Downstream-Spec (optional für Produktivsetzung) + FR-104.5 (akzeptiert).
-- [ ] R-1..R-3 LOW (Post-Commit-Review 7dbfa92, APPROVED 0 HIGH/CRIT — akzeptierte Beobachtungen mit Option): (R-1) registerWorkflowSession persistiert nur bei gecachter Session — impliziter Kontrakt „immer nach resolve"; hart machen (minimal-state auch uncached ODER Throw) beim nächsten Touch der Datei. (R-2) Crash-Fenster ≤1 Event zwischen In-Memory-Mutation und persistSessionState (gleiches Risiko like bestehende meta-Writes — dokumentiert akzeptiert). (R-3) ledgerReports unbeschränkt + Full-Rewrite pro Persist (O(n)) — Cap oder inkrementelles Append bei beobachtetem Wachstum. Trigger: nächste Änderung an remote-session-manager.ts / remote-tools.ts. Accepted observations mit rationale.
+- [x] CB-1 MEDIUM Guidance RESOLVED (2026-09-24 verified): `remote-session-manager.ts` `resolve()` now calls `this.touch(effectiveId)` (with the comment "CB-1-Fix", ~L298) in both paths (cache + restore-from-disk). TTL check/lastAccessAt refresh intact.
+- [x] CB-2 MEDIUM Guidance RESOLVED (2026-09-24 verified): initSession performs the file writes (configFiles) INSIDE the rollback try (comment "CB-2-Fix", ~L196) — the quota slot + orphan directory are released on invalid content/path escape/fs error.
+- [x] CB-3 MEDIUM (re-evaluation of the accepted LOW from L284b, RESOLVED c416bba): insight + clear-thought POST /mcp early reject — without a known session id only real initialize requests create a server+transport; garbage/batch/non-initialize → 400/-32600. Additionally 1caa690(a) covered: malformed JSON → 400/-32700 instead of 500. Tests: http-transport.test.ts per server (4 tests).
+- [x] CB-4 MEDIUM Deployment (RESOLVED a17be38, Option B): the root compose binds 3000+3002 to 127.0.0.1 — no more LAN access to the unauthenticated endpoints. Option A (auth) remains future work for remote access.
+- [x] CB-5 LOW (RESOLVED b2aa1bc): stochastic `app.listen(PORT, HOST)` with the `STOCHASTIC_BIND_HOST` pattern (loopback default like the other servers); the Dockerfile sets ENV 0.0.0.0 for port mapping. npm deprecate per user decision NO.
+- [x] CB-6 LOW (RESOLVED 04c6b13): `publish:insight`/`npm:publish:insight` now point to `servers/server-insight`.
+- [x] CB-7 LOW (RESOLVED 10d0c3f): `emms-store.db-wal` removed from the index (the file stays local); the `.gitignore` entry applies from now on.
+- [x] CB-8 LOW (RESOLVED 66d3d8a): the guidance POST handler rejects batch/array bodies with 400/-32600 BEFORE the pre-checks (defense in depth; the SDK still discards batches before dispatch).
+- [x] CB-9 LOW RESOLVED (2026-09-24 verified): no more `[dbg]` occurrences in server-guidance/src (grep 0 hits).
+- [x] CB-10 LOW (RESOLVED 66d3d8a): initSession writes meta.json ONCE including canonicalHash — the crash window without an M2 rebuild key closed.
+- [x] CB-11 LOW (RESOLVED c416bba): `pathFor()` validates `^[a-f0-9]{64}$` before `join()`; `read()` resolves the path BEFORE the read-miss catch so that the malformed error is not swallowed. Test: traversal/malformed/non-hex-64 → ARTIFACT_REJECTED "Malformed artifact hash".
+- [x] CB-12 LOW (RESOLVED c416bba): verified AND fixed — bare operators (NOT/AND/OR/NEAR) survived the sanitization and threw raw FTS5 syntax errors. Fix: tokens are quoted as FTS5 string literals (after sanitization only \w characters remain → unambiguous). Test: searchFullText('NOT'|'AND OR NEAR'|'install not dependencies') → [].
+- [x] CB-13 LOW (RESOLVED 04c6b13): README duplicate removed; root `engines.node` raised to `>=20` (align with the servers + README; yarn immutable check green).
+- [x] L305(a) restart persistence (RESOLVED 7dbfa92): workflowToRemote bindings + ClientOpLedger + lastAttempt survive restarts via state.json per session (formatVersion 2, written on registration/reports/submits, rebuilt at boot alongside the canonicalIndex). v1 sessions without state.json migrate tolerantly. Tests: restart between start_workflow and a follow-up tool + v1 tolerance (164/164, tsc, yarn build green). REMAINDER: L305(d) awaiting_client downstream spec (optional for production adoption) + FR-104.5 (accepted).
+- [ ] R-1..R-3 LOW (post-commit review 7dbfa92, APPROVED 0 HIGH/CRIT — accepted observations with option): (R-1) registerWorkflowSession persists only on a cached session — implicit contract "always after resolve"; make it hard (minimal state also uncached OR throw) at the next touch of the file. (R-2) crash window ≤1 event between the in-memory mutation and persistSessionState (same risk as the existing meta writes — documented accepted). (R-3) ledgerReports unbounded + full rewrite per persist (O(n)) — cap or incremental append if growth is observed. Trigger: next change to remote-session-manager.ts / remote-tools.ts. Accepted observations with rationale.
 
-## Getrackte Follow-ups (2026-09-26, Lock-Hardening R-011/R-012/R-010 — GELÖST)
+## Tracked Follow-ups (2026-09-26, Lock Hardening R-011/R-012/R-010 — RESOLVED)
 
-Feature-Branch feature/guidance-lock-hardening, Suite 279/279 + tsc grün (Container).
+Feature branch feature/guidance-lock-hardening, suite 279/279 + tsc green (container).
 
-- [x] R-011 MEDIUM (Steal-TOCTOU) GELÖST: neue Klasse WorkspaceOpLock (src/workflow/workspace-lock.ts) — Acquire per link() (atomar create-if-absent, Doppel-Halt konstruktiv ausgeschlossen), Steal per rename() in Quarantäne mit Verify+Restore (Link zurück / Deferral). Multi-Prozess-Race-Test (6 Prozesse auf Dead-Lock → exakt 1 Halter, 5 Contention, keine Residuen) tests/workflow/workspace-lock.race.test.ts.
-- [x] R-012a LOW GELÖST: TTL = max(120s, 2× längste konfigurierte Op-Timeout) — ein Live-Holder kann das TTL prinzipiell nicht überschreiten (Invariante statt Annahme); PID-Liveness wird zusätzlich vor TTL geprüft.
-- [x] R-012b LOW GELÖST: Nicht-EEXIST-Fehler beim Lock-Create → eigener ErrorCode workspace_lock_unavailable (recoverable), keine Contention-Verschleierung mehr.
-- [x] R-012c LOW GELÖST: Testabdeckung ergänzt (Live-Owner-nicht-stehlen, Dead-PID-Steal, Multi-Process-Race); EACCES-Pfad via Code-Differenzierung abgedeckt (implizit).
-- [x] R-010 LOW GELÖST: tests/contract/error-codes.test.ts mit exaktem ERROR_CODES-Snapshot (Equality), Duplikat-Check, isErrorCode-Roundtrip.
+- [x] R-011 MEDIUM (steal TOCTOU) RESOLVED: new class WorkspaceOpLock (src/workflow/workspace-lock.ts) — acquire via link() (atomic create-if-absent, double-hold constructively excluded), steal via rename() into quarantine with verify+restore (link back / deferral). Multi-process race test (6 processes on a dead lock → exactly 1 holder, 5 contention, no residues) tests/workflow/workspace-lock.race.test.ts.
+- [x] R-012a LOW RESOLVED: TTL = max(120s, 2× the longest configured op timeout) — a live holder can principally not exceed the TTL (an invariant instead of an assumption); PID liveness is additionally checked before the TTL.
+- [x] R-012b LOW RESOLVED: a non-EEXIST error on lock create → its own error code workspace_lock_unavailable (recoverable), no more contention obfuscation.
+- [x] R-012c LOW RESOLVED: test coverage added (do not steal a live owner, dead-PID steal, multi-process race); the EACCES path covered via code differentiation (implicitly).
+- [x] R-010 LOW RESOLVED: tests/contract/error-codes.test.ts with an exact ERROR_CODES snapshot (equality), duplicate check, isErrorCode roundtrip.
 
-## Getrackte Follow-ups (2026-09-26, Feature 005 Production Hardening —Tracks GELÖST)
+## Tracked Follow-ups (2026-09-26, Feature 005 Production Hardening — Tracks RESOLVED)
 
-Branch feature/production-hardening. Suite 302/302 + tsc + build grün (Container).
+Branch feature/production-hardening. Suite 302/302 + tsc + build green (container).
 
-- [x] PLAN-CLEANUP GELÖST (T001): stale Einträge [x], Duplikate identifiziert, Hygiene-Regel in systemPatterns.md.
-- [x] L260/FR-059 GELÖST (T003–T005): get_metrics + MetricsRepository (JSONL stateDir/metrics.jsonl, Replay) + Hooks in WorkflowEngine/ClientManager.
-- [x] FR-104.5 GELÖST (T006–T007): One-Time-opToken-Binding (client_report_invalid bei Mismatch/Replay), Burn-on-Accept, Persistenz der Pending-Tokens. Residual LOW: HMAC-Variante vertagt (Transport ist bereits key-authentifiziert) — dokumentiert.
-- [x] TRACK-Venv-C GELÖST (T008): UV_PROJECT_ENVIRONMENT + Named-Volume-Example (Compose/Dockerfile-Kommentare, README) + E2E relocated venv.
-- [x] TRACK-NS GELÖST (T002): specs/003 → FR-301…315/SC-301…305 + Alias-Tabelle (SC-403-grep clean).
-- [x] TRACK-Scaffold GELÖST (T009): pyproject.toml-Erkennung erzeugt uv-Op-Set, Tests beide Varianten.
-- [ ] R-006-Residual LOW (bleibt getrackt): SIGKILL-Eskalation wird von keinem Test direkt beobachtet (nur SIGTERM-Settle); pid-Liveness-Assertions fehlen. Trigger: nächster Executor-Touch.
-- [ ] R-008a LOW (bleibt getrackt): Lock global pro stateDir statt pro workspaceRoot.
-- [x] Tracking-NS-Rest ERL.: Konventionsnotiz existiert in systemPatterns.md (FR-Namespace-Konvention, Feature 005). „neue Feature-Specs nummerieren FR-4xx/5xx+ fortlaufend" in systemPatterns.md dokumentieren. Trigger: nächste neue Feature-Spec. Action required (klein).
+- [x] PLAN-CLEANUP RESOLVED (T001): stale entries [x], duplicates identified, hygiene rule in systemPatterns.md.
+- [x] L260/FR-059 RESOLVED (T003–T005): get_metrics + MetricsRepository (JSONL stateDir/metrics.jsonl, replay) + hooks in WorkflowEngine/ClientManager.
+- [x] FR-104.5 RESOLVED (T006–T007): one-time opToken binding (client_report_invalid on mismatch/replay), burn-on-accept, persistence of the pending tokens. Residual LOW: the HMAC variant deferred (the transport is already key-authenticated) — documented.
+- [x] TRACK-Venv-C RESOLVED (T008): UV_PROJECT_ENVIRONMENT + named-volume example (compose/Dockerfile comments, README) + E2E relocated venv.
+- [x] TRACK-NS RESOLVED (T002): specs/003 → FR-301…315/SC-301…305 + alias table (SC-403 grep clean).
+- [x] TRACK-Scaffold RESOLVED (T009): pyproject.toml detection generates a uv op set, tests for both variants.
+- [ ] R-006-Residual LOW (stays tracked): the SIGKILL escalation is not directly observed by any test (only SIGTERM settle); pid-liveness assertions missing. Trigger: next executor touch.
+- [ ] R-008a LOW (stays tracked): lock global per stateDir instead of per workspaceRoot.
+- [x] Tracking-NS remainder DONE.: a convention note exists in systemPatterns.md (FR namespace convention, feature 005). Document "new feature specs number FR-4xx/5xx+ sequentially" in systemPatterns.md. Trigger: next new feature spec. Action required (small).
 
-## Getrackte Follow-ups (2026-09-26, Feature 004 Async Execution — R-006/FR-110 GELÖST)
+## Tracked Follow-ups (2026-09-26, Feature 004 Async Execution — R-006/FR-110 RESOLVED)
 
-Branch feature/async-operation-execution (0c01c01 spec, d606ee2 docs, 8a8abc0 impl). Suite 290/290 + tsc + build grün (Container).
+Branch feature/async-operation-execution (0c01c01 spec, d606ee2 docs, 8a8abc0 impl). Suite 290/290 + tsc + build green (container).
 
-- [x] R-006 GELÖST: OperationEngine executes process ops async (spawn, SIGTERM→SIGKILL-Eskalation, AbortSignal); echte Cross-Session-Contention-, Cancel-Kill-, Denial- und SC-004-Secret-E2Es in python-toolchain.e2e.test.ts. Zusätzlich: stderr failing-ops wird jetzt redigiert (bisherige Redaction-Lücke, SC-004-Seam).
-- [x] FR-110 Hard-Kill GELÖST: cancel_workflow/Timeout bricht aktive Ausführungen ab (AbortController-Registry je Session; SIGTERM→SIGKILL nach 5s Grace), Lock released, Ergebnis verworfen/auditiert als cancelled. Kooperative Limitation damit obsolet (README/Doku aktualisiert).
-- [ ] Residual LOW (dokumentiert): stdout/stderr-Interleaving kann sich sync→async minimal unterscheiden (Tests asserten Ergebnisform, nicht Byte-Reihenfolge); SIGKILL-Semantik nur im Container autoritativ (Windows-Dev ausgenommen).
+- [x] R-006 RESOLVED: OperationEngine executes process ops async (spawn, SIGTERM→SIGKILL escalation, AbortSignal); real cross-session-contention, cancel-kill, denial and SC-004-secret E2Es in python-toolchain.e2e.test.ts. Additionally: the stderr of failing ops is now redacted (previous redaction gap, SC-004 seam).
+- [x] FR-110 hard kill RESOLVED: cancel_workflow/timeout aborts active executions (AbortController registry per session; SIGTERM→SIGKILL after a 5s grace), lock released, result discarded/audited as cancelled. The cooperative limitation is thereby obsolete (README/docs updated).
+- [ ] Residual LOW (documented): stdout/stderr interleaving may differ minimally sync→async (the tests assert the result shape, not byte order); SIGKILL semantics authoritative only in the container (Windows dev excluded).
 
-## Getrackte Follow-ups (2026-09-26, Amendment 003 + Nummern-Kollision)
+## Tracked Follow-ups (2026-09-26, Amendment 003 + Number Collision)
 
-- [x] Amendment 003 „Final-Review Evidence Gate" IMPLEMENTIERT (2026-09-26, Draft-Q1–Q3-Defaults vom Nutzer gebilligt): scripts/check-final-review.mjs (strict Schema, HEAD-Vergleich ohne git-Binary, computed openHighCritical), Gate-Op in scaffold + examples/default + examples/python + root .guidance (complete.beforeExit, required), 6 Contract-Tests. Suite 274/274 + tsc + build grün. Offen: Amendment-Status Draft → nach Resonanz auf APPROVED setzen; Nummern-Kollision-Follow-up unten bleibt.
-- [x] FR-Nummern-Kollision GELÖST (Feature 005 T002): specs/003 → FR-301…315 + Alias-Tabelle; Konvention in systemPatterns.md.
-- [x] responses.json complete-Instruktion um Verweis auf Amendment-003-Gate ergänzt (2026-09-26, mit der Implementierung).
-- [x] Amendment-Status-Update ERL. (2026-09-26): 003 auf APPROVED gesetzt (Nutzerbilligung; Gates produktiv verifiziert).
+- [x] Amendment 003 "Final-Review Evidence Gate" IMPLEMENTED (2026-09-26, draft Q1–Q3 defaults approved by the user): scripts/check-final-review.mjs (strict schema, HEAD comparison without a git binary, computed openHighCritical), gate op in scaffold + examples/default + examples/python + root .guidance (complete.beforeExit, required), 6 contract tests. Suite 274/274 + tsc + build green. Open: amendment status Draft → set to APPROVED after feedback; the number collision follow-up below remains.
+- [x] FR number collision RESOLVED (feature 005 T002): specs/003 → FR-301…315 + alias table; convention in systemPatterns.md.
+- [x] responses.json complete instruction extended with a reference to the amendment-003 gate (2026-09-26, together with the implementation).
+- [x] Amendment status update DONE. (2026-09-26): 003 set to APPROVED (user approval; gates verified in production).
 
-## Getrackte Follow-ups (2026-09-26, Finales Gesamt-Review 16c6f1e..ec924f6)
+## Tracked Follow-ups (2026-09-26, Final Overall Review 16c6f1e..ec924f6)
 
-Quelle: frischer Final-Reviewer-Subagent über den vollen Session-Diff inkl. Review-Fix-Commits. Ergebnis: 0 HIGH/CRITICAL; Suite 268/268 + tsc + build im Container reproduziert. Denial-Audit (R-005) und README-Fix (R-009) als sauber geschlossen bestätigt.
+Source: fresh final-reviewer subagent over the full session diff incl. review-fix commits. Result: 0 HIGH/CRITICAL; suite 268/268 + tsc + build reproduced in the container. Denial audit (R-005) and the README fix (R-009) confirmed cleanly closed.
 
-- [x] R-011 MEDIUM: Stale-Lock-Steal hat TOCTOU-Fenster im Multi-Prozess-Betrieb — zwei Prozesse können gleichzeitig dasselbe stale Lock lesen, unlinken und je ein eigenes neues Lock erzeugen → beide halten den Lock (FR-109-Invariante nur für ≥2 Prozesse auf gemeinsamem stateDir verletzt; Single-Prozess durch In-Memory-Guard geschützt). Fix-Richtung: atomarer Steal via renameSync oder PID-Content-Verifikation nach Acquire. Trigger: Multi-Prozess-/Multi-Container-Betrieb auf gemeinsamem stateDir oder nächster Lock-Touch. Action required.
-- [x] R-012a LOW: TTL-Steal (30 min) prüft keine PID-Liveness — ein Live-Lock mit timeoutSeconds > 1800 könnte mid-run gestohlen werden; Invariante wird nicht per Config-Validierung erzwungen. Trigger: Op-Konfigurationen mit timeoutSeconds > TTL. Action required (TTL-Check um Liveness ergänzen oder Validierung).
-- [x] R-012b LOW: EACCES beim Lock-Acquire differenziert nur die Message, nicht den ErrorCode/Recoverable — Permissions-Probleme bleiben code-seitig als Contention klassifiziert. Trigger: nächster Lock-Touch (mit R-011). Action required.
-- [x] R-012c LOW: Neue Steal-Logik unvollständig getestet (nur Dead-PID-Pfad); fehlend: Live-Owner-nicht-stehlen, TTL-Pfad, EACCES, Concurrent-Steal. Trigger: nächster Lock-Touch (mit R-011). Action required.
-- [x] R-013 INFO: `operation_invocation_denied` fehlt als Audit-EventType in specs/003 data-model.md (nur `operation_invoked` definiert; Implementierung nutzt freiform eventType + Redaction-Hook). Trigger: nächste data-model-Änderung der Spec. Action required (Doku-Nachzug).
+- [x] R-011 MEDIUM: stale-lock steal has a TOCTOU window in multi-process operation — two processes can simultaneously read the same stale lock, unlink it and each create their own new lock → both hold the lock (the FR-109 invariant violated only for ≥2 processes on a shared stateDir; single process protected by the in-memory guard). Fix direction: atomic steal via renameSync or PID content verification after acquire. Trigger: multi-process/multi-container operation on a shared stateDir or the next lock touch. Action required.
+- [x] R-012a LOW: TTL steal (30 min) checks no PID liveness — a live lock with timeoutSeconds > 1800 could be stolen mid-run; the invariant is not enforced via config validation. Trigger: op configs with timeoutSeconds > TTL. Action required (extend the TTL check with liveness or validation).
+- [x] R-012b LOW: EACCES on lock acquire differentiates only the message, not the error code/recoverable — permission problems remain classified as contention code-wise. Trigger: next lock touch (with R-011). Action required.
+- [x] R-012c LOW: new steal logic incompletely tested (only the dead-PID path); missing: do-not-steal-live-owner, the TTL path, EACCES, concurrent steal. Trigger: next lock touch (with R-011). Action required.
+- [x] R-013 INFO: `operation_invocation_denied` missing as an audit event type in specs/003 data-model.md (only `operation_invoked` defined; the implementation uses a freeform eventType + redaction hook). Trigger: next data-model change of the spec. Action required (docs follow-up).
 
-## Getrackte Follow-ups (2026-09-26, Post-Commit-Review Feature 003, Reviewer-Subagent)
+## Tracked Follow-ups (2026-09-26, Post-Commit Review Feature 003, Reviewer Subagent)
 
-Quelle: unabhängiger Review über 77fa854+a457329 (268/268 grün). R-004 (HIGH, Stale-Lock-Recovery), R-005 (Denial-Audit), R-008a-c (EACCES-Differenzierung, Release-Guard) SOFORT GEFIXT in Review-Fix-Commit; R-009 (README approval-Claim) korrigiert.
+Source: independent review over 77fa854+a457329 (268/268 green). R-004 (HIGH, stale-lock recovery), R-005 (denial audit), R-008a-c (EACCES differentiation, release guard) FIXED IMMEDIATELY in the review-fix commit; R-009 (README approval claim) corrected.
 
-- [x] R-006-Residual GELÖST (Feature 006 T004): Eskalations-Test (SIGTERM-deaf → SIGKILL nach Grace, timed_out <15s) + ps-Marker-Liveness nach Cancel (SC-501).
-- [x] R-008a GELÖST (Feature 006 T003): WorkspaceOpLock je workspaceRoot (sha256-16hex-Suffix, workspace-lock.ts workspaceLockFile), SC-503-Parallelitätstest; Residuum: Lock-Key ohne realpathSync (L-4 LOW, getrackt bei nächstem Lock-Touch).
-- [x] R-010 LOW: ERROR_CODES-Array hat keinen exakten Equality-Test (nur behaviorale Abdeckung der neuen Codes). Trigger: nächste errors.ts-Änderung. Action required.
-- [x] R-011 MEDIUM (Final-Review ec924f6, 2026-09-26): Stale-Lock-Steal-TOCTOU — unlink+recreate in acquireWorkspaceOpLock ist nicht atomar; zwei Prozesse, die gleichzeitig denselben stale Lock stealen, können sich gegenseitig den FRISCH erstellten Lock löschen → beide halten (Mutex verletzt). Auch: Prüf-Lese-PID-alt + Probe-nach-Release kann den Live-Lock eineszwischenzeitlich gestarteten Third-Party-Acquirers stehlen. Precondition: ≥2 Prozesse auf gemeinsamem stateDir (Single-Process-Deployment nicht betroffen — in-process Guard greift). Fix-Richtung: atomares rename-Steal (renameSync lock→lock.<pid>, dann wx neu) oder Lock-Verifikation nach Acquire (Content == eigene PID). Trigger: Multi-Process-/Multi-Container-Betrieb oder nächster Lock-Touch. Action required.
-- [x] R-012 LOW (Final-Review ec924f6): (a) TTL-Steal (30 min) ignoriert Liveness — invocable Op mit timeoutSeconds > 1800 verliert seinen Live-Lock mid-run; keine Config-Constraint koppelt timeoutSeconds ≤ TTL (Pilot-Ops ≤ 900 konsistent, Invariante aber unerzwungen). (b) Non-EEXIST-Fehler (EACCES) tragen weiterhin Code operation_in_progress/recoverable — Message differenziert, Code nicht. (c) Testlücken des NEUEN Codes: nur Dead-PID-Steal getestet; TTL-Steal, Live-Owner-NICHT-stealen, EACCES-Pfad, Concurrent-Steal ungetestet. Trigger: wie R-011. Action required.
-- [x] R-007 (T013 verfrüht [x] markiert vor Merge/Memory-Bank): mit diesem Commit-Zyklus actualisiert — Merge nach develop + activeContext/progress folgen in diesem Abschluss.
+- [x] R-006-Residual RESOLVED (feature 006 T004): escalation test (SIGTERM-deaf → SIGKILL after grace, timed_out <15s) + ps-marker liveness after cancel (SC-501).
+- [x] R-008a RESOLVED (feature 006 T003): WorkspaceOpLock per workspaceRoot (sha256-16hex suffix, workspace-lock.ts workspaceLockFile), SC-503 parallelism test; residue: lock key without realpathSync (L-4 LOW, tracked at the next lock touch).
+- [x] R-010 LOW: the ERROR_CODES array has no exact equality test (only behavioral coverage of the new codes). Trigger: next errors.ts change. Action required.
+- [x] R-011 MEDIUM (final review ec924f6, 2026-09-26): stale-lock steal TOCTOU — unlink+recreate in acquireWorkspaceOpLock is not atomic; two processes simultaneously stealing the same stale lock can delete each other's freshly created lock → both hold (mutex violated). Also: the check-read-old-PID + probe-after-release can steal the live lock of a third-party acquirer started in between. Precondition: ≥2 processes on a shared stateDir (single-process deployment not affected — the in-process guard applies). Fix direction: atomic rename steal (renameSync lock→lock.<pid>, then recreate with wx) or lock verification after acquire (content == own PID). Trigger: multi-process/multi-container operation or the next lock touch. Action required.
+- [x] R-012 LOW (final review ec924f6): (a) TTL steal (30 min) ignores liveness — an invocable op with timeoutSeconds > 1800 loses its live lock mid-run; no config constraint couples timeoutSeconds ≤ TTL (pilot ops ≤ 900 consistent, but the invariant unenforced). (b) Non-EEXIST errors (EACCES) still carry the code operation_in_progress/recoverable — the message differentiated, the code not. (c) Test gaps of the NEW code: only dead-PID steal tested; TTL steal, do-NOT-steal-live-owner, the EACCES path, concurrent steal untested. Trigger: like R-011. Action required.
+- [x] R-007 (T013 prematurely marked [x] before merge/memory bank): updated with this commit cycle — merge to develop + activeContext/progress follow in this closeout.
 
-## Getrackte Follow-ups (2026-09-24, Feature 003 Toolchain-Bootstrap)
+## Tracked Follow-ups (2026-09-24, Feature 003 Toolchain Bootstrap)
 
-- [ ] Scaffold-Spracherkennung: `scaffold.ts` erzeugt npm-flavorierte Default-Operationen; bei `pyproject.toml` im Workspace soll künftig eine Python-Variante generiert werden. Trigger: nächste Scaffold-Änderung oder zweite Sprach-Pilotierung. Action required (Enhancement).
-- [ ] Named-Volume-Venv-Persistenz (Option C): venvs außerhalb des Workspace-Mounts persistieren, um Host-Inkompatibilität (Linux-Binaries auf Windows-Mount) zu eliminieren. Trigger: beobachtete Host-Venv-Verwirrung oder Multi-Workspace-Betrieb. Action required (Enhancement).
-- [x] FR-110-Harter-Kill: `run_operation` bricht kooperativ ab (Result-Discard + Timeout-SIGTERM); ein harter Kill mid-run erfordert async spawn statt spawnSync in OperationEngine. Trigger: nächste OperationEngine-Architektur-Änderung. Action required (dokumentierte Limitation, README-Abschnitt "Verification in other languages").
+- [ ] Scaffold language detection: `scaffold.ts` generates npm-flavored default operations; with `pyproject.toml` in the workspace a Python variant should be generated in the future. Trigger: next scaffold change or a second language pilot. Action required (enhancement).
+- [ ] Named-volume venv persistence (Option C): persist venvs outside the workspace mount to eliminate host incompatibility (Linux binaries on a Windows mount). Trigger: observed host venv confusion or multi-workspace operation. Action required (enhancement).
+- [x] FR-110 hard kill: `run_operation` aborts cooperatively (result discard + timeout SIGTERM); a hard kill mid-run requires async spawn instead of spawnSync in OperationEngine. Trigger: the next OperationEngine architecture change. Action required (documented limitation, README section "Verification in other languages").
 
-## Getrackte Follow-ups (2026-09-26, Post-Commit-Review 77fa854+a457329,独立 Review)
+## Tracked Follow-ups (2026-09-26, Post-Commit Review 77fa854+a457329, independent review)
 
-- [x] R-004 HIGH — Stale-Workspace-Lock ohne Recovery: Crash des Guidance-Prozesses während run_operation hinterlässt `stateDir/workspace-ops.lock`; `openSync(file,"wx")` schlägt danach dauerhaft fehl → alle Sessions erhalten `operation_in_progress` (fälschlich recoverable:true), manuelles Löschen nötig. Kein PID-/TTL-/Liveness-Check. Repro: Lock-File manuell anlegen → run_operation. WorkflowEngine.ts acquireWorkspaceOpLock (~L497ff). Trigger: nächste Änderung an run_operation/WorkflowEngine oder vor Produktivsetzung. Action required.
-- [x] R-005 MEDIUM — SC-002-Audit bei Denial fehlt: agent_invocation_denied/operation_not_configured/operation_in_progress erzeugen kein Audit-Event (nur „kein Executions-Event" wird getestet, tools-run-operation.test.ts L89-96); SC-002 fordert „audit event recorded". Klären: Denial-Audit-Event (z. B. status "denied") oder Spec-Clarification. Trigger: nächste Audit-/run_operation-Änderung. Action required.
-- [x] R-006 MEDIUM — E2E-/Task-Abdeckung gegenüber tasks.md T008 über.Markiert: FR-109-Cross-Session-Contention und SC-004 (Secret in pytest-Ausgabe) fehlen in python-toolchain.e2e.test.ts (nur Unit-Level, Node-echo statt pytest); E2E-Test "SC-002" (L121-126) prüft operation_not_configured, nicht invocableByAgent-Denial. Commit-Message "E2E covers SC-001..004" übertrieben. Trigger: nächste E2E-Erweiterung. Action required.
-- [x] R-007 MEDIUM — T013-Checkbox [x] ohne Erfüllungsnachweis: Branch nicht nach develop gemerged (HEAD a457329 auf feature-Branch), memory-bank/activeContext.md + progress.md in keinem der beiden Commits aktualisiert. Trigger: Merge-Vorbereitung. Action required.
-- [x] R-008 LOW (Inactive-Session-Audit + Lock-Kommentar + Global-Lock-Doku durch 8fa8125 erledigt; R-008a Global-Lock bleibt separat offen) — Inactive-Session-Pfad ohne Audit: runOperation liefert bei session.status!=='active' {status:"failed"} ohne operation_invoked-Event (Audit-Lücke); releaseWorkspaceOpLock-Kommentar zu "wx + gleichem Prozess" ist falsch (wx scheitert bei existierender Datei unabhängig vom Ersteller); Lock ist global pro stateDir, nicht pro workspaceRoot (FR-109-Wording "workspace-level"). Trigger: wie R-004. Accepted observation / bei R-004-Fix miterledigen.
-- [x] R-009 LOW/INFO — README-Behauptung "toolchain-sync ... can be made approval-gated via policies.json" unverified: PolicyEngine.requiresApproval deckt nur destructive/credential_sensitive ab, nicht workspace_write; Terminal-Ausfall verhinderte abschließende Verifikation der Aufrufstellen. Trigger: nächste Policy/README-Änderung. Verifizieren und ggf. README korrigieren.
+- [x] R-004 HIGH — stale workspace lock without recovery: a crash of the guidance process during run_operation leaves behind `stateDir/workspace-ops.lock`; afterwards `openSync(file,"wx")` fails permanently → all sessions get `operation_in_progress` (falsely recoverable:true), manual deletion needed. No PID/TTL/liveness check. Repro: create the lock file manually → run_operation. WorkflowEngine.ts acquireWorkspaceOpLock (~L497ff). Trigger: next change to run_operation/WorkflowEngine or before production adoption. Action required.
+- [x] R-005 MEDIUM — SC-002 audit on denial missing: agent_invocation_denied/operation_not_configured/operation_in_progress generate no audit event (only "no executions event" is tested, tools-run-operation.test.ts L89-96); SC-002 demands "audit event recorded". Clarify: a denial audit event (e.g. status "denied") or a spec clarification. Trigger: next audit/run_operation change. Action required.
+- [x] R-006 MEDIUM — E2E/task coverage over tasks.md T008 over-marked: FR-109 cross-session contention and SC-004 (secret in pytest output) are missing in python-toolchain.e2e.test.ts (only unit level, node echo instead of pytest); the E2E test "SC-002" (L121-126) checks operation_not_configured, not invocableByAgent denial. The commit message "E2E covers SC-001..004" exaggerated. Trigger: next E2E expansion. Action required.
+- [x] R-007 MEDIUM — T013 checkbox [x] without proof of fulfillment: branch not merged to develop (HEAD a457329 on the feature branch), memory-bank/activeContext.md + progress.md not updated in either commit. Trigger: merge preparation. Action required.
+- [x] R-008 LOW (inactive-session audit + lock comment + global-lock docs done via 8fa8125; R-008a global lock remains separately open) — inactive-session path without audit: runOperation returns {status:"failed"} for session.status!=='active' without an operation_invoked event (audit gap); the releaseWorkspaceOpLock comment about "wx + same process" is wrong (wx fails on an existing file regardless of the creator); the lock is global per stateDir, not per workspaceRoot (FR-109 wording "workspace-level"). Trigger: like R-004. Accepted observation / handle together with the R-004 fix.
+- [x] R-009 LOW/INFO — the README claim "toolchain-sync ... can be made approval-gated via policies.json" unverified: PolicyEngine.requiresApproval covers only destructive/credential_sensitive, not workspace_write; a terminal outage prevented the final verification of the call sites. Trigger: next policy/README change. Verify and correct the README if needed.
 
-## Getrackte Follow-ups (2026-09-24, Security-/Policy-Verifikation + Rest-Fixes)
+## Tracked Follow-ups (2026-09-24, Security/Policy Verification + Remaining Fixes)
 
-- [x] Capability-Pin-Rest-LOW (Test-Lücke + nicht-atomarer Write) BEHOBEN:
-      saveCapabilityPins schreibt atomar (tmp+rename, WorkflowEngine.ts),
-      Persistenz-Helfer exportiert; neuer Regressionstest
-      tests/workflow/capability-pins.test.ts (Roundtrip, Merge, Drift-Overwrite,
-      korrupte Datei, kein .tmp-Residu). Suite 197/197 grün, tsc clean.
-      Verifikationskontext: kein Node auf Host-PATH — Tests im Container
-      (node:22-alpine, Repo-Copy + @rollup/rollup-linux-x64-musl, bekannte
-      docker-native-Bindings-Falle, keine Host-Änderung).
+- [x] Capability pin residual LOW (test gap + non-atomic write) RESOLVED:
+      saveCapabilityPins writes atomically (tmp+rename, WorkflowEngine.ts),
+      the persistence helper exported; new regression test
+      tests/workflow/capability-pins.test.ts (roundtrip, merge, drift
+      overwrite, corrupt file, no .tmp residue). Suite 197/197 green, tsc
+      clean. Verification context: no Node on the host PATH — tests in the
+      container (node:22-alpine, repo copy + @rollup/rollup-linux-x64-musl,
+      the known docker-native bindings trap, no host change).
 
-## Inventur Bestands-Follow-ups (2026-09-24, Phase 0.1)
+## Inventory of Existing Follow-ups (2026-09-24, Phase 0.1)
 
-Code-Verifikation aller offenen Zeilen. Ergebnisse:
+Code verification of all open lines. Results:
 
-- GESCHLOSSEN (faktisch erledigt, oben [x] nachgetragen): Bearer-AuthN (L259),
-  Docker-Deploy (L254), Finding-7-LOWs (L276 a+b), 1caa690 (a)+(b) (L284),
-  L274 (b)+(d) (trustLevel-warn + Timeout-Validierung, wie L278 gemeldet).
-- BESTÄTIGT OFFEN: L305(a) workflowToRemote/Ledger cache-only (Cluster 1a,
-  Produktivsetzungs-Blocker; importArtifacts setzt previousSnapshotId hart auf
-  null — Snapshot-Chaining offen); L305(d) awaiting_client (Spec nötig);
-  Phase 6 Egress-Checks prüfen nur Struktur, nicht Inhalte (PolicyEngine
-  evaluateEgress) → L266 offen; Phase 5/7a/7b-Items (L264/L268/L270) unverändert
-  offen; Metrics-Tool (L260); ~~FTS-Coverage (L256)~~ GELÖST 2026-09-26;
-  ~~Postgres-Parität (L257)~~ GELÖST 2026-09-26 (Live-Smoke-Test offen);
-  Smithery-Reste jetzt in VIER Servern (L284c → Cluster 3).
-- L253 (Prompt-Kopien-Sync): GESCHLOSSEN ALS OBSOLET (2026-09-26, User-Entscheid — Verteilung über Paket/Smithery, keine Kopien nötig).
-- Phase-3-Zeile (L262) als STALE markiert: mehrere Items durch L272/278
-  abgedeckt — Restverifikation in Paket 2b (State-Machines).
-  Sequenz bestätigt: 2d→2e→2c→2a→2b trigger-frei; Cluster 1a nach
-  Produktivsetzungs-Entscheidung; Cluster 3 nach Smithery-Discovery.
+- CLOSED (de facto done, marked [x] above): bearer authN (L259),
+  Docker deploy (L254), Finding-7-LOWs (L276 a+b), 1caa690 (a)+(b) (L284),
+  L274 (b)+(d) (trustLevel-warn + timeout validation, as reported in L278).
+- CONFIRMED OPEN: L305(a) workflowToRemote/ledger cache-only (cluster 1a,
+  a production-adoption blocker; importArtifacts hard-sets previousSnapshotId
+  to null — snapshot chaining open); L305(d) awaiting_client (spec needed);
+  Phase 6 egress checks check only structure, not content (PolicyEngine
+  evaluateEgress) → L266 open; Phase 5/7a/7b items (L264/L268/L270)
+  unchanged open; metrics tool (L260); ~~FTS coverage (L256)~~ RESOLVED
+  2026-09-26; ~~Postgres parity (L257)~~ RESOLVED 2026-09-26 (live smoke
+  test open); Smithery remnants now in FOUR servers (L284c → cluster 3).
+- L253 (prompt copy sync): CLOSED AS OBSOLETE (2026-09-26, user decision —
+  distribution via package/Smithery, no copies needed).
+- The phase-3 line (L262) marked STALE: several items covered by
+  L272/278 — remaining verification in package 2b (state machines).
+  Sequence confirmed: 2d→2e→2c→2a→2b trigger-free; cluster 1a after
+  the production-adoption decision; cluster 3 after Smithery discovery.
 
-## Cluster 2a (GELÖST 27df359, 2026-09-24; Review APPROVED 0 HIGH/CRIT)
+## Cluster 2a (RESOLVED 27df359, 2026-09-24; review APPROVED 0 HIGH/CRIT)
 
-- [ ] R-11..R-14 LOW/INFO (Post-Commit-Review 27df359 — akzeptierte Beobachtungen): (R-11) Snapshot-Chain wächst unbeschränkt (Refresh ohne Drift erzeugt trotzdem Snapshot + Dir) — Retention-Cap (z.B. max 20) oder Skip-wenn-!stale beim nächsten Touch. (R-12) Blocking-Refresh behält aktive Batches/PlanChanges des alten Stands bei invalid-Markierung (bewusst — Arbeit bewahren; Invarianten greifen). (R-13) Tool-Schema ohne snapshotCurrent: alte Clients kompatibel (Zod strippt). (R-14) 2b MUSS beim Wiring von buildReconciledState importArtifacts(feature, previous) verwenden, sonst chain-lose States. Trigger: nächste Spec-Kit-Engine-Änderung bzw. 2b.
-- [x] Snapshot-Chaining (Phase 7a M4): importArtifacts(feature, previous?)
-      verkettet Snapshots (previousSnapshotId) und erhält die History; der
-      Blocking-Fail-Pfad eines Refreshs überschreibt die Kette nicht mehr
-      (vorher: History-Wipe), sondern markiert nur invalid. refresh_spec_kit
-      reicht den previous State durch.
-- [x] Staleness-Maschinerie (Phase 7a M4): evaluateCompletionInvariants
-      berechnet snapshotCurrent intern (Hash-Vergleich via isSnapshotStale)
-      statt dem Caller-Supplied-Flag zu trauen; Tool-Schema (snapshotCurrent
-      entfernt) + Tests angepasst.
-- [x] previousSnapshotOverride dead field entfernt — Chaining wird jetzt
-      am Import konsumiert. 5 neue Tests (snapshot-chain.test.ts).
-      181/181 + tsc + build grün.
+- [ ] R-11..R-14 LOW/INFO (post-commit review 27df359 — accepted observations): (R-11) the snapshot chain grows unboundedly (a refresh without drift still creates a snapshot + dir) — a retention cap (e.g. max 20) or skip-if-!stale at the next touch. (R-12) a blocking refresh keeps the active batches/plan changes of the old state on invalid marking (deliberate — preserve work; the invariants apply). (R-13) tool schema without snapshotCurrent: old clients compatible (zod strips). (R-14) 2b MUST use importArtifacts(feature, previous) when wiring buildReconciledState, otherwise states without a chain. Trigger: next Spec-Kit engine change or 2b.
+- [x] Snapshot chaining (Phase 7a M4): importArtifacts(feature, previous?)
+      chains snapshots (previousSnapshotId) and preserves the history; a
+      refresh's blocking fail path no longer overwrites the chain
+      (previously: history wipe) but only marks invalid. refresh_spec_kit
+      passes the previous state through.
+- [x] Staleness machinery (Phase 7a M4): evaluateCompletionInvariants
+      computes snapshotCurrent internally (hash comparison via
+      isSnapshotStale) instead of trusting the caller-supplied flag; the
+      tool schema (snapshotCurrent removed) + tests adjusted.
+- [x] previousSnapshotOverride dead field removed — chaining is now
+      consumed at import. 5 new tests (snapshot-chain.test.ts).
+      181/181 + tsc + build green.
 
-## Cluster 2c (GELÖST 9bcc6c6, 2026-09-24; Review APPROVED 0 HIGH/CRIT)
+## Cluster 2c (RESOLVED 9bcc6c6, 2026-09-24; review APPROVED 0 HIGH/CRIT)
 
-- [ ] R-6..R-8 LOW/INFO (Post-Commit-Review 9bcc6c6 — akzeptierte Beobachtungen): (R-6) Downstream-Error-Message-Pfade (tool_reported/transport) tragen messages unverratzt durch errors[] — redact beim nächsten Touch der OperationEngine. (R-7) Secret-Value-Patterns ohne Word-Boundary → mögliche False-Positive-Blocks im restricted-Modus (fail-closed, akzeptiert); Boundary-Verfeinerung optional. (R-8) redactUnknown setzt azyklische (JSON-derived) Strukturen voraus — im Docstring dokumentieren. Trigger: nächste Änderung an OperationEngine/redaction.ts. Accepted observations mit rationale.
-- [x] Egress Content-Checks (Phase 6 MEDIUM): evaluateEgress (restricted/
-      validated_inputs_only) verwirft Scalar-Args mit High-Confidence-Credential-
-      Werten (Private-Keys, AKIA/ghp_/github_pat_/sk-/JWT/xox-Pattern) via
-      data_egress_denied. Trusted/privileged bleiben strukturell (dokumentiert).
-- [x] protocolMetadata-Rotung (Phase 6 MEDIUM): mcpTool-Ergebnisse laufen
-      durch redactUnknown — Content UND structuredContent werden vor der
-      agent-facing Rückgabe redigiert (zuvor verbatim).
-- [x] Multi-line-Redaction (Phase 5 LOW): Value-Alternation matcht jetzt
-      mehrzeilige Quoted-Values ([\\s\\S]*?, non-greedy).
-- [x] Sanitization-Seam: redactUnknown (Deep-Walk + Key-Based-Redaction) in
-      redaction.ts als dokumentierter Extension-Point; 7 neue Tests
-      (tests/policy/redaction-seams.test.ts). 176/176 + tsc + build grün.
-      Bekannte Restschwäche: Default-Patterns matchen snake_case-Keys
-      (api_token) nicht (\\b-Grenze) — Enhancement-Kandidat.
+- [ ] R-6..R-8 LOW/INFO (post-commit review 9bcc6c6 — accepted observations): (R-6) the downstream error message paths (tool_reported/transport) carry messages unredacted through errors[] — redact at the next touch of OperationEngine. (R-7) secret value patterns without a word boundary → possible false-positive blocks in restricted mode (fail-closed, accepted); boundary refinement optional. (R-8) redactUnknown assumes acyclic (JSON-derived) structures — document in the docstring. Trigger: next change to OperationEngine/redaction.ts. Accepted observations with rationale.
+- [x] Egress content checks (Phase 6 MEDIUM): evaluateEgress (restricted/
+      validated_inputs_only) discards scalar args with high-confidence
+      credential values (private keys, AKIA/ghp_/github_pat_/sk-/JWT/xox
+      patterns) via data_egress_denied. Trusted/privileged remain structural
+      (documented).
+- [x] protocolMetadata reddening (Phase 6 MEDIUM): mcpTool results run
+      through redactUnknown — content AND structuredContent are redacted
+      before the agent-facing return (previously verbatim).
+- [x] Multi-line redaction (Phase 5 LOW): the value alternation now
+      matches multi-line quoted values ([\\s\\S]*?, non-greedy).
+- [x] Sanitization seam: redactUnknown (deep walk + key-based redaction) in
+      redaction.ts as a documented extension point; 7 new tests
+      (tests/policy/redaction-seams.test.ts). 176/176 + tsc + build green.
+      Known residual weakness: the default patterns do not match snake_case
+      keys (api_token) (\\b boundary) — an enhancement candidate.
 
-## Cluster 2b (GELÖST 29b22c2 + Review-Fixes f8d91b6, 2026-09-24; Review APPROVED 0 HIGH/CRIT)
+## Cluster 2b (RESOLVED 29b22c2 + review fixes f8d91b6, 2026-09-24; review APPROVED 0 HIGH/CRIT)
 
-- [x] R-15 MEDIUM (im Review gefunden + SOFORT gefixt f8d91b6): superseded
-      Tasks behalten required=false (blockten required_tasks_incomplete für
-      immer); Test: Violation-Set identisch mit/ohne superseded Task.
-- [x] R-16 LOW (gefixt f8d91b6): buildReconciledState merged
-      previous.planChanges — offene Changes überleben den Refresh.
-- [x] R-17 LOW (dokumentiert + Test): Re-Entscheidung vor Apply
-      (approved→rejected) ist intendiert; ab Apply terminal (F6-Guard).
-- [x] R-18 INFO: remote approve/apply unterliegt dem FR-104.5-
-      Session-Vertrauensmodell (konsistent mit allen Tools).
-- [x] R-19 INFO: Migration — unter altem Code im Status
-      artifact_update_required festhängende Changes brauchen nach dem Upgrade
-      ein Re-Approve (setzt "approved"), dann Apply.
-- [x] F6: Plan-Change-Lifecycle guarded — approve/reject terminal, apply nur
-      nach Approval, unbekannte Ids werfen GuidanceError; approved Changes
-      führen jetzt den Status "approved" (statt artifact_update_required zu
-      wiederverwenden). refresh-Test auf korrigierten Flow angepasst.
-- [x] F5: waiveCriterion emittiert spec_kit_criterion_waived.
-- [x] M3: entfernte unfertige Tasks werden als cancelled retained +
-      spec_kit_task_superseded-Audit; toter superseded-Debris entfernt.
-- [x] M1: Contracts-Artefakte speichern relative Pfade (Relocation bricht
-      Staleness nicht mehr — Test: Umzug in neues Root → nicht stale).
-- [x] 7a M applyReconciliation: refresh_spec_kit_artifacts wendet
-      buildReconciledState an — Task-Fortschritt überlebt Refresh.
-- [x] 2 neue Tools: approve_plan_change + apply_plan_change (waren
-      Engine-only, remote nie erreichbar — permanent-pending-Gap geschlossen);
-      SPEC_KIT_TOOL_NAMES + Registrationstest aktualisiert.
-- [x] Inventur-Befund: "SpecKitState-Persistence über Restarts" (7a) war
-      bereits realisiert (SpecKitStateStore, disk-backed, atomic tmp+rename) —
-      stale Eintrag, keine Action.
-      189/189 Tests + tsc + yarn build grün. Offen im Bestand: nur noch
-      Cluster 3 (Smithery-Decision + Discovery), 1b (Downstream-Spec),
-      CB-4-Option-A, L253/256/257 (Kleinkitems) + INFO-Positionen.
+- [x] R-15 MEDIUM (found in review + fixed IMMEDIATELY f8d91b6): superseded
+      tasks keep required=false (they blocked required_tasks_incomplete
+      forever); test: the violation set identical with/without the
+      superseded task.
+- [x] R-16 LOW (fixed f8d91b6): buildReconciledState merges
+      previous.planChanges — open changes survive the refresh.
+- [x] R-17 LOW (documented + test): a re-decision before apply
+      (approved→rejected) is intended; terminal after apply (F6 guard).
+- [x] R-18 INFO: remote approve/apply is subject to the FR-104.5
+      session trust model (consistent with all tools).
+- [x] R-19 INFO: migration — changes stuck in status
+      artifact_update_required under old code need a re-approve after the
+      upgrade (sets "approved"), then apply.
+- [x] F6: the plan change lifecycle guarded — approve/reject terminal,
+      apply only after approval, unknown ids throw GuidanceError; approved
+      changes now carry the status "approved" (instead of reusing
+      artifact_update_required). The refresh test adjusted to the
+      corrected flow.
+- [x] F5: waiveCriterion emits spec_kit_criterion_waived.
+- [x] M3: removed unfinished tasks are retained as cancelled +
+      spec_kit_task_superseded audit; the dead superseded debris removed.
+- [x] M1: contracts artifacts store relative paths (relocation no longer
+      breaks staleness — test: move to a new root → not stale).
+- [x] 7a M applyReconciliation: refresh_spec_kit_artifacts applies
+      buildReconciledState — task progress survives a refresh.
+- [x] 2 new tools: approve_plan_change + apply_plan_change (were
+      engine-only, never reachable remotely — the permanent-pending gap
+      closed); SPEC_KIT_TOOL_NAMES + the registration test updated.
+- [x] Inventory finding: "SpecKitState persistence across restarts" (7a)
+      was already implemented (SpecKitStateStore, disk-backed, atomic
+      tmp+rename) — a stale entry, no action.
+      189/189 tests + tsc + yarn build green. Still open in the inventory:
+      only cluster 3 (Smithery decision + discovery), 1b (downstream
+      spec), CB-4-Option-A, L253/256/257 (small items) + INFO positions.
 
-## Cluster 2e (GELÖST ffdf393, 2026-09-24)
+## Cluster 2e (RESOLVED ffdf393, 2026-09-24)
 
-- [x] Capability-Hashes über Restarts: capability-hashes.json im stateDir
-      (merge-on-save, tolerant load); Drift nach Restart wird jetzt ERKANNT
-      (downstream_capability_changed) statt stillschweigend neu gepinnt —
-      Verhaltensänderung mit Absicht.
-- [x] F8-Waiver-Audit: Audit-Entry führt jetzt approvedBy + at (dedizierter
-      Event-Typ spec_kit_criterion_waived bleibt F5/2b).
-- [x] F8-Testlücken geschlossen (f8-gaps.test.ts, 4 Tests): Contracts-
-      Artifacts (Hash, Content wird bewusst nicht im State behalten — in
-      importArtifacts dokumentiert), Removed-Task-Reconciliation (removed
-      geflaggt, completed retained), Plan-Change-Terminality-Flow,
-      Waiver-Audit-Felder. 169/169 + tsc + build grün.
+- [x] Capability hashes across restarts: capability-hashes.json in the
+      stateDir (merge-on-save, tolerant load); drift after a restart is now
+      DETECTED (downstream_capability_changed) instead of silently
+      re-pinned — an intentional behavior change.
+- [x] F8 waiver audit: the audit entry now carries approvedBy + at (the
+      dedicated event type spec_kit_criterion_waived remains F5/2b).
+- [x] F8 test gaps closed (f8-gaps.test.ts, 4 tests): contracts
+      artifacts (hash, content deliberately not kept in state — documented
+      in importArtifacts), removed-task reconciliation (removed flagged,
+      completed retained), the plan-change terminality flow,
+      waiver audit fields. 169/169 + tsc + build green.
 
-## Cluster 2d (GELÖST 18b27cf, 2026-09-24)
+## Cluster 2d (RESOLVED 18b27cf, 2026-09-24)
 
-- [x] Parser-Dead-Code: TASK_LINE/ID_TOKEN entfernt; hasSection (Export ohne
-      einen einzigen Aufruf) entfernt; toter Doppel-Import readdirSync +
-      readdirRecursive2-Debris am Dateiende entfernt.
-- [x] Latenter ESM-Crash: readdirSyncSafe nutzte require("node:fs") —
-      ReferenceError sobald Kandidaten-Discovery (mostRecentlyModified/
-      singleCandidate-Strategien) läuft. Jetzt statischer readdirSync-Import.
-- [x] Criteria-Parsing bold-only (parseTasks UND parseCriteria): jetzt auch
-      Plain-Listenform (- AC-002: …), gespiegelt vom Requirement-Muster.
-      Regressionstest in parser.test.ts.
-- [x] F7: toter `&& state.tasks`-Conjunct in coverageSummary entfernt.
-- [x] requireUniqueMatch/maxEntities/maxExcerptBytes: als „reserved" im
-      Interface dokumentiert (Enforcement wäre silentes Droppen von Criteria =
-      Coverage-Korruption — gehört mit Validation-Warnings zusammen in 2c/2a);
-      previousSnapshotOverride als „reserved für 2a Snapshot-Chaining"
-      dokumentiert (nicht entfernt — 2a konsumiert es).
-- INFO (akzeptiert, keine Action): Root-tsconfig deckt nur 2/4 Server; gemischte Package-Manager (yarn@4 root + server-lokale npm-Lockfiles) ist beabsichtigt (Docker/Publish-Determinismus); ClientOpLedger nur per operationId (v1-Doku, FR-104.5-Vertrauensmodell); cache-only workflowToRemote/ledger/lastAttempt bereits getrackt im Remote-Mode-Follow-up (a) bei L305.
-- [x] CB-14 HIGH-Kandidat (entdeckt 2026-09-24, GELÖST 3fb48ba): yarn.lock auf Yarn-Berry-Format (v8) mit yarn 4.6.0 regeneriert (+ package.json-Normalisierung der Server committed). CI-Parität verifiziert: `yarn install --immutable` (exit 0, keine Änderungen), `yarn build` + `yarn test` über alle 4 Workspaces grün (166+162+105[4 skipped=Embeddings]+43).
-- [x] CB-15 LOW (entdeckt 2026-09-24, GELÖST 373ade5): `develop` zu den push-Branches in test.yml hinzugefügt — develop-Pushes triggern CI jetzt direkt.
+- [x] Parser dead code: TASK_LINE/ID_TOKEN removed; hasSection (an export
+      without a single call) removed; the dead duplicate import readdirSync +
+      readdirRecursive2 debris at the end of the file removed.
+- [x] Latent ESM crash: readdirSyncSafe used require("node:fs") —
+      a ReferenceError as soon as the candidate discovery (mostRecentlyModified/
+      singleCandidate strategies) runs. Now a static readdirSync import.
+- [x] Criteria parsing bold-only (parseTasks AND parseCriteria): now also
+      the plain list form (- AC-002: …), mirrored from the requirements
+      pattern. Regression test in parser.test.ts.
+- [x] F7: the dead `&& state.tasks` conjunct removed from coverageSummary.
+- [x] requireUniqueMatch/maxEntities/maxExcerptBytes: documented as
+      "reserved" in the interface (enforcement would silently drop
+      criteria = coverage corruption — belongs with validation warnings in
+      2c/2a); previousSnapshotOverride documented as "reserved for 2a
+      snapshot chaining" (not removed — 2a consumes it).
+- INFO (accepted, no action): the root tsconfig covers only 2/4 servers;
+      mixed package managers (yarn@4 root + server-local npm lockfiles) is
+      intentional (Docker/publish determinism); ClientOpLedger only per
+      operationId (v1 docs, FR-104.5 trust model); cache-only
+      workflowToRemote/ledger/lastAttempt already tracked in the
+      remote-mode follow-up (a) at L305.
+- [x] CB-14 HIGH candidate (discovered 2026-09-24, RESOLVED 3fb48ba):
+      yarn.lock regenerated to Yarn Berry format (v8) with yarn 4.6.0
+      (+ the package.json normalization of the servers committed). CI
+      parity verified: `yarn install --immutable` (exit 0, no changes),
+      `yarn build` + `yarn test` green across all 4 workspaces
+      (166+162+105[4 skipped=embeddings]+43).
+- [x] CB-15 LOW (discovered 2026-09-24, RESOLVED 373ade5): `develop` added
+      to the push branches in test.yml — develop pushes now trigger CI
+      directly.
 
-## Cluster 3 — Smithery (ENTSCHEIDUNG A getroffen, UMGESETZT d566d94, 2026-09-24)
+## Cluster 3 — Smithery (DECISION A taken, IMPLEMENTED d566d94, 2026-09-24)
 
-Discovery-Befunde (vor der Entscheidung):
+Discovery findings (before the decision):
 
-- clear-thought: smithery.yaml = nur `runtime: typescript` (Legacy-Auto-Build,
-  kein startCommand); @smithery/sdk längst entfernt; stdio-Entry vorhanden
-  (dist/dev.js, bin-invocation.test.ts); Publish historisch via
-  scripts/publish-smithery.mjs (API), `deploy`-Script tot (v4-CLI, RB-7).
-- insight: dito (yaml nur runtime-Zeile, kein SDK, stdio-Entry vorhanden).
-- stochasticthinking: VOLLständige Smithery-Integration (yaml mit Dockerfile-
-  Build + stdio startCommand, @smithery/sdk im Code, Release b6e38872 auf
-  Smithery; RB-8: stdio/MCPB = install-only) — unangetastet gelassen.
-- guidance: nie Smithery-published, sauber.
-  Umsetzung (Option A):
-- [x] clear-thought/insight: smithery.yaml auf echten stdio startCommand
-      modernisiert (dist/dev.js; insight mappt optional storagePath →
+- clear-thought: smithery.yaml = only `runtime: typescript` (legacy
+  auto-build, no startCommand); @smithery/sdk long removed; stdio entry
+  present (dist/dev.js, bin-invocation.test.ts); publishing historically
+  via scripts/publish-smithery.mjs (API), the `deploy` script dead
+  (v4 CLI, RB-7).
+- insight: same (yaml only the runtime line, no SDK, stdio entry present).
+- stochasticthinking: COMPLETE Smithery integration (yaml with Dockerfile
+  build + stdio startCommand, @smithery/sdk in the code, release b6e38872
+  on Smithery; RB-8: stdio/MCPB = install-only) — left untouched.
+- guidance: never Smithery-published, clean.
+  Implementation (Option A):
+- [x] clear-thought/insight: smithery.yaml modernized to a real stdio
+      startCommand (dist/dev.js; insight maps an optional storagePath →
       EMMS_STORAGE_PATH).
-- [x] Tote deploy-Scripts (v4-CLI) in allen drei Servern entfernt;
-      clear-thought build:smithery mit der SDK-Entfernung mit entfernt;
-      stochastic build:smithery (live) unangetastet. publish-smithery.mjs
-      bleibt das Publishing-Werkzeug.
-- Nächster Smithery-Publish prüft die neuen yamls in der Praxis
-  (Rescan-Score gegen RB-10-Historie vergleichen).
+- [x] Dead deploy scripts (v4 CLI) removed in all three servers;
+      clear-thought build:smithery removed together with the SDK removal;
+      stochastic build:smithery (live) untouched. publish-smithery.mjs
+      remains the publishing tool.
+- The next Smithery publish checks the new yamls in practice
+  (compare the rescan score against the RB-10 history).
 
-## Entscheidungen (User, 2026-09-24) + neue Pakete
+## Decisions (user, 2026-09-24) + new packages
 
-1. Smithery: NICHT „tot lassen" — aktive Pflege (Option A bereits umgesetzt).
-2. CB-4 Option A: JA — insight wird remote nutzbar → EMMS_AUTH_TOKEN.
-3. 1b Downstream-Spec: JA — Remote-Mode wird um Downstream-MCP-Support erweitert.
+1. Smithery: NOT "leave dead" — active maintenance (Option A already
+   implemented).
+2. CB-4 Option A: YES — insight becomes remotely usable → EMMS_AUTH_TOKEN.
+3. 1b downstream spec: YES — remote mode will be extended with downstream
+   MCP support.
 
-- [x] CB-20 MEDIUM (Decision 2, GELÖST 3c4f36f): EMMS_AUTH_TOKEN implementiert
-      (timing-safe Bearer an /mcp POST/GET/DELETE; unset = offen, Loopback-Default
-      bleibt Basis-Schutz; /health offen; compose-Passthrough + README-Doku).
-      Test: 401 ohne/falsch, 200 korrekt, /health 200. 106/106 + tsc + build grün.
-      Position geschlossen — insight ist remote-fähig (Token setzen + ggf.
-      EMMS_BIND_HOST anpassen).
-- [ ] CB-21 MEDIUM (Decision 3): Remote-Mode Downstream-Support — (1) Spec-
-      Amendment zu specs/002 (Downstream-Ops statt awaiting_client; Interaktion
-      mit FR-104.5/Trust klären), (2) Implementierung im OperationEngine-Stack.
-      Aufwand: Spec ½ Tag, Dev separat. Trigger: nächster Remote-Mode-Scope.
-- [ ] CB-22 LOW (Decision 1, aktive Pflege): beim nächsten Release Publish
-      via publish-smithery.mjs (validiert die neuen stdio-yamls praktisch) +
-      Rescan-Score gegen RB-10-Historie (96/100) hier dokumentieren.
-      Trigger: nächster Release.
+- [x] CB-20 MEDIUM (decision 2, RESOLVED 3c4f36f): EMMS_AUTH_TOKEN
+      implemented (timing-safe bearer on /mcp POST/GET/DELETE; unset =
+      open, the loopback default remains the basic protection; /health
+      open; compose passthrough + README docs).
+      Test: 401 without/wrong, 200 correct, /health 200. 106/106 + tsc +
+      build green. Position closed — insight is remote-capable (set the
+      token + adjust EMMS_BIND_HOST if needed).
+- [ ] CB-21 MEDIUM (decision 3): remote mode downstream support — (1) a
+      spec amendment to specs/002 (downstream ops instead of
+      awaiting_client; clarify the interaction with FR-104.5/trust),
+      (2) implementation in the OperationEngine stack.
+      Effort: spec ½ day, dev separately. Trigger: the next remote-mode
+      scope.
+- [ ] CB-22 LOW (decision 1, active maintenance): at the next release
+      publish via publish-smithery.mjs (validates the new stdio yamls
+      practically) + document the rescan score against the RB-10 history
+      (96/100) here.
+      Trigger: next release.
 
 ## Review d566d94 (Smithery Option A, 2026-09-24; APPROVED 0 HIGH/CRIT)
 
-- [ ] R-20/R-21 INFO/LOW: YAML-Parser-Validierung lokal nicht möglich —
-      praktische Validierung beim nächsten Publish (CB-22). R-21: clear-thought
-      exponiert leere configSchema (properties: {}) — Rescan könnte Config-UX-
-      Punkte (historisch 25/25) verlieren; ggf. debug-Flag als Option exponieren.
-      Evaluation zusammen mit CB-22-Rescan. Trigger: nächster Release/Publish.
+- [ ] R-20/R-21 INFO/LOW: YAML parser validation not possible locally —
+      practical validation at the next publish (CB-22). R-21: clear-thought
+      exposes an empty configSchema (properties: {}) — a rescan could lose
+      Config-UX points (historically 25/25); optionally expose a debug
+      flag. Evaluation together with the CB-22 rescan. Trigger: next
+      release/publish.
 
-## Getrackte Follow-ups (2026-09-27, Feature 007 Remote Downstream Execution — LOW-Reste GELÖST)
+## Tracked Follow-ups (2026-09-27, Feature 007 Remote Downstream Execution — LOW Remainders RESOLVED)
 
-Branch feature/remote-downstream-execution. Suite 312/312 + tsc + build grün (Container).
+Branch feature/remote-downstream-execution. Suite 312/312 + tsc + build green (container).
 
-- [x] F3 GELÖST (FR-704): recordConnection nach jedem Downstream-Invoke (Status + lastSuccessfulRequestAt); ConnectionSnapshot erweitert; get_metrics führt Live + Persistiertes zusammen.
-- [x] F5 GELÖST (Wortlaut): Spec-005 FR-404 nennt Opak-Token; HMAC entfällt (Transport key-authentifiziert) — optionale Härtung getrackt.
-- [x] F7 GELÖST by design: FR-501 (check/burn getrennt + persistierter Report-Token) + SC-502-Test decken das Crash-Fenster; Plan-Eintrag verweist darauf.
-- [x] L-2 GELÖST: ps-/Eskalations-Tests polling-basiert (≤5s), Eskalations-Untergrenze 5,5s.
-- [x] L-4 GELÖST: Lock-Key via realpathSync (Fallback resolve).
-- [x] L-5 GELÖST: workspaceLocks-Cap 64 mit Eviction des ältesten unheld Eintrags.
-- [ ] Residual LOW: SIGKILL-Observation erfolgt indirekt (SIGTERM-deaf Child + Zeitfenster) — direkte pid-Assertion im Eskalationstest möglich. Trigger: nächster Executor-Touch.
+- [x] F3 RESOLVED (FR-704): recordConnection after every downstream invoke (status + lastSuccessfulRequestAt); ConnectionSnapshot extended; get_metrics merges live + persisted.
+- [x] F5 RESOLVED (wording): spec-005 FR-404 names an opaque token; HMAC dropped (the transport is key-authenticated) — optional hardening tracked.
+- [x] F7 RESOLVED by design: FR-501 (check/burn separated + persisted report token) + the SC-502 test cover the crash window; the plan entry references it.
+- [x] L-2 RESOLVED: ps/escalation tests polling-based (≤5s), escalation lower bound 5.5s.
+- [x] L-4 RESOLVED: lock key via realpathSync (fallback resolve).
+- [x] L-5 RESOLVED: workspaceLocks cap 64 with eviction of the oldest unheld entry.
+- [ ] Residual LOW: the SIGKILL observation happens indirectly (SIGTERM-deaf child + time window) — a direct pid assertion in the escalation test is possible. Trigger: next executor touch.
 
-## Getrackte Follow-ups (2026-09-26, Feature 005 Final-Review — Reste)
+## Tracked Follow-ups (2026-09-26, Feature 005 Final Review — Remainders)
 
-Final-Review (fresh subagent 35f63807) über f300cf9..98c4d62: 1 HIGH (F1 metrics.jsonl exponentielles Wachstum durch Replay-Re-Persist) — GEFIXT (replaying-Flag) + Replay-Größen-Regressionstest; F2 SC-401-Integrationstest nachgereicht; F6 catch-Recording; F9 defensive copies. 0 HIGH/CRITICAL offen nach Fixes (304/304 + tsc grün).
+Final review (fresh subagent 35f63807) over f300cf9..98c4d62: 1 HIGH (F1 metrics.jsonl exponential growth through replay re-persist) — FIXED (replaying flag) + a replay-size regression test; F2 SC-401 integration test supplied; F6 catch recording; F9 defensive copies. 0 HIGH/CRITICAL open after fixes (304/304 + tsc green).
 
-- [x] F3 GELÖST (Feature 007, d19fdc4/9434e54): recordConnection nach jedem Downstream-Invoke; ConnectionSnapshot.lastSuccessfulRequestAt + Live-Merge-Fix (L1 im 007-Final-Review).
-- [x] F5 GELÖST (Feature 007 Final-Review M1, 9434e54): FR-404-Wortlaut in specs/005 angepasst (Opak-Token; optionale Härtung getrackt).
-- [x] F7 GELÖST by design (siehe Feature-006-Abschnitt): FR-501/SC-502 decken das Crash-Fenster.
-- [ ] F8 LOW: Scaffold-Detection false positive (pyproject.toml in JS-Monorepo). Akzeptiert spec-konform; Trigger: Feedback aus Praxis.
-- [x] F4 MEDIUM: tasks.md-Checkboxen mit diesem Commit gesetzt (Hygiene-Regel).
+- [x] F3 RESOLVED (feature 007, d19fdc4/9434e54): recordConnection after every downstream invoke; ConnectionSnapshot.lastSuccessfulRequestAt + the live-merge fix (L1 in the 007 final review).
+- [x] F5 RESOLVED (feature 007 final review M1, 9434e54): the FR-404 wording in specs/005 adjusted (opaque token; optional hardening tracked).
+- [x] F7 RESOLVED by design (see the feature-006 section): FR-501/SC-502 cover the crash window.
+- [ ] F8 LOW: scaffold detection false positive (pyproject.toml in a JS monorepo). Accepted spec-conformant; trigger: feedback from practice.
+- [x] F4 MEDIUM: the tasks.md checkboxes set with this commit (hygiene rule).
 
-## Getrackte Follow-ups (2026-09-27, Multi-Repo-Fähigkeit Guidance)
+## Tracked Follow-ups (2026-09-27, Multi-Repo Capability Guidance)
 
-Anlass: Nutzer-Befund am Niyama-Beispiel — guidance ist aktuell single-repo verdrahtet und damit nicht produktionsreif für mehrere Repos.
+Occasion: a user finding on the Niyama example — guidance is currently single-repo wired and thus not production-ready for multiple repos.
 
-- [ ] MR-1 MEDIUM: Workspace-Konzept ist singulär — `composeApplication(workspaceRoot, …)` bindet EIN Root (`src/index.ts:15-16`); `assertWorkspaceInside` (`src/mcp-server/register-tools.ts:82-98`) und `spec_kit_feature_outside_workspace` (`SpecKitEngine.ts:116-120`) lehnen alles außerhalb des EINEN Mounts ab; `.guidance/` (config+state) liegt zwingend im Workspace-Root. Kein Repo-Registry-/Workspace-Registry-Konzept. Trigger: specs/008-multi-workspace (spec.md + plan.md + tasks.md angelegt; Q1–Q5 durch Nutzer entschieden 2026-09-27: 1 Container + Registry, workspaces[] in guidance.json, statisch ohne Laufzeit-Tools, State im Repo, per-Workspace-Lock). Action required: Implementierung P1–P7.
-- [ ] MR-2 LOW: Deployment-Annahme „1 Container = 1 Repo" (docker-compose.override.yml Mount + GUIDANCE_WORKSPACE_ROOT) ist undokumentiert als Produktionsbeschränkung. Trigger: README/Dokumentation-Update. Action required.
+- [ ] MR-1 MEDIUM: the workspace concept is singular — `composeApplication(workspaceRoot, …)` binds ONE root (`src/index.ts:15-16`); `assertWorkspaceInside` (`src/mcp-server/register-tools.ts:82-98`) and `spec_kit_feature_outside_workspace` (`SpecKitEngine.ts:116-120`) reject everything outside the ONE mount; `.guidance/` (config+state) necessarily lives in the workspace root. No repo registry/workspace registry concept. Trigger: specs/008-multi-workspace (spec.md + plan.md + tasks.md created; Q1–Q5 decided by the user 2026-09-27: 1 container + registry, workspaces[] in guidance.json, static without runtime tools, state in the repo, per-workspace lock). Action required: implementation P1–P7.
+- [ ] MR-2 LOW: the deployment assumption "1 container = 1 repo" (docker-compose.override.yml mount + GUIDANCE_WORKSPACE_ROOT) is undocumented as a production restriction. Trigger: README/documentation update. Action required.
 
-## Nachtrag Feature 007 Final-Review (0 HIGH/CRIT; 2 MEDIUM sofort gefixt)
+## Addendum Feature 007 Final Review (0 HIGH/CRIT; 2 MEDIUM fixed immediately)
 
-- [x] M1 GELÖST: F5-Wortlaut tatsächlich angepasst (specs/005 FR-404: Opak-Token, HMAC entfällt/optional getrackt); falscher GELÖST-Claim aus d19fdc4 korrigiert.
-- [x] M2 GELÖST: Remote-Metrics-Lücke executeRequired — downstreamEngine.execute wird mit Metrics-Recording gewrappt (Lifecycle/Composite zählt remote jetzt).
-- [x] L1 GELÖST: getMetrics-Live-Merge erhält lastSuccessfulRequestAt (überschreibt nicht mehr mit undefined).
-- [x] L2 GELÖST (LR-3, 56ecf1d): FR-705 auf Soft-Cap-Semantik präzisiert (held nie evicted, temporäres Überschreiten unter Contention dokumentiert).
-- [x] L3 GELÖST (LR-2, 8afc15f): Router als Proxy statt Cast — unbekannte Member funktionsgebunden an Downstream-Engine, Regressionstest vorhanden.
-- [ ] L4 INFO: SC-604 Remote-Parallelität nur lokal getestet (SC-503); Remote-Level-Parallelitätstest bei Bedarf. SIGKILL-Observation bleibt getrackt (siehe Feature 004-Rest).
+- [x] M1 RESOLVED: the F5 wording actually adjusted (specs/005 FR-404: opaque token, HMAC dropped/optional tracked); the false RESOLVED claim from d19fdc4 corrected.
+- [x] M2 RESOLVED: remote metrics gap executeRequired — downstreamEngine.execute is wrapped with metrics recording (lifecycle/composite now counts remote).
+- [x] L1 RESOLVED: the getMetrics live merge receives lastSuccessfulRequestAt (no longer overwritten with undefined).
+- [x] L2 RESOLVED (LR-3, 56ecf1d): FR-705 made precise on soft-cap semantics (held never evicted, temporary exceeding under contention documented).
+- [x] L3 RESOLVED (LR-2, 8afc15f): router as a proxy instead of a cast — unknown members function-bound to the downstream engine, a regression test present.
+- [ ] L4 INFO: SC-604 remote parallelism only tested locally (SC-503); a remote-level parallelism test if needed. The SIGKILL observation stays tracked (see the feature 004 remainder).
 
-## Getrackte Follow-ups (2026-09-27, Feature 008 LOW-Residue Closure — GELÖST)
+## Tracked Follow-ups (2026-09-27, Feature 008 LOW-Residue Closure — RESOLVED)
 
-> Namespace-Bereinigung (2026-09-27): Die ursprünglichen Label FR-801…804
-> kollidierten mit specs/008 (FR-801…808) und wurden zu **LR-1…LR-4**
-> umetikettiert (Code-Kommentare, Testnamen, Prompt-Header inklusive).
-> Branch feature/low-residue-closure. Suite 314/314 + tsc + build grün (Container).
+> Namespace cleanup (2026-09-27): the original labels FR-801…804
+> collided with specs/008 (FR-801…808) and were relabeled to
+> **LR-1…LR-4** (code comments, test names, prompt headers included).
+> Branch feature/low-residue-closure. Suite 314/314 + tsc + build green
+> (container).
 
-- [x] Interleaving-Parität GELÖST (LR-1, Doku+Test): getrennte Stream-Erfassung dokumentiert (keine Cross-Stream-Ordering-Garantie, POSIX); pinning test (alternierender out/err-Child) in operation-engine-async.test.ts.
-- [x] Router-Cast-Robustheit GELÖST (LR-2): Router als Proxy — unbekannte Member werden funktionsgebunden an die Downstream-Engine weitergeleitet; then/catch/finally + Target-Properties ausgenommen; Regressionstest in tools-run-operation.test.ts.
-- [x] Lock-Cap-Wortlaut GELÖST (LR-3): specs/007 FR-705 = soft cap 64, held nie evicted, temporäres Überschreiten unter Contention möglich; memory-bank L-2-Rest synchronisiert.
-- [x] L253-Ersatz GELÖST (LR-4): prompts/capture-lessons.prompt.md im Paket (files-Eintrag, Master-Header-Verweis), README-Nutzungsabschnitt. L253 bleibt obsolet-closed mit Verweis auf LR-4.
+- [x] Interleaving parity RESOLVED (LR-1, docs+test): separate stream capture documented (no cross-stream ordering guarantee, POSIX); pinning test (an alternating out/err child) in operation-engine-async.test.ts.
+- [x] Router cast robustness RESOLVED (LR-2): router as a proxy — unknown members are forwarded function-bound to the downstream engine; then/catch/finally + target properties excluded; a regression test in tools-run-operation.test.ts.
+- [x] Lock cap wording RESOLVED (LR-3): specs/007 FR-705 = soft cap 64, held never evicted, temporary exceeding under contention possible; the memory bank L-2 remainder synchronized.
+- [x] L253 replacement RESOLVED (LR-4): prompts/capture-lessons.prompt.md in the package (files entry, master-header reference), README usage section. L253 remains obsolete-closed with a reference to LR-4.
 
-## Getrackte Follow-ups (2026-09-27, P2-Review-Gate specs/008 Phase 1 — GATE BESTANDEN, 0 HIGH/CRIT)
+## Tracked Follow-ups (2026-09-27, P2 Review Gate specs/008 Phase 1 — GATE PASSED, 0 HIGH/CRIT)
 
-Frischer Reviewer-Subagent über feature/multi-workspace a5f8f26 vs develop (Snapshot-Tabelle + Evidence-Table im Gate-Report, session bb85853a).
+A fresh reviewer subagent over feature/multi-workspace a5f8f26 vs. develop (snapshot table + evidence table in the gate report, session bb85853a).
 
-- [ ] F1 LOW (akzeptiert): Sub-Pfad-Ablehnung = bewusste Härtung vs. alter Prefix-Check (assertWorkspaceRegistered) — dokumentiert in AC-2-Matrix (workspace-binding.test.ts). Trigger: Nutzer-Feedback aus Praxis.
-- [ ] F2 LOW (akzeptiert): Impliziter Default-Eintrag toleriert fehlenden Root (Remote-Sentinel-Boot) — dokumentierte Ausnahme, explizite Entries strikt validiert. Trigger: falls Remote-Boot-Härtung gefordert wird.
-- [ ] F3 LOW (akzeptiert): Session-scoped SpecKitEngines werden nicht gecacht (nur Default-Root) — reine Performance, korrekt. Trigger: Messbare Latenz bei Spec-Kit-Ops.
-- [ ] F4 LOW (getrackt): release_batch/verify_task Lifecycle-Fix liegt formal außerhalb T1–T7 des Specs 008 — als eigenständiger Fix auf feature/release-batch-tool dokumentiert (b841d38, 0aad3ed); Merge zu develop noch offen. Trigger: Merge der beiden Branches.
+- [ ] F1 LOW (accepted): sub-path rejection = deliberate hardening vs. the old prefix check (assertWorkspaceRegistered) — documented in the AC-2 matrix (workspace-binding.test.ts). Trigger: user feedback from practice.
+- [ ] F2 LOW (accepted): the implicit default entry tolerates a missing root (remote-sentinel boot) — a documented exception, explicit entries strictly validated. Trigger: if remote-boot hardening is demanded.
+- [ ] F3 LOW (accepted): session-scoped SpecKitEngines are not cached (only the default root) — pure performance, correct. Trigger: measurable latency on Spec-Kit ops.
+- [ ] F4 LOW (tracked): the release_batch/verify_task lifecycle fix lies formally outside T1–T7 of spec 008 — documented as an independent fix on feature/release-batch-tool (b841d38, 0aad3ed); merge to develop still open. Trigger: merge of the two branches.
 
-## specs/008-multi-workspace — GELÖST (2026-09-27)
+## specs/008-multi-workspace — RESOLVED (2026-09-27)
 
-- [x] MR-1 GELÖST: Multi-Workspace implementiert (feature/multi-workspace, T1–T17 completed). WorkspaceRegistry (realpath-fail-closed), namensbasierte Session-Bindung, Per-Workspace-Compositions mit State-Isolation, Lock-Scoping verifiziert, Gates je Session-Workspace, Health/Metrics-Observability. Evidence: Commits e9c503c..73e2b42, Suite 326 passed (5 pre-existing), tsc+build clean. P2-Review-Gate: 0 HIGH/CRIT.
-- [x] MR-2 GELÖST: README-Kapitel Multi-Workspace + docker-compose-Beispiel (zweiter Mount), .guidance/state-gitignore-Pflicht dokumentiert (FR-807).
-- Verbleibend (aus Phase-2-Umsetzung): Observability-PerWorkspace-Detail-Test, Spec-Kit-Chaining-Bridge für Non-Default-Workspaces (dokumentierte Limitierung), Merges feature/multi-workspace + feature/release-batch-tool → develop (offen, Nutzer-Entscheid).
+- [x] MR-1 RESOLVED: multi-workspace implemented (feature/multi-workspace, T1–T17 completed). WorkspaceRegistry (realpath fail-closed), name-based session binding, per-workspace compositions with state isolation, lock scoping verified, gates per session workspace, health/metrics observability. Evidence: commits e9c503c..73e2b42, suite 326 passed (5 pre-existing), tsc+build clean. P2 review gate: 0 HIGH/CRIT.
+- [x] MR-2 RESOLVED: README chapter multi-workspace + a docker-compose example (second mount), the .guidance/state gitignore obligation documented (FR-807).
+- Remaining (from the phase-2 implementation): an observability per-workspace detail test, the Spec-Kit chaining bridge for non-default workspaces (documented limitation), merges feature/multi-workspace + feature/release-batch-tool → develop (open, user decision).
 
-## Spec-009 Delta-Re-Review 2026-09-27 (7f9065f) — getrackte Findings
+## Spec-009 Delta Re-Review 2026-09-27 (7f9065f) — tracked findings
 
-- [x] N-D1 (MEDIUM): plan.md L18/L46-47 + tasks.md T7 listen policies.json als „kopiert" — Widerspruch zu FR-910/T13 (regeneriert). Trigger: vor Implementierungsstart von P3/T7 fixen (Kopierliste = workflow.json + schemas/). Action required.
-- [ ] N-D2 (LOW): FR-902 Pfad-Sicherheitscheck (Referenz außerhalb Ziel-.guidance) nicht als realpath-/resolve-basiert spezifiziert — symlinked Referenzpfad, der lexikalisch außerhalb, real innerhalb Ziel-.guidance liegt, bleibt theoretischer Escape. Trigger: Implementierung von FR-902 (T6) — Check über aufgelöste Pfade; optionaler Spec-Nachtrag. Action required (Implementierungsdetail) bzw. akzeptiert mit realpath-Regel.
-- [x] N-D3 (LOW): FR-901 referenziert FR-909 (downstream-servers.json), FR-909 ist im Spec nicht definiert (nur plan/tasks T13). Trigger: nächste Spec-009-Berührung — FR-909-Block nachziehen oder Referenz auf N-1 ändern. Action required (editorial).
-- [x] N-D4 (INFO): FR-902 Satzstellung durch R-5-Einschub broken („fail-closed Pfad-Sicherheit (R-5): … `configuration_invalid`"); plan.md L5 Typo „und宵". Trigger: nächste redaktionelle Überarbeitung. Accepted observation.
+- [x] N-D1 (MEDIUM): plan.md L18/L46-47 + tasks.md T7 list policies.json as "copied" — a contradiction with FR-910/T13 (regenerated). Trigger: fix before the implementation start of P3/T7 (copy list = workflow.json + schemas/). Action required.
+- [ ] N-D2 (LOW): the FR-902 path safety check (reference outside the target .guidance) is not specified as realpath/resolve-based — a symlinked reference path that is lexically outside but really inside the target .guidance remains a theoretical escape. Trigger: implementation of FR-902 (T6) — check over resolved paths; an optional spec addendum. Action required (implementation detail) or accepted with the realpath rule.
+- [x] N-D3 (LOW): FR-901 references FR-909 (downstream-servers.json), FR-909 is not defined in the spec (only plan/tasks T13). Trigger: next spec-009 touch — add the FR-909 block or change the reference to N-1. Action required (editorial).
+- [x] N-D4 (INFO): the FR-902 sentence structure broken by the R-5 insertion ("fail-closed path safety (R-5): … `configuration_invalid`"); plan.md L5 typo "und宵". Trigger: next editorial revision. Accepted observation.
 
-## Spec-010 Documentation-Drift-Gate — Review-Findings (2026-09-27, Commit 76801a2)
+## Spec-010 Documentation Drift Gate — Review Findings (2026-09-27, commit 76801a2)
 
-- [ ] S10-F1 (HIGH): FR-954 Pfadmuster ohne Matching-Semantik (prefix/suffix/glob) und Pfadbasis; `src/config.ts`/`src/types/errors.ts` existieren so nicht (real: `servers/server-guidance/src/...`); `README.md` mehrdeutig gg. Out-of-Scope (`servers/server-guidance/README.md`). Trigger: vor Plan-Phase Spec-010 — Muster als Glob/Suffix mit definierter Basis spezifizieren. Action required.
-- [ ] S10-F2 (MEDIUM): FR-952 nennt nur operations.json; tatsächlicher Gate-Punkt ist `workflow.json` → `phases.complete.lifecycle.beforeExit` + Transition `required_operations_succeeded`. Vollständige Op-Definition (args/timeout/validation analog final-review-gate) + Position im beforeExit (vor final-review-gate — Doc-Fix-Commits invalidieren dessen headCommit) spezifizieren. Trigger: Plan-Phase Spec-010. Action required.
-- [ ] S10-F3 (MEDIUM): Check-1 „README-Eintrag (Tool-Tabelle + Abschnitts-Verweis)" nicht maschinell präzise (UND/ODER?); Baseline: SPEC_KIT_TOOL_NAMES=16 vs. README-Tabelle=12 (verify_task, propose/approve/apply_plan_change fehlen). Q3-Sanierungsliste um README-Tool-Tabelle + ERROR_CODES erweitern. Trigger: erster Gate-Lauf / Plan-Phase. Action required.
-- [ ] S10-F4 (MEDIUM): Check-3 Anker existiert nicht — README dokumentiert KEINE ERROR_CODES-Struktur (0 Treffer). Anker-Format definieren (z. B. Codes-Tabelle; Prüfung gegen Tabelle, nicht freien README-Substring — sonst False Positives durch Beispieltexte wie `submission_invalid`). Trigger: Plan-Phase. Action required.
-- [ ] S10-F5 (MEDIUM): Check-4 „Merge-Commit im Log" für dieses Repo (Rebase/Squash-Praxis, Direkt-Commits auf develop wie 76801a2 selbst) vermutlich nie/inkorrekt feurend; „offene Pflicht-Checkboxen" maschinell nicht erkennbar. Präzisere Regel nötig (z. B. Merge via `git log --merges <ref> -- specs/<id>/` oder Ref-basiert) + Ausstiegsregel/Override, da Blocking (Q1) False Positives hart bestraft. Trigger: Plan-Phase. Action required.
-- [ ] S10-F6 (MEDIUM): Evidence-Vertrag: `specs/002/contracts/upstream-mcp-tools.md` listet Evidence-Felder — Update auf `docsImpact` im Spec nicht erwähnt. Zod-Schema bleibt `z.record(z.unknown())` (keine Tool-Schema-Änderung), SpecKitEngine-Signatur ändert sich; Bestandstests (lifecycle/state-machines) übergeben kein docsImpact — mit F-1-Fix (kein Substring-Match auf `a.ts`) grün, regressionprüfen. Trigger: Implementation T-? Spec-010. Action required.
-- [ ] S10-F7 (LOW): FR-953: stdout/stderr-Zuordnung (Referenzmuster: Fehler auf stderr) + Feldgrammatik (keine Newlines in Feldern) festlegen. Trigger: Plan-Phase. Action required.
-- [ ] S10-F8 (LOW): AC-Nummerierung inkonsistent („AC-10" vor AC-1); „Decisions (offen — historisch)"-Sektion mit „[Empfehlung]"-Resten streichen. Trigger: redaktionelle Überarbeitung Spec-010. Action required (editorial).
-- [ ] S10-F9 (LOW): Fehlende ACs: Verhalten bei fehlender README / fehlendem specs-Verzeichnis / fehlendem .git (fail-closed vs. skip) + Backupdateien (`README.md.bak`) explizit vom Parsing ausnehmen. Trigger: Plan-Phase. Action required.
-- [ ] S10-F10 (INFO): adoption-Block (spec 009 FR-906) liegt in gehashter guidance.json — vom Docs-Gate unberührt, keine Wechselwirkung; `docs-drift`-Op ist repo-spezifisch → landet bei künftigen Adopts auf der FR-903-Anpassungsliste (dokumentieren). Accepted observation.
-- [ ] S10-F11 (INFO): Muster `specs/` ⇒ jede tasks.md-Pflege erzwingt docsImpact (konservativ, im Fail-safe-Richtung, akzeptiert); `tests/` ist nicht gemustert → kein _tests/setup_-False-Positive-Risiko. Accepted observation.
+- [ ] S10-F1 (HIGH): FR-954 path patterns without matching semantics (prefix/suffix/glob) and path base; `src/config.ts`/`src/types/errors.ts` do not exist as such (real: `servers/server-guidance/src/...`); `README.md` ambiguous vs. out-of-scope (`servers/server-guidance/README.md`). Trigger: before the plan phase of spec-010 — specify the patterns as glob/suffix with a defined base. Action required.
+- [ ] S10-F2 (MEDIUM): FR-952 names only operations.json; the actual gate point is `workflow.json` → `phases.complete.lifecycle.beforeExit` + the transition `required_operations_succeeded`. Specify the complete op definition (args/timeout/validation analogous to final-review-gate) + the position in beforeExit (before final-review-gate — doc-fix commits invalidate its headCommit). Trigger: plan phase spec-010. Action required.
+- [ ] S10-F3 (MEDIUM): check-1 "README entry (tool table + section reference)" not machine-precise (AND/OR?); baseline: SPEC_KIT_TOOL_NAMES=16 vs. README table=12 (verify_task, propose/approve/apply_plan_change missing). Extend the Q3 cleanup list with the README tool table + ERROR_CODES. Trigger: first gate run / plan phase. Action required.
+- [ ] S10-F4 (MEDIUM): the check-3 anchor does not exist — the README documents NO ERROR_CODES structure (0 hits). Define the anchor format (e.g. a codes table; check against the table, not a free README substring — otherwise false positives from example text like `submission_invalid`). Trigger: plan phase. Action required.
+- [ ] S10-F5 (MEDIUM): check-4 "merge commit in the log" for this repo (rebase/squash practice, direct commits on develop like 76801a2 itself) presumably never firing / firing incorrectly; "open mandatory checkboxes" not machine-recognizable. A more precise rule needed (e.g. merge via `git log --merges <ref> -- specs/<id>/` or ref-based) + an exit rule/override, since blocking (Q1) hard-punishes false positives. Trigger: plan phase. Action required.
+- [ ] S10-F6 (MEDIUM): evidence contract: `specs/002/contracts/upstream-mcp-tools.md` lists evidence fields — the update to `docsImpact` in the spec is not mentioned. The zod schema stays `z.record(z.unknown())` (no tool schema change), the SpecKitEngine signature changes; existing tests (lifecycle/state-machines) pass no docsImpact — green with the F-1 fix (no substring match on `a.ts`), check for regressions. Trigger: implementation T-? spec-010. Action required.
+- [ ] S10-F7 (LOW): FR-953: define the stdout/stderr assignment (reference pattern: errors on stderr) + field grammar (no newlines in fields). Trigger: plan phase. Action required.
+- [ ] S10-F8 (LOW): AC numbering inconsistent ("AC-10" before AC-1); strike the "Decisions (open — historical)" section with "[recommendation]" remnants. Trigger: editorial revision spec-010. Action required (editorial).
+- [ ] S10-F9 (LOW): missing ACs: behavior on a missing README / missing specs directory / missing .git (fail-closed vs. skip) + explicitly exclude backup files (`README.md.bak`) from parsing. Trigger: plan phase. Action required.
+- [ ] S10-F10 (INFO): the adoption block (spec 009 FR-906) lives in hashed guidance.json — untouched by the docs gate, no interaction; the `docs-drift` op is repo-specific → lands on the FR-903 adjustment list in future adopts (document). Accepted observation.
+- [ ] S10-F11 (INFO): the pattern `specs/` ⇒ every tasks.md maintenance enforces docsImpact (conservative, in the fail-safe direction, accepted); `tests/` is not patterned → no _tests/setup_ false-positive risk. Accepted observation.
 
-## Adopt-Modus-Befunde (2026-09-27, empirisch via setup_guidance_generate gegen /examples/default-guidance)
+## Adopt-Mode Findings (2026-09-27, empirically via setup_guidance_generate against /examples/default-guidance)
 
-- [x] AD-1 (HIGH): Adopt scheitert an FR-901-Kohärenzprüfung, wenn die Referenz-workflow.json nicht-generische Ops referenziert (z. B. final-review-gate/index-freshness in beforeExit) — genericPreset (ConfigAssistant.ts) regeneriert diese NICHT, Kohärenz-Check wirft configuration_invalid. Betrifft ALLE "proven references" inkl. mitgeliefertem examples/default-guidance und diesem Repo selbst. Repro: setup_guidance_generate {configSource:adopt, referencePath:/examples/default-guidance, transport:http-docker, projectName:x, profile:plain, gates:standard, insight:yes, gitnexus:yes}. Trigger: nächster Spec-009-Kontakt — Fix: non-generische Ops mit Kopie+Adaptions-Hinweis in operations.json übernehmen (statt zu verwerfen) ODER Kohärenz-Check über die Referenz-Ops statt nur genericPreset laufen lassen; Spec FR-901/FR-906 schärfen. Action required.
-- [x] AD-2 (MEDIUM): Adopt ist im Container-only-Fall undokumentiert/unreachable: referencePath-Help nennt nur /workspace/.guidance; die im Image vorhandene Referenz (/examples/default-guidance) ist nirgends dokumentiert. Trigger: zusammen mit AD-1 — entweder builtin-Alias (referencePath "builtin:default") oder Doku um Image-Pfad ergänzen. Action required.
-- [x] AD-1a (Ergänzung zu AD-1, 2026-09-27): Test-Gap-Verifikation — config-assistant-extensions.test.ts: Happy-Path-Fixture (makeReference, L140-158) schreibt dieselbe JSON in alle 5 Referenzdateien; die Referenz-workflow.json enthält KEIN phases-Objekt, die Kohärenzprüfung läuft leer durch. Der N-2-Test (L197) deckt nur vollständig fehlende Ops ab, nicht "vorhanden in Referenz-operations.json, aber nicht im genericPreset". Adopt war damit gegen kein realistisches Referenz-Setup getestet — Test-Gap ab Start, keine Regression. Trigger: mit AD-1 — Regressionstest mit realistischer Referenz (phases.complete.beforeExit inkl. final-review-gate) ergänzen.
+- [x] AD-1 (HIGH): adopt fails the FR-901 coherence check when the reference workflow.json references non-generic ops (e.g. final-review-gate/index-freshness in beforeExit) — genericPreset (ConfigAssistant.ts) does NOT regenerate these, the coherence check throws configuration_invalid. Affects ALL "proven references" incl. the shipped examples/default-guidance and this repo itself. Repro: setup_guidance_generate {configSource:adopt, referencePath:/examples/default-guidance, transport:http-docker, projectName:x, profile:plain, gates:standard, insight:yes, gitnexus:yes}. Trigger: next spec-009 contact — fix: take over non-generic ops with copy + adaptation note into operations.json (instead of discarding) OR run the coherence check over the reference ops instead of only genericPreset; sharpen spec FR-901/FR-906. Action required.
+- [x] AD-2 (MEDIUM): adopt is undocumented/unreachable in the container-only case: the referencePath help mentions only /workspace/.guidance; the reference present in the image (/examples/default-guidance) is documented nowhere. Trigger: together with AD-1 — either a builtin alias (referencePath "builtin:default") or extend the docs with the image path. Action required.
+- [x] AD-1a (supplement to AD-1, 2026-09-27): test-gap verification — config-assistant-extensions.test.ts: the happy-path fixture (makeReference, L140-158) writes the same JSON into all 5 reference files; the reference workflow.json contains NO phases object, the coherence check runs empty. The N-2 test (L197) covers only completely missing ops, not "present in reference-operations.json, but not in genericPreset". Adopt was thus never tested against a realistic reference setup — a test gap from the start, no regression. Trigger: with AD-1 — add a regression test with a realistic reference (phases.complete.beforeExit incl. final-review-gate).
 
-## Spec-010 Findings — Auflösung (2026-09-27, Implementation abgeschlossen)
+## Spec-010 Findings — Resolution (2026-09-27, implementation completed)
 
-- [x] S10-F1 (HIGH): gelöst — DOCS_RELEVANT_PATTERNS als exportierte Konstante in SpecKitEngine.ts (definierte Semantik: Substring-Match gegen repo-root-relative, backslash-normalisierte changedFiles); docsImpact-Pflicht mit submission_invalid, Regression in tests/speckit/lifecycle.test.ts (3 Tests). Remaining nuance: README.md-Muster matcht auch servers/*/README.md (konservativ, akzeptiert).
-- [x] S10-F2 (MEDIUM): gelöst — docs-drift-Op vollständig in operations.json (node, args ['.'], read_only, timeout 60, required) + workflow.json complete.beforeExit VOR final-review-gate (headCommit-Schutz).
-- [x] S10-F3 (MEDIUM): gelöst in T1/T4 — Tool-Parität maschinell (Tool-ID am Tabellen-Zeilenanfang), README saniert (35 tools, Gate Exit 0).
-- [x] S10-F4 (MEDIUM): gelöst in T2 — ERROR_CODES-Tabelle (80 Codes) angelegt, Prüfung gegen Tabellenzeilen (Code am Zeilenanfang).
-- [x] S10-F5 (MEDIUM): gelöst in T3 — dateibasierte Status-Hygiene statt Merge-Commit-Heuristik + Override-Kommentar <!-- docs-drift: status ok --> als Ausstiegsregel.
-- [x] S10-F6 (MEDIUM): gelöst — Contract specs/002/contracts/upstream-mcp-tools.md dokumentiert docsImpact (Pflicht bei Muster-Treffer, submission_invalid sonst, Default none); Bestandstests grün (344/344).
-- [x] S10-F7 (LOW): gelöst — Findings zeilenweise auf stderr ("docs drift: ..."), Exit 1; stdout nur Summary (Muster der Referenz-Gates).
-- [x] S10-F8 (LOW): redaktionell durch Spec/Plan-Phase der Vorgängersessions behandelt (Akzeptanz im Implementation-Kontext, Gate/Tests definieren die maßgebliche Semantik).
-- [x] S10-F9 (LOW): gelöst in T4 — fehlende README fail-closed, leerer specs-Baum still übersprungen, kein .git dateibasiert, .bak ausgenommen.
-- [x] S10-F10 (INFO): accepted observation (bleibt, FR-903-Anpassungsliste dokumentiert).
-- [x] S10-F11 (INFO): accepted observation (konservativ fail-safe, wie im Spec entschieden).
+- [x] S10-F1 (HIGH): resolved — DOCS_RELEVANT_PATTERNS as an exported constant in SpecKitEngine.ts (defined semantics: substring match against repo-root-relative, backslash-normalized changedFiles); the docsImpact obligation with submission_invalid, regression in tests/speckit/lifecycle.test.ts (3 tests). Remaining nuance: the README.md pattern also matches servers/*/README.md (conservative, accepted).
+- [x] S10-F2 (MEDIUM): resolved — the docs-drift op completely in operations.json (node, args ['.'], read_only, timeout 60, required) + workflow.json complete.beforeExit BEFORE final-review-gate (headCommit protection).
+- [x] S10-F3 (MEDIUM): resolved in T1/T4 — tool parity machine-checked (tool id at the start of table rows), README sanitized (35 tools, gate exit 0).
+- [x] S10-F4 (MEDIUM): resolved in T2 — an ERROR_CODES table (80 codes) created, the check against table rows (code at line start).
+- [x] S10-F5 (MEDIUM): resolved in T3 — file-based status hygiene instead of the merge-commit heuristic + the override comment <!-- docs-drift: status ok --> as the exit rule.
+- [x] S10-F6 (MEDIUM): resolved — the contract specs/002/contracts/upstream-mcp-tools.md documents docsImpact (mandatory on a pattern match, submission_invalid otherwise, default none); existing tests green (344/344).
+- [x] S10-F7 (LOW): resolved — findings line-by-line on stderr ("docs drift: ..."), exit 1; stdout only the summary (the pattern of the reference gates).
+- [x] S10-F8 (LOW): handled editorially by the spec/plan phase of the predecessor sessions (accepted in the implementation context, gate/tests define the governing semantics).
+- [x] S10-F9 (LOW): resolved in T4 — a missing README fail-closed, an empty specs tree silently skipped, no .git file-based, .bak excluded.
+- [x] S10-F10 (INFO): accepted observation (stays, the FR-903 adjustment list documented).
+- [x] S10-F11 (INFO): accepted observation (conservative fail-safe, as decided in the spec).
 
-## Spec-010 Final-Review (Completion, 2026-09-27)
+## Spec-010 Final Review (Completion, 2026-09-27)
 
-- [x] S10-FR1 (MEDIUM, gefixt Commit 3191d05): Substring-Matching → Segment-Grenz-Matching (matchesDocsPattern); Regression: near-miss-Test (docs/myspecs/a.md, src/config.tsx → none).
-- [x] S10-FR2 (MEDIUM, gefixt Commit 3191d05): AC-5-Lücken geschlossen — bare 'none' rejected, 'updated:' auf echtem Treffer getestet (4 docsImpact-Tests, 53/53 grün).
-- [x] S10-FR3 (LOW, accepted + dokumentiert): nicht-validiertes docsImpact wird bei Nicht-Treffer unverändert persistiert; Case-Sensitivität + Segment-Semantik in specs/002-Contract dokumentiert.
-- [x] S10-FR4 (INFO, verified contained): partielle Loop-Mutation bei Multi-Evidence-Throw — withState persistiert nur bei Erfolg, keine Korruption.
-- [ ] lint/test-Ops non-blocking rot (pre-existing: CRLF-Format server-clear-thought; Windows-node_modules im Container) — Vollsuite manuell im Container grün (344/344). Kein Handlungsbedarf für 010; Trigger: ops.json-Datei-Tightening (test required:true nach in-container install).
+- [x] S10-FR1 (MEDIUM, fixed commit 3191d05): substring matching → segment-boundary matching (matchesDocsPattern); regression: a near-miss test (docs/myspecs/a.md, src/config.tsx → none).
+- [x] S10-FR2 (MEDIUM, fixed commit 3191d05): the AC-5 gaps closed — bare 'none' rejected, 'updated:' tested on a real match (4 docsImpact tests, 53/53 green).
+- [x] S10-FR3 (LOW, accepted + documented): a non-validated docsImpact is persisted unchanged on a non-match; case sensitivity + segment semantics documented in the specs/002 contract.
+- [x] S10-FR4 (INFO, verified contained): partial loop mutation on a multi-evidence throw — withState persists only on success, no corruption.
+- [ ] lint/test ops non-blocking red (pre-existing: CRLF format server-clear-thought; Windows node_modules in the container) — the full suite manually green in the container (344/344). No action needed for 010; trigger: ops.json file tightening (test required:true after an in-container install).
 
-## Spec-010 Final-Review Runde 2 (Completion-Gate, 2026-09-27) — 2 HIGH gefunden und gefixt
+## Spec-010 Final Review Round 2 (Completion Gate, 2026-09-27) — 2 HIGH found and fixed
 
-- [x] FR2-H1 (HIGH, gefixt): Check 1 Tool-Parität war ein No-op (allTools nur in Summary-Zeile) — beide Richtungen implementiert (Forward: README-Toolzeile je registriertem Tool; Reverse: README-Toolzeile ohne server.tool-Registrierung in src, gescoped auf "## Tool reference"); Regression: tests/scripts/check-docs-drift.test.ts. Gate fand dadurch echten Rest-Drift (4 fehlende README-Zeilen) → saniert.
-- [x] FR2-H2 (HIGH, gefixt): T10-Evidence behauptete Tests für AC-1..4/N-AC — gab keine. Neu: tests/scripts/check-docs-drift.test.ts (12 Tests, AC-1 beidseitig, AC-2 Kapitel-Scoping, AC-3 Tabellenzeilen-Freitext-Ausschluss + Ziffern-Codes, AC-4 Draft/Override, N-AC-1/2/4; N-AC-3 = Skript ist rein dateibasiert, nie git).
-- [x] FR2-M1..M3 (MEDIUM, gefixt): ERROR_CODES-Check auf Tabellenzeilenanfang statt Freitext; Override-Kommentar in spec.md statt tasks.md (Spec-Konformität); Frage-IDs auf Assistenten-Kapitel gescoped. Zusätzlich LOWs: done>0-Guard entfernt (Spec-Konform), .bak-Verzeichnisse ausgenommen, Ziffern in ERROR_CODES-Regex, leeres "updated:"-Suffix abgewiesen... (Letzteres: engine docsImpact-Validierung unverändert lässt "updated:" mit leerem Rest zu — siehe FR2-L1.)
-- [x] FR2-L1 (LOW, accepted): docsImpact "updated:" mit leerem Nachlaut besteht die Prefix-Prüfung. Trigger: nächste SpecKitEngine-Berührung — Restlängen-Prüfung ergänzen. Accepted observation (Doku-Wert gleich Null, kein Funktionsrisiko).
-- [ ] FR2-L2 (LOW, accepted): README-Toolzeilen-Matching case-sensitiv und an exakte Tabellen-Syntax gebunden. Trigger: falls README-Format ändert. Accepted observation.
+- [x] FR2-H1 (HIGH, fixed): check 1 tool parity was a no-op (allTools only in the summary line) — both directions implemented (forward: a README tool row per registered tool; reverse: a README tool row without a server.tool registration in src, scoped to "## Tool reference"); regression: tests/scripts/check-docs-drift.test.ts. The gate thereby found real residual drift (4 missing README rows) → sanitized.
+- [x] FR2-H2 (HIGH, fixed): the T10 evidence claimed tests for AC-1..4/N-AC — there were none. New: tests/scripts/check-docs-drift.test.ts (12 tests, AC-1 both directions, AC-2 chapter scoping, AC-3 table-row free-text exclusion + digit codes, AC-4 draft/override, N-AC-1/2/4; N-AC-3 = the script is purely file-based, never git).
+- [x] FR2-M1..M3 (MEDIUM, fixed): the ERROR_CODES check at the start of table rows instead of free text; the override comment in spec.md instead of tasks.md (spec conformity); the question ids scoped to the assistant chapter. Additionally LOWs: the done>0 guard removed (spec-conformant), .bak directories excluded, digits in the ERROR_CODES regex, an empty "updated:" suffix rejected... (the latter: the engine docsImpact validation unchanged allows "updated:" with an empty rest — see FR2-L1.)
+- [x] FR2-L1 (LOW, accepted): docsImpact "updated:" with an empty tail passes the prefix check. Trigger: next SpecKitEngine touch — add a rest-length check. Accepted observation (documentation value near zero, no functional risk).
+- [ ] FR2-L2 (LOW, accepted): README tool-row matching case-sensitive and bound to exact table syntax. Trigger: if the README format changes. Accepted observation.
 
 ## Rest-Findings-Batch Review (session-4e4471f2, 2026-09-27)
 
-- [x] RV-M1 (MEDIUM): Referenz-Ops werden beim Adopt-Merge jetzt minimal shape-validiert (type: string nicht-leer, sonst configuration_invalid fail-closed).
-- [x] RV-L1 (LOW): Leading-Space im Adoption-Marker behoben (separator nur bei vorhandener Beschreibung).
-- [x] RV-I1 (INFO, accepted): Near-miss-Prefixe ("Updated: x", "none:updated:x") verhalten sich dokumentiert lenient — keine Änderung.
+- [x] RV-M1 (MEDIUM): reference ops are now minimally shape-validated in the adopt merge (type: string non-empty, otherwise configuration_invalid fail-closed).
+- [x] RV-L1 (LOW): the leading space in the adoption marker fixed (separator only when a description exists).
+- [x] RV-I1 (INFO, accepted): near-miss prefixes ("Updated: x", "none:updated:x") behave leniently as documented — no change.
 
-## Rest-Findings-Batch Final-Review Abschluss (session-4e4471f2, 2026-09-27)
+## Rest-Findings-Batch Final Review Closeout (session-4e4471f2, 2026-09-27)
 
-- Final-Review (Sub-Agent 692cabd0): 0 HIGH/CRITICAL. F-4 (MEDIUM, doc-only): AD-1/AD-2/AD-1a/FR2-L1/N-D1/N-D3/N-D4-Einträge oben auf [x] gesetzt (Behandlung + Evidence in den Rest-Findings-Batch-Abschnitten). F-3 (LOW): Regressionstest für RV-M1-Shape-Validation ergänzt (reference op ohne type → configuration_invalid), 12/12 grün.
-- Nächster Trigger: AD-2-Doku erwähnt builtin-Referenz — bei Nutzung von examples/default-guidance als referencePath im Container ist der Pfad /workspace/servers/server-guidance/examples/default-guidance.
+- Final review (sub-agent 692cabd0): 0 HIGH/CRITICAL. F-4 (MEDIUM, doc-only): the AD-1/AD-2/AD-1a/FR2-L1/N-D1/N-D3/N-D4 entries above set to [x] (treatment + evidence in the rest-findings-batch sections). F-3 (LOW): a regression test for the RV-M1 shape validation added (a reference op without type → configuration_invalid), 12/12 green.
+- Next trigger: the AD-2 docs mention the builtin reference — when using examples/default-guidance as referencePath in the container the path is /workspace/servers/server-guidance/examples/default-guidance.
 
-## 2026-09-27: specs/011 Final-Review — akzeptierte LOW-Observations (session-f66c3f62)
+## 2026-09-27: specs/011 Final Review — accepted LOW observations (session-f66c3f62)
 
-- FR3 (LOW, accepted): Builtin-Template-Op store-completion-insight bekommt [adopted]-Marker + Review-Hinweis, obwohl Template 0 repo-spezifische args hat (verifiziert). Trigger: wenn der Adopt-Marker-Text angefasst wird (neue specs am ConfigAssistant) → builtin-Fall ohne Marker/Review-Hinweis ausgeben. Aktion required bei diesem Trigger.
-- FR5 (LOW, accepted): Drei near-duplicate builtin-Bedingungen (generateFiles isBuiltin, Auflöse-if, validateAdoptReference-"builtin"-Check) können driften; referencePath===""-Arm am Call-Site tot (defensiv). Trigger: nächste Änderung an resolveBuiltinReferencePath/adopt-Eingangs-Gate → auf eine zentrale isBuiltinReferencePath()-Konstante konsolidieren. Aktion required bei diesem Trigger.
-- FR7 (LOW, accepted): Testlücken — env-Override GUIDANCE_BUILTIN_TEMPLATE_DIR nicht e2e durch generateFiles getestet (nur Resolver-Unit-Test); kein Byte-Diff-Golden-Test für mounted-adopt. Trigger: nächste Testrunde an config-assistant-extensions.test.ts → beide Tests nachziehen. Aktion required bei diesem Trigger.
-- Final-Review-Status: Gate OK (HEAD db494f2, 8 Findings, 0 open HIGH/CRITICAL). Abweichung dokumentiert: der Pflicht-Final-Review-Sub-Agent wurde vom Nutzer abgebrochen; Final-Pass als evidenzgestützte Autoren-Selbstprüfung ausgeführt (Implementation-Review blieb unabhängig via Sub-Agent cbebdfc5).
+- FR3 (LOW, accepted): the builtin template op store-completion-insight gets an [adopted] marker + review note, although the template has 0 repo-specific args (verified). Trigger: when the adopt marker text is touched (new specs on the ConfigAssistant) → output the builtin case without marker/review note. Action required at that trigger.
+- FR5 (LOW, accepted): three near-duplicate builtin conditions (generateFiles isBuiltin, the resolution if, the validateAdoptReference "builtin" check) can drift; the referencePath==="" arm at the call site is dead (defensive). Trigger: next change to resolveBuiltinReferencePath/the adopt entry gate → consolidate to one central isBuiltinReferencePath() constant. Action required at that trigger.
+- FR7 (LOW, accepted): test gaps — the env override GUIDANCE_BUILTIN_TEMPLATE_DIR is not e2e-tested through generateFiles (only a resolver unit test); no byte-diff golden test for mounted adopt. Trigger: the next test round on config-assistant-extensions.test.ts → add both tests. Action required at that trigger.
+- Final-review status: gate OK (HEAD db494f2, 8 findings, 0 open HIGH/CRITICAL). Deviation documented: the mandatory final-review sub-agent was aborted by the user; the final pass was executed as an evidence-based author self-check (the implementation review remained independent via sub-agent cbebdfc5).
 
-## 2026-09-28: specs/011 Re-Review (frischer Sub-Agent f8441944, Nutzeranordnung nach abgebrochenem ersten Final-Review)
+## 2026-09-28: specs/011 Re-Review (fresh sub-agent f8441944, user order after the aborted first final review)
 
-- Re-Review-Ergebnis: 0 HIGH/CRITICAL. Fokus-Tests 21/21 (Sub-Agent ausgeführt), tsc exit 0. Bestätigt: FR-971..974 ✓, mounted-AC-4 unverändert, drei builtin-Bedingungen konsistent.
-- F-01 (MEDIUM, gefixt): schemasDir in generateFiles hardcodete PKG_ROOT/examples/default-guidance und ignorierte GUIDANCE_BUILTIN_TEMPLATE_DIR → env-Override galt nicht für eingebettete Schemas (4ter inkonsistenter builtin-Pfad). Fix: schemasDir = join(resolveBuiltinReferencePath(), "schemas") + neuer Test (env-Override-Schemas werden eingebettet). Suite 370/370, tsc/build grün.
-- F-02 (LOW, accepted): referencePath-Antwort wird nicht getrimmt (env wird getrimmt) → whitespace-Antwort fail-closed mit Roher Pfad; korrektes Ergebnis, inkonsistenter Mechanismus. Trigger: nächste Änderung an der answers-Koersion → auch referencePath trimmen + Test.
-- F-03 (LOW, accepted): whitespace-env-Fall ungetestet. Trigger: nächste Testrunde → Test ergänzen.
-- F-04 (LOW, accepted): adoption-Schema-Slot permissiv ({type:"object"}, keine additionalProperties:false). Bewusst: Audit-Feld, kein downstream Consumer; Konsistenz mit strengem project-Schema fehlt. Trigger: falls je ein Consumer adoption liest → Schema verschärfen.
-- F-05 (INFO): Duplikat-builtin-Bedingung ( deckt FR5 ab, bleibt getriggert). F-06 (INFO): source bleibt "builtin" auch bei Override — korrekt, audit-relevant dokumentiert. F-07: README akkurat.
-- Gate neu verankert: final-review.json headCommit auf neuen HEAD, 0 open HIGH/CRITICAL.
+- Re-review result: 0 HIGH/CRITICAL. Focus tests 21/21 (executed by the sub-agent), tsc exit 0. Confirmed: FR-971..974 ✓, mounted-AC-4 unchanged, three builtin conditions consistent.
+- F-01 (MEDIUM, fixed): schemasDir in generateFiles hardcoded PKG_ROOT/examples/default-guidance and ignored GUIDANCE_BUILTIN_TEMPLATE_DIR → the env override did not apply to embedded schemas (a 4th inconsistent builtin path). Fix: schemasDir = join(resolveBuiltinReferencePath(), "schemas") + a new test (env-override schemas are embedded). Suite 370/370, tsc/build green.
+- F-02 (LOW, accepted): the referencePath answer is not trimmed (env is trimmed) → a whitespace answer fails closed with the raw path; correct outcome, inconsistent mechanism. Trigger: the next change to the answers coercion → also trim referencePath + a test.
+- F-03 (LOW, accepted): the whitespace-env case untested. Trigger: the next test round → add the test.
+- F-04 (LOW, accepted): the adoption schema slot permissive ({type:"object"}, no additionalProperties:false). Deliberate: audit field, no downstream consumer; consistency with the strict project schema is missing. Trigger: if a consumer ever reads adoption → tighten the schema.
+- F-05 (INFO): a duplicate builtin condition (covers FR5, stays triggered). F-06 (INFO): source stays "builtin" even on override — correct, documented as audit-relevant. F-07: README accurate.
+- Gate re-anchored: final-review.json headCommit to the new HEAD, 0 open HIGH/CRITICAL.
 
-## 2026-09-28: specs/012 Final-Review (Sub-Agent 7d3ca207) — Findings-Bilanz
+## 2026-09-28: specs/012 Final Review (sub-agent 7d3ca207) — findings balance
 
-- Final-Review (frischer Sub-Agent, HEAD a55d381+Follow-ups): 0 HIGH/CRITICAL. 2 MEDIUM: F-1 (FR-981-Kommentar behauptete Mirror-Verhalten, das nur für responses.json gilt — Kommentar korrigiert, 011-workflow-Verhalten bewusst unberührt), F-2 (Golden-Tests fehlten → Determinismus-Tests fresh+mounted ergänzt, Timestamps gestrippt). LOWs: F-3 (Spec-ohne-tasks-Skip jetzt in spec.md dokumentiert), F-4 (Duplikat-Write entfernt).
-- Getrackte Follow-ups (Trigger: nächste Testrunde an config-assistant-extensions): wisdom-e2e über composeApplication-Boot mit Marker; indented-checkbox-Test für check-spec-drift; env-Override-e2e (011-Erbe).
-- FR-982 Breaking (Alt-Referenzen ohne responses.json) final bestätigt akzeptiert + dokumentiert.
+- Final review (fresh sub-agent, HEAD a55d381+follow-ups): 0 HIGH/CRITICAL. 2 MEDIUM: F-1 (the FR-981 comment claimed mirror behavior that applies only to responses.json — comment corrected, the 011-workflow behavior deliberately untouched), F-2 (golden tests missing → determinism tests fresh+mounted added, timestamps stripped). LOWs: F-3 (the spec-without-tasks skip now documented in spec.md), F-4 (a duplicate write removed).
+- Tracked follow-ups (trigger: the next test round on config-assistant-extensions): a wisdom e2e via composeApplication boot with a marker; an indented-checkbox test for check-spec-drift; an env-override e2e (011 legacy).
+- FR-982 breaking (old references without responses.json) finally confirmed accepted + documented.
 
-## 2026-09-28: specs/013 Final-Review (Sub-Agent fd7b22e1) — Findings-Bilanz [L978-981]
+## 2026-09-28: specs/013 Final Review (sub-agent fd7b22e1) — findings balance [L978-981]
 
-## Getrackte Follow-ups (2026-09-28, FR-035-Container-Route Review-Runde 1, session-1afb793f)
+## Tracked Follow-ups (2026-09-28, FR-035 Container Route Review Round 1, session-1afb793f)
 
-- [CR-1] MEDIUM | FR-035-Timeout-Policy fehlt in der Fresh-Baseline: `buildResponses` (ConfigAssistant.ts) enthält historisch keinen FR-035-Satz — nur Wisdom-Baseline + abgeleitete Workspace-Configs tragen die amendierte Reihenfolge. Review F2: Drift-Guard AC-1 ist deshalb kein FR-611-Nachweis. | Trigger: nächstes Scope, das `buildResponses` oder `responses.json` der Fresh-Baseline berührt — FR-035-Satz (amendierte Fassung, 7 Phasen) in buildResponses aufnehmen und Template neu generieren (Drift-Guard erzwingt Byte-Gleichheit). | action required
-- [CR-2] MEDIUM | Engine-Gating-Test-Debt: der FR-613-Fallback-Gate in `WorkflowEngine.buildInvokerClosure` (nur bei timedOut + riskClass read_only + konfigurierter Route, genau 1 Versuch, Metric) ist nur durch statische Einfachheit + ClientManager-Level-Tests abgesichert, nicht durch einen Engine-Level-Vertragstest (4 Fälle laut Review F3). | Trigger: nächste Berührung von `buildInvokerClosure` — Achtung: GDS4-Agent arbeitet parallel an WorkflowEngine.ts (uncommittet im Haupt-Checkout); Engine-Test erst nach GDS4-Merge auf frischer Basis ergänzen. | action required
+- [CR-1] MEDIUM | FR-035 timeout policy missing in the fresh baseline: `buildResponses` (ConfigAssistant.ts) historically contains no FR-035 sentence — only the wisdom baseline + derived workspace configs carry the amended order. Review F2: the drift guard AC-1 is therefore no FR-611 proof. | Trigger: the next scope that touches `buildResponses` or the `responses.json` of the fresh baseline — add the FR-035 sentence (amended version, 7 phases) to buildResponses and regenerate the template (the drift guard enforces byte equality). | action required
+- [CR-2] MEDIUM | engine gating test debt: the FR-613 fallback gate in `WorkflowEngine.buildInvokerClosure` (only on timedOut + riskClass read_only + a configured route, exactly 1 attempt, metric) is only secured by static simplicity + ClientManager-level tests, not by an engine-level contract test (4 cases per review F3). | Trigger: the next touch of `buildInvokerClosure` — note: the GDS4 agent is working in parallel on WorkflowEngine.ts (uncommitted in the main checkout); add the engine test only after the GDS4 merge on a fresh basis. | action required
 
-## Getrackte Follow-ups (2026-09-28, Diagnose-Sitzung guidance→clearthought)
+## Tracked Follow-ups (2026-09-28, Diagnosis Session guidance→clearthought)
 
-- [GDS-1] MEDIUM — GELÖST (2026-09-28, feature/gds1-status-probe, merged develop): getDownstreamStatus probezt enabled http-Transport-Servers on-demand (Handshake min(5s,startupTimeoutSeconds)) und meldet realen Zustand inkl. error-Feld; non-http wird nicht probezt; Regression: downstream-status.test.ts (3 Tests). Live verifiziert: alle 3 Server ready mit lastSuccessfulRequestAt. Nebeneffekt dokumentiert: Probe kostet bis zu 5s pro unerreichbarem Server.
-- [GDS-2] LOW | Stale Session-IDs: `run_operation`/`get_workflow_state` mit Workflow-Session-IDs aus früheren Container-Läufen antworten `session_not_found` — ein beabsichtigter "forced first use" eines Downstream-Servers schlägt still fehl (kein ensureReady, kein Log-Eintrag), was Fehldiagnosen begünstigt (heute praktisch erlebt). | Trigger: nächstes Touch von `RemoteSessionManager.resolve`/Session-Restore — bei `session_not_found` Hinweis auf Neuanlage via start_workflow in die Fehlermeldung aufnehmen; ggf. verwaiste session-Dateien in `.guidance/state/sessions` dok-basiert kennzeichnen. | action required
-- [GDS-3] LOW | Widersprüchlicher Alt-Befund: Eintrag 2026-09-27 in activeContext.md ("Clear-Thought-Re-Routing", L697) behauptet "clearthought-Status ready" — auf dem HTTP-Transport nach heutigem Nachweis nicht möglich (GDS-1). Beobachtung vermutlich In-Process oder altes Build; technischer Kern (Route funktioniert, 177 ms) bleibt gültig. | Trigger: nächste Wartung von activeContext.md — Alt-Eintrag mit Verweis auf GDS-1 korrigieren. | accepted with rationale (Korrektur über GDS-1-Dokumentation abgedeckt)
-- [GDS-4] HIGH | `run_operation` verwirft den Tool-Content von Downstream-Calls: `WorkflowEngine.exposeOpResult` (WorkflowEngine.ts L1602-1641) berechnet `policyEngine.applyExposure` korrekt — für `returnToAgent: "normalized"/"raw"` bleibt `content` erhalten (PolicyEngine.ts L115-116, default-Zweig) — aber der Rückgabewert ist hart auf `{ id, status, summary }` beschränkt und übernimmt nur `exposed.summary`; `exposed.content`/`exposed.data` werden verworfen. Folge: Der orchestrierte `reasoning-pass` liefert dem Agenten keine `sequential_thinking`-Antwort — die Workflow-Anweisungen ("reference its conclusions in the submission") sind über diese Route unerfüllbar. Live verifiziert 2026-09-28: Response = `{id, status:"succeeded", summary}` ohne Content, obwohl OperationEngine.content befüllt war (OperationEngine.ts L275-285). Fix: Rückgabetyp von exposeOpResult um `content`/`data` (exposure-gefiltert) erweitern; Tests für alle returnToAgent-Modi ergänzen. | Trigger: nächstes Scope, das `exposeOpResult`, `run_operation` oder das Orchestrierungs-Result-Schema berührt — oder sobald reasoning-pass in einem echten Workflow-Lauf als Grundlage für eine Submission dienen soll. | action required
-- Final-Review (frischer Sub-Agent, HEAD deaa1de): 0 HIGH/CRITICAL. F-1 (LOW, gefixt): Unknown-Token-Throw + Strict-Leftover jetzt gekoppelt — wisdom fail-closed, lenient fallback behält 012-Pass-through (Regressionstest). F-2 (LOW, gefixt): GITNEXUS_URL wird in der Wisdom genutzt (complete-Phase, gitnexus-konditional). F-3 (LOW, gefixt): Mismatched-Close-Tag-Regressionstest ergänzt. F-4 (INFO, tracked): Coverage-Logik dupliziert (generateFiles/validateAdoptReference) — Trigger: nächste Änderung an Responses-File-Selection/Coverage → gemeinsamen Helper extrahieren. Weitere Getrackte: PROJECT_NAME-Render-Assert; AC-6 Self-Containment-Scan auf responses-wisdom.json ausweiten.
-- Implementation-Review (cb51d48e): F-1 MEDIUM (Non-kanonische {{…}}-Reste) → strictLeftovers-Lösung; F-2 Backreference; F-4 Tokens shipped. Alle in der Bilanz oben referenziert.
+- [GDS-1] MEDIUM — RESOLVED (2026-09-28, feature/gds1-status-probe, merged develop): getDownstreamStatus probes enabled http transport servers on demand (handshake min(5s,startupTimeoutSeconds)) and reports the real state incl. the error field; non-http is not probed; regression: downstream-status.test.ts (3 tests). Live verified: all 3 servers ready with lastSuccessfulRequestAt. Side effect documented: the probe costs up to 5s per unreachable server.
+- [GDS-2] LOW | stale session ids: `run_operation`/`get_workflow_state` with workflow session ids from earlier container runs answer `session_not_found` — a deliberate "forced first use" of a downstream server fails silently (no ensureReady, no log entry), which encourages misdiagnoses (experienced in practice today). | Trigger: the next touch of `RemoteSessionManager.resolve`/session restore — on `session_not_found` include a hint about recreation via start_workflow in the error message; optionally mark orphaned session files in `.guidance/state/sessions` as doc-based. | action required
+- [GDS-3] LOW | contradictory old finding: the 2026-09-27 entry in activeContext.md ("Clear-Thought re-routing", L697) claims "clearthought status ready" — not possible on the HTTP transport per today's evidence (GDS-1). The observation was presumably in-process or an old build; the technical core (the route works, 177 ms) remains valid. | Trigger: the next maintenance of activeContext.md — correct the old entry with a reference to GDS-1. | accepted with rationale (correction covered by the GDS-1 documentation)
+- [GDS-4] HIGH | `run_operation` discards the tool content of downstream calls: `WorkflowEngine.exposeOpResult` (WorkflowEngine.ts L1602-1641) computes `policyEngine.applyExposure` correctly — for `returnToAgent: "normalized"/"raw"` `content` is preserved (PolicyEngine.ts L115-116, default branch) — but the return value is hard-limited to `{ id, status, summary }` and takes only `exposed.summary`; `exposed.content`/`exposed.data` are discarded. Consequence: the orchestrated `reasoning-pass` delivers no `sequential_thinking` answer to the agent — the workflow instructions ("reference its conclusions in the submission") are unfulfillable via this route. Live verified 2026-09-28: response = `{id, status:"succeeded", summary}` without content, although OperationEngine.content was populated (OperationEngine.ts L275-285). Fix: extend the return type of exposeOpResult with `content`/`data` (exposure-filtered); add tests for all returnToAgent modes. | Trigger: the next scope that touches `exposeOpResult`, `run_operation` or the orchestration result schema — or as soon as reasoning-pass is to serve as the basis for a submission in a real workflow run. | action required
+- Final review (fresh sub-agent, HEAD deaa1de): 0 HIGH/CRITICAL. F-1 (LOW, fixed): the unknown-token throw + strict leftovers now coupled — wisdom fail-closed, the lenient fallback keeps the 012 pass-through (regression test). F-2 (LOW, fixed): GITNEXUS_URL is used in the wisdom (complete phase, gitnexus-conditional). F-3 (LOW, fixed): a mismatched-close-tag regression test added. F-4 (INFO, tracked): coverage logic duplicated (generateFiles/validateAdoptReference) — trigger: the next change to responses-file selection/coverage → extract a shared helper. Further tracked: a PROJECT_NAME render assertion; extend the AC-6 self-containment scan to responses-wisdom.json.
+- Implementation review (cb51d48e): F-1 MEDIUM (non-canonical {{…}} remnants) → strictLeftovers solution; F-2 backreference; F-4 tokens shipped. All referenced in the balance above.
 
-## Getrackte Follow-ups (2026-09-28, requestId-Reuse-Stall Niyama session-46a43aeb)
+## Tracked Follow-ups (2026-09-28, requestId Reuse Stall Niyama session-46a43aeb)
 
-**GELÖST 2026-09-28 (develop fbd5bdc, session-dcd3ddc5):** Replay-Marker (replayed/duplicateOf/warning), Payload-Hash + Policy policies.submission.requestIdReuse (warn Default, reject-mismatch → requestId_reuse_payload_mismatch), Metric requestIdReplays in get_metrics, 8 Contract-Tests + Error-Code-Snapshot, Doku (README + specs/002/amendments/006). Ursprünglicher Plan-Eintrag (unterhalb) damit umgesetzt; Details + Grenzen in activeContext.md und Amendment 006.
+**RESOLVED 2026-09-28 (develop fbd5bdc, session-dcd3ddc5):** replay markers (replayed/duplicateOf/warning), payload hash + the policy policies.submission.requestIdReuse (warn default, reject-mismatch → requestId_reuse_payload_mismatch), the metric requestIdReplays in get_metrics, 8 contract tests + error-code snapshot, docs (README + specs/002/amendments/006). The original plan entry (below) is thereby implemented; details + limits in activeContext.md and amendment 006.
 
-- [RID-1] MEDIUM | `WorkflowEngine.submitLocked` (src/workflow/WorkflowEngine.ts ~L1617) und `completeWorkflowLocked` (~L1925) replays bei bereits registrierter requestId still das gecachte `SubmitResult` — kein `replayed`-Marker, kein Log, kein Metric. Ein Agent, der dieselbe requestId wiederverwendet, sieht beliebig oft `accepted: true` ohne Phase-Advance (live: 3× accepted in review_and_adjust_plan). | Trigger: nächstes Scope, das `WorkflowEngine.submit*`/`completeWorkflow*` oder `register-tools.ts`/`remote-tools.ts` Submit-Pfade berührt — Hardening-Plan unten umsetzen. | action required
+- [RID-1] MEDIUM | `WorkflowEngine.submitLocked` (src/workflow/WorkflowEngine.ts ~L1617) and `completeWorkflowLocked` (~L1925) silently replay the cached `SubmitResult` on an already-registered requestId — no `replayed` marker, no log, no metric. An agent reusing the same requestId sees `accepted: true` any number of times without a phase advance (live: 3× accepted in review_and_adjust_plan). | Trigger: the next scope that touches `WorkflowEngine.submit*`/`completeWorkflow*` or the submit paths in `register-tools.ts`/`remote-tools.ts` — implement the hardening plan below. | action required
 
-### Server-seitiges Hardening (Plan, umzusetzen bei RID-1-Trigger)
+### Server-side hardening (plan, to implement at the RID-1 trigger)
 
-1. **Replay-Marker (additiv, kein Breaking Change):** in `submitLocked`/`completeWorkflowLocked` beim Replay-Hit das Cached-Result klonen und mit `{ replayed: true, duplicateOf: requestId, warning: "requestId already used — phase unchanged; issue a fresh requestId per phase submission" }` anreichern. Additive Felder fließen unverändert durch register-tools.ts/remote-tools.ts (passthrough).
-2. **Payload-Hash-Check (optional, strict):** Hash über `JSON.stringify(payload)` beim ersten Submit mit speichern; bei Replay mit abweichendem Hash stattdessen `GuidanceError("requestId_reuse_payload_mismatch")` (recoverable) — gleicher Payload = bewusster Idempotency-Retry, Marker genügt. Umschaltbar via `policies.json` (`submission.requestIdReuse: "warn" | "reject-mismatch"`), Default `warn`.
-3. **Observability:** Operation-Counter `guidance_requestid_replay_total` (nach Marker-Feld/Warning-Ausgabe zählen); Echo in `get_metrics`.
-4. **Template-Regel:** Konfig-Assistant-Templates (`examples/default-guidance/responses-wisdom.json` + Fallback `responses.json`) bekommen in jeder Submission-Phase-Instruktion einen Satz „Submission idempotency (FR-036): never reuse a requestId across submissions — each phase advance requires a fresh requestId; on `accepted` with unchanged phase, check `get_workflow_state` requestIds instead of retrying." (FR-Nummer beim Spec-Writer vergeben, Vorschlag FR-036/075 — nächsten freien Slot nutzen.)
-5. **Tests:** (a) Replay liefert Marker + gleiche Phase; (b) neue requestId mit gleichem Payload löst Advance aus; (c) reject-mismatch-Pfad; (d) Amendment-002-Race (Successor-Aktivierung via Replay) bleibt grün — Cached-Result-Klon darf Referenz-Gleichheit nicht brechen; (e) Template-Regression: wisdom-Render fail-closed mit neuem Satz.
-6. **Doku:** README Tool-Reference-Zeile zu submit_* um Replay-Verhalten ergänzen; SDD guidance-mcp-specification.md §19 (Phase Submission Tools) um FR-Eintrag erweitern.
+1. **Replay markers (additive, no breaking change):** in `submitLocked`/`completeWorkflowLocked` on a replay hit, clone the cached result and enrich it with `{ replayed: true, duplicateOf: requestId, warning: "requestId already used — phase unchanged; issue a fresh requestId per phase submission" }`. Additive fields flow unchanged through register-tools.ts/remote-tools.ts (passthrough).
+2. **Payload hash check (optional, strict):** store a hash over `JSON.stringify(payload)` at the first submit; on a replay with a differing hash instead throw `GuidanceError("requestId_reuse_payload_mismatch")` (recoverable) — the same payload = a deliberate idempotency retry, the marker suffices. Switchable via `policies.json` (`submission.requestIdReuse: "warn" | "reject-mismatch"`), default `warn`.
+3. **Observability:** operation counter `guidance_requestid_replay_total` (count after the marker field/warning output); echo in `get_metrics`.
+4. **Template rule:** the config assistant templates (`examples/default-guidance/responses-wisdom.json` + fallback `responses.json`) get one sentence in every submission-phase instruction: "Submission idempotency (FR-036): never reuse a requestId across submissions — each phase advance requires a fresh requestId; on `accepted` with unchanged phase, check `get_workflow_state` requestIds instead of retrying." (FR number assigned by the spec writer, proposal FR-036/075 — use the next free slot.)
+5. **Tests:** (a) the replay returns the marker + the same phase; (b) a new requestId with the same payload triggers the advance; (c) the reject-mismatch path; (d) the amendment-002 race (successor activation via replay) stays green — the cached-result clone must not break reference equality; (e) template regression: the wisdom render fail-closed with the new sentence.
+6. **Docs:** extend the README tool-reference line for submit_* with the replay behavior; extend SDD guidance-mcp-specification.md §19 (phase submission tools) with the FR entry.
 
-- [RID-2] MEDIUM (Review fbd5bdc, 2026-09-28) | `completeWorkflowLocked` (WorkflowEngine.ts ~L2059): First-Seen-Hash wird VOR Phasen-/Status-/Schema-/Hook-Prüfung gespeichert und bei Retry NIE überschrieben (`requestPayloadHashes?.[requestId] === undefined`-Guard). Fehlgeschlagener Completion-Versuch 1 (z. B. invalid_active_phase / required_hook_failed) vergiftet den Hash: Versuch 2 mit korrigiertem Payload wird erfolgreich registriert, aber der gespeicherte Hash bleibt der von Versuch 1 → spätere Replays des erfolgreich akzeptierten Payloads fälschlich `payloadMismatch:true`; unter `reject-mismatch` wird der legale Retry-Replay fälschlich mit `requestId_reuse_payload_mismatch` rejected. Widerspricht auch dem Test-Kommentar "failed completions intentionally do NOT register the requestId (retry after fixing must stay legal)" — der Hash-Store verletzt genau diese Intention. Fix: Hash analog `submitLocked` an den Success-Registrierungsstellen der `successResult` speichern (oder Guard entfernen und bei jedem Nicht-Replay überschreiben) + Regressionstest (fehlgeschlagener Completion → korrigierter Completion mit gleicher requestId → Replay ohne payloadMismatch). | Trigger: nächstes Scope, das `completeWorkflowLocked`/`replaySubmitResult`/`requestPayloadHashes` berührt. | action required
-- [RID-3] LOW (Review fbd5bdc) | `replaySubmitResult` (WorkflowEngine.ts ~L1700): `metrics.recordRequestIdReplay` läuft erst NACH dem Reject-Throw — unter `reject-mismatch` sind abgelehnte Mismatch-Replays unsichtbar und `payloadMismatches` ist strukturell immer 0. Fix: Metric vor dem Policy-Throw recorden (payloadMismatch=true) oder Verhalten dokumentieren. | Trigger: mit RID-2. | action required
-- [RID-4] LOW (Review fbd5bdc) | Replays werden nicht auditiert (kein audit.append in `replaySubmitResult`) — der persistente Audit-Trail kann Replay-Traffic nicht vom Fehlen von Submissionen unterscheiden; der Metric-Counter ist in-memory und überlebt keinen Neustart (inkonsistent mit dem persistierten metrics.jsonl-Pfad). Fix: Audit-Event `request_replayed` (mit payloadMismatch) in `replaySubmitResult`. | Trigger: mit RID-2. | action required
-- [RID-5] INFO (Review fbd5bdc) | `stablePayloadHash`: JSON.stringify verwirft Properties mit Wert `undefined` — `{a:undefined}` kollidiert mit `{}`. Über den MCP-Wire (JSON-parsed) nicht erreichbar, nur für In-Process-Aufrufer relevant; kein Handlungsbedarf, bei künftiger In-Process-Nutzung der Engine beachten. | Trigger: falls WorkflowTools/Engine intern mit undefined-haltigen Payload-Objekten aufgerufen werden. | accepted with rationale
-- [RID-6] INFO (Review fbd5bdc) | Known Deviation bestätigt: kein Engine-Level-Completion-Replay-Test (Harness kann `repository-analysis required:true` nicht erfüllen). Der Complete-Replay-Pfad teilt `replaySubmitResult` (abgedeckt); Cache-Sites via Successor-Race-Suite. Klassifiziert als akzeptiert; RID-2-Regressionstest sollte den Completion-Pfad dennoch direkt abdecken (Fixture mit deaktiviertem required-Op erwägen). | Trigger: mit RID-2. | accepted with rationale
+- [RID-2] MEDIUM (review fbd5bdc, 2026-09-28) | `completeWorkflowLocked` (WorkflowEngine.ts ~L2059): the first-seen hash is stored BEFORE the phase/status/schema/hook check and NEVER overwritten on retry (`requestPayloadHashes?.[requestId] === undefined` guard). A failed completion attempt 1 (e.g. invalid_active_phase / required_hook_failed) poisons the hash: attempt 2 with a corrected payload registers successfully, but the stored hash remains that of attempt 1 → later replays of the successfully accepted payload are falsely `payloadMismatch:true`; under `reject-mismatch` the legal retry replay is falsely rejected with `requestId_reuse_payload_mismatch`. Also contradicts the test comment "failed completions intentionally do NOT register the requestId (retry after fixing must stay legal)" — the hash store violates exactly that intention. Fix: store the hash analogously to `submitLocked` at the success-registration sites of the `successResult` (or remove the guard and overwrite on every non-replay) + a regression test (failed completion → corrected completion with the same requestId → replay without payloadMismatch). | Trigger: the next scope that touches `completeWorkflowLocked`/`replaySubmitResult`/`requestPayloadHashes`. | action required
+- [RID-3] LOW (review fbd5bdc) | `replaySubmitResult` (WorkflowEngine.ts ~L1700): `metrics.recordRequestIdReplay` runs only AFTER the reject throw — under `reject-mismatch` rejected mismatch replays are invisible and `payloadMismatches` is structurally always 0. Fix: record the metric before the policy throw (payloadMismatch=true) or document the behavior. | Trigger: with RID-2. | action required
+- [RID-4] LOW (review fbd5bdc) | replays are not audited (no audit.append in `replaySubmitResult`) — the persistent audit trail cannot distinguish replay traffic from missing submissions; the metric counter is in-memory and does not survive a restart (inconsistent with the persisted metrics.jsonl path). Fix: an audit event `request_replayed` (with payloadMismatch) in `replaySubmitResult`. | Trigger: with RID-2. | action required
+- [RID-5] INFO (review fbd5bdc) | `stablePayloadHash`: JSON.stringify discards properties with the value `undefined` — `{a:undefined}` collides with `{}`. Not reachable over the MCP wire (JSON-parsed), relevant only for in-process callers; no action needed, keep in mind for future in-process use of the engine. | Trigger: if WorkflowTools/engine are called internally with undefined-bearing payload objects. | accepted with rationale
+- [RID-6] INFO (review fbd5bdc) | known deviation confirmed: no engine-level completion replay test (the harness cannot satisfy `repository-analysis required:true`). The complete replay path shares `replaySubmitResult` (covered); cache sites via the successor race suite. Classified as accepted; the RID-2 regression test should still cover the completion path directly (consider a fixture with the required op disabled). | Trigger: with RID-2. | accepted with rationale
 
-## 2026-09-28 (nachmittag): GDS-4 GELÖST — run_operation leitet vollständige Tool-Antworten weiter
+## 2026-09-28 (afternoon): GDS-4 RESOLVED — run_operation forwards complete tool responses
 
-- [GDS-4] HIGH (2026-09-28, vormittags getrackt; Original-Eintrag durch fremden Commit 025b682 aus dem Working Tree verloren gegangen — Parallel-Work-Vorfall, siehe Notiz unten) — GELÖST auf `feature/gds4-expose-op-content`:
-  - Fix: `WorkflowEngine.exposeOpResult` gibt jetzt das exposure-gefilterte Vollresult zurück (`content`, `data`, `errors`, `warnings`); neuer exportierter Typ `ExposedOpResult`; `runOperation`/`StartResult`/`SubmitResult` auf breiteren Typ umgestellt. Redaction bleibt upstream (OperationEngine), Exposure-Semantik je `returnToAgent` unverändert.
-  - Config: `.guidance/operations.json` — alle 10 Operationen auf `returnToAgent: "raw"` (User-Anforderung: komplette Tool-Antwort für alle Tools).
-  - Regression-Coverage: +2 Contract-Tests (raw forwarded content/data/warnings vollständig; `summary_and_errors` stripped weiter — SC-004 erhalten); profile-config-Test auf objectContaining umgestellt. Contract-Suite 206/206 (2 Bestätigungsläufe), `tsc --noEmit` grün.
-  - Live verifiziert: Guidance-Container neu gebaut/deployed; `run_operation reasoning-pass` über :3003 liefert die vollständige `sequential_thinking`-Antwort (Thought + sessionContext) im `content`-Feld.
-- Parallel-Work-Vorfall (2026-09-28): Commit 025b682 (13:55, Niyama-Session auf develop) hat uncommittete memory-bank-Änderungen dieses Agenten (GDS-1..3-Nachtrag + aktiveContext/progress/lessons) eingesammelt; der später geschriebene GDS-4-Eintrag ging dabei verloren. Befund dokumentiert; deckt sich mit der Completion-Gate-Lesson (2026-09-26, session-3b7f96a5): parallele Agenten auf demselben Checkout brauchen Worktree-Isolation oder strikte Datei-Zuständigkeit. | Trigger: nächstes Parallel-Work-Scope — Datei-Zuständigkeit (memory-bank) pro Agent vereinbaren oder memory-bank-Edits sofort committen. | accepted with rationale (Vorfall dokumentiert; technische Folge GDS-4 ist durch den Neueintrag behoben)
+- [GDS-4] HIGH (2026-09-28, tracked in the morning; the original entry was lost from the working tree by the foreign commit 025b682 — parallel-work incident, see the note below) — RESOLVED on `feature/gds4-expose-op-content`:
+  - Fix: `WorkflowEngine.exposeOpResult` now returns the exposure-filtered full result (`content`, `data`, `errors`, `warnings`); new exported type `ExposedOpResult`; `runOperation`/`StartResult`/`SubmitResult` switched to the wider type. Redaction stays upstream (OperationEngine), the exposure semantics per `returnToAgent` unchanged.
+  - Config: `.guidance/operations.json` — all 10 operations to `returnToAgent: "raw"` (user request: the complete tool response for all tools).
+  - Regression coverage: +2 contract tests (raw forwarded content/data/warnings complete; `summary_and_errors` still stripped — SC-004 preserved); the profile-config test switched to objectContaining. Contract suite 206/206 (2 confirmation runs), `tsc --noEmit` green.
+  - Live verified: the guidance container rebuilt/deployed; `run_operation reasoning-pass` via :3003 delivers the complete `sequential_thinking` response (thought + sessionContext) in the `content` field.
+- Parallel-work incident (2026-09-28): commit 025b682 (13:55, a Niyama session on develop) swept up uncommitted memory-bank changes of this agent (the GDS-1..3 addendum + activeContext/progress/lessons); the GDS-4 entry written later was lost in the process. Finding documented; matches the completion-gate lesson (2026-09-26, session-3b7f96a5): parallel agents on the same checkout need worktree isolation or strict file responsibility. | Trigger: the next parallel-work scope — agree on file responsibility (memory bank) per agent or commit memory-bank edits immediately. | accepted with rationale (incident documented; the technical consequence GDS-4 is fixed by the new entry)
 
-## RF-2 — GELÖST (2026-09-28, docs/rf2-fr981-merge)
+## RF-2 — RESOLVED (2026-09-28, docs/rf2-fr981-merge)
 
-- [RF-2] LOW — GELÖST: FR-981-Semantikänderung (replace → merge für den
-  `instructions.global`-Slot, GDS-5) ist dokumentiert: Amendment-Notiz in
-  `specs/012-adopt-response-wisdom/spec.md` (FR-981) mit Verweis auf die
-  implementierenden Stellen (`ConfigAssistant.generateFiles`,
-  `renderAdoptedResponses`) und die kodierenden Contract-Tests. SDD v2
-  beschreibt die Replace-Semantik nicht (geprüft, 0 Treffer) — kein
-  Update nötig. Regression: Contract-Tests
-  `config-assistant-extensions.test.ts` kodieren die Merge-Erwartung;
-  docs-drift-Grün im Workflow-Abschluss.
+- [RF-2] LOW — RESOLVED: the FR-981 semantics change (replace → merge for
+  the `instructions.global` slot, GDS-5) is documented: an amendment note in
+  `specs/012-adopt-response-wisdom/spec.md` (FR-981) with references to the
+  implementing sites (`ConfigAssistant.generateFiles`,
+  `renderAdoptedResponses`) and the encoding contract tests. SDD v2
+  does not describe the replace semantics (checked, 0 hits) — no
+  update needed. Regression: the contract tests
+  `config-assistant-extensions.test.ts` encode the merge expectation;
+  docs-drift green at the workflow closeout.
 
-## Getrackte Follow-ups (2026-09-29, Config-Assistant Multi-Workspace-Lücke)
+## Tracked Follow-ups (2026-09-29, Config Assistant Multi-Workspace Gap)
 
-Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhielt `workspace_not_registered` ("D:\\repos\\zed"). Ursache: Registry ist fail-closed (`src/workspace-registry.ts`); zweites Repo erfordert manuelles Editieren von `guidance.json` (workspaces[]) + Container-Mount.
+Occasion: the user wanted to start a workflow in a fresh repo ("zed") and received `workspace_not_registered` ("D:\\repos\\zed"). Cause: the registry is fail-closed (`src/workspace-registry.ts`); a second repo requires manually editing `guidance.json` (workspaces[]) + a container mount.
 
-- [x] WA-1 LOW — GELÖST (2026-09-29, feature/wizard-workspaces 187f93c): Config-Assistent (setup_guidance_start/answer/generate, `src/setup/ConfigAssistant.ts`) interviewt nicht für zusätzliche Workspaces — `generateFiles` emittiert keinen `workspaces[]`-Block (0 Treffer in `src/setup/`). Das Plain-Scaffold (`src/scaffold.ts` L139-149) schreibt nur den einzelnen Launch-Root als `workspaces: [{name:"default", …}]`. Damit bleibt das Hinzufügen eines weiteren Repos (specs/008-Registry) reine Manuell-Arbeit, obwohl die anfängliche Registrierung (MR-1) assistent-getrieben erfolgen sollte. Trigger: nächste specs/008-Betrachtung oder Assistent-Feature-Scope. Action required: Wizard-Frage „zusätzliche Workspaces?“ + Emission weiterer `workspaces[]`-Einträge in `generateFiles` inkl. Contract-Tests (Namens-Pattern `^[a-z][a-z0-9-]{0,63}$`, absolute existierende Roots, Duplikat-Roots).
+- [x] WA-1 LOW — RESOLVED (2026-09-29, feature/wizard-workspaces 187f93c): the config assistant (setup_guidance_start/answer/generate, `src/setup/ConfigAssistant.ts`) does not interview for additional workspaces — `generateFiles` emits no `workspaces[]` block (0 hits in `src/setup/`). The plain scaffold (`src/scaffold.ts` L139-149) writes only the single launch root as `workspaces: [{name:"default", …}]`. Adding another repo (specs/008 registry) thus remains purely manual work, although the initial registration (MR-1) was supposed to be assistant-driven. Trigger: the next specs/008 consideration or an assistant feature scope. Action required: a wizard question "additional workspaces?" + the emission of further `workspaces[]` entries in `generateFiles` incl. contract tests (name pattern `^[a-z][a-z0-9-]{0,63}$`, absolute existing roots, duplicate roots).
 
-## Getrackte Follow-ups (2026-09-29, WA-1 Wizard-Workspaces Review — session-756c112d)
+## Tracked Follow-ups (2026-09-29, WA-1 Wizard-Workspaces Review — session-756c112d)
 
-- [WW-1] LOW | Generation-Zeit-Dedupe in parseExtraWorkspaces deckt Duplikate nur innerhalb der Extras ab — Dublette Extra-Root vs. workspaceRoot (Default-Eintrag) sowie realpath-/Case-Kollaps werden erst fail-closed bei loadConfig erkannt (WorkspaceRegistry.build). Korrekt, aber spät. | Trigger: nächste Änderung an parseExtraWorkspaces/generateFiles-Workspaces-Emission. | Action required: seenRoots mit resolve(workspaceRoot) seeden ODER Help-Text um Load-Zeit-Dedupe erweitern.
-- [WW-2] LOW | `workspaceRoot` wird bei Generierung nur getrimmt, nicht auf Absolutheit geprüft — Extras bekommen `isAbsolute`-Fail-closed, der Default-Root erst bei loadConfig (Registry isAbsolute). Inkonsistentes Fail-fast; relativer Pfad ist sofort fixbar. | Trigger: nächste Änderung an generateFiles-Workspaces-Emission. | Action required: `isAbsolute(workspaceRoot)`-Check analog zu Extras nachziehen + Test.
-- [WW-3] LOW | Testabdeckung: kein Test für `name=path=mit=gleichheitszeichen` (indexOf-Trennung korrekt, ungetestet); kein Test für whitespace-only-Antworten (" ; " ≡ weggelassen — Verhalten korrekt, ungetestet). | Trigger: nächste Berührung der WA-1-Tests. | Action required: beide Boundary-Cases in tests/setup/config-assistant.test.ts ergänzen.
+- [WW-1] LOW | generation-time dedupe in parseExtraWorkspaces covers duplicates only within the extras — a duplicate extra root vs. the workspaceRoot (default entry) and realpath/case collapse are only recognized fail-closed at loadConfig (WorkspaceRegistry.build). Correct, but late. | Trigger: the next change to parseExtraWorkspaces/the generateFiles workspaces emission. | Action required: seed seenRoots with resolve(workspaceRoot) OR extend the help text with the load-time dedupe.
+- [WW-2] LOW | `workspaceRoot` is only trimmed at generation, not checked for absoluteness — extras get the `isAbsolute` fail-closed, the default root only at loadConfig (registry isAbsolute). Inconsistent fail-fast; a relative path is immediately fixable. | Trigger: the next change to the generateFiles workspaces emission. | Action required: add the `isAbsolute(workspaceRoot)` check analogous to the extras + a test.
+- [WW-3] LOW | test coverage: no test for `name=path=with=equals-sign` (the indexOf separation correct, untested); no test for whitespace-only answers (" ; " ≡ omitted — the behavior correct, untested). | Trigger: the next touch of the WA-1 tests. | Action required: add both boundary cases in tests/setup/config-assistant.test.ts.
 
-## Getrackte Follow-ups (2026-09-29, Wildcard Container-Route Review — session-45abc996)
+## Tracked Follow-ups (2026-09-29, Wildcard Container Route Review — session-45abc996)
 
-- [WC-1] MEDIUM — **GELÖST 2026-09-29 (feature/wc1-wildcard-trustlevel-coupling, Guidance-Session session-22e9b598)** | Wildcard `["*"]` + Tool NICHT konfiguriert in operations.json → `opForEgress` undefined → `riskClass` undefined → Approval-Gate kann nie feuern. Fix: `validateDownstreamServers` (config.ts) lehnt Wildcard-Allowlists für Server mit effektiver trustLevel != "trusted" ab (`configuration_invalid`, Server-ID in Meldung); `toTrustLevel` nach `src/trust-level.ts` extrahiert (Validator+Runtime teilen eine Semantik; absent/unknown → "trusted"). Regressionstests in tests/contract/config-loader.test.ts (4 Fälle); Suite 449/449 grün; README aktualisiert.
-- [WC-1-B] LOW (deferred) — **GELÖST 2026-09-30 (feature/wc1b-wildcard-unconfigured-approval, e5408c1, Guidance-Session session-b470f696; Strategie Option B per Nutzerentscheid)** | Restlücke: ein TRUSTED Wildcard-Server konnte destructive Tools ohne operations.json-Eintrag hosten (opForEgress undefined → FR-053-Gate feuerte nie) — insbesondere über die Child-/Downstream-Engine-Verdrahtung, die den Eltern-Closure mit Eltern-Operations-Bestand nutzt. Fix: PolicyEngine.assertUnconfiguredWildcard — unkonfiguriertes Tool auf Wildcard-Server → recoverable authorization_required (Server + Tool benannt, Auflösungshinweis 'add an operation entry'); konfigurierte Tools byte-identisch; assertAllowed- und WC-1-Kopplung unverändert; Container-Route-Fallback (read_only-only) unberührt. 4 PolicyEngine-Unit-Tests; Suite 483/483 grün; README-Wildcard-Abschnitt ergänzt.
-- [WC1B-F3] LOW | Integrationstest-Lücke (aus WC-1-B-Review, Sub-Agent 028b2135): kein End-to-End-Fall 'Wildcard-Server + unkonfiguriertes Tool über run_operation/Closure' — die Verdrahtung in buildInvokerClosure ist aktuell nur über den Unit-Test der PolicyEngine-Methode + konfigurierte Pfade (tools-run-operation 19✓) abgesichert. | Trigger: nächste Berührung von tools-run-operation.test.ts ODER buildInvokerClosure. | Action required: einen Integrationstest ergänzen (Wildcard-Config + Operation auf anderem Server → Closure-Aufruf des unkonfigurierten Tools → authorization_required) als Regressionsschutz gegen Verdrahtungs-Drift.
+- [WC-1] MEDIUM — **RESOLVED 2026-09-29 (feature/wc1-wildcard-trustlevel-coupling, guidance session session-22e9b598)** | wildcard `["*"]` + a tool NOT configured in operations.json → `opForEgress` undefined → `riskClass` undefined → the approval gate can never fire. Fix: `validateDownstreamServers` (config.ts) rejects wildcard allowlists for servers with an effective trustLevel != "trusted" (`configuration_invalid`, the server id in the message); `toTrustLevel` extracted to `src/trust-level.ts` (validator+runtime share one semantics; absent/unknown → "trusted"). Regression tests in tests/contract/config-loader.test.ts (4 cases); suite 449/449 green; README updated.
+- [WC-1-B] LOW (deferred) — **RESOLVED 2026-09-30 (feature/wc1b-wildcard-unconfigured-approval, e5408c1, guidance session session-b470f696; strategy Option B per user decision)** | residual gap: a TRUSTED wildcard server could host destructive tools without an operations.json entry (opForEgress undefined → the FR-053 gate never fired) — especially via the child/downstream engine wiring that uses the parent closure with the parent operations stock. Fix: PolicyEngine.assertUnconfiguredWildcard — an unconfigured tool on a wildcard server → recoverable authorization_required (server + tool named, resolution hint 'add an operation entry'); configured tools byte-identical; assertAllowed and the WC-1 coupling unchanged; container-route fallback (read_only-only) untouched. 4 PolicyEngine unit tests; suite 483/483 green; README wildcard section added.
+- [WC1B-F3] LOW | integration test gap (from the WC-1-B review, sub-agent 028b2135): no end-to-end case 'wildcard server + unconfigured tool via run_operation/closure' — the wiring in buildInvokerClosure is currently only secured via the PolicyEngine method's unit test + configured paths (tools-run-operation 19✓). | Trigger: the next touch of tools-run-operation.test.ts OR buildInvokerClosure. | Action required: add an integration test (wildcard config + an operation on another server → a closure call of the unconfigured tool → authorization_required) as regression protection against wiring drift.
 
-- [WC-4] LOW — **GELÖST 2026-09-29 (feature/wc4-shipped-config-contract, Guidance-Session session-e782866b)** | Kein Test lud die ausgelieferten Config-Dateien gegen loadConfig. Fix: tests/contract/shipped-configs.test.ts — lädt alle 5 Config-Sets (Repo .guidance + examples/{default,python,csharp,rust}-guidance) direkt; einzige Substitution: workspaces[]-Key im Tmp-Copy (Container-Roots existieren host-seitig nicht; impliziter Default-Workspace toleriert das per Design). Assertions: vollständiger loadConfig-Lauf, Egress-Konsistenz (transport.http + containerRoute Hosts ⊆ httpHostAllowlist, alle Server inkl. disabled), Negative-Control (unallowlisted Host → Fail). 7 Tests, Suite 458/458 grün.
+- [WC-4] LOW — **RESOLVED 2026-09-29 (feature/wc4-shipped-config-contract, guidance session session-e782866b)** | no test loaded the shipped config files against loadConfig. Fix: tests/contract/shipped-configs.test.ts — loads all 5 config sets (repo .guidance + examples/{default,python,csharp,rust}-guidance) directly; the only substitution: the workspaces[] key in a tmp copy (the container roots do not exist host-side; the implicit default workspace tolerates that by design). Assertions: a full loadConfig run, egress consistency (transport.http + containerRoute hosts ⊆ httpHostAllowlist, all servers incl. disabled), a negative control (an unallowlisted host → fail). 7 tests, suite 458/458 green.
 
-## Getrackte Follow-ups (2026-09-29, Multi-Repo-Config-Truth Audit — session f955a76e, 4 HIGH)
+## Tracked Follow-ups (2026-09-29, Multi-Repo Config Truth Audit — session f955a76e, 4 HIGH)
 
-- [MC-1] HIGH | Keine Truth-Dokumentation: README/specs/008 sagen nirgends, welche .guidance autoritativ ist, wenn repo-lokale, pool-level und geservte Kopien koexistieren (README:3-7,115-134,1840-1915). | Trigger: nächstes Multi-Workspace-Doku-/Feature-Scope. | Action required: normative Aussage + /health config.source.
-- [MC-2] HIGH | Keine Dormancy-Diagnostik: Boot//health erkennen weder schattierende .guidance in registrierten Roots noch unregistrierte Pool-Repos mit .guidance; schlimmer: WorkflowEngine.ts:537-549 kopiert Boot-Config STUMM in Workspaces ohne .guidance (cpSync) — Divergenz ab Tag 1, nie reconciled. | Trigger: nächste Berührung engineForWorkspace/Boot. | Action required: P0-Items 2+3 (Warnung + explizite Adoption statt silent copy).
-- [MC-3] MEDIUM | Wizard nicht deployment-aware: generateFiles-Notes sagen nicht, WO das File-Set hingeschrieben werden muss (served root vs. repo-lokal) und dass Remote-Mode init_session braucht; README-Prompts sagen pauschal "project root" (ConfigAssistant.ts:933-1056, README:362-404). | Trigger: nächste Wizard-Änderung. | Action required: mode-aware Note (P1-Item 6).
-- [MC-4] HIGH | Pfad-Domain-Mismatch: guidance init (init.ts:9-10) backt execution-environment-Pfade (Host-WSL /mnt/d/...) in workspaces[].root (scaffold.ts:116-151) — im Container fail-closed erst beim Laden, nach vermeintlich erfolgreicher Init. | Trigger: nächste scaffold/init-Änderung. | Action required: Pfad-Domain-Warnung/Placeholder-Form (P1-Item 4).
-- [MC-5] HIGH | Gate-Presets passen nicht zu Nicht-Node-Workspaces: nur npm (+uv), kein Cargo/etc.; ops sind pro-Config, nicht pro-Workspace — zed erbt npm-Gates (test required:true) und failed garantiert (ConfigAssistant.ts:180-187,517-542; scaffold.ts:336-384; WorkflowEngine.ts:537-549). | Trigger: Registrierung eines Nicht-Node-Repos (jetzt relevant: zed). | Action required: pro-Workspace gate/preset-Override (P1-Item 5).
-- [MC-6] MEDIUM | Cross-Server-Lock-Sicherheit: Lock-Dateien leben je stateDir → Pool-Server vs. repo-lokaler Server schließen sich nicht gegenseitig aus; isStale per process.kill(0) ist PID-Namespace-übergreifend unzuverlässig (workspace-lock.ts:40-55,220-230). | Trigger: Betrieb mehrerer Guidance-Instanzen über dieselben Mounts. | Action required: P2-Item 7 (Single-Server-Annahme dokumentieren/fail-fast).
+- [MC-1] HIGH | no truth documentation: README/specs/008 nowhere say which .guidance is authoritative when repo-local, pool-level and served copies coexist (README:3-7,115-134,1840-1915). | Trigger: the next multi-workspace docs/feature scope. | Action required: a normative statement + /health config.source.
+- [MC-2] HIGH | no dormancy diagnostics: boot//health detect neither shadowing .guidance in registered roots nor unregistered pool repos with .guidance; worse: WorkflowEngine.ts:537-549 silently copies the boot config into workspaces without .guidance (cpSync) — divergence from day 1, never reconciled. | Trigger: the next touch of engineForWorkspace/boot. | Action required: the P0 items 2+3 (warning + explicit adoption instead of a silent copy).
+- [MC-3] MEDIUM | the wizard is not deployment-aware: the generateFiles notes do not say WHERE the file set must be written (served root vs. repo-local) and that remote mode needs init_session; the README prompts say blanketly "project root" (ConfigAssistant.ts:933-1056, README:362-404). | Trigger: the next wizard change. | Action required: a mode-aware note (P1 item 6).
+- [MC-4] HIGH | path domain mismatch: guidance init (init.ts:9-10) bakes execution-environment paths (host-WSL /mnt/d/...) into workspaces[].root (scaffold.ts:116-151) — in the container it fails closed only at load time, after a seemingly successful init. | Trigger: the next scaffold/init change. | Action required: a path domain warning/placeholder form (P1 item 4).
+- [MC-5] HIGH | gate presets do not fit non-Node workspaces: only npm (+uv), no Cargo etc.; ops are per-config, not per-workspace — zed inherits npm gates (test required:true) and fails guaranteed (ConfigAssistant.ts:180-187,517-542; scaffold.ts:336-384; WorkflowEngine.ts:537-549). | Trigger: registration of a non-Node repo (now relevant: zed). | Action required: a per-workspace gate/preset override (P1 item 5).
+- [MC-6] MEDIUM | cross-server lock safety: lock files live per stateDir → a pool server and a repo-local server do not exclude each other; isStale via process.kill(0) is unreliable across PID namespaces (workspace-lock.ts:40-55,220-230). | Trigger: operating several guidance instances over the same mounts. | Action required: P2 item 7 (document/fail-fast the single-server assumption).
 
-## Getrackte Follow-ups (2026-09-29, specs/014 Review — session-1b537de7)
+## Tracked Follow-ups (2026-09-29, specs/014 Review — session-1b537de7)
 
-- [CT-1] LOW | Pre-existing: Schema-valid guidance.json mit operations.file aber OHNE workflow.file → registryOnly=false → WorkflowEngine-Konstruktor wirft nackten TypeError statt configuration_invalid (WorkflowEngine.ts ~L285). Durch FR-1101 (fehlende Refs legitim) wahrscheinlicher. | Trigger: nächste config-schema-/Constructor-Änderung. | Action required: Constructor-Guard fail-closed mit configuration_invalid.
-- [CT-2] LOW | Test-Gap: Legacy-Monolith-E2E (Voll-Config am Instanz-Root + registrierter Extra-Workspace MIT eigener .guidance, dann startWorkflow child-composition) nicht explizit in registry-composition.test.ts — Verhalten per Code-Read korrekt. | Trigger: nächste Berührung registry-composition.test.ts / composition v2. | Action required: einen E2E-Test ergänzen.
+- [CT-1] LOW | pre-existing: a schema-valid guidance.json with operations.file but WITHOUT workflow.file → registryOnly=false → the WorkflowEngine constructor throws a naked TypeError instead of configuration_invalid (WorkflowEngine.ts ~L285). More likely due to FR-1101 (missing refs legitimate). | Trigger: the next config-schema/constructor change. | Action required: a constructor guard fail-closed with configuration_invalid.
+- [CT-2] LOW | test gap: a legacy monolith E2E (full config at the instance root + a registered extra workspace WITH its own .guidance, then startWorkflow child composition) not explicit in registry-composition.test.ts — the behavior correct per code read. | Trigger: the next touch of registry-composition.test.ts / composition v2. | Action required: add an E2E test.
 
-## Getrackte Follow-ups (2026-09-30, Registry-Hot-Reload — Nutzeranfrage)
+## Tracked Follow-ups (2026-09-30, Registry Hot-Reload — user request)
 
-- [HR-1] LOW — **SDD ABGESCHLOSSEN 2026-09-30 (specs/015-registry-hot-reload-deps, feature/015-sdd-registry-hot-reload-deps, Guidance-Session session-7980b278)** | spec.md/plan.md/tasks.md im Draft-Status erstellt: US1 Registry-Hot-Reload mit BEIDEN Konzeptalternativen (config-watch + atomarer Swap vs. registry-register-Tool) als offene Design-Entscheidung (R1 in plan.md, Empfehlung: B zuerst), AC-1…AC-6 inkl. Fail-closed-Reuse, Audit-Events, configurationVersion-Semantik (R2-Matrix als Blocking-Open-Point) und WC-1/WC-1-B-Kopplung. specs/008-Spannung als explizites Verwerfungs-Kriterium verankert. Umsetzung ausstehend (Phase-1-Task T001/T002: R1/R2 mit Nutzer schließen).
+- [HR-1] LOW — **SDD COMPLETED 2026-09-30 (specs/015-registry-hot-reload-deps, feature/015-sdd-registry-hot-reload-deps, guidance session session-7980b278)** | spec.md/plan.md/tasks.md created in draft status: US1 registry hot-reload with BOTH concept alternatives (config-watch + atomic swap vs. registry-register tool) as an open design decision (R1 in plan.md, recommendation: B first), AC-1…AC-6 incl. fail-closed reuse, audit events, configurationVersion semantics (the R2 matrix as a blocking open point) and the WC-1/WC-1-B coupling. The specs/008 tension anchored as an explicit rejection criterion. Implementation pending (phase-1 tasks T001/T002: close R1/R2 with the user).
 
-## Getrackte Follow-ups (2026-09-30, Dependency-Bootstrap Node-Repos — Nutzeranfrage)
+## Tracked Follow-ups (2026-09-30, Dependency Bootstrap Node Repos — user request)
 
-- [DB-1] MEDIUM — **SDD ABGESCHLOSSEN 2026-09-30 (specs/015-registry-hot-reload-deps US2, feature/015-sdd-registry-hot-reload-deps, Guidance-Session session-7980b278)** | Offener Rest (deps-install/deps-reinstall) ist now specifiziert: spec.md US2 (AC-7…AC-12: npm ci Clean-Semantik + Lockfile-Fallback mit Audit-Vermerk, deps-reinstall workspace-scoped, reaktive Erkennung über Gate-Fehlermuster + optionale proaktive Sonde, riskClass workspace_write + Approval, Container-Installation); plan.md Technical Approach + Test-Strategie; tasks.md Phase 3 (T007…T010). Umsetzung ausstehend — löst danach auch GATE-1 (Container-Gates werden verlässlich).
+- [DB-1] MEDIUM — **SDD COMPLETED 2026-09-30 (specs/015-registry-hot-reload-deps US2, feature/015-sdd-registry-hot-reload-deps, guidance session session-7980b278)** | the open remainder (deps-install/deps-reinstall) is now specified: spec.md US2 (AC-7…AC-12: npm ci clean semantics + lockfile fallback with an audit note, deps-reinstall workspace-scoped, reactive detection via gate error patterns + an optional proactive probe, riskClass workspace_write + approval, container installation); plan.md technical approach + test strategy; tasks.md phase 3 (T007…T010). Implementation pending — afterwards also resolves GATE-1 (the container gates become reliable).
 
-## Getrackte Follow-ups (2026-09-30, CT-1 Constructor-Guard — Guidance-Session session-1070c546)
+## Tracked Follow-ups (2026-09-30, CT-1 Constructor Guard — guidance session session-1070c546)
 
-- [CT-1] LOW — **GELÖST 2026-09-30 (feature/ct1-constructor-guard, 8f588c6, Guidance-Session session-1070c546)** | Nackter TypeError im WorkflowEngine-Konstruktor bei schema-validem guidance.json mit operations.file aber ohne workflow.file (registryOnly=false). Fix: fail-closed-Guard mit configuration_invalid, Strukturcheck workflow.id/initialPhase (truthy-leeres workflow-Objekt hätte sonst durchgegriffen — von Testfall workflow={} abgedeckt; dort greift zusätzlich loadConfig mit ConfigurationError). 4 Regressionstests (tests/workflow/ct1-constructor-guard.test.ts), Suite 479/479 grün, unabhängiger Review APPROVED 0 HIGH/CRIT, README-Hinweis ergänzt.
-- [TYPE-1] LOW | Pre-existing typecheck-Fehler tests/contract/shipped-configs.test.ts(125) TS2532 (CONFIG_SETS[1] unter noUncheckedIndexedAccess). Datei unmodified, nicht durch CT-1 verursacht. | Trigger: nächste Änderung an shipped-configs.test.ts oder tsconfig (noUncheckedIndexedAccess). | Action required: `CONFIG_SETS[1]!.dir` oder destrukturierenden Zugriff nutzen + checken, warum der Fehler am Baseline-HEAD (ea582f8) reproduzierbar ist, obwohl frühere Läufe typecheck-grün meldeten (TS-Version-Drift? tsc-Version via nvm prüfen).
-- [GATE-1] OBSERVATION | Verify-Gates lint (prettier --check) und test (root npm test --workspaces) schlagen im Guidance-Container fail-closed fehl (keine Linux-nativen node_modules — DB-1-Rest-Kontext); beide required:false, Phase advanced trotzdem. Autoritative Verifikationsroute bleibt WSL (npm test in servers/server-guidance, prettier lokal). | Trigger: wenn die Container-Gates auf required:true gezogen werden ODER DB-1-Rest (deps-install) umgesetzt wird. | Action required: Container-node_modules nativ installieren (Convergence-Pfad aus operations.json), dann Gates verschärfen — nicht vorher.
-- [CHAIN-1] LOW | Chain-Fortsetzung über die automatisch erzeugte Folgesession scheitert an AC-5: Nach Completion von session-1070c546 meldete die Nachfolger-Session (session-ec74b6ba) `configuration_invalid: bound to e192bb…, current configuration 39e5a3…` — die Folgesession war bei Kettenstart an die DAMALIGE configurationVersion gebunden, und der Hash hat sich bis zur Aktivierung geändert (Ursache ungeklärt: Repo-.guidance ist byte-identisch zu develop, keine gehashten Inputs erkennbar geändert; Verdacht: Instanz-/Registry-Seite im Container oder Kontext der Hash-Ermittlung — workspaces[]-Serialisierung, ENV-abhängige Defaults). Zusätzlich zeigte die Kette für die Folgesession denselben CT-1-Request (Schritt-Index nicht advanced?). | Trigger: nächster Chained-Guidance-Workflow ODER Änderung an chain activation/getWorkflowState AC-5-Check. | Action required: Root-Cause für den Hash-Drift zwischen Kettenstart und Folgesession-Aktivierung klären (LoadConfig-Hash-Inputs deterministisch gegen Instanz-Registry prüfen; ggf. Folgesession erst bei Aktivierung an aktuelle Konfiguration binden oder Rebind mit Re-Validierung). Bis dahin: Chained Workflows pro Schritt-Gruppe mit frischer start_workflow-Kette fahren (bewährtes Muster aus früheren Ketten).
+- [CT-1] LOW — **RESOLVED 2026-09-30 (feature/ct1-constructor-guard, 8f588c6, guidance session session-1070c546)** | naked TypeError in the WorkflowEngine constructor on a schema-valid guidance.json with operations.file but without workflow.file (registryOnly=false). Fix: a fail-closed guard with configuration_invalid, a structure check workflow.id/initialPhase (a truthy-empty workflow object would otherwise have slipped through — covered by the test case workflow={}; there loadConfig additionally applies with a ConfigurationError). 4 regression tests (tests/workflow/ct1-constructor-guard.test.ts), suite 479/479 green, independent review APPROVED 0 HIGH/CRIT, README note added.
+- [TYPE-1] LOW | pre-existing typecheck error tests/contract/shipped-configs.test.ts(125) TS2532 (CONFIG_SETS[1] under noUncheckedIndexedAccess). File unmodified, not caused by CT-1. | Trigger: the next change to shipped-configs.test.ts or tsconfig (noUncheckedIndexedAccess). | Action required: use `CONFIG_SETS[1]!.dir` or destructuring access + check why the error is reproducible at the baseline HEAD (ea582f8) although earlier runs reported typecheck-green (TS version drift? check the tsc version via nvm).
+- [GATE-1] OBSERVATION | the verify gates lint (prettier --check) and test (root npm test --workspaces) fail closed in the guidance container (no Linux-native node_modules — the DB-1 remainder context); both required:false, the phase advanced anyway. The authoritative verification route remains WSL (npm test in servers/server-guidance, prettier locally). | Trigger: when the container gates are pulled to required:true OR the DB-1 remainder (deps-install) is implemented. | Action required: install the container node_modules natively (the convergence path from operations.json), then tighten the gates — not before.
+- [CHAIN-1] LOW | chain continuation via the auto-created successor session fails at AC-5: after completion of session-1070c546 the successor session (session-ec74b6ba) reported `configuration_invalid: bound to e192bb…, current configuration 39e5a3…` — the successor session was bound at chain start to the THEN-current configurationVersion, and the hash had changed by activation (cause unclear: the repo .guidance is byte-identical to develop, no hashed inputs recognizably changed; suspicion: the instance/registry side in the container or the context of the hash determination — workspaces[] serialization, ENV-dependent defaults). Additionally the chain showed the same CT-1 request for the successor session (the step index not advanced?). | Trigger: the next chained guidance workflow OR a change to chain activation/getWorkflowState AC-5 check. | Action required: clarify the root cause of the hash drift between chain start and successor activation (check the loadConfig hash inputs deterministically against the instance registry; possibly bind the successor session to the current configuration only at activation, or rebind with re-validation). Until then: run chained workflows per step group with a fresh start_workflow chain (the proven pattern from earlier chains).
 
-## Getrackte Follow-ups (2026-09-30, CT-2 Legacy-Monolith-E2E — Guidance-Session session-9e23340f)
+## Tracked Follow-ups (2026-09-30, CT-2 Legacy Monolith E2E — guidance session session-9e23340f)
 
-- [CT-2] LOW — **GELÖST 2026-09-30 (feature/ct2-legacy-monolith-e2e, 96b0a67, Guidance-Session session-9e23340f)** | Test-Gap Legacy-Monolith-E2E geschlossen: registry-composition.test.ts um describe 'legacy monolith child composition (CT-2)' ergänzt — Voll-Config am Pool-Root (workspaces[]-Registry) + Extra-Workspace mit eigener voller .guidance → startWorkflow({workspace:'zed'}) komponiert aus dem Workspace-Root: Persistierte Session-configurationVersion === Workspace-Config-Hash (aus zed/.guidance/state/sessions/<id>.json) UND ≠ Pool-Instance-Hash; keine Config-Copies in den Workspace. 15/15 registry-composition, Suite 480/480 grün, prettier grün. Kein Produktionscode nötig — Workspace-Routing im Monolith-Modus korrekt (Plan-Restrisiko entkräftet).
+- [CT-2] LOW — **RESOLVED 2026-09-30 (feature/ct2-legacy-monolith-e2e, 96b0a67, guidance session session-9e23340f)** | the legacy monolith E2E test gap closed: registry-composition.test.ts extended with describe 'legacy monolith child composition (CT-2)' — full config at the pool root (workspaces[] registry) + an extra workspace with its own full .guidance → startWorkflow({workspace:'zed'}) composes from the workspace root: the persisted session configurationVersion === the workspace config hash (from zed/.guidance/state/sessions/<id>.json) AND ≠ the pool instance hash; no config copies into the workspace. 15/15 registry-composition, suite 480/480 green, prettier green. No production code needed — the workspace routing in monolith mode is correct (the plan's residual risk refuted).
 
-## Getrackte Follow-ups (2026-09-30, WW-1 Extra-Root-Default-Dedupe — Guidance-Session session-58b4d57f)
+## Tracked Follow-ups (2026-09-30, WW-1 Extra-Root Default Dedupe — guidance session session-58b4d57f)
 
-- [WW-1] LOW — **GELÖST 2026-09-30 (feature/ww1-extraroot-default-dedupe, 6029007, Guidance-Session session-58b4d57f)** | parseExtraWorkspaces(value, defaultRoot?): seenRoots wird mit resolve(defaultRoot) geseedet — ein Extra-Root, der zum Default-workspaceRoot resolvieren würde, failt jetzt schon bei Generation-Zeit mit configuration_invalid ('duplicate root', Pseudo-Name 'default (workspaceRoot)') statt erst beim Container-Load. generateFiles übergibt den getrimmten workspaceRoot. 2 Regressionstests (exakte Kollision + resolve-normalisierte Kollision über Trailing-Separator); 70/70 Config-Assistent-Tests, Suite 480/480 grün, prettier grün. Realpath-/Case-Kollaps bleibt bewusst load-time (WorkspaceRegistry.build) — WW-1-Scope war der Follow-up-Wortlaut (Default-Root-Dublette).
+- [WW-1] LOW — **RESOLVED 2026-09-30 (feature/ww1-extraroot-default-dedupe, 6029007, guidance session session-58b4d57f)** | parseExtraWorkspaces(value, defaultRoot?): seenRoots is seeded with resolve(defaultRoot) — an extra root that would resolve to the default workspaceRoot now already fails at generation time with configuration_invalid ('duplicate root', pseudo-name 'default (workspaceRoot)') instead of only at container load. generateFiles passes the trimmed workspaceRoot. 2 regression tests (the exact collision + a resolve-normalized collision via a trailing separator); 70/70 config assistant tests, suite 480/480 green, prettier green. Realpath/case collapse deliberately stays load-time (WorkspaceRegistry.build) — the WW-1 scope was the follow-up wording (the default-root duplicate).
 
-## Getrackte Follow-ups (2026-09-30, WW-2 workspaceRoot-isAbsolute — Guidance-Session session-c4d8dba2)
+## Tracked Follow-ups (2026-09-30, WW-2 workspaceRoot-isAbsolute — guidance session session-c4d8dba2)
 
-- [WW-2] LOW — **GELÖST 2026-09-30 (feature/ww2-workspaceroot-isabsolute, 5c06639, Guidance-Session session-c4d8dba2)** | isAbsolute-Fail-fast für den Default-workspaceRoot in generateFiles (registry-edit): nach dem Empty-Check wirft ein relativer Pfad jetzt configuration_invalid ('must be an absolute path: …', analog zur Extras-Prüfung) statt erst bei loadConfig zu failen. 1 Regressionstest; fokussiert 71/71; Vollauf effektiv 481/481 (2 Timeout-Flakes metrics/engine auf Re-Run grün — bekannte WSL-Last-Flakiness, nicht Diff-bedingt); prettier grün. Konsistente Fail-fast-Semantik für Default-Root UND Extras auf Generation-Ebene; Existenz-/Realpath-Checks bleiben load-time by design.
+- [WW-2] LOW — **RESOLVED 2026-09-30 (feature/ww2-workspaceroot-isabsolute, 5c06639, guidance session session-c4d8dba2)** | isAbsolute fail-fast for the default workspaceRoot in generateFiles (registry edit): after the empty check a relative path now throws configuration_invalid ('must be an absolute path: …', analogous to the extras check) instead of failing only at loadConfig. 1 regression test; focused 71/71; full run effectively 481/481 (2 timeout flakes metrics/engine green on re-run — the known WSL load flakiness, not diff-related); prettier green. Consistent fail-fast semantics for the default root AND the extras at generation level; existence/realpath checks stay load-time by design.
 
-## Getrackte Follow-ups (2026-09-30, WW-3 Boundary-Tests — Guidance-Session session-46674965)
+## Tracked Follow-ups (2026-09-30, WW-3 Boundary Tests — guidance session session-46674965)
 
-- [WW-3] LOW — **GELÖST 2026-09-30 (feature/ww3-extraworkspaces-boundary-tests, 101306c, Guidance-Session session-46674965)** | Beide getrackten Boundary-Cases regressionsgesichert in tests/setup/config-assistant.test.ts: (1) Root mit '='-Zeichen ('zed=/w/zed=path=mit=gleichheitszeichen') — indexOf-Trennung nimmt das erste '=', Rest landet vollständig im Registry-Eintrag; (2) whitespace-only-Antworten (' ; ') ≡ weggelassen — nur der default-Eintrag. Assertions E2E über generiertes guidance.json (Vorlage AC-6-Test). Kein Produktionscode nötig — Verhalten war korrekt, nur ungetestet. Suite 482/482 grün, prettier grün.
+- [WW-3] LOW — **RESOLVED 2026-09-30 (feature/ww3-extraworkspaces-boundary-tests, 101306c, guidance session session-46674965)** | both tracked boundary cases regression-secured in tests/setup/config-assistant.test.ts: (1) a root with an '=' sign ('zed=/w/zed=path=with=equals-sign') — the indexOf separation takes the first '=', the rest lands fully in the registry entry; (2) whitespace-only answers (' ; ') ≡ omitted — only the default entry. Assertions E2E over the generated guidance.json (template AC-6 test). No production code needed — the behavior was correct, only untested. Suite 482/482 green, prettier green.
 
-## Getrackte Follow-ups (2026-09-30, specs/015 R1/R2-Entscheidungen — Nutzer)
+## Tracked Follow-ups (2026-09-30, specs/015 R1/R2 decisions — user)
 
-- [SPEC015-A] LOW | Alternative A (config-watch + atomarer Registry-Swap) wurde als US1-Design zugunsten von Alternative B (registry-register-Tool) zurückgestellt (Nutzerentscheid 2026-09-30, specs/015-registry-hot-reload-deps/plan.md R1). | Trigger: nach Umsetzung und Stabilisierung von US1/B, falls Datei-Edit-Workflows dominieren (Operator-Feedback) oder auf explizite Nutzeranfrage. | Action required: US1-Alt-A als eigene Spec-Erweiterung planen (Watcher-Lebenszyklus, Rennen, geordnete Session-Invalidierung gem. R2-Entscheidung).
-- [NIYAMA-REG] OBSERVATION | Niyama-Workspace-Eintrag wurde aus .guidance/guidance.json entfernt (Repo auf neuer Maschine nicht vorhanden; Nutzer clont es hier und führt weiter). | Trigger: sobald D:\repos\Niyama existiert. | Action required: workspaces[]-Eintrag { name: niyama, root: /workspaces/Niyama, projectName: Niyama } wieder ergänzen; GATE-1-Kontext (Container-Gates) bleibt bis DB-1 (specs/015 US2) umweltbedingt.
+- [SPEC015-A] LOW | alternative A (config-watch + atomic registry swap) was deferred as the US1 design in favor of alternative B (registry-register tool) (user decision 2026-09-30, specs/015-registry-hot-reload-deps/plan.md R1). | Trigger: after the implementation and stabilization of US1/B, if file-edit workflows dominate (operator feedback) or on explicit user request. | Action required: plan US1-Alt-A as its own spec extension (watcher lifecycle, races, ordered session invalidation per the R2 decision).
+- [NIYAMA-REG] OBSERVATION | the Niyama workspace entry was removed from .guidance/guidance.json (the repo not present on the new machine; the user clones it here and continues). | Trigger: as soon as D:\repos\Niyama exists. | Action required: re-add the workspaces[] entry { name: niyama, root: /workspaces/Niyama, projectName: Niyama }; the GATE-1 context (container gates) remains environment-dependent until DB-1 (specs/015 US2).
 
-**R1/R2-Status (2026-09-30):** R1 = Alternative B (registry-register-Tool), A getrackt als SPEC015-A. R2 = Weiterführung mit Re-Validierung (completed überlebt; active/blocked mit Rebind + Re-Validierung, sonst fail-closed). specs/015-Umsetzung damit entblockt — eigene Chain nach Abschluss der Cleanup-Chain session-77a51a32.
+**R1/R2 status (2026-09-30):** R1 = alternative B (registry-register tool), A tracked as SPEC015-A. R2 = continuation with re-validation (completed survives; active/blocked with rebind + re-validation, otherwise fail-closed). The specs/015 implementation thereby unblocked — its own chain after completion of the cleanup chain session-77a51a32.
 
-## Getrackte Follow-ups (2026-09-30, TYPE-1-Auflösung — session-77a51a32)
+## Tracked Follow-ups (2026-09-30, TYPE-1 Resolution — session-77a51a32)
 
-- [TYPE-1] LOW — **GELÖST 2026-09-30 (feature/type1-ts2532)** | TS2532 in shipped-configs.test.ts(125) via `CONFIG_SETS[1]!.dir` gefixt; File auf LF normalisiert. Root-Cause: CRLF + unchecked access seit WC-4-Commit 235e9e6 (frühere grüne Läufe predaten dem Commit bzw. prüften tests/ nicht). typecheck/prettier/fokussiert 7/7/Vollauf 474+9 skip grün. | Follow-up-Observation: CR-Inventory weiterer Testdateien (strings/fixtures, prettier-grün) — nur handanlegen, falls prettier dort künftig failt.
+- [TYPE-1] LOW — **RESOLVED 2026-09-30 (feature/type1-ts2532)** | TS2532 in shipped-configs.test.ts(125) fixed via `CONFIG_SETS[1]!.dir`; the file normalized to LF. Root cause: CRLF + unchecked access since the WC-4 commit 235e9e6 (earlier green runs predate the commit or did not check tests/). typecheck/prettier/focused 7/7/full run 474+9 skip green. | Follow-up observation: a CR inventory of further test files (strings/fixtures, prettier-green) — only touch them if prettier fails there in the future.
 
-## 2026-10-01: CHAIN-1 Root-Cause EVIDENZIERT (Live-Reproduktion in session-77a51a32)
+## 2026-10-01: CHAIN-1 Root Cause EVIDENCED (live reproduction in session-77a51a32)
 
-- [CHAIN-1] MEDIUM — **ROOT-CAUSE KLÄRT DEN MECHANISMUS (Live-Reproduktion 2026-10-01)** | session-77a51a32 (TYPE-1, Kettenschritt 1/4) lief bis Phase complete (alle Submission-Phasen accepted, lokale Gates grün). Der nötige Mid-Session-Config-Change (operations.json `gitnexus-check`-Entry als WC-1-B-Remedy, Commit 8e7ac24) + Container-Restart (Config-Snapshot, kein Hot-Reload) führte zu `configuration_invalid: session bound to sha256:2141c4a9… != current sha256:8cf5be36… (registry/config changed; specs/008 AC-5)` — Session gecancelt, TYPE-1 außerhalb der Guidance-Ceremonie abgeschlossen (alle Verifikationsartefakte existieren). | **Wurzel:** AC-5 bindet die Session fail-closed an den Konfig-Hash BEI SESSION-START; jede Config-Änderung während der Session (Registry ODER operations.json) invalidiert sie. Bei Chains trifft dasselbe die auto-erzeugte Folgesession (gebunden an Hash bei Kettenstart). | **Fix = R2-Entscheidung (specs/015 US1):** Weiterführung mit Re-Validierung (Rebind an aktuelle Config bei Aktivierung/State-Read + Re-Validierung, completed überlebt). Bis dahin Workaround: KEINE Config-Änderungen zwischen start_workflow und complete_workflow; frische Ketten pro Schritt-Gruppe. | Trigger für Rest: specs/015-US1-Umsetzung (R1=B entschieden). | Action required: US1-Implementierung schließt CHAIN-1; Regressionstest: Mid-Session-Registry-Änderung → active Session re-validiert statt configuration_invalid.
-- [TYPE-1] — **ABSCHLUSS OK AUSSERHALB GUIDANCE:** 58faa7e+8e7ac24 auf feature/type1-ts2532; tsc/prettier/fokussiert 7/7/Vollauf 474+9skip grün; unabhängiger Review APPROVED 0 HIGH/CRIT (Sub-Agent 3c0327e2); final-review.json + final-review-gate grün (HEAD 8e7ac24); gitnexus analyze --no-stats @HEAD; docs-drift grün. Nur der serverseitige Completion-Stempel fehlt (s.o.).
+- [CHAIN-1] MEDIUM — **ROOT CAUSE CLARIFIES THE MECHANISM (live reproduction 2026-10-01)** | session-77a51a32 (TYPE-1, chain step 1/4) ran to phase complete (all submission phases accepted, local gates green). The necessary mid-session config change (the operations.json `gitnexus-check` entry as the WC-1-B remedy, commit 8e7ac24) + container restart (config snapshot, no hot-reload) led to `configuration_invalid: session bound to sha256:2141c4a9… != current sha256:8cf5be36… (registry/config changed; specs/008 AC-5)` — the session cancelled, TYPE-1 completed outside the guidance ceremony (all verification artifacts exist). | **Root:** AC-5 binds the session fail-closed to the config hash AT SESSION START; any config change during the session (registry OR operations.json) invalidates it. For chains the same hits the auto-created successor session (bound to the hash at chain start). | **Fix = R2 decision (specs/015 US1):** continuation with re-validation (rebind to the current config at activation/state read + re-validation, completed survives). Until then the workaround: NO config changes between start_workflow and complete_workflow; fresh chains per step group. | Trigger for the remainder: the specs/015 US1 implementation (R1=B decided). | Action required: the US1 implementation closes CHAIN-1; regression test: mid-session registry change → an active session re-validated instead of configuration_invalid.
+- [TYPE-1] — **COMPLETION OK OUTSIDE GUIDANCE:** 58faa7e+8e7ac24 on feature/type1-ts2532; tsc/prettier/focused 7/7/full run 474+9skip green; independent review APPROVED 0 HIGH/CRIT (sub-agent 3c0327e2); final-review.json + final-review-gate green (HEAD 8e7ac24); gitnexus analyze --no-stats @HEAD; docs-drift green. Only the server-side completion stamp is missing (see above).
 
-## Getrackte Follow-ups (2026-10-01, WC1B-F3-Auflösung — session-293a251f)
+## Tracked Follow-ups (2026-10-01, WC1B-F3 Resolution — session-293a251f)
 
-- [WC1B-F3] LOW — **GELÖST 2026-10-01 (feature/wc1b-f3-integration-test)** | Integrationstest "WC-1-B (WC1B-F3)" in tools-run-operation.test.ts: Wildcard-Server + unkonfiguriertes Tool über Composite-mcpTool-Step → Closure liefert recoverable authorization_required ohne Downstream-Contact. Regressionsschutz gegen Verdrahtungs-Drift in buildInvokerClosure. Fokussiert 20/20, Vollauf 475+9skip grün.
+- [WC1B-F3] LOW — **RESOLVED 2026-10-01 (feature/wc1b-f3-integration-test)** | integration test "WC-1-B (WC1B-F3)" in tools-run-operation.test.ts: wildcard server + unconfigured tool via a composite mcpTool step → the closure returns recoverable authorization_required without downstream contact. Regression protection against wiring drift in buildInvokerClosure. Focused 20/20, full run 475+9skip green.
 
-## Review-Quality (2026-10-01, WC1B-F3-Review c31e517c)
+## Review Quality (2026-10-01, WC1B-F3 review c31e517c)
 
-- MEDIUM "Commit-Scope + AGENTS.md.bak im Repo": behoben — Branch lokal rewritet; Scope-Commit 5f124f1 (Test + memory-bank) getrennt von 2ee..b2ee2db (Skill-Docs/Meta-Blöcke); AGENTS.md.bak gelöscht (Backup-Inhalt via git-historie reproduzierbar). Reviewer-Verdict vorher CHANGES REQUESTED (0 HIGH/CRIT, 1 MEDIUM) → nach Fix APPROVED-fähig; Fix im selben Scope, Test unverändert (5f124f1 = 588eef7-Inhalt, bereinigt).
+- MEDIUM "commit scope + AGENTS.md.bak in the repo": fixed — the branch rewritten locally; the scope commit 5f124f1 (test + memory bank) separated from 2ee..b2ee2db (skill docs/meta blocks); AGENTS.md.bak deleted (the backup content reproducible via git history). Reviewer verdict before CHANGES REQUESTED (0 HIGH/CRIT, 1 MEDIUM) → after the fix approvable; the fix in the same scope, the test unchanged (5f124f1 = 588eef7 content, cleaned).
 
-## Getrackte Follow-ups (2026-10-01, Guidance Finalisierung nach Retry — session-293a251f)
+## Tracked Follow-ups (2026-10-01, Guidance Finalization after Retry — session-293a251f)
 
-- [GDS-6] MEDIUM — **GELÖST (feature/gds6-chain-replay-hardening)** | retryOperations finalisiert nach Hook-Fail → Retry-Success jetzt vollständig: pendingCompletion {report, requestId} wird beim Hook-Fail an der Session persistiert; Retry-Success in Phase complete setzt status=completed + completedAt, auditiert workflow_completed (finalizedBy=retry_operation), erzeugt den Chain-Successor aus dem Retained-Report (extrahierte createChainSuccessorLocked/activateSuccessor-Helper, von completeWorkflow geteilt) und cached das Ergebnis unter requestIds. Defensiver Pfad ohne pendingCompletion finalisiert ohne Successor (Audit sichtbar). Regressionstests tests/workflow/retry-finalize.test.ts (4 Tests: plain finalize + Replay, chained finalize + requestId-Replay).
-- [GDS-7] LOW — **DOKUMENTIERT (feature/f0531-gds7-cleanup)** | Deterministisches Dual-Index-Prozedere in servers/server-guidance/README.md verankert: Refresh des Gate-relevanten repo-lokalen Index via WSL aus der exakten (kleingeschriebenen) Pfad-Identität mit --skip-skills; --force bei 'Already up to date'; gitnexus-server-Container refresh nur eigenen /data-Storage; AGENTS.md-Noise-Muster. Keine compose-Änderung nötig (kein GITNEXUS_* env vorhanden; Container-Storage aus Image-Defaults).
+- [GDS-6] MEDIUM — **RESOLVED (feature/gds6-chain-replay-hardening)** | retryOperations finalizes after a hook failure → the retry success is now complete: pendingCompletion {report, requestId} is persisted on the session at the hook failure; a retry success in phase complete sets status=completed + completedAt, audits workflow_completed (finalizedBy=retry_operation), creates the chain successor from the retained report (the extracted createChainSuccessorLocked/activateSuccessor helpers, shared with completeWorkflow) and caches the result under requestIds. The defensive path without pendingCompletion finalizes without a successor (visible in the audit). Regression tests tests/workflow/retry-finalize.test.ts (4 tests: plain finalize + replay, chained finalize + requestId replay).
+- [GDS-7] LOW — **DOCUMENTED (feature/f0531-gds7-cleanup)** | a deterministic dual-index procedure anchored in servers/server-guidance/README.md: refresh of the gate-relevant repo-local index via WSL from the exact (lowercase) path identity with --skip-skills; --force on 'Already up to date'; the gitnexus-server container refreshes only its own /data storage; AGENTS.md noise pattern. No compose change needed (no GITNEXUS_* env present; the container storage from image defaults).
 
-## 2026-10-01: CHAIN-1 — Source-Verifikation + R2-ACs verankert (feature/chain1-ac5-evidence)
+## 2026-10-01: CHAIN-1 — source verification + R2 ACs anchored (feature/chain1-ac5-evidence)
 
-- Root-Cause gegen Source verifiziert: WorkflowEngine.ts:639-648 (fail-closed,
-  recoverable:false, bei JEDEM Session-Zugriff mit Hash-Divergenz).
-- R2-Entscheidung als AC-13…AC-17 (Rebind mit Re-Validierung; completed
-  überlebt; Chain-Successor-Rebind; Audit-Event session_rebound) in
-  specs/015 spec.md Addendum verankert. Umsetzung = US1 (R1=B).
-- CHAIN-1 bleibt getrackt bis US1-Implementierung (AC-16-Regressionstest
-  ist das Abschluss-Kriterium); Symptom-Mechanismus ist damit vollständig
-  erklärt und spezifiziert.
+- Root cause verified against source: WorkflowEngine.ts:639-648 (fail-closed,
+  recoverable:false, on EVERY session access with hash divergence).
+- The R2 decision anchored as AC-13…AC-17 (rebind with re-validation; completed
+  survives; chain-successor rebind; audit event session_rebound) in
+  specs/015 spec.md addendum. Implementation = US1 (R1=B).
+- CHAIN-1 stays tracked until the US1 implementation (the AC-16 regression
+  test is the completion criterion); the symptom mechanism is thereby fully
+  explained and specified.
 
-## 2026-10-01: CHAIN-1-Verfeinerung — Successor born-invalid (Defekt-Hypothese präzisiert)
+## 2026-10-01: CHAIN-1 refinement — successor born-invalid (defect hypothesis made precise)
 
-- [CHAIN-1] Ergänzung: Per start_workflow erzeugte Sessions binden korrekt (drei Sessions liefen komplett durch: 293a251f, a0577447, 7e69dcdd — configurationVersion cacb2274 konistent). Serverseitig ERZEUGTE Chain-Successors binden denselben cacb2274-Hash, aber get_workflow_state vergleicht gegen 8cf5be36 → Successor born-invalid (betroffen: 78cad869, b0ae5c2a; cancelled). | Hypothese: Successor-Erzeugung komponiert die Config über den DEFAULT-Workspace-Root (/workspaces) statt über den Repo-Root (/workspaces/Thinking-MCP) → andere Registry-/Hash-Inputs als der Start-Pfad. | Trigger: specs/015-US1-Implementierung (AC-16-Rebind + Successor-Binding) — Regressionstest muss beide Pfade (start vs. successor) mit identischem Hash abdecken. | Bis dahin: pro Schritt frische start_workflow-Session (bewährtes Muster), Successor canceln.
+- [CHAIN-1] supplement: sessions created via start_workflow bind correctly (three sessions ran through completely: 293a251f, a0577447, 7e69dcdd — configurationVersion cacb2274 consistent). Server-side CREATED chain successors bind the same cacb2274 hash, but get_workflow_state compares against 8cf5be36 → successor born-invalid (affected: 78cad869, b0ae5c2a; cancelled). | Hypothesis: successor creation composes the config over the DEFAULT workspace root (/workspaces) instead of the repo root (/workspaces/Thinking-MCP) → different registry/hash inputs than the start path. | Trigger: the specs/015 US1 implementation (AC-16 rebind + successor binding) — the regression test must cover both paths (start vs. successor) with an identical hash. | Until then: a fresh start_workflow session per step (the proven pattern), cancel the successor.
 
-## Getrackte Follow-ups (2026-10-01, Re-Review 04a2b4c — session 5c4f1e44 Folge-Review)
+## Tracked Follow-ups (2026-10-01, Re-Review 04a2b4c — session 5c4f1e44 follow-up review)
 
-- [REV-04a2b4c-1] HIGH — **GELÖST (await-Fix: b09f74b; Tool-Level-Test: feature/rev04a2b4c1-registry-await-test)** | Der Handler serialisierte das un-awaitete registerWorkspace()-Promise als "{}". await-Fix + F1/F2-Regressionstests bereits in b09f74b (develop); fehlender Tool-Level-Response-Shape-Test nachgereicht: registry-rebind.test.ts 'review F-handler' — stub MCP server fängt registry_register-Handler ab, echte WorkflowTools über Pool-Engine; asserted configurationVersion + registry im serialisierten Body (nicht "{}") und fail-closed-Rejection (/root does not exist/) statt un-awaited Body. SDK-zod-Layer bewusst out of scope (Stub). Fokussiert 12/12, typecheck + prettier grün.
-- [REV-04a2b4c-2] MEDIUM — **GELÖST b09f74b** | Fingerprint-Drift-Probe als Live-Engine-Test nachgereicht (registry-rebind.test.ts 'review F2': engine1 nach touchConfig() befragt, session_rebound auditiert).
-- [REV-04a2b4c-3] MEDIUM — **GELÖST b09f74b** | F1-Purge-Regressionstest nachgereicht (registry-rebind.test.ts 'review F1': Session routen → registerWorkspace remove → getWorkflowState fail-closed statt stale Route).
+- [REV-04a2b4c-1] HIGH — **RESOLVED (await fix: b09f74b; tool-level test: feature/rev04a2b4c1-registry-await-test)** | the handler serialized the un-awaited registerWorkspace() promise as "{}". The await fix + F1/F2 regression tests already in b09f74b (develop); the missing tool-level response-shape test supplied: registry-rebind.test.ts 'review F-handler' — a stubbed MCP server intercepts the registry_register handler, real WorkflowTools via the pool engine; asserts configurationVersion + registry in the serialized body (not "{}") and the fail-closed rejection (/root does not exist/) instead of an un-awaited body. The SDK zod layer deliberately out of scope (stub). Focused 12/12, typecheck + prettier green.
+- [REV-04a2b4c-2] MEDIUM — **RESOLVED b09f74b** | the fingerprint drift probe supplied as a live engine test (registry-rebind.test.ts 'review F2': engine1 queried after touchConfig(), session_rebound audited).
+- [REV-04a2b4c-3] MEDIUM — **RESOLVED b09f74b** | the F1 purge regression test supplied (registry-rebind.test.ts 'review F1': route a session → registerWorkspace remove → getWorkflowState fail-closed instead of a stale route).
 
-## Getrackte Follow-ups (2026-10-01, specs/015 US2 Review — session 28f04594, Commit e5780fc)
+## Tracked Follow-ups (2026-10-01, specs/015 US2 Review — session 28f04594, commit e5780fc)
 
-- [REV-US2-F1] MEDIUM — **GELÖST — REWORK c371f7e (feature/approval-policy-config, Nutzer-Design-Korrektur: Unattended-Betrieb)** | Ursprünglich Scope-A (interaktive Grants pro Ausführung) kollidierte mit der Unattended-Philosophie. Jetzt: Trust-Act in der Konfiguration — policies.json → policies.approvals (riskClass → allow|require, fail-closed validiert; Defaults: destructive/credential_sensitive → require (Zeremonie bleibt), workspace_write/external_write/read_only → allow (unattended)). validatePolicies-Bugfix: Approvals-Validierung übersprungen früher den Early-Return bei fehlender submission-Sektion (durch Fail-closed-Test gedeckt, der unter Alt-Code scheitert). Zeremonie/assert/consume/all-or-nothing unverändert für require-Klassen; Gate an allen 8 Pfaden; configVersion-Hash erfasst approvals (Änderung revalued Sessions). Vollauf 534/534. Siehe auch REV-APPCFG-1/-2.
-- [REV-US2-F2] MEDIUM — **GELÖST (feature/rev-us2-f2f3f4)** | Beschreibungen in allen drei Katalogen + README-Zeile zu deps-install auf die echten firstAvailable-Semantiken umgestellt (Fallback bei JEDEM npm-ci-Fehler; node_modules-Lösch-Caveat). Entscheidung: Doku-Alignment statt condition-Feld (Engine hat keine per-Step-Conditions; wäre neues Feature).
-- [REV-US2-F3] LOW — **GELÖST (feature/rev-us2-f2f3f4)** | Composite-Failure-Merge führt jetzt die Step-Warnings mit (node_deps_hint überlebt); Test 'REV-US2-F3: a failing composite gate keeps its step warnings'. Hint-on-every-process-fail bleibt akzeptiertes Rauschen.
-- [REV-US2-F4] LOW — **GELÖST (feature/rev-us2f2f3f4)** | Drei Kataloge field-identisch für deps-install/deps-reinstall (canonical: protocolRequestMustSucceed + summary_and_errors + unified description inkl. 'Runs in the workspace root'); neuer Drift-Guard-Test 'REV-US2-F4: the three deps-op catalogs are field-identical'.
-- [REV-US2-F5] LOW — **GELÖST (feature/fr053-approval-gate)** | Plattform-Constraint in deps-reinstall-Beschreibung (alle 3 Kataloge, drift-guard-getrackt) + README dokumentiert.
-- [REV-US2-F6] LOW — **TEILWEISE GELÖST (feature/fr053-approval-gate)** | require("node:fs") → Import umgestellt. Lockfile-Flakiness-Restrisiko bleibt getrackt (Trigger: npm-Major-Update ODER Flakiness auftritt).
-- [DEPLOY-015] OBSERVATION | ~~Instanz-.guidance/operations.json enthält die deps-Ops bewusst NICHT~~ **ERLEDIGT 2026-10-01 (Commit 0837069):** deps-install/deps-reinstall in der Instanz-Config, `test`-Gate auf required:true gezogen, GATE-1-Disclaimer entfernt; Container gehealt (npm ci + install-scripts-Approvals), lint/test im Container grün. | **[DEPLOY-015b] ~~MEDIUM~~ ERLEDIGT 2026-10-01 (feature/015-deploy-015b-image-tools):** make + g++ in die apt-Layer von servers/server-guidance/Dockerfile aufgenommen (node-gyp-Toolchain komplett: python3/make/g++/gcc/libc6-dev); zusätzlich der duplizierte unbedingte dotnet-Install-Block entfernt (INSTALL_CSHARP=false war wirkungslos, .NET SDK wurde immer installiert — Image-Bloat). Verifiziert: `docker compose build guidance` grün; Throwaway-Probe auf dem neuen Image: make/g++/python3 vorhanden, dotnet absent. Roll-out (`up -d --force-recreate`) nach Session-Completion — danach ist deps-reinstall in einem frischen Container ohne manuelle apt-Nacharbeit funktionsfähig. Die npm-≥11.19-Allowlist (`allowScripts` in package.json, Commit 0837069) bleibt als zweite Hälfte des Fixes bestehen. |
+- [REV-US2-F1] MEDIUM — **RESOLVED — REWORK c371f7e (feature/approval-policy-config, user design correction: unattended operation)** | originally scope A (interactive grants per execution) collided with the unattended philosophy. Now: a trust act in the configuration — policies.json → policies.approvals (riskClass → allow|require, fail-closed validated; defaults: destructive/credential_sensitive → require (the ceremony remains), workspace_write/external_write/read_only → allow (unattended)). validatePolicies bugfix: the approvals validation previously skipped the early return on a missing submission section (covered by the fail-closed test that fails under the old code). Ceremony/assert/consume/all-or-nothing unchanged for the require classes; the gate on all 8 paths; the configVersion hash covers approvals (a change revaliduates sessions). Full run 534/534. See also REV-APPCFG-1/-2.
+- [REV-US2-F2] MEDIUM — **RESOLVED (feature/rev-us2-f2f3f4)** | descriptions in all three catalogs + the README line for deps-install switched to the real firstAvailable semantics (fallback on EVERY npm-ci error; the node_modules deletion caveat). Decision: doc alignment instead of a condition field (the engine has no per-step conditions; that would be a new feature).
+- [REV-US2-F3] LOW — **RESOLVED (feature/rev-us2-f2f3f4)** | the composite failure merge now carries the step warnings (node_deps_hint survives); test 'REV-US2-F3: a failing composite gate keeps its step warnings'. Hint-on-every-process-fail remains accepted noise.
+- [REV-US2-F4] LOW — **RESOLVED (feature/rev-us2-f2f3f4)** | the three catalogs field-identical for deps-install/deps-reinstall (canonical: protocolRequestMustSucceed + summary_and_errors + a unified description incl. 'Runs in the workspace root'); a new drift-guard test 'REV-US2-F4: the three deps-op catalogs are field-identical'.
+- [REV-US2-F5] LOW — **RESOLVED (feature/fr053-approval-gate)** | a platform constraint in the deps-reinstall description (all 3 catalogs, drift-guard-tracked) + README documented.
+- [REV-US2-F6] LOW — **PARTIALLY RESOLVED (feature/fr053-approval-gate)** | require("node:fs") → switched to an import. The lockfile flakiness residual risk stays tracked (trigger: an npm major update OR flakiness occurs).
+- [DEPLOY-015] OBSERVATION | ~~the instance .guidance/operations.json deliberately does NOT contain the deps ops~~ **DONE 2026-10-01 (commit 0837069):** deps-install/deps-reinstall in the instance config, the `test` gate pulled to required:true, the GATE-1 disclaimer removed; the container healed (npm ci + install-script approvals), lint/test green in the container. | **[DEPLOY-015b] ~~MEDIUM~~ DONE 2026-10-01 (feature/015-deploy-015b-image-tools):** make + g++ added to the apt layers of servers/server-guidance/Dockerfile (the complete node-gyp toolchain: python3/make/g++/gcc/libc6-dev); additionally the duplicated unconditional dotnet install block removed (INSTALL_CSHARP=false was ineffective, the .NET SDK was always installed — image bloat). Verified: `docker compose build guidance` green; a throwaway probe on the new image: make/g++/python3 present, dotnet absent. Rollout (`up -d --force-recreate`) after session completion — afterwards deps-reinstall works in a fresh container without manual apt follow-up. The npm-≥11.19 allowlist (`allowScripts` in package.json, commit 0837069) remains as the second half of the fix. |
 
-## Getrackte Follow-ups (2026-10-01, Independent Review eedb7bb — feature/gds6-chain-replay-hardening)
+## Tracked Follow-ups (2026-10-01, Independent Review eedb7bb — feature/gds6-chain-replay-hardening)
 
-- [REV-eedb7bb-1] LOW — **GELÖST (Follow-up-Commit auf feature/gds6-chain-replay-hardening)** | retryOperations propagiert pending.requestId jetzt an activateSuccessor → Cache wird post-activation mit finaler chain[0].status refresh (Mirror des Complete-Pfads).
+- [REV-eedb7bb-1] LOW — **RESOLVED (follow-up commit on feature/gds6-chain-replay-hardening)** | retryOperations now propagates pending.requestId to activateSuccessor → the cache is refreshed post-activation with the final chain[0].status (a mirror of the complete path).
 - [REV-eedb7bb-2] INFO | Pre-upgrade retry-wedged sessions (status=active, currentPhase='completed', no pendingCompletion) remain unrecoverable: retry_operation hits the terminal phase (no beforeExit ops, no transition), complete_workflow fails invalid_active_phase. Pre-upgrade hook-failure wedges (still at phase 'complete') ARE recovered by the new finalize path. No migration provided. | Trigger: any operator report of a session stuck active/completed from before eedb7bb. | Accepted observation: cancel_workflow + fresh start is the documented recovery.
 - [REV-eedb7bb-3] INFO | pendingCompletion persists the FULL completion report in the session JSON (new retention that did not exist before — failure/success paths never stored the report). Size/sensitivity bounded by report content; survives resume/reportBlocker paths until finalize or cancellation. | Trigger: next touch on session persistence/retention or sensitive-data policy. | Action required: consider clearing pendingCompletion on cancel_workflow and documenting retention in README.
 - [REV-eedb7bb-4] INFO | Concurrency paths (concurrent retry+complete, double retry) are untested; analysis shows they are safe via session-lock serialization (second complete → workflow_already_completed; second retry → non-mutating workflow_blocked). Retry success in phase 'complete' WITHOUT prior complete_workflow call is also untested (skips report schema validation; finalize without successor if pendingCompletion absent). | Trigger: next touch on retryOperations. | Action required: add a double-retry and a no-pendingCompletion retry-finalize test.
 - [REV-eedb7bb-5] INFO | Fail-closed duplicate check rejects manifests where the head intentionally re-states step 0 scope (trimmed equality). Recoverable configuration_invalid with remediation hint; README documents the rule. | Accepted observation (intentional fail-closed design per remaining-work-plan L19-34).
-- [REV-eedb7bb-6] LOW — **GELÖST (Follow-up-Commit)** | Verwaister doppelter Doc-Comment-Block über wsGuidance() entfernt.
+- [REV-eedb7bb-6] LOW — **RESOLVED (follow-up commit)** | the orphaned duplicated doc-comment block above wsGuidance() removed.
 
-## Getrackte Follow-ups (2026-10-02, Independent Review 7edef62 — feature/rev-us2-f2f3f4, REVIEW APPROVED, 0 HIGH/CRIT)
+## Tracked Follow-ups (2026-10-02, Independent Review 7edef62 — feature/rev-us2-f2f3f4, REVIEW APPROVED, 0 HIGH/CRIT)
 
-- [REV-F2F3F4-1] LOW — **GELÖST (feature/fr053-approval-gate)** | applyExposure summary_and_errors lässt Warnings jetzt durch (content/data weiter suppress; status_only/summary/none unverändert) — node_deps_hint erreicht den Agenten; PolicyEngine-Test + Composite-End-to-End in approval-gate.test.ts.
-- [REV-F2F3F4-2] LOW — **GELÖST (feature/f0531-gds7-cleanup)** | Beschreibung in allen drei Katalogen präzisiert: via-Label '(audit note; visible in run history)' — drift-guard-getrackt.
-- [REV-F2F3F4-3] INFO | Unkommentierter Kosmetik-Change im Commit: Composite-Failure-Summary-Join von `errors.join("; ")` auf `errors.join(";")` geändert (OperationEngine.ts:204) — kein Test pinnt das Format, kein Consumer-Impact. | Trigger: keiner. | Akzeptiert.
+- [REV-F2F3F4-1] LOW — **RESOLVED (feature/fr053-approval-gate)** | applyExposure summary_and_errors now lets warnings through (content/data still suppressed; status_only/summary/none unchanged) — node_deps_hint reaches the agent; a PolicyEngine test + a composite end-to-end in approval-gate.test.ts.
+- [REV-F2F3F4-2] LOW — **RESOLVED (feature/f0531-gds7-cleanup)** | the description in all three catalogs made precise: the via-label '(audit note; visible in run history)' — drift-guard-tracked.
+- [REV-F2F3F4-3] INFO | an uncommented cosmetic change in the commit: the composite failure summary join changed from `errors.join("; ")` to `errors.join(";")` (OperationEngine.ts:204) — no test pins the format, no consumer impact. | Trigger: none. | Accepted.
 
-- [DEPLOY-015c] MEDIUM (NEU 2026-10-01): Die Container-Testsuite crasht beim vitest-Worker-Teardown: `node::RemoveEnvironmentCleanupHook`-Assert (`env != nullptr`), 2–5 Worker pro Lauf, deterministisch (forks/threads, mit/ohne File-Parallelismus jeweils betroffen; Tests selbst 108–113/118 grün). Verdacht: node 24.21-Container-Binary × native Addon (better-sqlite3/sharp)-Teardown. Folge: `test`-Gate wieder auf required:false zurückgestellt, WSL-Suite bleibt autoritativ. | Trigger: nächster Container-/node-Upgrade-Zyklus ODER Debug-Session für die Teardown-Crashes. | Action required: Ursache eingrenzen (welches Addon den Cleanup-Hook registriert; node-Version-Bisect; ggf. Vitest-Pool-Config im Repo) und dann test wieder auf required:true ziehen. |
+- [DEPLOY-015c] MEDIUM (NEW 2026-10-01): the container test suite crashes at vitest worker teardown: a `node::RemoveEnvironmentCleanupHook` assert (`env != nullptr`), 2–5 workers per run, deterministic (forks/threads, with/without file parallelism affected respectively; the tests themselves 108–113/118 green). Suspicion: the node 24.21 container binary × a native addon (better-sqlite3/sharp) teardown. Consequence: the `test` gate moved back to required:false, the WSL suite remains authoritative. | Trigger: the next container/node upgrade cycle OR a debug session for the teardown crashes. | Action required: narrow the cause (which addon registers the cleanup hook; a node version bisect; possibly a vitest pool config in the repo) and then pull test back to required:true. |
 
-## Getrackte Follow-ups (2026-10-02, Independent Review 5d782c9 — feature/fr053-approval-gate, APPROVED, 0 HIGH/CRIT)
+## Tracked Follow-ups (2026-10-02, Independent Review 5d782c9 — feature/fr053-approval-gate, APPROVED, 0 HIGH/CRIT)
 
-- [REV-F053-1] LOW — **GELÖST (feature/f0531-gds7-cleanup)** | Die vier op-by-op-Lifecycle-Loops (activateSession beforeEnter, runAfterEnter, beforeEnterIds, afterExitIds) validieren jetzt die GESAMTE Liste vor der ersten Ausführung (all-or-nothing); Konsum bleibt erfolgsbasiert pro Op. Regressionstests: Pre-Loop-Denial nennt das spätere gated Op, kein Op läuft, frühere Grants bleiben erhalten.
-- [REV-F053-1b-1] INFO (Independent Review 588fa62 — feature/f0531-gds7-cleanup, APPROVED, 0 HIGH/CRIT) | Kosmetik: Kommentartext der REV-F053-1-Markierung im afterExit-Loop falsch eingerückt (WorkflowEngine.ts:2622 — 8 Spaces statt 4, eingeführt im Fix-Commit). Rein optisch, kein Verhaltens- oder Lint-Impact. | Trigger: nächste Berührung am afterExit-Block in WorkflowEngine.ts. | Action required: Einrückung auf 4 Spaces korrigieren.
-- [REV-F053-2] LOW — ACCEPTED (observation) | Das Gate vertraut dem deklarierten riskClass der Operation-Config: Ein Profil-Autor kann workspace-schreibende Composite-Steps als read_only deklarieren und umgeht damit die Zeremonie. Config-Authoring ist die etablierte Trust-Boundary (dieselbe Annahme wie invocableByAgent/required). | Trigger: nächste Änderung am Composite-Schema oder an der Gate-Logik. | Action required (optional): Composite-Steps auf deklarative Step-riskClass prüfen (max über Steps) statt nur die Op-Ebene.
-- [REV-F053-3] INFO | consumeApprovals schreibt approvedOperations aus dem beim Call-Start geladenen Array zurück (update lädt frisch, ersetzt aber das Feld). Ein paralleler approval_granted während eines laufenden Runs wäre lost-update — praktisch unerreichbar, da Grants status=blocked erfordern und Ops status=active (runningOps-Lock). | Trigger: falls der Status-Check in resumeWorkflow je gelockert wird. | Accepted observation.
+- [REV-F053-1] LOW — **RESOLVED (feature/f0531-gds7-cleanup)** | the four op-by-op lifecycle loops (activateSession beforeEnter, runAfterEnter, beforeEnterIds, afterExitIds) now validate the ENTIRE list before the first execution (all-or-nothing); consumption remains success-based per op. Regression tests: the pre-loop denial names the later gated op, no op runs, earlier grants are preserved.
+- [REV-F053-1b-1] INFO (Independent Review 588fa62 — feature/f0531-gds7-cleanup, APPROVED, 0 HIGH/CRIT) | cosmetics: the comment text of the REV-F053-1 marker in the afterExit loop is wrongly indented (WorkflowEngine.ts:2622 — 8 spaces instead of 4, introduced in the fix commit). purely optical, no behavior or lint impact. | Trigger: the next touch of the afterExit block in WorkflowEngine.ts. | Action required: correct the indentation to 4 spaces.
+- [REV-F053-2] LOW — ACCEPTED (observation) | the gate trusts the declared riskClass of the operation config: a profile author can declare workspace-writing composite steps as read_only and thereby bypass the ceremony. Config authoring is the established trust boundary (the same assumption as invocableByAgent/required). | Trigger: the next change to the composite schema or the gate logic. | Action required (optional): check composite steps against a declarative step riskClass (max over steps) instead of only the op level.
+- [REV-F053-3] INFO | consumeApprovals writes approvedOperations back from the array loaded at call start (update loads fresh but replaces the field). A parallel approval_granted during a running run would be a lost update — practically unreachable since grants require status=blocked and ops status=active (the runningOps lock). | Trigger: if the status check in resumeWorkflow is ever relaxed. | Accepted observation.
 
-## Getrackte Follow-ups (2026-10-02, Independent Review c371f7e — feature/approval-policy-config, APPROVED, 0 HIGH/CRIT)
+## Tracked Follow-ups (2026-10-02, Independent Review c371f7e — feature/approval-policy-config, APPROVED, 0 HIGH/CRIT)
 
-- [REV-APPCFG-1] LOW — ACCEPTED (re-scheduled) | REV-F053-2-Trigger ist mit c371f7e FEUER GEFANGEN (dieser Commit ändert die Gate-Logik: requiresApproval resolves aus policies.approvals), aber die optionale Action (Composite-Steps auf deklarative Step-riskClass prüfen — max über Steps statt nur Op-Ebene) wurde NICHT umgesetzt. Das Gate vertraut weiterhin nur der Op-Ebenen-riskClass; unter Default-'allow' für workspace_write erhöht sich der Impact einer falsch deklarierten Composite-Step-riskClass nicht zusätzlich (der Profil-Autor konnte die Op-Ebene schon vorher deklarieren — Config-Authoring bleibt die Trust-Boundary). | Trigger: nächste Änderung am Composite-Schema, an der Gate-Logik ODER wenn ein 'require'-Default für workspace_write wieder eingeführt wird. | Action required (optional): max(Step-riskClasses) als effektive Op-riskClass ableiten oder explizit mit Begründung endgültig akzeptieren.
-- [REV-APPCFG-2] INFO | Workflow-Level-Zeremonie-Coverage pinnt den 'require'-Pfad nur über das riskClass workspace_write-Require-Fixture; destructive/credential_sensitive sind auf Workflow-Ebene nicht durch eine require-Node-Fixture abgedeckt (nur Unit-Level via policy-engine.test.ts Defaults + Fallback-Assertions). Da assertApprovals klassenagnostisch über die aufgelöste approvals-Map läuft, ist die Abdeckung ausreichend. | Trigger: nächste Änderung an assertApprovals/Zeremonie. | Accepted observation.
+- [REV-APPCFG-1] LOW — ACCEPTED (re-scheduled) | the REV-F053-2 trigger FIRED with c371f7e (this commit changes the gate logic: requiresApproval resolves from policies.approvals), but the optional action (check composite steps against a declarative step riskClass — max over steps instead of only the op level) was NOT implemented. The gate still trusts only the op-level riskClass; under the default 'allow' for workspace_write the impact of a wrongly declared composite step riskClass does not increase further (the profile author could already declare the op level before — config authoring remains the trust boundary). | Trigger: the next change to the composite schema, the gate logic OR when a 'require' default for workspace_write is reintroduced. | Action required (optional): derive max(step riskClasses) as the effective op riskClass or explicitly and finally accept with rationale.
+- [REV-APPCFG-2] INFO | the workflow-level ceremony coverage pins the 'require' path only via the riskClass workspace_write require fixture; destructive/credential_sensitive are not covered at workflow level by a require-node fixture (only unit level via policy-engine.test.ts defaults + fallback assertions). Since assertApprovals runs class-agnostically over the resolved approvals map, the coverage is sufficient. | Trigger: the next change to assertApprovals/ceremony. | Accepted observation.
 
-## Getrackte Follow-ups (2026-10-02, Independent Review 283fc74 — feature/registry-register-default-on, APPROVED, 0 HIGH/CRIT)
+## Tracked Follow-ups (2026-10-02, Independent Review 283fc74 — feature/registry-register-default-on, APPROVED, 0 HIGH/CRIT)
 
-- [REV-RRDO-1] LOW — GELÖST (9f7bc5f) | Kein Test asserted, dass `tools/list` `registry_register` EXKLUDIERT, wenn `registryRegister.enabled: false` — die Tool-List-Gate-Branch (register-tools.ts, isRegistryRegisterEnabled) ist nur indirekt über die Engine-Ebene abgedeckt; durch den Default-Flip ist die negative Branch jetzt die nicht-defaultige. | Trigger: nächste Änderung an register-tools.ts / ToolHandlers.ts. | Action required (optional): Opt-out-Tool-Listen-Assertion in tools-registration.test.ts ergänzen.
-- [REV-RRDO-2] LOW — GELÖST (9f7bc5f) | Kein Test asserted, dass Scaffold (scaffold.ts) und Config-Assistant registry-edit (ConfigAssistant.ts) `registryRegister: { enabled: true }` emittieren; shipped-configs-Tests prüfen nur Loadability. | Trigger: nächste Änderung an scaffold.ts / ConfigAssistant.ts. | Action required (optional): Emissions-Assertion ergänzen (Regression würde aktuell nur über Tool-Surface-Tests indirekt auffallen).
-- [REV-RRDO-3] INFO | HTTP-Exposure von registry_register ist jetzt Default auf allen Instanzen (loopback, ohne Auth) — absichtlich, gebunden an isChild/Flag/build-Validierung; lokales Threat-Model unverändert (direkter guidance.json-Edit gleichwertig). | Trigger: falls Loopback-Endpoints künftig Auth-frei über den Container hinaus exponiert werden. | Accepted observation.
-- [REV-RRDO-4] INFO | Opt-out-Test (tools-registration.test.ts) schließt optOutServer im finally nicht (nur den Client) — muster-konsistent mit dem ungeschlossenen modularen beforeEach-Server; In-Memory-Transport, kein Cross-Test-State beobachtet. | Trigger: falls Vitest-Teardown-Crash (DEPLOY-015c-Muster) hier zuschlägt. | Accepted observation.
-- [REV-RRDO-5] INFO | `not.toContain("registry_register")` im Opt-out-Test ist redundant zur exakten Gleichheits-Assertion — bewusst als Intent-Dokumentation belassen. | Trigger: n/a. | Accepted observation.
-- [x] FR-FINAL-1 LOW — GELÖST (Hash-Fix-Commit, dieser) | Final-Review (Sub-Agent aa18d064, APPROVED 0 HIGH/CRIT) fand: activeContext/remaining-work-plan referenzierten den pre-amend-Hash 98cb690 statt des Vorgänger-Hashes 9f7bc5f (nur via Reflog erreichbar). Hash-Referenzen korrigiert; sachlicher Inhalt der Claims war korrekt.
-- [x] FR-FINAL-2 INFO — GELÖST (committet auf Nutzeranweisung, ohne Extra-Review) | `AGENTS.md`/`CLAUDE.md` im Haupt-Checkout uncommitet modifiziert (identischer +11-Zeilen-Block „## CLI" mit GitNexus-Skill-Tabelle — vermutlich Nebenprodukt eines gitnexus/AGENTS-Guide-Merges). Außerhalb des Session-Scopes; vor dem nächsten Commit aufräumen (committen oder verwerfen). | Trigger: nächster Meta-Docs-Commit oder Nutzeranweisung. | Action required: Nutzerentscheid.
-- [x] FR-FINAL-3 INFO — ACCEPTED | Prettier-Reformat-Churn in scaffold.test.ts (~80 von 109 Zeilen, rein formatierend) — konsistent mit der geltenden Prettier-Pflicht, kein Verhaltensunterschied.
+- [REV-RRDO-1] LOW — RESOLVED (9f7bc5f) | no test asserted that `tools/list` EXCLUDES `registry_register` when `registryRegister.enabled: false` — the tool-list gate branch (register-tools.ts, isRegistryRegisterEnabled) is covered only indirectly via the engine level; with the default flip the negative branch is now the non-default one. | Trigger: the next change to register-tools.ts / ToolHandlers.ts. | Action required (optional): add an opt-out tool-list assertion in tools-registration.test.ts.
+- [REV-RRDO-2] LOW — RESOLVED (9f7bc5f) | no test asserted that the scaffold (scaffold.ts) and the config assistant registry edit (ConfigAssistant.ts) emit `registryRegister: { enabled: true }`; the shipped-configs tests check only loadability. | Trigger: the next change to scaffold.ts / ConfigAssistant.ts. | Action required (optional): add an emission assertion (a regression would currently only show indirectly via tool-surface tests).
+- [REV-RRDO-3] INFO | HTTP exposure of registry_register is now the default on all instances (loopback, without auth) — deliberate, bound to isChild/flag/build validation; the local threat model unchanged (a direct guidance.json edit is equivalent). | Trigger: if loopback endpoints are ever exposed auth-free beyond the container. | Accepted observation.
+- [REV-RRDO-4] INFO | the opt-out test (tools-registration.test.ts) does not close the optOutServer in the finally (only the client) — pattern-consistent with the unclosed modular beforeEach server; in-memory transport, no cross-test state observed. | Trigger: if a vitest teardown crash (the DEPLOY-015c pattern) strikes here. | Accepted observation.
+- [REV-RRDO-5] INFO | `not.toContain("registry_register")` in the opt-out test is redundant to the exact equality assertion — deliberately left as intent documentation. | Trigger: n/a. | Accepted observation.
+- [x] FR-FINAL-1 LOW — RESOLVED (the hash fix commit, this one) | the final review (sub-agent aa18d064, APPROVED 0 HIGH/CRIT) found: activeContext/remaining-work-plan referenced the pre-amend hash 98cb690 instead of the predecessor hash 9f7bc5f (reachable only via the reflog). Hash references corrected; the factual content of the claims was correct.
+- [x] FR-FINAL-2 INFO — RESOLVED (committed on user instruction, without an extra review) | `AGENTS.md`/`CLAUDE.md` in the main checkout modified uncommitted (an identical +11-line block "## CLI" with a GitNexus skill table — presumably a byproduct of a gitnexus/AGENTS-guide merge). Outside the session scope; clean up before the next commit (commit or discard). | Trigger: the next meta-docs commit or a user instruction. | Action required: user decision.
+- [x] FR-FINAL-3 INFO — ACCEPTED | Prettier reformat churn in scaffold.test.ts (~80 of 109 lines, purely formatting) — consistent with the mandatory prettier rule, no behavioral difference.
 
-## Getrackte Follow-ups (2026-10-02, session-fae2aa34 — feature/guidance-registry-hot-reload-deps-preflight)
+## Tracked Follow-ups (2026-10-02, session-fae2aa34 — feature/guidance-registry-hot-reload-deps-preflight)
 
-- [x] PREFLIGHT-DEPLOY MEDIUM — GELÖST (Recreate durch Nutzer, 2026-10-02) | Der laufende guidance-Container läuft noch auf dem alten Build (dist); beide Fixes (Registry-Live-Provider, deps-Pre-Flight) greifen erst nach `docker compose build guidance && docker compose up -d`. | Trigger: vor dem nächsten Niyama-Dummy-Workflow bzw. dem nächsten Deployment-Fenster. | Action required: Rebuild + Recreate, danach Live-Check (registry_register → start_workflow ohne Neustart).
-- [PREFLIGHT-SCOPE] INFO | Pre-Flight hakt nur an den beiden WorkflowEngine-Lifecycle-Gate-Sites (beforeEnter-Aktivierung, beforeExit-Submit); run_operation/agent-initiierte Ops laufen bewusst ohne Auto-Pre-Flight (der Agent sieht deps-Hints reaktiv). | Trigger: falls Gates künftig über weitere Pfade laufen (z.B. neuer ExecuteRequired-Call-Site). | Accepted observation.
-- [REV-PREFLIGHT-1] MEDIUM→GELÖST (dieser Commit) | Independent Review 1eb58118: kein Fail-open-Regressionstest; composedView.workspaces in server.ts hielt weiterhin einen frozen Snapshot (lesend ungenutzt, aber tückisch). Gefixt: Live-Getter + Fail-open-Test (deps-preflight.test.ts, failing deps-install → resolves, Audit failed:true). | Trigger: n/a (gelöst). | —
-- [REV-PREFLIGHT-2] LOW | preflightLocks: Serialisierung nur pro Prozess — ein stdio- und ein HTTP-Instance können theoretisch parallel npm in denselben Tree laufen lassen; kein workspace-lock.ts-Filelock integriert. | Trigger: falls Guidance je Workspace in mehreren Prozessen läuft. | Action required (optional): WorkspaceOpLock-Integration oder dokumentierte Single-Process-Zusage.
-- [REV-PREFLIGHT-3] LOW | Kein Test für zwei gleichzeitige runDepsPreflight-Calls auf demselben Root (Chaining logisch verifiziert, nicht pinnt). | Trigger: nächste Änderung an runDepsPreflight/preflightLocks. | Action required (optional): Promise.all-Test mit Ausführungs-Zähler.
-- [REV-PREFLIGHT-4] LOW | beforeExit markiert Gate-Ops als "running" VOR dem Pre-Flight — ein langer npm-Install zeigt Gates als laufend; Lockfile-Heuristik kennt nur package-lock.json (yarn/pnpm/bun bleiben reaktiv). | Trigger: nächste Änderung an Submit-Gate-Reihenfolge bzw. Lockfile-Unterstützung (npm-only per Scope-Entscheidung). | Accepted observation + optionale Reihenfolge-Harmonisierung.
-- [REV-FINAL-PF-1] LOW | Lock-Body von runDepsPreflight prüft nodeDepsStale nicht erneut — N Gates am selben Root laufen N× deps-install sequentiell (korrekt, aber redundant). | Trigger: nächste Änderung an runDepsPreflight. | Action required (optional): Double-Checked Locking (Erneut-Check im Body).
-- [REV-FINAL-PF-2] LOW | preflightLocks-Map wird nie geleert (Wachstum pro distinct Root über Prozesslebensdauer, praktisch klein). | Trigger: nächste Änderung an preflightLocks. | Action required (optional): Settle-and-delete-current Cleanup.
-- [REV-FINAL-PF-3] INFO | Automatischer Pre-Flight ist Scope-Erweiterung gegenüber specs/015 US2 (dort nur Operationen + reaktive Hints); README-dokumentiert, Spec-Addendum empfohlen. | Trigger: nächste specs/015-Bearbeitung. | Action required (optional): AC-Addendum "automatic pre-flight" aufnehmen.
-- [REV-FINAL-PF-4] LOW | deps_preflight-Audit-Asymmetrie: Erfolg hinterlässt nur das Start-Event (Outcome steht in recordDownstreamState), Failure zusätzlich failed:true-Event; README dokumentiert nur das Failure-Event. | Trigger: nächste Änderung am Pre-Flight-Audit bzw. README-Abschnitt "Automatic dependency pre-flight". | Action required (optional): terminales Status-Event auch bei Erfolg + README-Satz.
+- [x] PREFLIGHT-DEPLOY MEDIUM — RESOLVED (recreated by the user, 2026-10-02) | the running guidance container still runs on the old build (dist); both fixes (the registry live provider, the deps pre-flight) only take effect after `docker compose build guidance && docker compose up -d`. | Trigger: before the next Niyama dummy workflow or the next deployment window. | Action required: rebuild + recreate, then a live check (registry_register → start_workflow without a restart).
+- [PREFLIGHT-SCOPE] INFO | the pre-flight hooks only at the two WorkflowEngine lifecycle gate sites (beforeEnter activation, beforeExit submit); run_operation/agent-initiated ops deliberately run without an auto pre-flight (the agent sees deps hints reactively). | Trigger: if gates ever run over further paths (e.g. a new executeRequired call site). | Accepted observation.
+- [REV-PREFLIGHT-1] MEDIUM→RESOLVED (this commit) | Independent Review 1eb58118: no fail-open regression test; composedView.workspaces in server.ts still held a frozen snapshot (unused for reading, but treacherous). Fixed: a live getter + a fail-open test (deps-preflight.test.ts, failing deps-install → resolves, the audit failed:true). | Trigger: n/a (resolved). | —
+- [REV-PREFLIGHT-2] LOW | preflightLocks: serialization only per process — a stdio and an HTTP instance can theoretically run npm in parallel into the same tree; no workspace-lock.ts file lock integrated. | Trigger: if guidance ever runs per workspace in several processes. | Action required (optional): WorkspaceOpLock integration or a documented single-process guarantee.
+- [REV-PREFLIGHT-3] LOW | no test for two simultaneous runDepsPreflight calls on the same root (chaining logically verified, not pinned). | Trigger: the next change to runDepsPreflight/preflightLocks. | Action required (optional): a Promise.all test with an execution counter.
+- [REV-PREFLIGHT-4] LOW | beforeExit marks gate ops as "running" BEFORE the pre-flight — a long npm install shows the gates as running; the lockfile heuristic knows only package-lock.json (yarn/pnpm/bun remain reactive). | Trigger: the next change to the submit gate order or lockfile support (npm-only per the scope decision). | Accepted observation + an optional order harmonization.
+- [REV-FINAL-PF-1] LOW | the lock body of runDepsPreflight does not re-check nodeDepsStale — N gates on the same root run N× deps-install sequentially (correct, but redundant). | Trigger: the next change to runDepsPreflight. | Action required (optional): double-checked locking (a re-check in the body).
+- [REV-FINAL-PF-2] LOW | the preflightLocks map is never emptied (growth per distinct root over the process lifetime, practically small). | Trigger: the next change to preflightLocks. | Action required (optional): a settle-and-delete-current cleanup.
+- [REV-FINAL-PF-3] INFO | the automatic pre-flight is a scope extension vs. specs/015 US2 (there only operations + reactive hints); README-documented, a spec addendum recommended. | Trigger: the next specs/015 edit. | Action required (optional): add an AC addendum "automatic pre-flight".
+- [REV-FINAL-PF-4] LOW | deps_preflight audit asymmetry: success leaves only the start event (the outcome is in recordDownstreamState), failure additionally a failed:true event; the README documents only the failure event. | Trigger: the next change to the pre-flight audit or the README section "Automatic dependency pre-flight". | Action required (optional): a terminal status event also on success + a README sentence.
 
-## Getrackte Follow-ups (2026-10-03, Independent Review fe25128 — WIZ-4 workspaceNameHint)
+## Tracked Follow-ups (2026-10-03, Independent Review fe25128 — WIZ-4 workspaceNameHint)
 
-> Review von commit fe25128 (feature/wiz-config-assistant-rework). Verdict: APPROVED,
-> 0 offene HIGH/CRITICAL. Folgende LOW/INFO-Findings als Follow-ups getrackt.
+> Review of commit fe25128 (feature/wiz-config-assistant-rework). Verdict: APPROVED,
+> 0 open HIGH/CRITICAL. The following LOW/INFO findings are tracked as follow-ups.
 
-- [REV-WIZ4-1] LOW — GELÖST (Review-Fix-Commit, gleicher Branch) | Duplizierte Assertion + irreführender Kommentar im Test "injects the composed default..." entfernt; nur noch eine nextQuestion-Assertion. | — | resolved
-- [REV-WIZ4-2] LOW — GELÖST (Review-Fix-Commit, gleicher Branch; Erwartungsbild empirisch geklärt) | Test ergänzt: callTool OHNE arguments-Feld → der SDK-Layer (Protokoll-Validierung, vor unserem Zod-Schema) antwortet isError:true + "MCP error" — Vorab-Verhalten, pinnt der Test jetzt. | — | resolved
-- [REV-WIZ4-3] INFO | `workspaceRootDefault` trimmt nur trailing `/`, nicht `\` — ein Windows-artiger Env-Wert (z. B. `D:\repos\`) würde `D:\repos\/hint` erzeugen. Spec-konform (Container-Pfade sind POSIX, kein Plausibility-Check per Variante ii); reine Beobachtung. | Trigger: falls GUIDANCE_WORKSPACE_ROOT künftig auch Windows-Pfade tragen soll. | Accepted observation.
-- [REV-WIZ4-4] INFO | `callStart` im Test schließt im finally nur den Client, nicht die Server-Seite des InMemoryTransport-Paars — in vitest harmlos, kann bei langen Läufen Handles akkumulieren. | Trigger: nächste Änderung an den Contract-Test-Helpers. | Action required (optional): `server.close()` ergänzen.
+- [REV-WIZ4-1] LOW — RESOLVED (review-fix commit, same branch) | a duplicated assertion + a misleading comment in the test "injects the composed default..." removed; only one nextQuestion assertion remains. | — | resolved
+- [REV-WIZ4-2] LOW — RESOLVED (review-fix commit, same branch; the expected behavior empirically clarified) | test added: callTool WITHOUT an arguments field → the SDK layer (protocol validation, before our zod schema) answers isError:true + "MCP error" — prior behavior, which the test now pins. | — | resolved
+- [REV-WIZ4-3] INFO | `workspaceRootDefault` trims only a trailing `/`, not `\` — a Windows-like env value (e.g. `D:\repos\`) would produce `D:\repos\/hint`. Spec-conformant (container paths are POSIX, no plausibility check per variant ii); a pure observation. | Trigger: if GUIDANCE_WORKSPACE_ROOT should ever carry Windows paths too. | Accepted observation.
+- [REV-WIZ4-4] INFO | `callStart` in the test closes only the client in the finally, not the server side of the InMemoryTransport pair — harmless in vitest, can accumulate handles on long runs. | Trigger: the next change to the contract test helpers. | Action required (optional): add `server.close()`.
 
-## Getrackte Follow-ups (2026-10-03, Chained WIZ-Workflow session-b1c62520/b22053ef — Workflow-Probleme, Nutzer-Anweisung)
+## Tracked Follow-ups (2026-10-03, Chained WIZ Workflow session-b1c62520/b22053ef — workflow problems, user instruction)
 
-> Kontext: WIZ-4 ist FERTIG (session-b1c62520 completed, Commits fe25128 +
-> 0f829ed auf feature/wiz-config-assistant-rework). Der Successor-Cycle
-> (session-b22053ef, steps[0]-Duplikat) wurde auf Nutzeranweisung abgebrochen.
-> Offene Kette: steps[1..3] = WIZ-2, WIZ-1, WIZ-3 — siehe WF-6.
+> Context: WIZ-4 is FINISHED (session-b1c62520 completed, commits fe25128 +
+> 0f829ed on feature/wiz-config-assistant-rework). The successor cycle
+> (session-b22053ef, steps[0] duplicate) was aborted on user instruction.
+> Open chain: steps[1..3] = WIZ-2, WIZ-1, WIZ-3 — see WF-6.
 
-- [WF-1] MEDIUM (action required — Infrastruktur) — **GELÖST (2026-10-03, feature/wf-followups, Dokumentations-Fix)** | **Clear-Thought-Server antwortete mit Request-Timeouts bei Direktaufrufen:** Diagnose (2026-10-03): Container healthy (`docker ps` + `/health` → ok), Container-Logs über 24 h ohne EINEN Timeout/Error-Record — der Server beobachtet die fehlgeschlagenen Direktaufrufe nie; derselbe `sequential_thinking`-Call über die Container-Route (`call_downstream` serverId `clearthought`) antwortete sofort mit vollem structuredContent. Root Cause liegt damit in der Editor-MCP-Client-Verbindung (Zed Context-Server-Transport zu localhost:3000) — AUSSERHALB unseres Codes/Configs; unsere Downstream-Config (requestTimeoutSeconds 120, reconnect) ist korrekt und live bewiesen. Attribution an den Editor-Client ist eine INFERENZ (Server-Seite gesund bewiesen; revidieren, falls ein zukünftiger Direktaufruf nach Editor-Update klappt). Fix: Container-Route als sanktionierter Pfad dokumentiert — AGENTS.md „Clear-Thought availability (WF-1)“ (hand-geschriebene Sektion, generated Guide-Block unberührt per RB-2, Backup AGENTS.md.bak); die responses.json-Timeout-Policy (Container-Route + einmaliger curl-Fallback) war bereits vorhanden. | — | resolved (documented workaround, sanctioned path) |
+- [WF-1] MEDIUM (action required — infrastructure) — **RESOLVED (2026-10-03, feature/wf-followups, documentation fix)** | **Clear-thought server answered with request timeouts on direct calls:** diagnosis (2026-10-03): container healthy (`docker ps` + `/health` → ok), container logs over 24 h without a SINGLE timeout/error record — the server never sees the failed direct calls; the same `sequential_thinking` call via the container route (`call_downstream` serverId `clearthought`) answered immediately with full structuredContent. The root cause therefore lies in the editor MCP client connection (the Zed context-server transport to localhost:3000) — OUTSIDE our code/config; our downstream config (requestTimeoutSeconds 120, reconnect) is correct and proven live. Attribution to the editor client is an INFERENCE (the server side proven healthy; revise if a future direct call works after an editor update). Fix: the container route documented as the sanctioned path — AGENTS.md "Clear-Thought availability (WF-1)" (a hand-written section, the generated guide block untouched per RB-2, backup AGENTS.md.bak); the responses.json timeout policy (container route + a one-time curl fallback) already existed. | — | resolved (documented workaround, sanctioned path) |
 
-- [WF-2] MEDIUM (action required — Infrastruktur/Ergonomie) — **GELÖST (2026-10-03, feature/wf-followups, Guidance-only)** | **Guidance-MCP-Calls timeouten bei langen State-Transitions:** Submit-once-then-poll-Richtlinie verankert: (1) responses.json — verify- und complete-Phase (Example default-guidance + Instanz) tragen die Regel „submit ONCE; timeout → NICHT retryen (Single-Flight-Lock), stattdessen get_workflow_state pollen“; (2) README (server-guidance) — neuer Abschnitt „Long state transitions: submit once, then poll“ mit 1-2-Schritte-Anleitung und Verweis auf die Container-Route-Fallback-Regel; (3) Engine-Semantik bewusst UNVERÄNDERT (synchron; requestId-Ledger macht Re-Submits safe) — async-Job-Pattern bleibt optionaler Follow-up, falls die Poll-Discipline produktiv nicht reicht. | Trigger: kein offener; Regel aktiv ab sofort. | resolved (guidance/ergonomics fix).
+- [WF-2] MEDIUM (action required — infrastructure/ergonomics) — **RESOLVED (2026-10-03, feature/wf-followups, guidance-only)** | **Guidance MCP calls time out on long state transitions:** the submit-once-then-poll policy anchored: (1) responses.json — the verify and complete phases (example default-guidance + instance) carry the rule "submit ONCE; on timeout do NOT retry (single-flight lock), instead poll get_workflow_state"; (2) README (server-guidance) — a new section "Long state transitions: submit once, then poll" with a 1-2-step guide and a reference to the container-route fallback rule; (3) the engine semantics deliberately UNCHANGED (synchronous; the requestId ledger makes re-submits safe) — an async job pattern remains an optional follow-up if poll discipline does not suffice in production. | Trigger: none open; the rule active from now. | resolved (guidance/ergonomics fix).
 
-- [WF-3] HIGH — GELÖST (Environment-Reparatur in dieser Session, aber Ursache ist repo-übergreifend) | **verify-Gate build failte am Repo-Root:** `npm run build --workspaces` brach mit `tsc: not found` (Exit 127) ab — ALLE 4 Workspaces hatten kein `node_modules/.bin/tsc` (insight, stochastic, clear-thought, guidance); PRE-EXISTING, NICHT durch den WIZ-4-Diff verursacht (guidance-Workspace-Build selbst grün, 559/559 Tests). Fix: `npm install` am Root (hoisted typescript-Bins nach root node_modules/.bin, Root-Build Exit 0). | Restfolge WF-3a: `npm install` veränderte KOLLATERAL `yarn.lock` massiv (2667+/4456−) — reverted; Root nutzt npm (package-lock) UND yarn.lock koexistiert: Instabilitätsquelle. **WF-3b GELÖST (2026-10-03, Nutzerentscheid Option A):** yarn.lock bleibt Quelle der Wahrheit; Verstärkungen umgesetzt: Root-package-lock bereits gitignored (vorhanden), Regel in AGENTS.md ("Root-Installs NUR yarn install; npm nur Workspace-Ebene + npm run; yarn.lock-Diff im Feature-Branch = Review-Warnsignal") + README-Quick-Start-Hinweis. | Trigger: kein offener; Regel ab sofort aktiv. | resolved.
+- [WF-3] HIGH — RESOLVED (environment repair in this session, but the cause is cross-repo) | **verify gate build failed at the repo root:** `npm run build --workspaces` aborted with `tsc: not found` (exit 127) — ALL 4 workspaces had no `node_modules/.bin/tsc` (insight, stochastic, clear-thought, guidance); PRE-EXISTING, NOT caused by the WIZ-4 diff (the guidance workspace build itself green, 559/559 tests). Fix: `npm install` at the root (hoisted typescript bins into root node_modules/.bin, root build exit 0). | Follow-up WF-3a: `npm install` collaterally changed `yarn.lock` massively (2667+/4456−) — reverted; the root uses npm (package-lock) AND yarn.lock coexisting: a source of instability. **WF-3b RESOLVED (2026-10-03, user decision Option A):** yarn.lock stays the source of truth; reinforcements implemented: the root package-lock already gitignored (present), a rule in AGENTS.md ("root installs ONLY yarn install; npm only workspace level + npm run; a yarn.lock diff in a feature branch = review warning signal") + a README quick-start note. | Trigger: none open; the rule active from now. | resolved.
 
-- [WF-4] MEDIUM (action required — Prozesslücke) — **GELÖST (2026-10-03, feature/wf-followups, Guidance-only)** | **final-review-gate mit STALE Evidenz aus Vorgänger-Session:** Die complete-Phase instruiniert den Agenten jetzt EXPLIZIT, `.guidance/state/final-review.json` FRESH je Session zu schreiben — in responses.json (Instanz + Example default-guidance, komplette Pflichtfeld-Liste + Schema-Verweis auf check-final-review.mjs + 40-hex-Anforderung an headCommit/commits + Re-Blessing-Regel nach späten Commits + Validator-Kommando) und als zusätzlicher requiredAction-Eintrag. Offene Design-Frage aus dem Eintrag (b): das Gate bleibt beim headCommit-Vergleich (sessionId-übergreifende Evidenz erlaubt, wenn headCommit == HEAD); strenge sessionId-Matches wären härter, aber der Re-Blessing-Pfad + headCommit == HEAD deckt den beobachteten Fail-Fall („commits landed after the review") deterministisch ab. | Trigger: kein offener; Regel aktiv ab sofort. | resolved (guidance/process fix).
+- [WF-4] MEDIUM (action required — process gap) — **RESOLVED (2026-10-03, feature/wf-followups, guidance-only)** | **final-review-gate with STALE evidence from a predecessor session:** the complete phase now instructs the agent EXPLICITLY to write `.guidance/state/final-review.json` FRESH per session — in responses.json (instance + example default-guidance, the complete mandatory-field list + schema reference to check-final-review.mjs + the 40-hex requirement for headCommit/commits + a re-blessing rule after late commits + the validator command) and as an additional requiredAction entry. The open design question from entry (b): the gate stays with the headCommit comparison (cross-session evidence allowed if headCommit == HEAD); strict sessionId matches would be harder, but the re-blessing path + headCommit == HEAD deterministically covers the observed failure case ("commits landed after the review"). | Trigger: none open; the rule active from now. | resolved (guidance/process fix).
 
-- [WF-5] LOW (action required — Reihenfolge-Falle) — **GELÖST (2026-10-03, feature/wf-followups, Code-Fix gewählt)** | **index-freshness vs. Vitest-Artefakte:** ENTSCHEIDUNG: Test-Tooling-Artefakte werden aus der Frische-Prüfung ausgeschlossen (deterministisch, testbar — statt auf Reihenfolgen-Discipline zu setzen). Root Cause: SKIP_DIRS galt nur auf oberster Ebene (`depth === 0`), nested `servers/*/node_modules/.vite/vitest/results.json` zählte als neueste Quelle. Fix in check-index-freshness.mjs: `isSkipped` prüft JEDES Pfadsegment gegen SKIP_DIRS; der redundante depth-0-Check entfällt; Header-Kommentar aktualisiert. Verifikation: nach `touch` des results.json meldet das Skript weiterhin die echte Quelle, nicht das Artefakt. README dokumentiert die Exklusion + die Ordnungsregel (reindex nach dem letzten Testlauf, direkt vor complete_workflow) als verteidigende Zweitlinie. | — | resolved.
+- [WF-5] LOW (action required — ordering trap) — **RESOLVED (2026-10-03, feature/wf-followups, code fix chosen)** | **index-freshness vs. vitest artifacts:** DECISION: test tooling artifacts are excluded from the freshness check (deterministic, testable — instead of relying on ordering discipline). Root cause: SKIP_DIRS applied only at the top level (`depth === 0`), a nested `servers/*/node_modules/.vite/vitest/results.json` counted as the newest source. Fix in check-index-freshness.mjs: `isSkipped` checks EVERY path segment against SKIP_DIRS; the redundant depth-0 check is gone; the header comment updated. Verification: after `touch`-ing results.json the script still reports the real source, not the artifact. The README documents the exclusion + the ordering rule (reindex after the last test run, directly before complete_workflow) as a defensive second line. | — | resolved.
 
-- [WF-6] HIGH (action required — offener Scope + Prozesslektion) — **GELÖST (2026-10-03, Closeout)** | **Chain-Head-Scope-Falle: Successor duplizierte steps[0].** Die WIZ-Kette ist KOMPLETT umgesetzt und auf develop: WIZ-4 (fe25128+0f829ed), WIZ-2 (94ee3be+a42b404), WIZ-1 (f482dc8+7b01463), WIZ-3 (05b0811+b329935) — siehe Abschnitt „WIZ-Serie UMGESETZT" unten. Die Lektion (Head-Request = eigenständiger Scope; steps[0] weglassen oder nichts aus steps unter der Head-Session implementieren) ist in memory-bank/lessonsLearned.md persistiert (Abschnitt „2026-10-03: Guidance-Chained-Workflow-Lektionen (session-b1c62520/b22053ef)", Bullet „Chain-Head-Scope-Falle (WF-6)") — verifiziert 2026-10-03. NACHTRAG (session-2f55537b, feature/wf-followups): konstruktiv gehärtet — (1) Stufe-1-Guard bereits auf develop vorhanden (CHAIN-Replay: request === steps[0].request → configuration_invalid fail-closed, Tests in retry-finalize.test.ts), verifiziert statt neu implementiert; (2) NEU: CHAIN HEAD SCOPE-Annex in guidanceFor für chained Heads (chainFrom === null + steps) sichert die Disziplin-Form der Falle guidance-seitig ab; 4 Regressionstests (8/8 grün); README-Abschnitt "Head-session scope rules". | — | resolved + hardened (fail-closed guard + guidance annex).
+- [WF-6] HIGH (action required — open scope + process lesson) — **RESOLVED (2026-10-03, closeout)** | **Chain-head scope trap: the successor duplicated steps[0].** The WIZ chain is COMPLETELY implemented and on develop: WIZ-4 (fe25128+0f829ed), WIZ-2 (94ee3be+a42b404), WIZ-1 (f482dc8+7b01463), WIZ-3 (05b0811+b329935) — see the section "WIZ series IMPLEMENTED" below. The lesson (head request = its own scope; omit steps[0] or implement nothing from steps under the head session) is persisted in memory-bank/lessonsLearned.md (section "2026-10-03: Guidance chained-workflow lessons (session-b1c62520/b22053ef)", bullet "Chain-head scope trap (WF-6)") — verified 2026-10-03. ADDENDUM (session-2f55537b, feature/wf-followups): constructively hardened — (1) the level-1 guard already on develop (CHAIN replay: request === steps[0].request → configuration_invalid fail-closed, tests in retry-finalize.test.ts), verified instead of newly implemented; (2) NEW: a CHAIN HEAD SCOPE annex in guidanceFor for chained heads (chainFrom === null + steps) secures the discipline form of the trap on the guidance side; 4 regression tests (8/8 green); README section "Head-session scope rules". | — | resolved + hardened (fail-closed guard + guidance annex).
 
-## Getrackte Follow-ups (2026-10-03, Config-Assistent-Rework — WIZ-Serie, Anforderungskonkretisierung offen)
+## Tracked Follow-ups (2026-10-03, Config Assistant Rework — WIZ series, requirement concretization open)
 
-> Plan für vier Assistent-Verbesserungen. Umsetzung erst nach Klärung der
-> je Eintrag gelisteten offenen Fragen (Nutzer). STATUS 2026-10-03 (abend):
-> WIZ-4 UMGESETZT + COMPLETED (feature/wiz-config-assistant-rework,
-> fe25128 + 0f829ed, alle Gates grün). WIZ-2/1/3 OFFEN — Wiederaufnahme
-> der Kette siehe WF-6 (oben). Feature-Branch, requirements geklärt.
+> Plan for four assistant improvements. Implementation only after clarifying
+> the open questions listed per entry (user). STATUS 2026-10-03 (evening):
+> WIZ-4 IMPLEMENTED + COMPLETED (feature/wiz-config-assistant-rework,
+> fe25128 + 0f829ed, all gates green). WIZ-2/1/3 OPEN — resumption
+> of the chain see WF-6 (above). Feature branch, requirements clarified.
 
-- [WIZ-0] META | Planung/Reihenfolge + Server-Ausfall-Notiz: clear-thought-Reasoning-Server lief im Planungstermin mit Request-Timeouts (2× sequential_thinking) — strukturierte Planung daher inline erfolgt. Reihenfolge-Vorschlag: WIZ-4 + WIZ-2 (klein, autark) → WIZ-1 → WIZ-3 (größter semantischer Impact). WIZ-1 und WIZ-3 ändern beide den Frage-Katalog (`src/setup/ConfigAssistant.ts` + README + Contract-Tests) — nach Möglichkeit in einem Branch zusammenführen, um Merge-Konflikte zu vermeiden. | Trigger: Start der Umsetzung. | Action required: Nutzerentscheid Reihenfolge/Branch-Strategie.
+- [WIZ-0] META | planning/order + server outage note: the clear-thought reasoning server ran with request timeouts during the planning appointment (2× sequential_thinking) — structured planning therefore happened inline. Order proposal: WIZ-4 + WIZ-2 (small, self-contained) → WIZ-1 → WIZ-3 (largest semantic impact). WIZ-1 and WIZ-3 both change the question catalog (`src/setup/ConfigAssistant.ts` + README + contract tests) — merge in one branch if possible to avoid merge conflicts. | Trigger: start of implementation. | Action required: user decision on order/branch strategy.
 
-- [WIZ-1] MEDIUM — **Anforderungen geklärt (2026-10-03, Nutzer), umsetzungsbereit** | **target-Mode zusammenführen: `target`-Frage (repo-config vs. registry-edit) entfällt.** Begründung (Nutzer): `registry-edit` alleine ist zweckfrei (erzeugt nur eine Registry-Zeile, ohne dass das Repo nutzbar wird); `repo-config` alleine lässt das Repo unregistriert (`workspace_not_registered`). Zielbild: EIN Assistenten-Durchlauf erzeugt (1) die repo-lokale `.guidance/`-Prozesskonfiguration UND (2) den Workspace-Registry-Eintrag `{ name, root, projectName }` für die Instanz. Die Frage `extraWorkspaces` entfällt ersatzlos (Registrierung passiert pro Repo im selben Lauf); die Frage `workspaceRoot` behält Sinn mit NEUER Bedeutung: Container-Pfad DIESES Repos (z. B. /workspaces/Thinking-MCP) als Registry-`root` statt des Instanz-Roots. Workspace-`name` wird aus `projectName` abgeleitet (Namens-Pattern `^[a-z][a-z0-9-]{0,63}$` muss an `projectName` validiert werden). Umsetzung berührt: `ConfigAssistant.ts` (QUESTIONS target/extraWorkspaces entfernen, workspaceRoot-Help neu, generateFiles: Repo-Dateisatz + Registry-Snippet), scaffold.ts, README ("Path 2" wird zu einem Lauf), Contract-Tests.
-  | **Entscheidungen (Nutzer, 2026-10-03):** (1) Der AGENT führt den Registry-Merge aus (generiertes Snippet + Merge-Instruktion in notes[]; Server schreibt weiterhin nie Dateien). (2) Remote-Mode: Registry-Schritt dort entfallen/Hinweis (Registrierung läuft über init_session). (3) Pfad-Existenz-Prüfung ERFOLGT: der Agent muss später auf den Pfad zugreifen können, also validiert der Wizard-/Agent-Flow die Existenz vor der Ausgabe (nicht erst loadConfig). (4) Registry-Schritt optional über ja/nein-Frage — wenn kein Instanz-Root existiert: "Registry existiert nicht — Soll sie initial angelegt werden?" (bei ja: Instanz-guidance.json neu anlegen lassen statt mergen).
-  | Trigger: Umsetzungsstart WIZ-1 (nach WIZ-4/WIZ-2 empfohlen). | Action required: Implementierung + Contract-Tests (Merge-Snippet-Form, Pfad-Validierungs-Hinweis, Registry-Initial-Anlage-Zweig).
+- [WIZ-1] MEDIUM — **requirements clarified (2026-10-03, user), ready for implementation** | **merge target modes: the `target` question (repo-config vs. registry-edit) is dropped.** Rationale (user): `registry-edit` alone is purposeless (it creates only a registry line without the repo becoming usable); `repo-config` alone leaves the repo unregistered (`workspace_not_registered`). Target picture: ONE assistant pass creates (1) the repo-local `.guidance/` process config AND (2) the workspace registry entry `{ name, root, projectName }` for the instance. The `extraWorkspaces` question is dropped entirely (registration happens per repo in the same run); the `workspaceRoot` question keeps its meaning with a NEW sense: the container path of THIS repo (e.g. /workspaces/Thinking-MCP) as the registry `root` instead of the instance root. The workspace `name` is derived from `projectName` (the name pattern `^[a-z][a-z0-9-]{0,63}$` must be validated against `projectName`). Implementation touches: `ConfigAssistant.ts` (remove QUESTIONS target/extraWorkspaces, new workspaceRoot help, generateFiles: repo file set + registry snippet), scaffold.ts, README ("Path 2" becomes one run), contract tests.
+  | **Decisions (user, 2026-10-03):** (1) The AGENT performs the registry merge (a generated snippet + a merge instruction in notes[]; the server still never writes files). (2) Remote mode: the registry step dropped there / replaced by a hint (registration runs via init_session). (3) The path existence check IS performed: the agent must later be able to access the path, so the wizard/agent flow validates existence before output (not only at loadConfig). (4) The registry step optional via a yes/no question — if no instance root exists: "Registry does not exist — should it be created initially?" (on yes: have the instance guidance.json created anew instead of merged).
+  | Trigger: implementation start WIZ-1 (recommended after WIZ-4/WIZ-2). | Action required: implementation + contract tests (merge snippet form, path validation hint, registry initial-creation branch).
 
-- [WIZ-2] LOW — **Anforderungen geklärt (2026-10-03, Nutzer), umsetzungsbereit** | **`projectName` automatisch ermitteln und als Vorschlag vorlegen.** Entscheide (Nutzer): **Weg (b)** — serverseitig: neuer optionaler Start-Parameter bei `setup_guidance_start` (z. B. `workspaceNameHint`), den der Agent beim Start mitgibt (abgeleitet aus package.json/Cargo.toml/pyproject.toml `name`-Feld, sonst Repo-Verzeichnisname); der Server bettet ihn als strukturierten `default` ins Question-Objekt `projectName` ein. **Bestätigungspflicht (Variante i):** der Agent antwortet NIE in Vertretung — er legt den Vorschlag dem Nutzer vor; dieser bestätigt oder überschreibt den Namen ("do not answer on my behalf"-Prinzip bleibt gewahrt).
-  | Zusatzanforderung (durch WIZ-1): Ableitung muss kebab-case-garantieren (`^[a-z][a-z0-9-]{0,63}$`, `default` reserviert) — Manifest-Namen wie `@paschbaer/guidance` oder `server_guidance` sind zu normalisieren, da der projectName künftig doppelt genutzt wird (project.name + Workspace-Registry-Name). Umsetzung berührt: `register-setup-tools.ts` (Start-Parameter), `ConfigAssistant.ts` (default-Injektion in QUESTIONS/catalogOverview), README-Wizard-Text (Ableitungs-/Bestätigungsregel), Contract-Tests (Hint gesetzt/leer/ungültig).
-  | Trigger: Umsetzungsstart WIZ-2 (nach WIZ-4 empfohlen). | Action required: Implementierung.
+- [WIZ-2] LOW — **requirements clarified (2026-10-03, user), ready for implementation** | **determine `projectName` automatically and present it as a suggestion.** Decisions (user): **route (b)** — server-side: a new optional start parameter on `setup_guidance_start` (e.g. `workspaceNameHint`) that the agent passes at start (derived from the package.json/Cargo.toml/pyproject.toml `name` field, otherwise the repo directory name); the server embeds it as a structured `default` in the question object `projectName`. **Confirmation obligation (variant i):** the agent NEVER answers on behalf of the user — it presents the suggestion to the user; the user confirms or overrides the name (the "do not answer on my behalf" principle is preserved).
+  | Additional requirement (via WIZ-1): the derivation must guarantee kebab-case (`^[a-z][a-z0-9-]{0,63}$`, `default` reserved) — manifest names like `@paschbaer/guidance` or `server_guidance` must be normalized, since the projectName is now used twice (project.name + workspace registry name). Implementation touches: `register-setup-tools.ts` (start parameter), `ConfigAssistant.ts` (default injection into QUESTIONS/catalogOverview), README wizard text (derivation/confirmation rule), contract tests (hint set/empty/invalid).
+  | Trigger: implementation start WIZ-2 (recommended after WIZ-4). | Action required: implementation.
 
-- [WIZ-3] MEDIUM — **Anforderungen geklärt (2026-10-03, Nutzer), umsetzungsbereit** | **Workflow-Profil `plain`/`spec-kit` entfernen; alle Tools standardmäßig registrieren.** Zielbild: Frage `profile` entfällt aus dem Assistenten; jede Instanz registriert ab Werk den vollen Tool-Umfang (Standard-Workflow + 12 Spec-Kit-Tools, Chain Form A UND B). Die Nutzungs-Entscheidung (ob ein Workflow Spec-Kit-Artefakte verwendet) verlagert sich in den Laufzeit-Kontext des Agenten — keine Setup-Zeit-Entscheidung mehr.
-  | **Entscheidungen (Nutzer, 2026-10-03):** (F6=6a) `profile`-Feld in guidance.json VOLLSTÄNDIG STREICHEN (Schema-Exit) — Alt-Dateien mit `profile:"plain"`/`"spec-kit"` müssen ohne das Feld weiter laden (additionalProperties: unknown-field-Toleranz oder explizites Zulassen + Ignorieren, um den CHN-2-Restart-Bruch zu vermeiden). (F7=7b) Chain-Verhalten: BEIDE Formen (A + B) immer zulassen, solange `chain.enabled: true` — die Form entscheidet sich je Kette über die Manifest-Form (steps vs. source), keine Profil-Kopplung mehr. (F8) 12 Spec-Kit-Tools immer im Client-Tool-Listing: akzeptiert (dokumentiert).
-  | Umsetzung berührt: `ConfigAssistant.ts` (QUESTIONS profile entfernen, aus DERIVED_IN_ADOPT raus), scaffold.ts/generateFiles (guidance.json ohne profile), loadConfig-Schema (Feld-Exit + Alt-Datei-Toleranz), register-tools/tools-registration (bedingungslose Spec-Kit-Registrierung), Chain-Engine (Form-Freischaaltung von Profil entkoppeln, §12/FR-119-Tests anpassen), adopt-Pfad (Referenz-profil ignorieren statt sperren), Builtin-Template, README, Contract-Tests.
-  | Trigger: Umsetzungsstart WIZ-3 (zuletzt in der Serie; größerer semantischer Impact). | Action required: Implementierung + Migrationstest (Alt-guidance.json mit profile lädt), Tool-Count-Update (http-transport-Zählasserts), Chain-Tests für beide Formen ohne Profil.
+- [WIZ-3] MEDIUM — **requirements clarified (2026-10-03, user), ready for implementation** | **remove the workflow profile `plain`/`spec-kit`; register all tools by default.** Target picture: the `profile` question disappears from the assistant; every instance registers the full tool scope from the factory (standard workflow + 12 Spec-Kit tools, chain Form A AND B). The usage decision (whether a workflow uses Spec-Kit artifacts) shifts into the agent's runtime context — no longer a setup-time decision.
+  | **Decisions (user, 2026-10-03):** (F6=6a) remove the `profile` field from guidance.json COMPLETELY (schema exit) — old files with `profile:"plain"`/`"spec-kit"` must keep loading without the field (additionalProperties: unknown-field tolerance or explicitly allowing + ignoring, to avoid the CHN-2 restart break). (F7=7b) chain behavior: BOTH forms (A + B) always allowed as long as `chain.enabled: true` — the form is decided per chain by the manifest form (steps vs. source), no more profile coupling. (F8) 12 Spec-Kit tools always in the client tool listing: accepted (documented).
+  | Implementation touches: `ConfigAssistant.ts` (remove QUESTIONS profile, out of DERIVED_IN_ADOPT), scaffold.ts/generateFiles (guidance.json without profile), loadConfig schema (field exit + old-file tolerance), register-tools/tools-registration (unconditional Spec-Kit registration), chain engine (decouple form enablement from the profile, adapt the §12/FR-119 tests), adopt path (ignore the reference profile instead of blocking), builtin template, README, contract tests.
+  | Trigger: implementation start WIZ-3 (last in the series; larger semantic impact). | Action required: implementation + a migration test (an old guidance.json with profile loads), tool-count update (http-transport count asserts), chain tests for both forms without a profile.
 
-- [WIZ-4] LOW — **Anforderungen geklärt (2026-10-03, Nutzer), umsetzungsbereit** | **`workspaceRoot` automatisch als Vorschlag vorgeben.** Bedeutung nach WIZ-1: Container-Pfad DIESES Repos (Registry-`root`). Default-Zusammensetzung: `GUIDANCE_WORKSPACE_ROOT + "/" + workspaceNameHint` (z. B. /workspaces + thinking-mcp → /workspaces/thinking-mcp); Repo-Name aus derselben Quelle wie WIZ-2. **Entscheidung (Nutzer): Variante (ii) einfach** — Env gesetzt UND Name vorhanden → Default setzen; sonst keine Vorgabe. Keine zusätzliche Plausibilitätslogik: Abweichungen (Case-Mismatch à la KA-4, abweichender Mount-Name, Repo außerhalb des Pools) korrigiert der Nutzer/Agent über die Bestätigungspflicht; die Pfad-Existenzprüfung aus WIZ-1 (Entscheidung 3) fängt Fehlvorschläge vor der Registry-Aufnahme ab. Umsetzung berührt: `register-setup-tools.ts` + `ConfigAssistant.ts` (default-Injektion in catalogOverview/QUESTIONS, gemeinsam mit WIZ-2-Mechanik), Contract-Tests (Default gesetzt/Env fehlt/Name fehlt).
-  | Trigger: Umsetzungsstart WIZ-4 (ERSTER Schritt der Serie, teilt die Namensableitung mit WIZ-2). | Action required: Implementierung.
+- [WIZ-4] LOW — **requirements clarified (2026-10-03, user), ready for implementation** | **pre-fill `workspaceRoot` automatically as a suggestion.** Meaning after WIZ-1: the container path of THIS repo (registry `root`). Default composition: `GUIDANCE_WORKSPACE_ROOT + "/" + workspaceNameHint` (e.g. /workspaces + thinking-mcp → /workspaces/thinking-mcp); the repo name from the same source as WIZ-2. **Decision (user): variant (ii) simple** — env set AND name present → set the default; otherwise no suggestion. No additional plausibility logic: deviations (a case mismatch à la KA-4, a differing mount name, a repo outside the pool) are corrected by the user/agent via the confirmation obligation; the path existence check from WIZ-1 (decision 3) catches bad suggestions before registry admission. Implementation touches: `register-setup-tools.ts` + `ConfigAssistant.ts` (default injection into catalogOverview/QUESTIONS, shared with the WIZ-2 mechanism), contract tests (default set/env missing/name missing).
+  | Trigger: implementation start WIZ-4 (the FIRST step of the series, shares the name derivation with WIZ-2). | Action required: implementation.
 
-## 2026-10-03 (Abend): WIZ-Serie UMGESETZT — feature/wiz-config-assistant-rework (Chain session-7876f096, 3 Sessions)
+## 2026-10-03 (evening): WIZ series IMPLEMENTED — feature/wiz-config-assistant-rework (chain session-7876f096, 3 sessions)
 
-- [WIZ-4] GELÖST (fe25128+0f829ed, session-b1c62520 completed) | workspaceRoot-Default aus GUIDANCE_WORKSPACE_ROOT + workspaceNameHint (Variante ii).
-- [WIZ-2] GELÖST (94ee3be+a42b404, session-7876f096 completed) | projectName-Default aus normalisiertem workspaceNameHint (normalizeProjectName: Scope-Strip/Kebab/Edge-Trim); Bestätigungspflicht README-regeln.
-- [WIZ-1] GELÖST (f482dc8+7b01463, session-abe752d7 completed) | target/extraWorkspaces-Fragen entfernt; registerWorkspace (Pflicht) → workspaces[]-Merge-Snippet in notes; Existenz-Validierung vor Emission; Remote → init_session-Hinweis.
-- [WIZ-3] GELÖST (05b0811+b329935, session-57412c1b completed) | Profil entfernt: Schema-Exit mit Legacy-Toleranz (`profile: true`), alle 16 Spec-Kit-Tools bedingungslos registriert (Tool-Count 24→40), chain Form B entkoppelt.
-- [WF-3b] GELÖST (7a4ca41) | Option A: yarn-only Root-Installs (AGENTS.md-Regel + README).
-- [REV-FINAL-F3] LOW | validateAdoptReference erzwingt weiterhin legacy profiles/<profile>.json für non-plain Legacy-Referenzen, obwohl generateFiles refGuidance.profile ignoriert — inkonsistente Toleranz. | Trigger: nächster Touch von validateAdoptReference. | Action required (optional): Toleranz anpassen + Test.
-- [REV-FINAL-F4] LOW | Stale Wizard-Antwort-Keys (target/extraWorkspaces/profile) werden still ignoriert; alt Answer-Sets failen sauber auf missing registerWorkspace (getestet), aber Stale-Key-Verhalten selbst ungepinnt. | Trigger: nächste Änderung an toAnswerRecord/requireCompleted. | Action required (optional): Test.
-- [REV-FINAL-F5] LOW | Legacy workflow.json mit workflow.profile toleriert (Raw-Read), aber ungepinnt. | Trigger: nächste Änderung am Workflow-Load. | Action required (optional): Test.
-- [REV-WIZ1-2/3, REV-WIZ3-3, REV-WIZ3-5] LOW/INFO | Wie im Review getrackt (Pool-Namen-Coverage, boolean-Answers-Lockerheit, vestigial if-throw, Form-B-Child-Engine-Brücke PRE-EXISTING CHN-4-Familie). | Trigger: je nächster Touch. | Accepted with rationale.
+- [WIZ-4] RESOLVED (fe25128+0f829ed, session-b1c62520 completed) | workspaceRoot default from GUIDANCE_WORKSPACE_ROOT + workspaceNameHint (variant ii).
+- [WIZ-2] RESOLVED (94ee3be+a42b404, session-7876f096 completed) | projectName default from a normalized workspaceNameHint (normalizeProjectName: scope strip/kebab/edge trim); the confirmation obligation ruled in the README.
+- [WIZ-1] RESOLVED (f482dc8+7b01463, session-abe752d7 completed) | target/extraWorkspaces questions removed; registerWorkspace (mandatory) → workspaces[] merge snippet in notes; existence validation before emission; remote → init_session hint.
+- [WIZ-3] RESOLVED (05b0811+b329935, session-57412c1b completed) | profile removed: schema exit with legacy tolerance (`profile: true`), all 16 Spec-Kit tools registered unconditionally (tool count 24→40), chain Form B decoupled.
+- [WF-3b] RESOLVED (7a4ca41) | Option A: yarn-only root installs (AGENTS.md rule + README).
+- [REV-FINAL-F3] LOW | validateAdoptReference still enforces legacy profiles/<profile>.json for non-plain legacy references, although generateFiles ignores refGuidance.profile — inconsistent tolerance. | Trigger: the next touch of validateAdoptReference. | Action required (optional): adjust the tolerance + a test.
+- [REV-FINAL-F4] LOW | stale wizard answer keys (target/extraWorkspaces/profile) are silently ignored; old answer sets fail cleanly on a missing registerWorkspace (tested), but the stale-key behavior itself is unpinned. | Trigger: the next change to toAnswerRecord/requireCompleted. | Action required (optional): a test.
+- [REV-FINAL-F5] LOW | legacy workflow.json with workflow.profile tolerated (raw read), but unpinned. | Trigger: the next change to the workflow load. | Action required (optional): a test.
+- [REV-WIZ1-2/3, REV-WIZ3-3, REV-WIZ3-5] LOW/INFO | as tracked in the review (pool name coverage, boolean-answers looseness, a vestigial if-throw, the Form-B child engine bridge PRE-EXISTING CHN-4 family). | Trigger: per next touch. | Accepted with rationale.
 
-**Offen:** Merge des Branch nach develop (Review freigegeben, 0 HIGH/CRITICAL); Push; Container-Rebuild für die neue Tool-Oberfläche (40 Tools); WF-1..WF-6 (s.o.) bleiben als Infrastruktur-Follow-ups stehen.
+**Open:** merge of the branch to develop (review approved, 0 HIGH/CRITICAL); push; container rebuild for the new tool surface (40 tools); WF-1..WF-6 (see above) remain as infrastructure follow-ups.
 
 ## 2026-10-03 (fault_tree top-gate fix — feature/fix-fault-tree-top-gate, session-a9c2d5b6)
 
 - [FT-AXRAY-DE] LOW | assumption_xray supports German markers (alle, jeder/jede, immer, mindestens, höchstens, wird … müssen) as pattern additions in HEURISTICS or a language layer; note-fix (English-only disclosure) is done in this branch. | Trigger: next touch of assumption-xray.ts HEURISTICS or any i18n request for assumption_xray. | Action required (optional enhancement).
-- [FT-CHAIN-DUP] GELÖST | steps[0]-Successor (session-672585e2) als Verification-Only-Zyklus abgeschlossen (0 Changes/Commits, alle Gates grün); steps[1] (Implementierung) nie gestartet — Duplikationsrisiko der Kette damit entwarnit.
-- [FT-COMMIT] GELÖST | feature/fix-fault-tree-top-gate committed on the feature branch (push/merge still awaiting user approval).
+- [FT-CHAIN-DUP] RESOLVED | the steps[0] successor (session-672585e2) completed as a verification-only cycle (0 changes/commits, all gates green); steps[1] (implementation) never started — the chain's duplication risk thereby stood down.
+- [FT-COMMIT] RESOLVED | feature/fix-fault-tree-top-gate committed on the feature branch (push/merge still awaiting user approval).
 - [FT-FT-F1] MEDIUM | fault_tree multi-root fallback (>1 unreferenced non-basic gate) silently resolves to the last unreferenced gate — inconsistent with the fail-closed name-ambiguity stage; either enforce uniqueness (error) or expose top_gate_candidates. Behavior is documented in code and pinned by test; no merge blocker. | Trigger: next touch of fault-tree.ts resolution logic or first real multi-root use case. | Action required (design decision, owner decides error vs transparency).
 
 ## Tracked follow-ups from feature/severity-gate-review-findings (session-4e869880)
@@ -1573,14 +1627,14 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 - **Proposed design (to be specced):** reason-transition `{ to: "implement", reason: "final_review_changes_required" }` from `complete` (and symmetric `plan` option for plan-level findings), driven by the same blockingSeverities evaluation as the review-phase gate (REV-GATE feature 6b5fb3b); completion then re-enters the full implement → review_and_fix_implementation → verify → complete cycle, giving the fixes a real review pass. Loop counter + audit event pattern reusable.
 - **Action required:** yes (design decision documented by user 2026-10-03: the missing review of completion-phase fixes is a problem worth solving).
 
-## Getrackte Follow-ups (2026-10-03, Spec-Kit-Pool-Modus-Wiring — SKP-1)
+## Tracked Follow-ups (2026-10-03, Spec-Kit Pool Mode Wiring — SKP-1)
 
-- **Finding SKP-1 (HIGH):** Spec-Kit-Tools sind im HTTP-Pool-Modus (Container, `GUIDANCE_WORKSPACE_ROOT=/workspaces`, `createConfiguredServer` in `servers/server-guidance/src/server.ts`) nicht funktionsfähig: `discover_spec_kit_feature` liefert `spec_kit_feature_not_found: feature root missing: specs`, weil `registerSpecKitTools` dort ohne `getSessionWorkspace` registriert wird — der Resolver fällt auf Pool-Root `/workspaces` statt Session-Root zurück (`SpecKitEngineResolver.resolve`, `register-spec-kit-tools.ts` L138-144). Der stdio-Einstieg `src/index.ts` L43-49 hat das korrekte Wiring. Live verifiziert (session-67778fe9): Workflow/Phase/`get_spec_kit_status` OK, nur Feature-Discovery bricht.
-- **Trigger point:** Jeder Guidance-Workflow im Pool-Betrieb, der Spec-Kit-Discovery/Artifacts nutzt (`discover_spec_kit_feature`, `import_spec_kit_artifacts`, `refresh_spec_kit_artifacts`, `get_spec_kit_status`-Discovery-Pfade). Auch T6-Diskrepanz in `specs/008-multi-workspace/tasks.md` (als [x] markiert, nur stdio-seitig umgesetzt).
+- **Finding SKP-1 (HIGH):** Spec-Kit tools are not functional in HTTP pool mode (container, `GUIDANCE_WORKSPACE_ROOT=/workspaces`, `createConfiguredServer` in `servers/server-guidance/src/server.ts`): `discover_spec_kit_feature` returns `spec_kit_feature_not_found: feature root missing: specs`, because `registerSpecKitTools` is registered there without `getSessionWorkspace` — the resolver falls back to the pool root `/workspaces` instead of the session root (`SpecKitEngineResolver.resolve`, `register-spec-kit-tools.ts` L138-144). The stdio entry `src/index.ts` L43-49 has the correct wiring. Live verified (session-67778fe9): workflow/phase/`get_spec_kit_status` OK, only feature discovery breaks.
+- **Trigger point:** Every guidance workflow in pool operation that uses Spec-Kit discovery/artifacts (`discover_spec_kit_feature`, `import_spec_kit_artifacts`, `refresh_spec_kit_artifacts`, `get_spec_kit_status` discovery paths). Also the T6 discrepancy in `specs/008-multi-workspace/tasks.md` (marked [x], implemented only stdio-side).
 - **Resolution:** IMPLEMENTED (255bfd2, feature/speckit-pool-mode-wiring) — see activeContext.md 2026-10-03 entry. Live-verified: discover_spec_kit_feature resolves /workspaces/Thinking-MCP/specs/008-multi-workspace in pool mode. Independent review (sub-agent bd833a54, fresh context): APPROVED, 0 unresolved CRITICAL/HIGH.
 - **Status:** closed (fixed). Residual follow-ups: SKP-2 (test wiring-depth gap, MEDIUM) and SKP-3 (SpecKitEngine.ts:221 Windows separator, LOW, pre-existing) below.
 
-## Getrackte Follow-ups (2026-10-03, SKP-1 Review — Sub-Agent bd833a54, APPROVED 0 HIGH/CRIT)
+## Tracked Follow-ups (2026-10-03, SKP-1 Review — sub-agent bd833a54, APPROVED 0 HIGH/CRIT)
 
 - **SKP-2 (MEDIUM, test-depth gap) — RESOLVED (2026-10-03, chain head session-05e744f9):** tests/contract/speckit-pool-wiring.test.ts boots the server through the REAL HTTP entry (createConfiguredServer with a composed pool fixture), registers workspace B via the protocol, starts a workflow session and runs discover_spec_kit_feature with that sessionId — discovery resolves under the session root. Revert-detection PROVEN (SKP2-T3): with the server.ts wiring commented out the happy-path test FAILS (pool-root fallback), restored it passes. Negative case (unknown sessionId -> documented fallback) covered through the same wiring. Regression coverage complete.
 - **SKP-3 (LOW, pre-existing):** SpecKitEngine.ts L221 (discoverArtifacts) `resolved.startsWith(ws + "/")` checks only forward slash, while assertInsideWorkspace (L329-341) handles both separators — a native-Windows host would wrongly reject legitimate feature dirs in importArtifacts. Harmless today (tests + container run Linux).
@@ -1595,7 +1649,7 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 - **Resolution:** Mechanical guard implemented — `scripts/check-yarn-lock.sh` (POSIX sh) wired as committed pre-commit AND pre-push hook via `.githooks/` (one-time activation per clone/worktree: `git config core.hooksPath .githooks`). Blocks: staged yarn.lock in Yarn-v1 format or unrecognized (positive+negative Berry detection: v1 header OR missing `__metadata:`/generator header), staged yarn.lock deletion, pruned root tree (`node_modules/.bin/tsc` missing while `node_modules/` exists; fresh clones exempt). Regression coverage: `sh scripts/test-yarn-lock-guard.sh` — 7/7 cases green (berry-pass, v1-block, unrecognized-block, deletion-block, unchanged-skip, pruned-block, fresh-clone-skip). hooksPath verified active on the main checkout; the resolution commit itself passed through the live pre-commit hook.
 - **Status:** closed (fixed). Residual discipline note stays in AGENTS.md WF-3: after ANY npm/npx contact expect the guard, or check `git --no-pager diff --stat yarn.lock` — the guard catches the COMMIT, not the working-tree drift before staging (restore with `git checkout -- yarn.lock` is still manual).
 
-## Getrackte Follow-ups (2026-10-04, SKP-3 C-Full Review-Residuen — Sub-Agent a86c3633, APPROVED/BLESSED 0 HIGH/CRIT)
+## Tracked Follow-ups (2026-10-04, SKP-3 C-Full Review Residues — sub-agent a86c3633, APPROVED/BLESSED 0 HIGH/CRIT)
 
 - **SKP-3a (LOW, dedupe-by-path):** importArtifacts dedupes discovered files by path only; a file matching TWO configured type patterns is attributed to the first type in declaration order (old code could emit it under both types). Unreachable with DEFAULT_ARTIFACTS (no overlaps). Trigger point: when a config defines overlapping type patterns and cross-type attribution matters — then dedupe by type+path or document first-wins. Action: required then, observation now.
 - **SKP-3b (LOW, multi-pattern semantics change):** a config type listing multiple FILE patterns now imports ALL existing matches (old: first existing candidate only); `artifacts.find(type)` then picks by sorted path, not pattern priority. Unreachable with defaults (one pattern per default type). Trigger point: same as SKP-3a — when a config relies on pattern priority for multi-pattern types, restore first-wins per type or document. Action: required then, observation now.
@@ -1604,28 +1658,28 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 - **SKP-3e (LOW, pre-existing, final review 6d009224):** `npx tsc --noEmit` fails with TS2739 in tests/contract/speckit-pool-mode.test.ts:48 (specKitConfig fixture missing maxTasks/maxEntities/maxExcerptBytes) — introduced at base 255bfd2, NOT by this session; vitest does not typecheck, so test suites stay green while the type error persists. Verification blind spot: no typecheck over tests. Trigger point: when `tsc --noEmit` is added to CI/lint gates or the fixture is instantiated with stricter typing — then fix the fixture (add the three fields). Action: required then, accepted observation now.
 
-## Getrackte Follow-ups (2026-10-04, specs/016 Reference-Implementierung — session-62689b13)
+## Tracked Follow-ups (2026-10-04, specs/016 Reference Implementation — session-62689b13)
 
-- **S016-ADOPT (geplant, Follow-up-Scope):** Mechanismus-Adoption in `server-insight` + `server-clear-thought` (Spec 016 §6 Schritt 2): SSE/Progress-Transport-Helper + Async-Acceptance-Wrapper aus guidance extrahieren und in beiden HTTP-Servern verdrahten. Trigger: Beginn des Adoption-Scope. Aktion erforderlich.
-- **S016-RETRY-OP (Akzeptierte Beobachtung):** `retry_operation` ist bewusst NICHT in den Async-Wrapper eingeschlossen (Spec FR-1 nennt submit_*/complete_workflow/run_operation). Falls Praxis zeigt, dass Retry-Läufe ebenfalls Timeouts treffen, nachziehen. Trigger: erneuter Timeout-Bericht zu retry_operation.
-- **S016-TYPECHECK (prä-existing, bereits getrackt):** speckit-pool-mode.test.ts SpecKitConfig-Fehler (Commit 7884ba4) — unverändert, nicht durch 016 verursacht.
-- **S016-CHAIN-PROGRESS (getrackt, LOW):** Gate-Progress-Hooks sind in submitLocked (beforeExit/beforeEnter/afterExit) verdrahtet, nicht aber in den Chain-Aktivierungspfaden (activateSession/runAfterEnter). Trigger: Progress-Berichte zu Chain-Successor-Aktivierungen oder die S016-ADOPT-Extraktion. Aktion erforderlich im Trigger-Fall.
-- **S016-RESTART-TEST (getrackt, LOW, akzeptierte Beobachtung):** F2-Fix (in_flight→interrupted nach Neustart) ist design-verifiziert + typecheckt, aber nicht durch einen automatisierten Restart-Test abgedeckt. Trigger: S016-ADOPT-Scope (dort Restart-Fixture-Test ergänzen).
-- **S016-N1 (getrackt, MEDIUM, Re-Bless 2026-10-04):** operation-registry get()/allFor() rufen reconcile() außerhalb des Session-Mutex — Mikrosekunden-Fenster nach einem Re-Boot (stale save kann einen frisch begonnenen Record überschreiben). Fix: get/allFor ebenfalls über mutexFor. Trigger: S016-ADOPT-Scope oder nächster Registry-Touch. Aktion erforderlich im Trigger-Fall.
-- **S016-N2 (getrackt, LOW):** mutexes-Map im OperationRegistry wächst unbeschränkt (ein Entry je Session, keine Eviction). Trigger: S016-ADOPT-Scope (Idle-Cleanup/LRU ergänzen).
-- **S016-N3 (getrackt, LOW, Coverage-Lücke):** F2-Reclassification und F3-Multi-Group-Cursor haben keinen eigenen Contract-Test (Fixture hat nur ein beforeExit-Gate); Arithmetik per Code-Review verifiziert. Trigger: S016-ADOPT-Scope (Restart- + Multi-Group-Fixture-Tests).
+- **S016-ADOPT (planned, follow-up scope):** mechanism adoption in `server-insight` + `server-clear-thought` (spec 016 §6 step 2): extract the SSE/progress transport helper + async acceptance wrapper from guidance and wire them in both HTTP servers. Trigger: start of the adoption scope. Action required.
+- **S016-RETRY-OP (accepted observation):** `retry_operation` is deliberately NOT included in the async wrapper (spec FR-1 names submit_*/complete_workflow/run_operation). If practice shows that retry runs also hit timeouts, follow up. Trigger: another timeout report for retry_operation.
+- **S016-TYPECHECK (pre-existing, already tracked):** speckit-pool-mode.test.ts SpecKitConfig error (commit 7884ba4) — unchanged, not caused by 016.
+- **S016-CHAIN-PROGRESS (tracked, LOW):** gate progress hooks are wired in submitLocked (beforeExit/beforeEnter/afterExit), but not in the chain activation paths (activateSession/runAfterEnter). Trigger: progress reports on chain-successor activations or the S016-ADOPT extraction. Action required in the trigger case.
+- **S016-RESTART-TEST (tracked, LOW, accepted observation):** the F2 fix (in_flight→interrupted after restart) is design-verified + typechecked, but not covered by an automated restart test. Trigger: S016-ADOPT scope (add a restart fixture test there).
+- **S016-N1 (tracked, MEDIUM, re-bless 2026-10-04):** operation-registry get()/allFor() call reconcile() outside the session mutex — a microsecond window after a reboot (a stale save can overwrite a freshly started record). Fix: get/allFor also via mutexFor. Trigger: S016-ADOPT scope or the next registry touch. Action required in the trigger case.
+- **S016-N2 (tracked, LOW):** the mutexes map in the OperationRegistry grows unboundedly (one entry per session, no eviction). Trigger: S016-ADOPT scope (add idle cleanup/LRU).
+- **S016-N3 (tracked, LOW, coverage gap):** the F2 reclassification and the F3 multi-group cursor have no own contract test (the fixture has only one beforeExit gate); the arithmetic verified by code review. Trigger: S016-ADOPT scope (restart + multi-group fixture tests).
 
-## Getrackte Follow-ups (2026-10-04, S016-ADOPT — session-7e49befd)
+## Tracked Follow-ups (2026-10-04, S016-ADOPT — session-7e49befd)
 
-- **S016-ADOPT (Resolution):** Adoption in insight + clear-thought umgesetzt (feature/016-adopt-async-sse): shared-workflow als canonical Source of Truth + Vendored Copies mit Hash-Drift-Guard (kein workspace-Package — Docker/npm-ci-Kontext-Constraint, siehe activeContext 2026-10-04). Guidance konsumiert die geteilten Module verhaltensidentisch (615/615). CLOSED (fixed).
-- **S016-N1 (CLOSED, fixed):** get()/allFor() reconcilen jetzt UNTER dem Session-Mutex (async); Regression: shared-workflow tests/operation-registry.test.ts (Reboot-Race-Test + Concurrency-Test). Guidance-Call-Site ToolHandlers.ts auf await umgestellt.
-- **S016-N2 (CLOSED, fixed):** Mutex-Map-Eviction im Idle-Fall (Identitäts-Check gegen Map-Wert); Regression: Mutex-Eviction-Test (Map leer nach 25 Sessions).
-- **S016-RESTART-TEST (CLOSED, fixed):** Restart-Fixture in servers/shared-workflow/tests/transition-protocol.test.ts (in_flight mit altem bootId → failed/operation_interrupted, persistiert, Resubmit erzeugt neuen Record).
-- **S016-N3 (CLOSED, fixed):** Multi-Group-Monotonie-Fixture via neuem `createCumulativeGateObserver` (kumulativer Cursor über Gate-Gruppen, nie Restart bei 0; total monoton wachsend).
-- **S016-ENV-SQLITE (NEU, prä-existing, environment):** better-sqlite3-Native-Crash beim Worker-Exit in insight tests/contracts/evaluation.test.ts + mcp-surface.test.ts (Node 24/WSL, Statement-Destructor bei RemoveEnvironmentCleanupHook); seed-lessons flaky unter Volllast. Reproduziert auf unverändertem develop. `npm rebuild better-sqlite3` fixt seed-lessons, nicht die anderen zwei. Trigger: wenn insight-Suite als Gate envattet wird oder Node-Version wechselt — dann Node-LTS(22)-Verifikation oder Container-Test-Flow etablieren. Action required then, accepted observation now.
-- **S016-ENV-TESTHOOK (Beobachtung, dokumentiert):** Fixture-Hooks EMMS/CLEAR_THOUGHT_ASYNC_TEST_MIN_DURATION_MS sind bewusst env-gated (0 = keine Wirkung, mirror guidance's Slow-Gate-Fixture-Ansatz); nicht in README verzeichnet (Test-Infrastruktur, kein Produktverhalten).
-- **S016-REVIEW-RESIDUEN (Independent Review 6af65578, 2026-10-04):** F1 (HIGH) Vendored-Drift/CRLF — FIXED (sync + LF, Hash-Guards grün); F2 (MEDIUM) Task-IDs im shared-workflow-README — FIXED (IDs entfernt); F3 (LOW) SSE-Testname präzisiert — FIXED; F5 (LOW) payloadMatches-Assertion in insight-AC2 ergänzt — FIXED. **F4 (LOW, accepted):** schlägt registry.complete()/fail() nach erfolgreichem Handler fehl, bleibt der Record bis zum Prozess-Ende in_flight (F2-Reconcile reklassifiziert beim Neustart); Prod-Wahrscheinlichkeit gering (lokaler File-Write). Trigger: erneuter in_flight-Latch-Bericht in Betrieb/Logs — dann Retry in complete/fail einbauen. **F6 (INFO, accepted):** insight-Registry-Singleton löst EMMS_STORAGE_PATH beim ersten Aufruf auf; spätere Env-Änderungen werden ignoriert (in Tests harmlos, Env wird in beforeAll gesetzt). Trigger: falls Tests den Storage-Pfad dynamisch wechseln müssen.
-- **S016-FINAL-REVIEW (Fresh Sub-Agent 5eb3da64, 2026-10-04):** R1 (MEDIUM) insight SSE-Pfad scopete Async-Ops auf "default" statt die MCP-Session (FR-3-Lücke in der Kombi Stufe 2+3) — FIXED mit commit 8efc269ed1eba0a637c3c4aaf1821e2f4f94ab3f (AsyncLocalStorage requestSessionScope, server.ts bindet die bekannte Session-ID in den SSE-Request; Regressionstest: SSE-async-accept → Plain-JSON workflow_status-Poll gleiche Session sieht den Record). **R2 (LOW, accepted):** FR-5 ist SHOULD — SSE-Upgrade keyed bewusst auf progressToken statt Accept allein (406-Trap, FR-9); als bewusste Abweichung in beiden server.ts + READMEs dokumentiert. **R3 (LOW, tracked):** clear-thought Wrapped Set session_save/session_load ist Infrastruktur-Adoption; Stochastic-Tools (mcts/bayesian/mdp) nicht async-fähig. Trigger: erster Timeout-Bericht zu Stochastic-Tools — dann Wrapped Set erweitern. **R5 (INFO, accepted):** clear-thought Registry-Fallback ohne dataDir nutzt ein Prozess-Temp-Dir (Records pro Boot weg); konsistent mit prozesslokalen session-Tools. R4 (INFO, accepted): mapError throw-Konvention fragil, robuster wäre Return-API — bei nächster register.ts-Restrukturierung.
+- **S016-ADOPT (resolution):** adoption implemented in insight + clear-thought (feature/016-adopt-async-sse): shared-workflow as the canonical source of truth + vendored copies with a hash drift guard (no workspace package — a Docker/npm-ci context constraint, see activeContext 2026-10-04). Guidance consumes the shared modules behavior-identically (615/615). CLOSED (fixed).
+- **S016-N1 (CLOSED, fixed):** get()/allFor() now reconcile UNDER the session mutex (async); regression: shared-workflow tests/operation-registry.test.ts (a reboot race test + a concurrency test). The guidance call site ToolHandlers.ts switched to await.
+- **S016-N2 (CLOSED, fixed):** mutex map eviction in the idle case (identity check against the map value); regression: a mutex eviction test (map empty after 25 sessions).
+- **S016-RESTART-TEST (CLOSED, fixed):** a restart fixture in servers/shared-workflow/tests/transition-protocol.test.ts (in_flight with an old bootId → failed/operation_interrupted, persisted, a resubmit creates a new record).
+- **S016-N3 (CLOSED, fixed):** a multi-group monotonicity fixture via a new `createCumulativeGateObserver` (a cumulative cursor over gate groups, never restarts at 0; the total monotonically growing).
+- **S016-ENV-SQLITE (NEW, pre-existing, environment):** better-sqlite3 native crash at worker exit in insight tests/contracts/evaluation.test.ts + mcp-surface.test.ts (Node 24/WSL, statement destructor at RemoveEnvironmentCleanupHook); seed-lessons flaky under full load. Reproduced on unchanged develop. `npm rebuild better-sqlite3` fixes seed-lessons, not the other two. Trigger: when the insight suite is gated env-wise or the Node version changes — then a Node-LTS(22) verification or establish a container test flow. Action required then, accepted observation now.
+- **S016-ENV-TESTHOOK (observation, documented):** the fixture hooks EMMS/CLEAR_THOUGHT_ASYNC_TEST_MIN_DURATION_MS are deliberately env-gated (0 = no effect, mirroring guidance's slow-gate fixture approach); not recorded in the README (test infrastructure, no product behavior).
+- **S016-REVIEW-RESIDUES (independent review 6af65578, 2026-10-04):** F1 (HIGH) vendored drift/CRLF — FIXED (sync + LF, hash guards green); F2 (MEDIUM) task ids in the shared-workflow README — FIXED (ids removed); F3 (LOW) SSE test name made precise — FIXED; F5 (LOW) a payloadMatches assertion in insight-AC2 added — FIXED. **F4 (LOW, accepted):** if registry.complete()/fail() fails after a successful handler, the record stays in_flight until process end (F2 reconcile reclassifies at restart); production probability low (a local file write). Trigger: another in_flight latch report in operation/logs — then add a retry in complete/fail. **F6 (INFO, accepted):** the insight registry singleton resolves EMMS_STORAGE_PATH at the first call; later env changes are ignored (harmless in tests, env set in beforeAll). Trigger: if tests ever need to switch the storage path dynamically.
+- **S016-FINAL-REVIEW (fresh sub-agent 5eb3da64, 2026-10-04):** R1 (MEDIUM) the insight SSE path scoped async ops to "default" instead of the MCP session (an FR-3 gap in the level-2+3 combination) — FIXED with commit 8efc269ed1eba0a637c3c4aaf1821e2f4f94ab3f (AsyncLocalStorage requestSessionScope, server.ts binds the known session id into the SSE request; regression test: SSE async-accept → a plain-JSON workflow_status poll, same session, sees the record). **R2 (LOW, accepted):** FR-5 is SHOULD — the SSE upgrade deliberately keyed on progressToken instead of Accept alone (406 trap, FR-9); documented as a deliberate deviation in both server.ts + READMEs. **R3 (LOW, tracked):** the clear-thought wrapped set session_save/session_load is infrastructure adoption; the stochastic tools (mcts/bayesian/mdp) are not async-capable. Trigger: the first timeout report for stochastic tools — then extend the wrapped set. **R5 (INFO, accepted):** the clear-thought registry fallback without dataDir uses a process temp dir (records gone per boot); consistent with the process-local session tools. R4 (INFO, accepted): the mapError throw convention is fragile, a return API would be more robust — at the next register.ts restructuring.
 
 ## Tracked follow-ups (schema-drift cleanup, 2026-10-04)
 - **F1 (low, pre-existing):** specs/014 FR-1101 states the instance config should contain only version/project/workspaces[]/state, but the live pool-root guidance.json also carries chain/orchestration/security blocks (implementation derives registryOnly from the 5 file-refs only). Trigger point: next specs/014 spec amendment or guidance config-schema change. Action: optional spec amendment — accepted observation until then.
@@ -1673,8 +1727,8 @@ Anlass: Nutzer wollte in frischem Repo („zed") einen Workflow starten und erhi
 
 ## 2026-10-07 — Chained successor 2 (Final#2 RESOLVED)
 - [RESOLVED] Final#2 (convergence snapshot silent bypass): snapshot failure with a wired bridge now emits convergence_snapshot_unavailable (audit + sk.convergenceUnavailable + verify guidance note) and the verify gate rejects submit_verification with the classified recoverable error; submission-time retake when tasks.md became importable (recovery without phase ping-pong); unwired bridge keeps the historical standard flow (documented baseline test). Tests in converge-loop.test.ts; full suite 674/674 green (after the retake-resubmit fix).
-- [RESOLVED][amended] Final#2 F1 (reviewer 02ab1802, medium): recovery retake initially classified tautologically against the fresh snapshot — fixed: retake now rejects once with "snapshot retaken; resubmit" so classification runs honestly against the new snapshot (test extended).
-- [RESOLVED] Final#2 F3 (medium): unwired null-snapshot fallback branch now covered by a dedicated test (forced null snapshot + unwired engine => standard flow to complete).
-- [OPEN][low] Final#2 final-review F1 (session e028f587): stale convergenceUnavailable flag/note on verify re-entry — recovery outside verify (implement detour) suppresses the entry retake until the first submission; guidance note may be stale until then. Trigger point: next touch of verify entry logic or guidance.
-- [OPEN][low] Final#2 final-review F3: entry-guard re-suppression branch (!convergenceUnavailable preventing re-audit on re-entry) has no dedicated test. Trigger point: next converge-loop test batch.
+- [RESOLVED][amended] Final#2 F1 (reviewer 02ab1802, medium): the recovery retake initially classified tautologically against the fresh snapshot — fixed: the retake now rejects once with "snapshot retaken; resubmit" so classification runs honestly against the new snapshot (test extended).
+- [RESOLVED] Final#2 F3 (medium): the unwired null-snapshot fallback branch now covered by a dedicated test (forced null snapshot + unwired engine => standard flow to complete).
+- [OPEN][low] Final#2 final-review F1 (session e028f587): stale convergenceUnavailable flag/note on verify re-entry — recovery outside verify (implement detour) suppresses the entry retake until the first submission; the guidance note may be stale until then. Trigger point: next touch of verify entry logic or guidance.
+- [OPEN][low] Final#2 final-review F3: the entry-guard re-suppression branch (!convergenceUnavailable preventing re-audit on re-entry) has no dedicated test. Trigger point: next converge-loop test batch.
 - [ACCEPTED][low] Final#2 final-review F4: sessions.update persists the (possibly stale-read) specKit object reference — pattern-consistent with surrounding code, no regression suspicion.

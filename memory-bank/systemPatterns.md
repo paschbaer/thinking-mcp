@@ -59,14 +59,14 @@ Sync contract: template constant ↔ `AGENTS.template.md` ↔ root `AGENTS.md`.
 | 2026-09-11 | Root `AGENTS.md` generated via `agents_guide` tool, customized "Project-specific conventions" section | Keep guide authoritative and regenerable |
 | 2026-09-11 | `memory-bank/` created as persistent cross-session knowledge base | Required by AGENTS.md protocols |
 
-## Findings-Plan-Hygiene (2026-09-26)
-- Wird ein getrackter Finding im selben Scope gefixt, MUSS der Plan-Eintrag
-  im selben Session-Abschluss auf `[x]` + Evidence (Commit/Datei) gesetzt
-  werden — Reviewer-Berichte und Chat-Zusammenfassungen zählen nicht.
-- Duplikate desselben Findings in mehreren Sektionen werden beim Schließen
-  zusammengeführt (Referenz auf die maßgebliche Sektion).
+## Findings-Plan Hygiene (2026-09-26)
+- If a tracked finding is fixed within the same scope, the plan entry MUST be
+  set to `[x]` + evidence (commit/file) in the same session close-out —
+  reviewer reports and chat summaries do not count.
+- Duplicates of the same finding across multiple sections are merged upon
+  closing (with a reference to the authoritative section).
 
-## FR-Namespace-Konvention (2026-09-26, Feature 005)
-- Neue Feature-Specs belegen fortlaufende FR/SC-100er-Blöcke: Feature 003
-  wird auf FR-301+ umgestellt (TRACK-NS), Feature 005 nutzt FR-401+.
-- Nächster freier Block: FR-501+. Vor Vergabe grep im specs/-Baum.
+## FR Namespace Convention (2026-09-26, Feature 005)
+- New feature specs claim consecutive FR/SC 100-blocks: Feature 003 is being
+  moved to FR-301+ (TRACK-NS), Feature 005 uses FR-401+.
+- Next free block: FR-501+. Before assignment, grep the specs/ tree.
