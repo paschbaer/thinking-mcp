@@ -68,7 +68,26 @@ const restoreFile = (abs, snap) => {
     return; // nothing to restore
   }
   writeFileSync(abs, lines.join("\n"));
-  utimesSync(abs, new Date(snap.mtimeMs), new Date(snap.mtimeMs));
+  // Best-effort mtime restore: host-written files are root-owned and the
+  // container process (non-root) gets EPERM on utimensat — ownership, not
+  // write permission, governs arbitrary-time utimes. The freshness stamp
+  // below compensates in that case (and runs unconditionally anyway).
+  try {
+    utimesSync(abs, new Date(snap.mtimeMs), new Date(snap.mtimeMs));
+  } catch {
+    log(`mtime restore not permitted for ${abs} (root-owned) — freshness stamp compensates`);
+  }
+};
+
+/** Freshness stamp: the gate compares the newest SOURCE file against the
+ *  newest file under .gitnexus. Writing a stamp here AFTER a completed job
+ *  (which ran after the API's stats-line rewrite) records "an index-writing
+ *  event covers the current source state" — honest even for root-owned
+ *  source files whose mtime the container cannot restore. */
+const writeFreshnessStamp = () => {
+  const dir = join(REPO_ROOT, ".gitnexus");
+  if (!existsSync(dir)) return; // no index dir -> nothing to stamp
+  writeFileSync(join(dir, "auto-reindex-stamp"), `${new Date().toISOString()}\n`);
 };
 
 // --- minimal JSON field extraction (contract-pinned, like the sh script) ----
@@ -147,8 +166,9 @@ for (;;) {
   }
   if (status === "complete") {
     for (const t of targets) restoreFile(t.file, t.snap);
+    writeFreshnessStamp();
     const secs = Math.round((Date.now() - startedAt) / 1000);
-    log(`job ${jobId} complete in ${secs}s (stats lines + mtimes restored, tree clean)`);
+    log(`job ${jobId} complete in ${secs}s (stats lines restored, freshness stamp written)`);
     process.exit(0);
   }
   if (status === "failed" || status === "error" || status === "cancelled")

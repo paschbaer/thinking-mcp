@@ -17,6 +17,7 @@ import {
   readFileSync,
   utimesSync,
   statSync,
+  existsSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,6 +43,7 @@ const POST_LINE =
 function initRepo(): string {
   const root = join(dir, "repo");
   mkdirSync(join(root, ".guidance", "scripts"), { recursive: true });
+  mkdirSync(join(root, ".gitnexus"), { recursive: true });
   // the script resolves the repo root from ITS OWN location — copy it there
   writeFileSync(join(root, ".guidance", "scripts", "reindex-api.mjs"), readFileSync(SCRIPT, "utf8"));
   writeFileSync(
@@ -125,7 +127,7 @@ async function runScript(repoRoot: string): Promise<{ code: number; stderr: stri
 }
 
 describe("reindex-api.mjs operation script (contract)", () => {
-  it("happy path: submits, polls to complete, restores stats line AND mtime (tree stays clean)", async () => {
+  it("happy path: submits, polls to complete, restores stats line, keeps the gate fresh (mtime restore OR freshness stamp)", async () => {
     const repoRoot = initRepo();
     const before = statSync(join(repoRoot, "AGENTS.md")).mtimeMs;
     await startStub(repoRoot);
@@ -135,8 +137,16 @@ describe("reindex-api.mjs operation script (contract)", () => {
     const content = readFileSync(join(repoRoot, "AGENTS.md"), "utf8");
     expect(content).toContain(PRE_LINE);
     expect(content).not.toContain(POST_LINE);
-    // mtime restored to sub-second precision
-    expect(statSync(join(repoRoot, "AGENTS.md")).mtimeMs).toBe(before);
+    // freshness invariant: EITHER the mtime was restored exactly (same-uid
+    // environments) OR the .gitnexus freshness stamp exists and is newer
+    // than the (possibly bumped) source file — root-owned-file case.
+    const mtimeRestored =
+      statSync(join(repoRoot, "AGENTS.md")).mtimeMs === before;
+    const stamp = join(repoRoot, ".gitnexus", "auto-reindex-stamp");
+    const stampCovers =
+      existsSync(stamp) &&
+      statSync(stamp).mtimeMs >= statSync(join(repoRoot, "AGENTS.md")).mtimeMs;
+    expect(mtimeRestored || stampCovers).toBe(true);
     // API traffic: one submit + at least two polls
     const submits = calls.filter((c) => c.method === "POST").length;
     const polls = calls.filter((c) => c.method === "GET").length;

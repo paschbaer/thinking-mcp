@@ -1697,3 +1697,9 @@ Instead of the simplification, the dedicated clear-thought rule was COMPLETELY d
 - **Umgesetzt:** (1) GENERISCHER Suffix-Skip in check-index-freshness.mjs (.db-shm/.db-wal/.db-journal, beliebige Tiefe; .db NICHT geskippt — Control-Test) — beendet die unheilbare REMEDY-Schleife gegen die laufende Insight-DB; (2) Auto-Reindex-Op gitnexus-reindex (Design 1(b), inkrementell): .guidance/scripts/reindex-api.mjs (Submit+Poll gegen die gitnexus-HTTP-API aus dem guidance-Container, Stats+mtime-Restore portiert), beforeExit VOR index-freshness — Completion self-healed; beforeExit-Sequenzialität aus Engine-Quelle bestätigt (OperationEngine.executeRequired for-await, Listenreihenfolge).
 - **Live-Beweise:** Container-Job 145 s exit 0, Baum sauber, INDEX FRESH trotz aktiver Insight-DB; config-Load im Container OK (neue beforeExit-Liste).
 - **Deviation:** run_operation agent-seitig erst nach Container-Neustart beweisbar (Pool-Engine-Ops-Cache ab Boot; aktive Session nicht orphanen — CHFIX-9-Reihenfolge).
+
+## 2026-10-09: GN-D7 NACHTRAG — agent-seitiger Beweis + EPERM-Lektion (feature/gate-db-artifact-skip)
+
+- **run_operation-Beweis erbracht:** Nach Container-Neustart löst die Engine die gitnexus-reindex-Op auf und führt sie aus (Probe-Session; Client-Timeout kosmetisch, Op lief serverseitig durch: Job grün, INDEX FRESH, Baum sauber).
+- **EPERM-Fund + Fix:** Host-geschriebene Dateien (AGENTS.md, root-owned) können im Container PRINZIPBEDINGT nicht mtime-restored werden (utimensat braucht Ownership, nicht Schreibrecht). Fix: Best-Effort-mtime-Restore (EPERM gefangen+geloggt) PLUS **Frische-Stempel** `.gitnexus/auto-reindex-stamp` (Container legt eigene Datei an; Gate vergleicht neueste Quelle vs. neueste .gitnexus-Datei → Stempel deckt die gebumpte Quelldatei ehrlich ab, da der Job NACH dem API-Rewrite lief). Contract-Test auf mtime-ODER-Stempel-Invariante umgestellt (3/3 grün).
+- **Offen:** Merge nach develop (User-Entscheidung); Push.
