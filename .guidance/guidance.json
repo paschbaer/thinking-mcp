@@ -70,7 +70,7 @@
   "gitnexus": {
     "state": "required",
     "mode": "local-cli",
-    "reindexCommand": "wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats'"
+    "reindexCommand": "bash scripts/reindex-via-api.sh /mnt/d/repos/thinking-mcp"
   },
   "workspaces": [
     {

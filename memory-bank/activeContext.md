@@ -3,6 +3,13 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: CHAIN SUCCESSOR 1 — GN-D6 API-Reindex umgesetzt (session-7c6ae379, feature/gn-d6-api-reindex)
+
+- **Umgesetzt:** Kanonischer Reindex auf die gitnexus-HTTP-API umgestellt (Job-Semantik Submit+Poll statt blockierender wsl.exe-CLI). Neu `scripts/reindex-via-api.sh` (POSIX sh, Git-Bash- und WSL-tauglich; Default-Server http://127.0.0.1:4747, `GITNEXUS_URL` übersteuerbar; 5 s Poll, 900 s Timeout, fail-loud bei unparseierbarem Status). `gitnexus.reindexCommand` in guidance.json, AGENTS.md (Architecture Map + Guidance-Sektion) und responses.json (Complete-Instruction) synchronisiert; REMEDY-Zeile des Frische-Gates rendert den neuen Befehl automatisch (verifiziert). WSL-CLI bleibt dokumentierter Fallback und EINZIGER Weg für `--force`-Storage-Heilung.
+- **Wichtige Nebenerkenntnis (API-Vertrags-Pinning per Container-Source-Inspektion):** Der API-Analyze kennt KEIN no-stats (Body-Felder: path|url, force, embeddings, dropEmbeddings, token, branch) und schreibt immer die Symbol/Relationship-Counts-Zeile in AGENTS.md/CLAUDE.md. Skript-Fix: zeilenscharfes Restore der Stats-Zeile PLUS Mtime-Erhalt (`touch -d @epoch`) nach Job-Ende — Content-Restore allein würde die Datei mtime-neuer als den Index machen und den index-freshness-Gate zwangsläufig failen machen. Concurrent-Submit ist sicher (Server dedupped laufende Jobs pro Repo).
+- **Verifikation:** Live-Lauf end-to-end (Job 0→100 %, Exit 0), Stats-Restore automatisch, `check-index-freshness.mjs` grün (mtime), Identität `/mnt/d/repos/thinking-mcp` unverändert, Baum enthält nur die beabsichtigten Änderungen.
+- **Trap geboren:** write_file erzeugt auf diesem Windows-Setup CRLF in .sh-Dateien → dash wirft irreführende Syntaxfehler („word unexpected expecting do/in") — nach Erstellen LF-normalisieren (`sed -i 's/\r$//'`). In lessonsLearned.md festgehalten.
+
 ## 2026-10-08: CHAIN HEAD GESTARTET — 4-Step-Follow-up-Kette GN-D6/GN-D5/GND1/CHFIX-9 (session-1fa1ffca, verification-only)
 
 - **Chain registriert und server-seitig persistiert** (get_workflow_state verifiziert, chainIndex 0): Successors in Reihenfolge (1) `gn-d6-api-reindex` (Reindex auf gitnexus-HTTP-API umstellen: reindexCommand/AGENTS.md/REMEDY synchronisieren, wsl-CLI als Fallback), (2) `gn-d5-url-topology` (URL-Topologie vom Writer-Mode entkoppeln + GITNEXUS_URL-Render-Regressionstest), (3) `gnd1-probe-residuals` (dedizierter Chain-Successor-Probe-Test + Per-Residual-Entscheidung a–g), (4) `chfix-9-session-persistence` (HIGH: Sessions überleben Server-Restart — Disk-Reload/In-Process-Re-Pin + README-Präzisierung).

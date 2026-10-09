@@ -1031,3 +1031,11 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 **What's left:** Successor 1 (GN-D6) startet mit Head-Completion; danach GN-D5, GND1-TEST-1/RESIDUALS, CHFIX-9 (HIGH, letzter und größter Schritt). Offene getrackte Follow-ups GN-6 (lastCommit residual), GN-7/8, CHFIX-10 bleiben unberührt von dieser Kette (Hinweis: lastCommit ist GN-6; GN-2 ist bereits gelöst).
 
 **Current State:** Checkout develop @ 3709b1c, Baum vor Head-Arbeit sauber; Head ändert ausschließlich memory-bank-Dateien (gezielter Commit). Kette anfällig für Guidance-Server-Restarts, bis CHFIX-9 implementiert ist.
+
+## 2026-10-09 — GN-D6 API-Reindex umgesetzt (Chain Successor 1, session-7c6ae379, feature/gn-d6-api-reindex)
+
+**What works:** Kanonischer Reindex über `scripts/reindex-via-api.sh` (gitnexus-HTTP-API, Submit+Poll, ~1–4 min inkrementell); reindexCommand in guidance.json, AGENTS.md (beide Sektionen) und responses.json synchron; REMEDY-Zeile rendert den neuen Befehl automatisch; Stats-Zeilen-Restore mit Mtime-Erhalt hält AGENTS.md/CLAUDE.md clean UND den Frische-Gate grün; WSL-CLI als Fallback + --force-Heilung dokumentiert; API-Vertrag per Container-Source gepinnt (kein no-stats, Job-Dedup pro Repo).
+
+**What's left:** Chain Successor 2 (GN-D5 URL-Topologie-Entkopplung), Successor 3 (GND1-TEST-1/RESIDUALS), Successor 4 (CHFIX-9, HIGH). GN-D6-Eintrag in remaining-work-plan auf resolved gesetzt.
+
+**Current State:** feature/gn-d6-api-reindex hält die GN-D6-Änderungen (Script + Config + Docs + memory-bank); Live-Verifikation grün (Job 0→100 %, INDEX FRESH mtime, Identität /mnt/d erhalten); wartet auf Final-Review + Completion.

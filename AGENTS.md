@@ -3,7 +3,7 @@
 ## Architecture Map
 - Before answering architecture or codebase questions, use the GitNexus graph tools to analyze the codebase (skill: gitnexus-workflow.md).
 - Do not make blind edits or assumptions about execution pathways. Always query the precomputed knowledge graph for context.
-- Build or update the knowledge graph with the WSL gitnexus CLI (single index writer, wsl-writer mode): `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats'` (exact lowercase cwd; `--force` only on storage-foreign messages). The `--no-stats` flag is mandatory in this repo: it keeps AGENTS.md/CLAUDE.md free of volatile symbol/relationship counts so code changes don't dirty these files. The gitnexus-server container SERVES the same in-repo index read-only via a dual mount (`../:/mnt/d/repos`) that mirrors the WSL path prefix — one storage identity (`/mnt/d/repos/...`) shared by writer and reader; never run analyze inside the container in this mode (it would flip the storage identity to `/workspaces/...` and the server drops the repo).
+- Build or update the knowledge graph via the gitnexus HTTP API (canonical, job semantics: submit + poll): `bash scripts/reindex-via-api.sh /mnt/d/repos/thinking-mcp` from the repo root (server `http://127.0.0.1:4747`, overridable via `GITNEXUS_URL`). The API analyze has no no-stats option and refreshes the symbol/relationship counts line in AGENTS.md/CLAUDE.md — the script restores both files after a successful job (only if they were clean before; this repo keeps them free of volatile counts). Fallback: the WSL gitnexus CLI `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && . $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze --no-stats'` (exact lowercase cwd) — the ONLY path for `--force` storage-identity healing (storage-foreign messages). The gitnexus-server container SERVES the same in-repo index read-only via a dual mount (`../:/mnt/d/repos`) that mirrors the WSL path prefix — one storage identity (`/mnt/d/repos/...`) shared by writer and reader, live-verified for both the CLI and the API job path; never run analyze inside the container in this mode (it would flip the storage identity to `/workspaces/...` and the server drops the repo).
 
 ## Agent Working Rules
 - Always break down complex tasks into a plan first. See Reasoning & Planning Rules.
@@ -532,12 +532,19 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   `state=required` failt weiterhin closed; eine Hybrid-Probe auditet
   Deviationen (deklariert ≠ live) als `capability_state_deviation`.
 - **Reindex-Befehl (kanonisch, aus `gitnexus.reindexCommand` in
-  guidance.json):** `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && .
+  guidance.json):** `bash scripts/reindex-via-api.sh /mnt/d/repos/thinking-mcp`
+  (aus Repo-Root; Submit + Poll über die gitnexus-HTTP-API, Default-Server
+  `http://127.0.0.1:4747`, überschreibbar via Argument oder `GITNEXUS_URL`).
+  Laufzeit inkrementell ~1–4 min (FTS-Phase bleibt optisch bei 85 % hängen —
+  kein Stall). Das Skript stellt AGENTS.md/CLAUDE.md nach erfolgreichen Jobs
+  wieder her (API schreibt die Stats-Zeile; nur wenn die Dateien vorher clean
+  waren). Fallback und EINZIGER Weg für `--force`-Storage-Heilung bleibt die
+  WSL-CLI: `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && .
   $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze
-  --no-stats'` (lowercase-Cwd). `--force` nur bei Storage-Foreign-Meldung
-  (z. B. nach versehentlichem Container-Analyze). Inkrementell ~60 s,
-  Voll-Rebuild ~3 min über WSL. Die REMEDY-Zeile des Frische-Gates druckt
-  diesen Befehl automatisch aus der Workspace-Konfiguration.
+  --no-stats [--force]'` (lowercase-Cwd; `--force` nur bei
+  Storage-Foreign-Meldung, z. B. nach versehentlichem Container-Analyze).
+  Die REMEDY-Zeile des Frische-Gates druckt diesen Befehl automatisch aus der
+  Workspace-Konfiguration.
 - Das `repository-analysis`-Gate (Phase complete) verifiziert nur, dass der
   GitNexus-Index im **gitnexus-server-Container** vorhanden und queryable ist
   (`check`) — er **erkennt keine Staleness und aktualisiert nichts**.
@@ -570,7 +577,8 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   sicherstellen, dass keine anderen Agenten in diesen Checkout schreiben —
   entweder sequentiell arbeiten oder parallele Arbeit in separaten
   **Worktrees** isolieren (eigenes `workspaceRoot`). Memory-bank-/Meta-Daten-
-  Updates möglichst VOR dem finalen `gitnexus analyze --no-stats` erledigen;
+  Updates möglichst VOR dem finalen Reindex (kanonischer API-Befehl oben)
+  erledigen;
   fällt der Gate trotzdem wegen fremder Änderungen aus, ist das als
   Scope-fremd zu klassifizieren (`report_blocker` statt Reindex-Schleife).
   Das Gate failt laut mit dem exakten Host-Reindex-Befehl als REMEDY-Zeile
