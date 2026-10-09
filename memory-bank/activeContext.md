@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 5 (FINAL) — live Postgres smoke; listInScope parity bug fixed (feature/live-postgres-smoke, commits 7257f3d+6d38769)
+
+- NEW scripts/smoke-postgres.mjs (docker-decoupled; connection string as argv/env; unique slugs per run → idempotent reruns): verifies schema init incl. pgvector extension, seedLessons upsert + listInScope retrieval, OR-joined multi-token FTS with numeric graded fts_rank, LEFT JOIN (signature-less lessons returned), end-to-end service.search (top hit correct), backend-aware factory + fail-closed wiring. Live runs: 2× ALL CHECKS GREEN against a temporary pgvector/pgvector:pg16 container (127.0.0.1:55432); container removed afterwards (image kept locally for future smokes).
+- LIVE BUG FOUND+FIXED: PostgresAdapter.listInScope used INNER JOIN signatures WITHOUT the visibility='public' arm — on Postgres the scope fallback and the semantic arm silently dropped signature-less episodes (lessons). Exactly the L257 bug class, missed in listInScope because only searchFullText was pinned. Fixed to LEFT JOIN + visibility like SQLite; contract test added (postgres-fts-parity 6/6).
+- Drive-by prettier reformat of 5 unrelated scripts reverted (6d38769). Chain COMPLETE: SRCH-1-F3, SRCH-2-R3, SRCH-2-R4, S016-ENV-SQLITE, live-postgres-smoke all resolved.
+
 ## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 4 — S016 container test flow; factory regressions fixed (feature/s016-container-test-flow, commits 74cd3d3+9c31f4c+f50bbc4)
 
 - Container test flow: Dockerfile.test (repo-root context, node:22-slim, npm ci --ignore-scripts + rebuild better-sqlite3/sharp, siblings servers/shared-workflow + server-guidance/scripts copied) + scripts/test-in-container.sh + README section. AC met: 2 consecutive FULL green in-container runs (31/31, 151 passed + 4 skipped each; reviewer reproduced independently) — S016-ENV-SQLITE reclassified RESOLVED environmental. Vendored-shared-hash + seed-lessons-script tests act as in-image sentinels guarding the build context.
