@@ -1071,3 +1071,11 @@ What works: all 4 feature branches merged (gn-d6 -> gn-d5 -> gnd1 -> chfix-9, me
 What's left: push of develop to origin (user decision; locally 7 commits ahead); open follow-ups: CHFIX-11 (in-process re-pin), CHFIX-12 (session_not_found message texts), GN-D6-R1/R2, GN-D5-R1, GND1-RESIDUALS trigger, GN-6/7/8, CHFIX-10.
 
 Current State: develop @ dfd22db (7 commits ahead of origin), chain GN-D6/GN-D5/GND1/CHFIX-9 fully completed with 0 open HIGH/CRITICAL; stack deployed with the new state and verified live.
+
+## 2026-10-09 - CHFIX-10 resolved (chain successor 1, session-a4a78bf2)
+
+What works: 4/4 lessons verified retrievable in the EMMS store (exp_7df8afc9-074, exp_a17de2ca-d59, exp_54d37069-059, exp_c4016589-37f); transported artifact deleted after positive verification; CHFIX-10 RESOLVED with evidence; DEPS-OPS-1 typo corrected; CHFIX-11 user decision (hybrid) recorded for successor 3.
+
+What's left: successor 2 (CHFIX-12 message rewrite), successor 3 (CHFIX-11 hybrid re-pin).
+
+Current State: docs-only commit; no code changes; EMMS store remains the single truth.

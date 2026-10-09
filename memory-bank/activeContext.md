@@ -3,6 +3,10 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: CHAIN SUCCESSOR 1 (CHFIX-10 chain) — EMMS artifact resolved (session-a4a78bf2)
+
+- All 4 pending-lessons verified retrievable in the EMMS store (distinct experience ids, exact-slug top hits via experience_search); artifact .guidance/state/pending-lessons-chfix235.json deleted after positive verification; CHFIX-10 RESOLVED with evidence in remaining-work-plan.md; DEPS-OPS-1 typo fixed (shared-workspace → shared-workflow, head reviewer's recommendation). User decision recorded for successor 3: CHFIX-11 = HYBRID re-pin.
+
 ## 2026-10-09: CHAIN HEAD STARTED — 3-step follow-up chain CHFIX-10/CHFIX-12/CHFIX-11 (session-3e8e7829, verification-only)
 
 - Chain registered and server-side verified (chainSpec persisted, chainIndex 0, no step workflowIds — registry trap avoided): successors in order (1) CHFIX-10 (verify the 4 CHFIX-2/3/5 lessons exist in the EMMS store, then remove the transported artifact .guidance/state/pending-lessons-chfix235.json — file confirmed present), (2) CHFIX-12 (rewrite the three session_not_found message sites that falsely claim sessions 'do not survive a server restart'), (3) CHFIX-11 (in-process capability re-pin; design fork admin-op vs auto-re-pin vs hybrid — head recommendation HYBRID, successor must checkpoint the user via report_blocker if the chat answer is absent).
