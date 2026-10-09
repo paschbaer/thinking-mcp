@@ -81,7 +81,8 @@ restore_one() {
   [ -f "$REPO_ROOT/$f" ] || return 0
   now_line=$(capture_stats_line "$REPO_ROOT/$f")
   if [ "$now_line" != "$snap_line" ]; then
-    restore_stats_line "$REPO_ROOT/$f" "$snap_line"
+    restore_stats_line "$REPO_ROOT/$f" "$snap_line" \
+      || die "failed to restore the stats line in $f — restore it manually (git checkout -- $f), the repo must not keep the volatile counts line"
     echo "restored stats line in $f (API analyze rewrites it; this repo keeps it clean)"
   fi
   if [ -n "$snap_mtime" ] && command -v touch >/dev/null 2>&1; then
@@ -97,7 +98,7 @@ CLAUDE_MTIME=$(capture_mtime "$REPO_ROOT/CLAUDE.md")
 
 # --- submit --------------------------------------------------------------------
 echo "submitting analyze job for $REPO_PATH to $BASE_URL ..."
-submit_body=$(curl -sS -X POST "$BASE_URL/api/analyze" \
+submit_body=$(curl -sS --fail-with-body -X POST "$BASE_URL/api/analyze" \
   -H "Content-Type: application/json" \
   -d "{\"path\":\"$REPO_PATH\"}") || die "submit request failed (is the gitnexus server reachable at $BASE_URL?)"
 
@@ -109,7 +110,7 @@ echo "job $job_id accepted"
 deadline=$(( $(date +%s) + TIMEOUT_SECS ))
 last_line=""
 while :; do
-  body=$(curl -sS "$BASE_URL/api/analyze/$job_id") || die "poll request failed for job $job_id"
+  body=$(curl -sS --fail-with-body "$BASE_URL/api/analyze/$job_id") || die "poll request failed for job $job_id"
   status=$(field_string "$body" status)
   [ -n "$status" ] || die "cannot parse job status, raw response: $body"
 
