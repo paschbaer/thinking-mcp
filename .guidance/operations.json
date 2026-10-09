@@ -24,7 +24,7 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "deps-install": {
-      "description": "Install Node dependencies: npm ci clean semantics with fallback to npm install when no lockfile exists (the result's via label records which strategy ran — audit note). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
+      "description": "Install Node dependencies: corepack yarn install --immutable (clean sync with yarn.lock, yarn 4+ via the packageManager field), with corepack yarn install as the firstAvailable fallback — the fallback runs whenever the clean strategy fails for ANY reason (missing lockfile, lockfile out of sync, network error, dependency conflict, timeout). The clean strategy is sync-with-lockfile semantics (no destructive node_modules reset). Runs in the workspace root; the result's via label records which strategy ran (audit note). riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1211).",
       "type": "composite",
       "strategy": "firstAvailable",
       "required": false,
@@ -34,15 +34,15 @@
       "steps": [
         {
           "type": "process",
-          "capability": "npm-ci-lockfile",
-          "executable": "npm",
-          "args": ["ci"]
+          "capability": "yarn-install-immutable",
+          "executable": "corepack",
+          "args": ["yarn", "install", "--immutable"]
         },
         {
           "type": "process",
-          "capability": "npm-install-fallback",
-          "executable": "npm",
-          "args": ["install"]
+          "capability": "yarn-install-fallback",
+          "executable": "corepack",
+          "args": ["yarn", "install"]
         }
       ],
       "validation": {
@@ -52,12 +52,12 @@
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
     "deps-reinstall": {
-      "description": "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1212).",
+      "description": "Clean Node dependencies: delete node_modules (lockfile preserved), then reinstall with corepack yarn (yarn 4+ via the packageManager field) — workspace-scoped (runs in the workspace root, no path traversal). For native-addon ABI mismatches (ERR_DLOPEN_FAILED): reinstall INSIDE the container for a Linux-native tree. riskClass workspace_write (FR-053 approval), exposure-filtered output (specs/015 FR-1212).",
       "type": "process",
       "executable": "node",
       "args": [
         "-e",
-        "const cp=require('node:child_process'),fs=require('node:fs');fs.rmSync('node_modules',{recursive:true,force:true});const r=cp.spawnSync('npm',['install'],{stdio:'inherit'});process.exit(r.status??1)"
+        "const cp=require('node:child_process'),fs=require('node:fs');fs.rmSync('node_modules',{recursive:true,force:true});const r=cp.spawnSync('corepack',['yarn','install'],{stdio:'inherit'});process.exit(r.status??1)"
       ],
       "required": false,
       "invocableByAgent": true,

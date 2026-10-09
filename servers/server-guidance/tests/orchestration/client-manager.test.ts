@@ -61,22 +61,6 @@ describe("ClientManager (FR-031/033/034/042, SC-008)", () => {
     await mgr.shutdown();
   });
 
-  it("detects capability drift against the pinned schema hash (FR-042)", async () => {
-    const stub1 = createStubServer("success");
-    const mgr = new ClientManager();
-    mgr.useTransport("g", () => stub1.clientTransport);
-    await mgr.ensureReady("g");
-    const pinned = mgr.pinCapability("g", "analyze");
-    // Reconnect with a drifted stub (different input schema ⇒ different hash).
-    const stub2 = createStubServer("success");
-    // build a drifted variant manually: register with different schema is not
-    // possible post-registration, so simulate by comparing hashes directly.
-    const driftedHash = "sha256:deadbeef";
-    expect(() => mgr.assertNotDrifted("g", "analyze", driftedHash)).toThrowError(/drifted/);
-    expect(() => mgr.assertNotDrifted("g", "analyze", pinned.inputSchemaHash)).not.toThrow();
-    expect(pinned.inputSchemaHash).toMatch(/^sha256:/);
-  });
-
   it("enforces capability allowlists (FR-048)", () => {
     const mgr = new ClientManager();
     expect(() => mgr.assertAllowed("g", "hiddenTool", ["analyze"])).toThrowError(/not allowlisted/);

@@ -1094,3 +1094,29 @@ What works: hybrid in-process re-pin (user decision c) — drift fails closed + 
 What's left: independent final review + completion of this session; then merges (feature/chfix-12-session-messages and feature/chfix-11-hybrid-repin) — user decision; DEPS-OPS-1 remains tracked.
 
 Current State: CHFIX-10/12/11 all implemented; chain at final successor completion.
+
+## 2026-10-09 - NEW CHAIN HEAD STARTED (verification-only): CHFIX-11-R1 + DEPS-OPS-1 (session-92d3bbfb)
+
+What works: 2-step chain accepted by the guidance server (chainSpec persisted, chainUpNext=0). Step 1 = CHFIX-11-R1: (F-3) documented design decision only (fail-closed semantics for co-running engines over one stateDir; any future multi-engine-per-stateDir wiring remains a BLOCKING re-assessment trigger; no guard code) + (F-2) remove ClientManager.assertNotDrifted incl. unit test. Step 2 = DEPS-OPS-1: parameterize deps-install per-workspace PM config (user choice b). Head preconditions verified read-only: assertNotDrifted exists only as definition (ClientManager.ts L234-238) + test (client-manager.test.ts L73-78), no production caller; remaining-work-plan entries match chain scope; EMMS has no deps-install/PM traps.
+
+Key successor input (head discovery): PM-aware deps-install generation ALREADY EXISTS in ConfigAssistant (question `packageManager`: yarn.lock -> yarn; buildOperations emits PM-specific clean/fallback strategies, yarn 4+ semantics). DEPS-OPS-1 successor should therefore locate the instance-level npm-only operations source for this workspace (list_configured_operations returned [] at head - check instance .guidance config vs scaffolded defaults) and apply/parameterize per-workspace PM (yarn) rather than build PM support from scratch. WF-3: npm must never run at the yarn root.
+
+What's left: successor 1 (CHFIX-11-R1 step), successor 2 (DEPS-OPS-1 step); no parallel writers on this checkout during their completion gates (lesson 2026-09-26).
+
+Current State: head completed verification-only cycle; successors pending.
+
+## 2026-10-09 - CHFIX-11-R1 resolved (chain successor 1, session-fca4ca8f, feature/chfix-11-r1-docs-f2)
+
+What works: (F-3) design decision documented in servers/server-guidance/README.md "Pin persistence and co-running engines (design decision)" — supported wirings, merge-on-save rationale, resurrection hazard, fail-closed direction, CONDITIONAL self-heal, blocking re-assessment requirement for any multi-engine-per-stateDir wiring; no guard code (per user decision). (F-2) ClientManager.assertNotDrifted + FR-042 unit test removed after dual evidence (GitNexus impact upstream: 0 callers, UNKNOWN-risk note honored via repo-wide grep; def+test only). Verification: client-manager.test.ts (19) + capability-repin.test.ts (4) = 23/23 green; tsc --noEmit clean. remaining-work-plan.md reclassified (F-2 fixed, F-3 documented, F-4 unchanged accepted).
+
+What's left: successor 2 (DEPS-OPS-1: parameterize deps-install per-workspace PM — PM generation exists in ConfigAssistant; locate instance npm-only operations source); merge of feature/chfix-11-r1-docs-f2 (user decision).
+
+Current State: code+docs change on feature branch; awaiting review + completion.
+
+## 2026-10-09 - DEPS-OPS-1 resolved (chain successor 2, session-c686501b, feature/chfix-11-r1-docs-f2)
+
+What works: workspace .guidance/operations.json parameterized to the yarn profile (decision DEC-DEPSOPS-1): deps-install = corepack yarn install --immutable → corepack yarn install; deps-reinstall = corepack yarn install. Container-verified: bare yarn shim = 1.22.22 (no --immutable), corepack yarn = 4.6.0 — hence the corepack wrapper. npm never installs at this root (WF-3); EACCES fallback path eliminated; README dependency-bootstrap section generalized to per-workspace PM parameterization. Config loads (guidance calls parse operations.json cleanly post-edit).
+
+What's left: merge of feature/chfix-11-r1-docs-f2 (both successor commits) — user decision; optional follow-up: corepack-enable in the container image so plain `yarn` resolves 4+ (tracked in remaining-work-plan.md as optional note).
+
+Current State: config+docs change on feature branch; chain complete after this session.

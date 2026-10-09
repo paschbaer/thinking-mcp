@@ -397,6 +397,38 @@ fails closed first; only the explicit release re-enables discovery. Like
 `call_downstream` and `run_operation`, the tool is not registered in remote
 mode (fail-closed; remote sessions produce no in-process pins).
 
+##### Pin persistence and co-running engines (design decision)
+
+Capability pins persist in `<stateDir>/capability-pins.jsonl` with
+merge-on-save semantics: a save merges the engine's in-memory pin set into
+the file instead of overwriting it, so legitimately co-running engine
+instances keep their pins across each other's saves. Removals (the explicit
+release) delete keys rather than merge them.
+
+**Supported wirings.** Merge-on-save is designed for the configurations
+Guidance actually composes: pool mode builds **one** boot composition per
+state directory, and remote mode gives each session an **isolated**
+per-session state directory. Under both, at most one engine writes pins to
+any given file.
+
+**Why multiple engines over one state directory are unsupported.** If two
+engine instances shared one state directory, a release on engine A (in-memory
+removal plus key deletion on disk) could be silently undone: engine B still
+holds the released pin in its in-memory set, and B's next save merges the pin
+back into the file — resurrecting on disk a pin that was deliberately
+released. The failure direction remains fail-closed: if the downstream
+capability actually drifted, the next call routed through the stale engine
+fails closed with `downstream_capability_changed`, is audited as
+`capability_pin_drift`, and heals via the explicit release. This self-heal is
+**conditional** — it fires only when a call actually routes through the
+stale engine; no call, no detection.
+
+**Decision.** Multi-engine-per-state-directory wiring is unsupported and
+must not be introduced without re-assessing this persistence contract first
+(e.g. per-engine ownership markers or a single-writer lock would be required
+instead of blind merge-on-save). Any design that composes more than one
+engine over the same state directory must resolve this before implementation.
+
 #### `run_operation` with argument overrides
 
 `run_operation` accepts an optional `arguments` record for `mcpTool`
@@ -1715,11 +1747,22 @@ workspace root generates the uv-based Python op set (`toolchain-sync`,
 ### Dependency-bootstrap operations
 
 Node workspaces get two healing operations in the shipped catalogs
-(scaffold template, config-assistant, `examples/default-guidance`):
+(scaffold template, config-assistant, `examples/default-guidance`). Their
+strategies are **package-manager-parameterized per workspace**: the config
+assistant asks for the repo's package manager (detected from the lockfile —
+yarn.lock → yarn, pnpm-lock.yaml → pnpm, otherwise npm) and generates the
+matching strategies; the shipped template defaults to npm. npm roots get
+`npm ci` → `npm install`; pnpm roots get `pnpm install --frozen-lockfile` →
+`pnpm install`; yarn roots (yarn 4+ via the `packageManager` field, e.g.
+through `corepack yarn`) get `yarn install --immutable` → `yarn install` —
+sync-with-lockfile semantics without a destructive `node_modules` reset. A
+workspace's catalog (its `.guidance/operations.json`) is the authoritative
+per-workspace configuration: edit or regenerate it to switch strategies —
+never let an npm-based strategy run against a yarn- or pnpm-managed root.
 
 | Operation        | Semantics                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deps-install`   | composite `firstAvailable`: `npm ci` (clean semantics) with `npm install` fallback — the fallback runs whenever `npm ci` fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); note `npm ci` removes `node_modules` before failing, so a masked failure leaves `node_modules` deleted. The result's `data.via` label (`npm-ci-lockfile` / `npm-install-fallback`) records which strategy ran (audit note) |
+| `deps-install`   | composite `firstAvailable`: the PM's clean/sync strategy with the PM's plain install as fallback — the fallback runs whenever the clean strategy fails for ANY reason (missing lockfile, network error, dependency conflict, timeout); with npm note that `npm ci` removes `node_modules` before failing, so a masked failure leaves `node_modules` deleted. The result's `data.via` label (e.g. `npm-ci-lockfile` / `npm-install-fallback`, `yarn-install-immutable` / `yarn-install-fallback`) records which strategy ran (audit note) |
 | `deps-reinstall` | deletes `node_modules` (lockfile preserved) and reinstalls in one step — workspace-scoped (runs in the workspace root, no path traversal); the remedy for `ERR_DLOPEN_FAILED` native-addon ABI mismatches (reinstall INSIDE the container for a Linux-native tree)                                                                                                                                                                        |
 
 Both are `riskClass: workspace_write`, `required: false`,
