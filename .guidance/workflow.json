@@ -104,7 +104,7 @@
       "response": "complete",
       "submissionSchema": "schemas/complete.schema.json",
       "lifecycle": {
-       "beforeExit": [
+        "beforeExit": [
           "docs-drift",
           "final-review-gate",
           "gitnexus-reindex",

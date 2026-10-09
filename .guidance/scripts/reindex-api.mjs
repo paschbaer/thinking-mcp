@@ -151,6 +151,6 @@ for (;;) {
     log(`job ${jobId} complete in ${secs}s (stats lines + mtimes restored, tree clean)`);
     process.exit(0);
   }
-  if (status === "failed" || status === "error")
+  if (status === "failed" || status === "error" || status === "cancelled")
     die(`job ${jobId} ${status}: ${body.slice(0, 300)}`);
 }
