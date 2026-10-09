@@ -3,44 +3,19 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import {
-  resolveConfig,
-  resolveStorageBackend,
-  resolvePostgresConnectionString,
-  type ServerConfig,
-} from "../config.js";
-import { SqliteAdapter } from "../storage/sqlite.js";
+import type { ServerConfig } from "../config.js";
+import { buildStorageAdapter } from "../storage/factory.js";
 import { EmmsService } from "../service.js";
 import { registerEmmsTools } from "./register.js";
 import { registerSetupInsight } from "./setup-insight.js";
 import { ConsolidationWorker } from "../consolidation/worker.js";
 import { TransformersEmbedding } from "../retrieval/semantic.js";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { mkdirSync } from "node:fs";
-
-/**
- * Persistent default store: ~/.insight/emms-store.db.
- *
- * The previous default (cwd/emms-store.db) was a workflow-persistence trap:
- * agents launching the server via stdio from arbitrary cwds got a fresh,
- * cwd-local store each session, so workflows from earlier sessions were
- * "not found" (reported by the Niyama capture session, wf_225bf751-af3).
- * Override via config.storagePath or EMMS_STORAGE_PATH (docker-compose sets
- * it to the persistent volume).
- */
-function defaultStoragePath(): string {
-  const dir = join(homedir(), ".insight");
-  mkdirSync(dir, { recursive: true });
-  return join(dir, "emms-store.db");
-}
 
 export function registerTools(server: McpServer, config: ServerConfig): void {
-  const resolved = resolveConfig(config);
-  // resolveConfig already honors EMMS_STORAGE_PATH
-  const storagePath = resolved.storagePath ?? defaultStoragePath();
-  const artifactsDir = join(storagePath, "..", "emms-artifacts");
-  const adapter = new SqliteAdapter(storagePath);
+  // Shared process-wide storage handle (SRCH-2-R3): memoized per backend —
+  // sqlite default or EMMS_STORAGE_BACKEND=postgres (fail-closed on a
+  // missing EMMS_PG_CONNECTION_STRING).
+  const { adapter, artifactsDir } = buildStorageAdapter(config);
   const service = new EmmsService(
     adapter,
     artifactsDir,
@@ -63,19 +38,21 @@ export function registerTools(server: McpServer, config: ServerConfig): void {
 /**
  * Fire-and-forget semantic warmup, ONCE PER PROCESS (not per session/MCP
  * server): the HTTP entry builds a fresh service per MCP session, so wiring
- * the warmup into registerTools would run it per session. This helper owns a
- * short-lived adapter (closed afterwards) that warms the SHARED embeddings
- * table. Never blocks startup or /health; skips cleanly when embeddings are
- * disabled or the model fails to load; the explicit .catch keeps a warmup
- * failure from becoming an unhandled rejection (process crash).
+ * the warmup into registerTools would run it per session. Since SRCH-2-R3 the
+ * warmup shares the MEMOIZED process-wide adapter from buildStorageAdapter —
+ * a postgres deployment now warms Postgres, not a stray local sqlite store,
+ * and the shared adapter must NOT be closed here (tools + consolidation
+ * worker keep using it; the adapter's close() is guarded against
+ * double-close/uninitialized db). Never blocks startup or /health; skips
+ * cleanly when embeddings are disabled or the model fails to load; the
+ * explicit .catch keeps a warmup failure from becoming an unhandled
+ * rejection (process crash).
  */
 export function launchSemanticWarmup(config: ServerConfig): void {
-  const resolved = resolveConfig(config);
-  const storagePath = resolved.storagePath ?? defaultStoragePath();
-  const adapter = new SqliteAdapter(storagePath);
+  const { adapter, artifactsDir } = buildStorageAdapter(config);
   const service = new EmmsService(
     adapter,
-    join(storagePath, "..", "emms-artifacts"),
+    artifactsDir,
     undefined,
     new TransformersEmbedding(),
   );
@@ -95,8 +72,5 @@ export function launchSemanticWarmup(config: ServerConfig): void {
       console.error(
         `[insight] semantic warmup failed: ${e instanceof Error ? e.message : String(e)}`,
       );
-    })
-    .finally(() => {
-      void adapter.close();
     });
 }
