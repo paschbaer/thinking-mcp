@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "workflow": {
+    "id": "srch-chain-head",
+    "profile": "plain",
+    "initialPhase": "understand",
+    "terminalStates": ["completed", "cancelled"]
+  },
+  "phases": {
+    "understand": { "$include": "workflow.json#/phases/understand" },
+    "plan": { "$include": "workflow.json#/phases/plan" },
+    "review_and_adjust_plan": { "$include": "workflow.json#/phases/review_and_adjust_plan" },
+    "implement": { "$include": "workflow.json#/phases/implement" },
+    "review_and_fix_implementation": { "$include": "workflow.json#/phases/review_and_fix_implementation" },
+    "verify": { "$include": "workflow.json#/phases/verify" },
+    "complete": { "$include": "workflow.json#/phases/complete" }
+  }
+}
