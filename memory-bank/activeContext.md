@@ -3,6 +3,10 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 3 — SRCH-2-R4 async storage dir creation (feature/srch-2-r4-async-mkdir, commit fe90dee)
+
+- defaultStoragePath() pure (no mkdirSync); dir creation in SqliteAdapter.doInit via fs/promises mkdir recursive, wrapped with an actionable error (EMMS_STORAGE_PATH + permissions). Failures ride the init().catch chain — registerTools crashes loudly with the message, warmup logs; no sync throw in the listen callback. storage-factory 8/8; independent review APPROVED 0 HIGH/CRITICAL; new tracked follow-up R4-REV-5 (OperationRegistry lazy sync mkdirSync, same crash class, trigger: next startup/registry scope).
+
 ## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 2 — SRCH-2-R3 backend-aware storage factory (feature/srch-2-r3-warmup-backend-aware, commits 4890a62..1337b3b)
 
 - NEW src/storage/factory.ts: buildStorageAdapter() memoizes StorageHandle {adapter, artifactsDir}; sqlite default unchanged; EMMS_STORAGE_BACKEND=postgres → PostgresAdapter, fail-closed throw on missing EMMS_PG_CONNECTION_STRING; artifacts stay filesystem-based. registerTools + launchSemanticWarmup rewired onto the singleton; warmup no longer closes it.
