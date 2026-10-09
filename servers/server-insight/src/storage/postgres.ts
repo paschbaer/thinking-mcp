@@ -650,11 +650,17 @@ export class PostgresAdapter implements StorageAdapter {
     return r.rows as SearchRow[];
   }
   async listInScope(scope_id: string): Promise<SearchRow[]> {
+    // LEFT JOIN + visibility, mirroring SqliteAdapter.listInScope (parity):
+    // signature-less episodes (lessons/consolidation) must stay discoverable
+    // via the scope fallback and the semantic arm, and public episodes are
+    // included regardless of scope. The previous INNER JOIN without the
+    // visibility arm dropped exactly those rows on Postgres (same bug class
+    // the live smoke test was created to catch).
     const r = await this.client!.query(
       `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
               e.last_verified_at, s.normalized_hash, s.exact_tokens
-       FROM episodes e JOIN signatures s ON s.episode_id = e.experience_id
-       WHERE e.scope_id = $1`,
+       FROM episodes e LEFT JOIN signatures s ON s.episode_id = e.experience_id
+       WHERE e.scope_id = $1 OR e.visibility = 'public'`,
       [scope_id],
     );
     return r.rows as SearchRow[];

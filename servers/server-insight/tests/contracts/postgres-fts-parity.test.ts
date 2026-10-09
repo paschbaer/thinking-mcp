@@ -27,6 +27,23 @@ const ROW = {
   exact_tokens: null,
 };
 
+describe("PostgresAdapter.listInScope (scope fallback / semantic arm parity)", () => {
+  it("LEFT JOIN signatures and includes public episodes regardless of scope", async () => {
+    const { adapter, query } = adapterWithMock([ROW]);
+    const rows = await adapter.listInScope("scope-a");
+    expect(rows).toEqual([ROW]);
+    const [sql, params] = query.mock.calls[0] as [string, unknown[]];
+    expect(params[0]).toBe("scope-a");
+    // Signature-less episodes (lessons) must stay discoverable via the scope
+    // fallback and the semantic arm — INNER JOIN dropped them on Postgres
+    // (found by the live smoke test, same bug class as searchFullText).
+    expect(sql).toContain("LEFT JOIN signatures");
+    expect(sql).not.toMatch(/(?<!LEFT )JOIN signatures/);
+    // Public episodes are included regardless of scope (sqlite parity).
+    expect(sql).toContain("e.visibility = 'public'");
+  });
+});
+
 describe("PostgresAdapter.searchFullText (L257 parity)", () => {
   it("emits sanitized OR-joined tsquery, LEFT JOIN signatures, observation coverage, graded rank", async () => {
     const { adapter, query } = adapterWithMock([ROW]);
