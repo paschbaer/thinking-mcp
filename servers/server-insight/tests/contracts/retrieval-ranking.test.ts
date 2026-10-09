@@ -191,4 +191,49 @@ describe("fts_rank contract pin (SRCH-1-F3)", () => {
       svc.search({ query: "contract violation", ...CTX }),
     ).rejects.toThrow(/fts_rank/);
   });
+
+  it("non-numeric fts_rank variants (NaN, string) also fail loudly", async () => {
+    for (const bad of [Number.NaN, "0.5"] as unknown[]) {
+      const stub = {
+        constructor: { name: "ContractViolatingStubAdapter" },
+        searchFullText: async () => [
+          {
+            episode_id: "ep-contract-violation",
+            summary: "row with a bad fts_rank",
+            state: "verified",
+            scope_id: CTX.scope_id,
+            last_verified_at: null,
+            fts_rank: bad,
+          },
+        ],
+      } as unknown as ConstructorParameters<typeof EmmsService>[0];
+      const svc = new EmmsService(stub, join(dir, "artifacts"));
+      await expect(
+        svc.search({ query: "contract violation", ...CTX }),
+      ).rejects.toThrow(/fts_rank/);
+    }
+  });
+
+  it("fts_rank 0 is a valid value and passes the pin", async () => {
+    const stub = {
+      constructor: { name: "ZeroRankStubAdapter" },
+      searchFullText: async () => [
+        {
+          episode_id: "ep-zero-rank",
+          summary: "row with fts_rank 0",
+          state: "verified",
+          scope_id: CTX.scope_id,
+          last_verified_at: null,
+          fts_rank: 0,
+        },
+      ],
+      listInScope: async () => [],
+      getFeedbackSummary: async () => ({ harmful: 0, useful: 0 }),
+      listAttempts: async () => [],
+    } as unknown as ConstructorParameters<typeof EmmsService>[0];
+    const svc = new EmmsService(stub, join(dir, "artifacts"));
+    const out = await svc.search({ query: "zero rank", ...CTX });
+    const hits = (out.result as { hits?: unknown[] }).hits ?? [];
+    expect(Array.isArray(hits)).toBe(true);
+  });
 });
