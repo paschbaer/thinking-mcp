@@ -434,9 +434,18 @@ export class WorkflowTools {
     sessionId: string,
     serverId: string,
     toolName: string,
-    args: Record<string, unknown> = {},
+    args: Record<string, unknown>,
   ): Promise<ReturnType<WorkflowEngine["callDownstream"]>> {
     return this.engine.callDownstream(sessionId, serverId, toolName, args);
+  }
+
+  /** CHFIX-11 hybrid re-pin: explicit, confirm-gated in-process release of
+   *  capability pins (see WorkflowEngine.releaseCapabilityPins). */
+  releaseCapabilityPins(
+    sessionId: string,
+    opts: { serverId?: string; toolName?: string; confirm?: boolean },
+  ): ReturnType<WorkflowEngine["releaseCapabilityPins"]> {
+    return this.engine.releaseCapabilityPins(sessionId, opts);
   }
 
   async getMetrics(): Promise<ReturnType<WorkflowEngine["getMetrics"]>> {

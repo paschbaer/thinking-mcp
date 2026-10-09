@@ -368,6 +368,33 @@ register an operation entry to classify the tool.
 `call_downstream` is not registered in remote mode (`remote-tools.ts`),
 consistent with `run_operation` — fail-closed.
 
+#### `release_capability_pins`: conscious in-process re-pin
+
+Capability pins freeze each downstream tool's input-schema hash at first
+discovery. When a downstream server legitimately changes (upgrade, reindex
+with schema drift), calls fail closed with `downstream_capability_changed` —
+the failure is audited as `capability_pin_drift` (engine-level audit file,
+with pinned and live hashes) and the error message names the remedy.
+
+After **confirming the infra event**, release the stale pins in-process:
+
+```json
+{
+  "sessionId": "session-…",
+  "serverId": "gitnexus",
+  "toolName": "check",
+  "confirm": true
+}
+```
+
+`confirm: true` is required (the conscious step); `serverId`/`toolName` are
+optional filters — without them **all** pins are released. The release
+removes the pins in memory and on disk (co-running engine instances keep
+their pins via merge-on-save), audits `capability_pins_reset` on the calling
+session, and the **next successful tool call re-pins automatically** — no
+server restart is needed. Pins are never re-pinned silently: drift always
+fails closed first; only the explicit release re-enables discovery.
+
 #### `run_operation` with argument overrides
 
 `run_operation` accepts an optional `arguments` record for `mcpTool`
@@ -2711,6 +2738,7 @@ details.
 | `get_downstream_status`        | `sessionId?`                                                                                                                                         | Read-only: downstream-server visibility. With a `sessionId` routed to a workspace session, reports that workspace's live connection health (flat list). Instance-level (no session) in single-workspace (monolith) mode, the output stays the historical flat live-status list; in pool composition it is `{ mode: "pool", live, workspaces[] }` where `workspaces[]` lists each workspace's DECLARED **enabled** downstream servers (read from its own `.guidance` — no connections are opened, disabled servers are omitted, unreadable configs surface as `declaredError`); `live` carries connection health only for engines already composed in-process |
 | `run_operation`                | `sessionId`, `operationId`, `arguments?`                                                                                                             | Runs a configured operation on demand (only operations with `invocableByAgent: true`). The optional `arguments` record is deep-merged over the operation's resolved args for `mcpTool` ops (agent keys win per-key; `argumentsLocked` ops reject overrides; process/composite ops ignore them with a warning)                                                                                                                                                                                                                                                                                                                                                |
 | `call_downstream`              | `sessionId`, `serverId`, `toolName`, `args`                                                                                                          | **Transparent passthrough:** transparent passthrough to a configured downstream tool — runs through the same fail-closed gates as operations (allowlist, wildcard rejection, egress, capability pins, container-route fallback for read-only). Args are NOT schema-validated by Guidance (the downstream tool validates its own input); downstream content is redacted before exposure. Not registered in remote mode (fail-closed)                                                                                                                                                                                                                          |
+| `release_capability_pins`      | `sessionId`, `serverId?`, `toolName?`, `confirm`                                                                                                    | Conscious in-process re-pin: after a `downstream_capability_changed` drift was detected (audited as `capability_pin_drift`) and the infra event is confirmed, removes the matching capability pins (`confirm: true` required; without filters ALL pins). Audits `capability_pins_reset`; the next successful tool call re-pins automatically — no server restart. See "`release_capability_pins`: conscious in-process re-pin"                                                                                                                                                                    |
 | `get_metrics`                  | —                                                                                                                                                    | Read-only: aggregated metrics (operation counters, runtimes, connection health)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `registry_register`            | `name`, `root`, `projectName?`, `remove?`                                                                                                            | Enabled by default (`registryRegister.enabled`, opt-out via `false`); profile-independent — registration is a one-time instance-level concern while the workflow type is chosen per session. Registers/removes one workspace root at runtime through the same fail-closed `WorkspaceRegistry.build` validation (invalid input → no change), persists `workspaces[]` atomically in `guidance.json`, appends a `registry_changed` audit event and produces a new `configurationVersion` (existing sessions follow the rebind semantics — see "Runtime registry registration")                                                                                  |
 

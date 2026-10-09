@@ -88,7 +88,7 @@ describe("HTTP transport (FR-027 loopback-only)", () => {
       };
     const list = await call({ jsonrpc: "2.0", id: 1, method: "tools/list" });
     expect(list.status).toBe(200);
-    expect(((await list.json()).result?.tools as unknown[]).length).toBe(40); // WIZ-3: 19 workflow + registry_register (FR-1207 default ON) + call_downstream (CT-ARGS-1) + 3 setup tools + 16 spec-kit tools (unconditional; was profile-gated)
+    expect(((await list.json()).result?.tools as unknown[]).length).toBe(41); // WIZ-3: 19 workflow + registry_register (FR-1207 default ON) + call_downstream (CT-ARGS-1) + release_capability_pins (CHFIX-11) + 3 setup tools + 16 spec-kit tools (unconditional; was profile-gated)
     const start = await call({
       jsonrpc: "2.0",
       id: 2,

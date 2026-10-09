@@ -107,6 +107,7 @@ export const WORKFLOW_TOOL_NAMES = [
   "call_downstream",
   "get_metrics",
   "get_downstream_status",
+  "release_capability_pins",
 ] as const;
 
 export const SPEC_KIT_TOOL_NAMES = [
@@ -403,6 +404,24 @@ export function registerWorkflowTools(
     },
     async ({ sessionId, serverId, toolName, args }) =>
       toJson(await tools.callDownstream(sessionId, serverId, toolName, args)),
+  );
+  server.tool(
+    "release_capability_pins",
+    "Releases stale capability pins IN-PROCESS (hybrid re-pin): after a downstream_capability_changed drift was detected (audited as capability_pin_drift) and the infra event is CONFIRMED (e.g. server upgrade/reindex), this removes the matching pins — the next successful tool call re-pins automatically, no server restart. confirm:true is required (conscious step); the release is audited as capability_pins_reset. Optional serverId/toolName narrow the scope; without filters ALL pins are released.",
+    {
+      ...sessionId,
+      serverId: z.string().min(1).optional(),
+      toolName: z.string().min(1).optional(),
+      confirm: z.literal(true),
+    },
+    async ({ sessionId, serverId, toolName, confirm }) =>
+      toJson(
+        await tools.releaseCapabilityPins(sessionId, {
+          ...(serverId ? { serverId } : {}),
+          ...(toolName ? { toolName } : {}),
+          confirm,
+        }),
+      ),
   );
   server.tool(
     "get_metrics",

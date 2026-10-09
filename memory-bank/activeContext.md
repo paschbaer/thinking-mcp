@@ -3,6 +3,10 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: CHAIN SUCCESSOR 3 (CHFIX-11 chain) — hybrid in-process re-pin implemented (session-26f47d05, feature/chfix-11-hybrid-repin)
+
+- Hybrid per user decision (c): auto-detect leg audits capability_pin_drift (engine-level audit file — the invoker closure has no session binding; pinned+live hashes, kinds schema-drift AND the previously unclassified tool-missing) and keeps failing closed with a release-tool remedy in the message; explicit-release leg = confirm-gated MCP tool release_capability_pins (in-process pin removal + saveCapabilityPins remove-semantics + capability_pins_reset audit; next successful call re-pins — no restart). Tool surface 40→41 (http-transport pin + README tool table + section), docs-drift green (37 tools), suite 734/734, tsc clean.
+
 ## 2026-10-09: CHAIN SUCCESSOR 1 (CHFIX-10 chain) — EMMS artifact resolved (session-a4a78bf2)
 
 - All 4 pending-lessons verified retrievable in the EMMS store (distinct experience ids, exact-slug top hits via experience_search); artifact .guidance/state/pending-lessons-chfix235.json deleted after positive verification; CHFIX-10 RESOLVED with evidence in remaining-work-plan.md; DEPS-OPS-1 typo fixed (shared-workspace → shared-workflow, head reviewer's recommendation). User decision recorded for successor 3: CHFIX-11 = HYBRID re-pin.

@@ -81,10 +81,14 @@ export function loadCapabilityPins(stateDir: string): Record<string, string> {
   }
 }
 
-/** Exported for the persistence-contract tests (restart semantics). */
+/** Exported for the persistence-contract tests (restart semantics).
+ *  CHFIX-11: `remove` deletes keys from the persisted file (merge-on-save
+ *  alone would keep released pins alive on disk); remaining keys merge as
+ *  before so co-running engine instances keep their pins. */
 export function saveCapabilityPins(
   stateDir: string,
   pins: Map<string, string>,
+  opts: { remove?: string[] } = {},
 ): void {
   const file = join(stateDir, CAPABILITY_PIN_FILE);
   let merged: Record<string, string> = {};
@@ -97,6 +101,7 @@ export function saveCapabilityPins(
   } catch {
     merged = {}; // korrupte Datei ersetzen
   }
+  for (const key of opts.remove ?? []) delete merged[key];
   for (const [key, hash] of pins) merged[key] = hash;
   // Atomic write (tmp+rename, wie Audit-/Session-Writes): ein Crash zwischen
   // Truncate und Flush darf keine korrupte/leere Pin-Datei hinterlassen.
@@ -1676,8 +1681,33 @@ export class WorkflowEngine {
       );
       const tool = status.tools.find((t) => t.name === toolName);
       const pinnedHash = this.pinnedHashes.get(`${serverId}:${toolName}`);
-      if (pinnedHash && tool && tool.inputSchemaHash !== pinnedHash) {
-        this.clientManager!.assertNotDrifted(serverId, toolName, pinnedHash);
+      if (pinnedHash && (!tool || tool.inputSchemaHash !== pinnedHash)) {
+        // CHFIX-11 hybrid re-pin (auto-detect leg): audit the drift in the
+        // engine-level audit file (this invoker closure has no session
+        // binding), keep failing CLOSED, and point the agent at the
+        // conscious-release remedy in the message. A pinned tool that no
+        // longer exists is drift too (previously unclassified — the call
+        // proceeded and failed server-side).
+        this.audit.append({
+          sessionId: "capability-pins",
+          eventType: "capability_pin_drift",
+          data: {
+            serverId,
+            toolName,
+            kind: !tool ? "tool-missing" : "schema-drift",
+            pinnedHash,
+            ...(!tool ? {} : { liveHash: tool.inputSchemaHash }),
+          },
+        });
+        throw new GuidanceError(
+          "downstream_capability_changed",
+          `${
+            !tool
+              ? `tool ${toolName} disappeared from ${serverId}`
+              : `tool ${toolName} schema drifted on ${serverId}`
+          } — capability pins are safety checks: confirm the infra event (e.g. server upgrade/reindex), release the stale pin via the release_capability_pins tool (confirm:true), then retry — no server restart needed`,
+          { recoverable: false },
+        );
       }
       if (tool) {
         this.pinnedHashes.set(`${serverId}:${toolName}`, tool.inputSchemaHash);
@@ -2840,6 +2870,50 @@ export class WorkflowEngine {
     }
     if (changed) this.sessions.save(session);
     return session;
+  }
+
+  /** CHFIX-11 hybrid capability re-pin (explicit-release leg): removes
+   *  capability pins IN-PROCESS — the conscious counterpart to the drift
+   *  auto-detect in the invoker closure. `confirm: true` is the deliberate
+   *  step (releasing pins re-enables capability discovery; the next
+   *  successful tool call re-pins automatically — no server restart).
+   *  Audits capability_pins_reset with the calling session's id; the file
+   *  removal goes through saveCapabilityPins({remove}) so co-running engine
+   *  instances keep their pins (merge-on-save). */
+  releaseCapabilityPins(
+    sessionId: string,
+    opts: { serverId?: string; toolName?: string; confirm?: boolean } = {},
+  ): { released: number } {
+    if (opts.confirm !== true) {
+      throw new GuidanceError(
+        "operation_arguments_invalid",
+        "release_capability_pins requires confirm:true — releasing capability pins is a conscious infra-event decision (e.g. a confirmed server upgrade/reindex); the release is audited",
+        { recoverable: true },
+      );
+    }
+    // Session binding mirrors the other session-scoped tools.
+    this.getSession(sessionId);
+    const keys = [...this.pinnedHashes.keys()].filter((k) => {
+      if (opts.serverId && !k.startsWith(`${opts.serverId}:`)) return false;
+      if (opts.toolName && !k.endsWith(`:${opts.toolName}`)) return false;
+      return true;
+    });
+    for (const k of keys) this.pinnedHashes.delete(k);
+    if (keys.length > 0) {
+      saveCapabilityPins(this.stateDir, this.pinnedHashes, {
+        remove: keys,
+      });
+    }
+    this.audit.append({
+      sessionId,
+      eventType: "capability_pins_reset",
+      data: {
+        released: keys.length,
+        ...(opts.serverId ? { serverId: opts.serverId } : {}),
+        ...(opts.toolName ? { toolName: opts.toolName } : {}),
+      },
+    });
+    return { released: keys.length };
   }
 
   /** FR-029: archive/delete finished sessions older than the retention period. */
