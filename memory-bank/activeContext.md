@@ -3,6 +3,15 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: SEARCH-FIX CHAIN SUCCESSOR 2 — semantic arm enabled (session-4ee5f200, feature/insight-search-fts-or-ranking)
+
+- Dockerfile: node:22-alpine → node:22-slim (glibc; onnxruntime-node prebuilts cannot load on musl); sharp (transitive dep of transformers.js) added to the npm rebuild line — npm ci --ignore-scripts skips its install script and the import failed on missing sharp binaries (build-time discovery); model baked into the image (EMMS_MODEL_CACHE=/usr/src/app/.model-cache, transformers.js v2 honors NO cache env var — env.cacheDir set programmatically in semantic.ts AND identically in the bake RUN).
+- semantic.ts: real load failure logged once (the musl/glibc mismatch was previously invisible behind SEMANTIC_UNAVAILABLE); service.search embeds the query exactly once (was twice); new EmmsService.warmupSemanticIndex (incremental, sequential, per-item error tolerance, skip-first availability probe) + StorageAdapter.listAllEpisodeSummaries (sqlite+postgres).
+- Warmup placement lesson: the HTTP entry builds a fresh service PER MCP SESSION — wiring warmup into registerTools would run it per session; correct place is once per process (launchSemanticWarmup helper called from server.ts at listen and dev.ts stdio main).
+- Live-verified after rebuild: warmup '[insight] semantic warmup complete: 121 summaries embedded in 4072ms' (non-blocking, /health green); experience_search on :3002 reports semantic_available=true; q1/q2/q3 query-dependent; q2 top hit = chain-step-workflowid-registry-trap at 0.674 (0.225 base + 0.30 graded FTS + ~0.15 semantic — calibration confirmed, no adjustment needed); degraded container (EMMS_DISABLE_EMBEDDINGS=1): warmup skip log + semantic_available=false + search responsive.
+- Tests: semantic.test.ts extended (warmup embeds-each-once + incremental, skip-when-unavailable, query-dedupe=1, dual-arm F5 pin) — 4 passed + 4 model-tests skipped under EMMS_DISABLE_EMBEDDINGS=1; Step-1 regression suites green; tsc green; image build green with model bake log.
+- SRCH-1-F5 RESOLVED (regression-pinned); SRCH-1-F3 remains tracked (next StorageAdapter change).
+
 ## 2026-10-09: SEARCH-FIX CHAIN SUCCESSOR 1 — experience_search A+B+D implemented (session-b25dd900, feature/insight-search-fts-or-ranking)
 
 - Option A: sqlite.ts + postgres.ts searchFullText now OR-join sanitized tokens (the implicit/explicit AND join made multi-token queries match essentially never) and return a graded fts_rank (higher = better; SQLite negated bm25, Postgres GREATEST of summary/observation ts_rank; best rank kept across both FTS tables). SearchRow gained optional fts_rank.

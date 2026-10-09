@@ -40,13 +40,27 @@ export class TransformersEmbedding implements EmbeddingProvider {
       }
       try {
         const mod = await import("@xenova/transformers");
+        // transformers.js v2 honors NO cache environment variable — the
+        // default cacheDir is cwd-relative './.cache'. EMMS_MODEL_CACHE
+        // pins the cache location (the container bakes the model into
+        // exactly this path at image build time, so runtime never touches
+        // the network).
+        const cacheDir = process.env.EMMS_MODEL_CACHE;
+        if (cacheDir) mod.env.cacheDir = cacheDir;
         this.pipeline = await mod.pipeline(
           "feature-extraction",
           "Xenova/all-MiniLM-L6-v2",
           { quantized: true },
         );
-      } catch {
+      } catch (e) {
         this.loadFailed = true;
+        // Diagnosability: the bare catch hid a platform mismatch (musl
+        // base image vs glibc onnxruntime-node prebuilt) for weeks behind
+        // a generic SEMANTIC_UNAVAILABLE. Log the real cause ONCE.
+        console.error(
+          `[insight] embedding model load failed — semantic retrieval disabled: ` +
+            `${e instanceof Error ? e.message : String(e)}`,
+        );
         return null;
       }
     }

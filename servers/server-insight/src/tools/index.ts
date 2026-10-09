@@ -59,3 +59,44 @@ export function registerTools(server: McpServer, config: ServerConfig): void {
   const worker = new ConsolidationWorker(adapter, service.lessons);
   worker.start();
 }
+
+/**
+ * Fire-and-forget semantic warmup, ONCE PER PROCESS (not per session/MCP
+ * server): the HTTP entry builds a fresh service per MCP session, so wiring
+ * the warmup into registerTools would run it per session. This helper owns a
+ * short-lived adapter (closed afterwards) that warms the SHARED embeddings
+ * table. Never blocks startup or /health; skips cleanly when embeddings are
+ * disabled or the model fails to load; the explicit .catch keeps a warmup
+ * failure from becoming an unhandled rejection (process crash).
+ */
+export function launchSemanticWarmup(config: ServerConfig): void {
+  const resolved = resolveConfig(config);
+  const storagePath = resolved.storagePath ?? defaultStoragePath();
+  const adapter = new SqliteAdapter(storagePath);
+  const service = new EmmsService(
+    adapter,
+    join(storagePath, "..", "emms-artifacts"),
+    undefined,
+    new TransformersEmbedding(),
+  );
+  const started = Date.now();
+  void adapter
+    .init()
+    .then(() => service.warmupSemanticIndex())
+    .then((r) => {
+      if (r.skipped)
+        console.log(`[insight] semantic warmup skipped: ${r.reason}`);
+      else
+        console.log(
+          `[insight] semantic warmup complete: ${r.embedded} summaries embedded in ${Date.now() - started}ms`,
+        );
+    })
+    .catch((e: unknown) => {
+      console.error(
+        `[insight] semantic warmup failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    })
+    .finally(() => {
+      void adapter.close();
+    });
+}

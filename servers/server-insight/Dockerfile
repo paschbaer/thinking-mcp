@@ -1,7 +1,13 @@
-FROM node:22-alpine
+FROM node:22-slim
+
+# glibc base (NOT alpine/musl): onnxruntime-node ships glibc-only
+# prebuilt binaries (libonnxruntime.so needs ld-linux-x86-64.so.2) — the
+# semantic retrieval arm cannot load on musl.
 
 # Install curl for health check
-RUN apk add --no-cache curl
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -26,8 +32,18 @@ RUN npm run build
 # Remove development dependencies
 RUN npm prune --production
 
-# Rebuild native bindings after prune (prune can drop the built binary)
-RUN npm rebuild better-sqlite3
+# Rebuild native bindings after prune (prune can drop the built binary;
+# sharp — a transitive dependency of @xenova/transformers — also needs its
+# install script run because npm ci used --ignore-scripts, otherwise
+# importing the embedding provider fails on missing sharp binaries)
+RUN npm rebuild better-sqlite3 sharp
+
+# Bake the embedding model into the image: transformers.js v2 honors NO
+# cache environment variable, so the bake step sets env.cacheDir exactly
+# like the runtime (EMMS_MODEL_CACHE) — the pre-downloaded cache makes the
+# semantic arm fully offline at runtime (one-time builder egress here).
+ENV EMMS_MODEL_CACHE=/usr/src/app/.model-cache
+RUN node -e "import('@xenova/transformers').then(async (m) => { m.env.cacheDir = process.env.EMMS_MODEL_CACHE; await m.pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { quantized: true }); console.log('embedding model baked'); })"
 
 # Set executable permissions
 RUN chmod +x dist/server.js

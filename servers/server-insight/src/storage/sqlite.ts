@@ -583,6 +583,16 @@ export class SqliteAdapter implements StorageAdapter {
       .all(scope_id) as SearchRow[];
   }
 
+  async listAllEpisodeSummaries(): Promise<
+    Array<{ episode_id: string; summary: string }>
+  > {
+    return this.db
+      .prepare(
+        `SELECT experience_id AS episode_id, goal_summary AS summary FROM episodes`,
+      )
+      .all() as Array<{ episode_id: string; summary: string }>;
+  }
+
   async getFeedbackSummary(
     episode_id: string,
   ): Promise<{ harmful: number; useful: number }> {

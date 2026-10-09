@@ -15,6 +15,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import createExperienceMemoryServer from "./index.js";
+import { launchSemanticWarmup } from "./tools/index.js";
 import { requestSessionScope } from "./tools/request-scope.js";
 import {
   ServerConfigSchema,
@@ -303,6 +304,11 @@ function startServer(): void {
     console.log(`Experience Memory MCP server running on ${HOST}:${PORT}`);
     console.log(`Health check available at http://localhost:${PORT}/health`);
     console.log(`MCP endpoint available at http://localhost:${PORT}/mcp`);
+    // Semantic warmup ONCE PER PROCESS (fire-and-forget, non-blocking):
+    // pre-embeds all stored summaries into the shared embeddings table so
+    // the first search of any session does not pay the lazy cost. Skips
+    // cleanly when embeddings are disabled or the model fails to load.
+    launchSemanticWarmup(resolveEnvConfig());
   });
 
   // Node >= 19 defaults keepAliveTimeout to 5 s and advertises it via the

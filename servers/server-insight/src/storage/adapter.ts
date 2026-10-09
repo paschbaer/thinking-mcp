@@ -92,6 +92,11 @@ export interface StorageAdapter {
   searchExact(hash: string, scope_id: string): Promise<SearchRow[]>;
   searchFullText(terms: string, scope_id: string): Promise<SearchRow[]>;
   listInScope(scope_id: string): Promise<SearchRow[]>;
+  /** All stored episode summaries regardless of scope — semantic warmup
+   * input (embeds the whole corpus once so the first query is fast). */
+  listAllEpisodeSummaries(): Promise<
+    Array<{ episode_id: string; summary: string }>
+  >;
   getFeedbackSummary(
     episode_id: string,
   ): Promise<{ harmful: number; useful: number }>;

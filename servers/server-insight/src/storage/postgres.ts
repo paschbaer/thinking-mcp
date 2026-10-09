@@ -641,6 +641,15 @@ export class PostgresAdapter implements StorageAdapter {
     );
     return r.rows as SearchRow[];
   }
+
+  async listAllEpisodeSummaries(): Promise<
+    Array<{ episode_id: string; summary: string }>
+  > {
+    const r = await this.client!.query(
+      `SELECT experience_id AS episode_id, goal_summary AS summary FROM episodes`,
+    );
+    return r.rows as Array<{ episode_id: string; summary: string }>;
+  }
   async getFeedbackSummary(
     episode_id: string,
   ): Promise<{ harmful: number; useful: number }> {

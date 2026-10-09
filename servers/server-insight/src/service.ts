@@ -1282,6 +1282,55 @@ export class EmmsService {
   }
 
   // ---------- retrieval (US1) ----------
+  /**
+   * Semantic warmup: embed every stored episode summary into the
+   * embeddings table so the first search does not pay the lazy per-summary
+   * embedding cost. Incremental — summaries with a cached embedding are
+   * skipped, so restarts only embed newly captured episodes.
+   *
+   * Safety: strictly sequential awaited iterations (the event loop yields
+   * between items — no starvation of concurrent requests), per-item error
+   * tolerance (a failing row is logged and skipped, not fatal), and a
+   * skip-first availability probe (no provider / EMMS_DISABLE_EMBEDDINGS=1 /
+   * model load failure → { skipped: true, reason } with zero work).
+   */
+  async warmupSemanticIndex(): Promise<{
+    embedded: number;
+    skipped: boolean;
+    reason?: string;
+  }> {
+    if (!this.embedding)
+      return { embedded: 0, skipped: true, reason: "no embedding provider" };
+    const available = await this.embedding.available();
+    if (!available)
+      return {
+        embedded: 0,
+        skipped: true,
+        reason: "embedding model unavailable or disabled",
+      };
+    let embedded = 0;
+    let failed = 0;
+    const all = await this.adapter.listAllEpisodeSummaries();
+    for (const row of all) {
+      try {
+        const cached = await this.adapter.getEmbedding(row.episode_id);
+        if (cached) continue;
+        const vec = await this.embedding.embed(row.summary);
+        if (vec) {
+          await this.adapter.putEmbedding(row.episode_id, Array.from(vec));
+          embedded++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+    if (failed > 0)
+      console.warn(
+        `[insight] semantic warmup: ${failed} summaries failed and were skipped`,
+      );
+    return { embedded, skipped: false };
+  }
+
   async search(args: {
     query: string;
     scope_id: string;
@@ -1315,9 +1364,11 @@ export class EmmsService {
     for (const r of ftsRows) ftsRank.set(r.episode_id, r.fts_rank ?? 0);
     const ftsMax = Math.max(0, ...ftsRank.values());
     add(ftsRows);
-    if (this.embedding) {
-      const qVec = await this.embedding.embed(args.query);
-      if (qVec) {
+    if (this.embedding && queryVec) {
+      // Reuse the query embedding computed above — it was previously
+      // embedded twice, once for semanticAvailable and once here.
+      const qVec = queryVec;
+      {
         // semantic arm: embed stored summaries lazily and rank by cosine similarity
         const inScope = await this.adapter.listInScope(args.scope_id);
         const scored: Array<{ row: SearchRow; sim: number }> = [];

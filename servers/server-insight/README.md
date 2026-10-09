@@ -322,15 +322,17 @@ volume directory):
 
 #### Environment variables
 
-| Variable                    | Default                    | Meaning                                                                                                                                                                                                                                                      |
-| --------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PORT`                      | `3002`                     | HTTP listen port                                                                                                                                                                                                                                             |
-| `EMMS_BIND_HOST`            | `127.0.0.1`                | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works.                                                                                                                            |
-| `EMMS_AUTH_TOKEN`           | — (auth off)               | CB-20: when set, `/mcp` requires `Authorization: Bearer <token>` (timing-safe). `/health` stays open. Recommended whenever the server is reachable beyond loopback.                                                                                          |
-| `EMMS_STORAGE_BACKEND`      | `sqlite`                   | `sqlite` \| `postgres` (both backends have full-text search at parity: sanitized OR-joined tsquery over goal summaries + first 500 chars of observations, graded relevance rank; live Postgres smoke test still pending — see remaining-work-plan follow-up) |
-| `EMMS_STORAGE_PATH`         | `~/.insight/emms-store.db` | SQLite store location                                                                                                                                                                                                                                        |
-| `EMMS_PG_CONNECTION_STRING` | —                          | Postgres connection string (required when backend=postgres)                                                                                                                                                                                                  |
-| `EMMS_FTS_RELEVANCE_BOOST`  | `0.30`                     | Relevance boost for full-text matches in `experience_search` ranking; clamped to `[0, 0.39]` so signature-exact hits (0.40) always rank first                                                                                                                |
+| Variable                    | Default                                | Meaning                                                                                                                                                                                                                                                      |
+| --------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PORT`                      | `3002`                                 | HTTP listen port                                                                                                                                                                                                                                             |
+| `EMMS_BIND_HOST`            | `127.0.0.1`                            | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works.                                                                                                                            |
+| `EMMS_AUTH_TOKEN`           | — (auth off)                           | CB-20: when set, `/mcp` requires `Authorization: Bearer <token>` (timing-safe). `/health` stays open. Recommended whenever the server is reachable beyond loopback.                                                                                          |
+| `EMMS_STORAGE_BACKEND`      | `sqlite`                               | `sqlite` \| `postgres` (both backends have full-text search at parity: sanitized OR-joined tsquery over goal summaries + first 500 chars of observations, graded relevance rank; live Postgres smoke test still pending — see remaining-work-plan follow-up) |
+| `EMMS_STORAGE_PATH`         | `~/.insight/emms-store.db`             | SQLite store location                                                                                                                                                                                                                                        |
+| `EMMS_PG_CONNECTION_STRING` | —                                      | Postgres connection string (required when backend=postgres)                                                                                                                                                                                                  |
+| `EMMS_FTS_RELEVANCE_BOOST`  | `0.30`                                 | Relevance boost for full-text matches in `experience_search` ranking; clamped to `[0, 0.39]` so signature-exact hits (0.40) always rank first                                                                                                                |
+| `EMMS_MODEL_CACHE`          | — (transformers.js default `./.cache`) | Directory for the embedding model cache; the Docker image bakes the model here at build time (`/usr/src/app/.model-cache`) so runtime needs no network. transformers.js v2 honors no cache env var — the server sets `env.cacheDir` from this value          |
+| `EMMS_DISABLE_EMBEDDINGS`   | unset                                  | `1` disables the semantic arm entirely (CI/test environments); search then reports `semantic_available: false` and serves signature + full-text arms, startup warmup skips cleanly                                                                           |
 
 ```bash
 docker run -d -p 3002:3002 paschbaer/insight:latest
@@ -368,10 +370,15 @@ Notes:
 
 - `better-sqlite3` is rebuilt natively inside the image (container platform
   ≠ host platform).
-- The first semantic search downloads the MiniLM model (~90 MB) into the
-  container's cache; until then `semantic_available: false` is reported and
-  signature + full-text arms serve retrieval. Mount a cache volume if you
-  want the model to survive container recreation.
+- The semantic arm uses local embeddings (all-MiniLM-L6-v2, quantized ONNX)
+  on a glibc base image (`node:22-slim`; the onnxruntime-node prebuilt
+  binaries do not load on musl/Alpine). The model is BAKED into the image at
+  build time (one-time builder egress to huggingface.co; `EMMS_MODEL_CACHE`
+  pins the cache path) — runtime performs no network downloads. At startup a
+  fire-and-forget warmup pre-embeds all stored summaries (incremental;
+  non-blocking for /health); with `EMMS_DISABLE_EMBEDDINGS=1` or a failed
+  model load, `semantic_available: false` is reported and the signature +
+  full-text arms serve retrieval.
 
 ## Automating lesson capture
 
