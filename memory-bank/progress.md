@@ -1125,6 +1125,6 @@ Current State: config+docs change on feature branch; chain complete after this s
 
 What works: (1) Import cycle config.ts ↔ workspace-registry.ts broken — ConfigurationError moved verbatim to types/errors.ts (leaf module, home of GuidanceError); workspace-registry.ts's config.js import dropped entirely; sole external importer was the cycle partner, no re-export needed. Verified: tsc clean, full suite 734/734; GitNexus repository-analysis gate must re-confirm post-reindex (reindex in completion phase). Impact-gated: upstream impact CRITICAL (hub symbol) resolved via dual evidence (text search: only workspace-registry imports it from config.js) + suite. (2) Dockerfile `corepack enable pnpm yarn` (mirroring the existing pnpm rationale); temp-tag image build + docker run PROOF: bare `yarn --version` = 4.6.0 in /workspaces/Thinking-MCP (was 1.22.22). Running stack NOT recreated (user decision).
 
-What's left: stack recreate to activate the new image; merge decision; push decision.
+What's left: stack recreate to activate the new image; merge decision; push decision. — DONE (2026-10-09): merged to develop as 4e405c9 (pre-merge detect_changes: critical risk classified as verified-safe relocation per Review Evidence Protocol); branch deleted; guidance container rebuilt + recreated (healthy; bare yarn = 4.6.0 live-verified; guidance MCP responsive). Remaining: push (develop ahead of origin) — user decision.
 
 Current State: two scopes implemented on feature branch; verification green.
