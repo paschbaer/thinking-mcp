@@ -69,15 +69,10 @@ describe("CHFIX-9: sessions survive engine restarts (state on disk)", () => {
     let err: unknown;
     try {
       const stateB = await engineB.getWorkflowState(start.sessionId);
-      console.log(
-        "RESTART-RESULT: loaded, phase =",
-        stateB.currentPhase,
-        "status =",
-        stateB.status,
-      );
+      expect(stateB.currentPhase).toBe("understand");
+      expect(stateB.status).toBe("active");
     } catch (e) {
       err = e;
-      console.log("RESTART-RESULT: REJECTED:", String(e));
     }
     expect(err).toBeUndefined();
   });
@@ -154,13 +149,8 @@ describe("CHFIX-9: pool sessions survive instance restarts (registry-only pool)"
         stateDir: join(poolRoot, ".guidance", "state"),
       });
       const state = await engineB.getWorkflowState(start.sessionId);
-      console.log(
-        "POOL-RESTART-RESULT: loaded, phase =",
-        state.currentPhase,
-        "status =",
-        state.status,
-      );
       expect(state.currentPhase).toBe("understand");
+      expect(state.status).toBe("active");
     } finally {
       rmSync(wsB, { recursive: true, force: true });
       rmSync(poolRoot, { recursive: true, force: true });
