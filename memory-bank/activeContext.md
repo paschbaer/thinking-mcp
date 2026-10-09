@@ -3,6 +3,10 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: CHAIN SUCCESSOR 2 (CHFIX-12 chain) — session_not_found messages rewritten (session-b5a4c381, feature/chfix-12-session-messages)
+
+- All four message sites now state the true condition (file-backed persistence, composition-check-first guidance, README restart-section reference, new workflow only as last resort); error code/leading token/recoverability byte-identical; consumer-safety assumption verified experimentally (no test pins, full suite 731/731 green, tsc clean).
+
 ## 2026-10-09: CHAIN SUCCESSOR 1 (CHFIX-10 chain) — EMMS artifact resolved (session-a4a78bf2)
 
 - All 4 pending-lessons verified retrievable in the EMMS store (distinct experience ids, exact-slug top hits via experience_search); artifact .guidance/state/pending-lessons-chfix235.json deleted after positive verification; CHFIX-10 RESOLVED with evidence in remaining-work-plan.md; DEPS-OPS-1 typo fixed (shared-workspace → shared-workflow, head reviewer's recommendation). User decision recorded for successor 3: CHFIX-11 = HYBRID re-pin.

@@ -388,7 +388,7 @@ export class RemoteSessionManager {
     if (!existsSync(metaPath)) {
       throw new Error(
         "session_not_found" +
-          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+          " — no session meta found at the expected state location. Sessions are file-backed and survive server restarts: check the instance composition first (see the README restart section); recover by starting a new workflow only if the session is truly gone",
       );
     }
     const meta = JSON.parse(
@@ -442,7 +442,7 @@ export class RemoteSessionManager {
     if (meta.key === null || !this.pairs.authenticate(meta.key, bearerToken)) {
       throw new Error(
         "session_not_found" +
-          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+          " — no session meta found at the expected state location. Sessions are file-backed and survive server restarts: check the instance composition first (see the README restart section); recover by starting a new workflow only if the session is truly gone",
       ); // kein Existenz-Oracle
     }
   }
@@ -526,7 +526,7 @@ export class RemoteSessionManager {
     if (idleDays > TTL_DAYS)
       throw new Error(
         "session_not_found" +
-          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+          " — no session meta found at the expected state location. Sessions are file-backed and survive server restarts: check the instance composition first (see the README restart section); recover by starting a new workflow only if the session is truly gone",
       );
     meta.lastAccessAt = new Date().toISOString();
     writeFileSync(p, JSON.stringify(meta, null, 2));

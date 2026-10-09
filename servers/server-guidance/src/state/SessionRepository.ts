@@ -60,7 +60,7 @@ export class SessionRepository {
       throw new GuidanceError(
         "session_not_found",
         `no session ${sessionId}` +
-          " — sessions are workflow-run-scoped and do not survive a server restart; recover by starting a new workflow via start_workflow",
+          ' — no session file found at the expected state location. Sessions are file-backed and survive server restarts: check the instance composition (registered workspaces / default root) before concluding the session is gone (see the README section "What survives a guidance server restart"); if it is truly gone, start a new workflow via start_workflow',
         {
           recoverable: true,
         },
