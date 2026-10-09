@@ -1087,3 +1087,10 @@ What works: the four session_not_found message sites state their true PER-SITE c
 What's left: successor 3 (CHFIX-11 hybrid in-process re-pin - user decision c recorded).
 
 Current State: code change on feature/chfix-12-session-messages; memory-bank updated; awaiting final review + completion.
+## 2026-10-09 - CHFIX-11 resolved (chain successor 3, session-26f47d05, feature/chfix-11-hybrid-repin)
+
+What works: hybrid in-process re-pin (user decision c) — drift fails closed + capability_pin_drift audit (engine-level, pinned+live hashes, schema-drift + tool-missing kinds) + remedy hint in the error; confirm-gated release_capability_pins tool removes pins in-process (remove-semantics persistence) + capability_pins_reset audit; next call re-pins automatically (regression-tested end-to-end, no restart). Tool surface 41, docs-drift green, suite 734/734, tsc clean.
+
+What's left: independent final review + completion of this session; then merges (feature/chfix-12-session-messages and feature/chfix-11-hybrid-repin) — user decision; DEPS-OPS-1 remains tracked.
+
+Current State: CHFIX-10/12/11 all implemented; chain at final successor completion.
