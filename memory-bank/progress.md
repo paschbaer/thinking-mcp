@@ -1117,6 +1117,6 @@ Current State: code+docs change on feature branch; awaiting review + completion.
 
 What works: workspace .guidance/operations.json parameterized to the yarn profile (decision DEC-DEPSOPS-1): deps-install = corepack yarn install --immutable → corepack yarn install; deps-reinstall = corepack yarn install. Container-verified: bare yarn shim = 1.22.22 (no --immutable), corepack yarn = 4.6.0 — hence the corepack wrapper. npm never installs at this root (WF-3); EACCES fallback path eliminated; README dependency-bootstrap section generalized to per-workspace PM parameterization. Config loads (guidance calls parse operations.json cleanly post-edit).
 
-What's left: merge of feature/chfix-11-r1-docs-f2 (both successor commits) — user decision; optional follow-up: corepack-enable in the container image so plain `yarn` resolves 4+ (tracked in remaining-work-plan.md as optional note).
+What's left: merge of feature/chfix-11-r1-docs-f2 (both successor commits) — DONE: merged to develop as 23d8f77 (no-ff) after full suite 734/734; feature branch deleted; develop ahead 3 of origin (push pending). Optional follow-up: corepack-enable in the container image so plain `yarn` resolves 4+ (tracked in remaining-work-plan.md).
 
 Current State: config+docs change on feature branch; chain complete after this session.
