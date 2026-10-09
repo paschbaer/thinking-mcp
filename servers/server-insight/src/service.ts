@@ -1367,23 +1367,20 @@ export class EmmsService {
     if (this.embedding && queryVec) {
       // Reuse the query embedding computed above — it was previously
       // embedded twice, once for semanticAvailable and once here.
-      const qVec = queryVec;
-      {
-        // semantic arm: embed stored summaries lazily and rank by cosine similarity
-        const inScope = await this.adapter.listInScope(args.scope_id);
-        const scored: Array<{ row: SearchRow; sim: number }> = [];
-        for (const row of inScope) {
-          const cached = await this.adapter.getEmbedding(row.episode_id);
-          const vec = cached
-            ? Float32Array.from(cached)
-            : await this.embedding.embed(row.summary);
-          if (!cached && vec)
-            await this.adapter.putEmbedding(row.episode_id, Array.from(vec));
-          if (vec) scored.push({ row, sim: cosineSimilarity(qVec, vec) });
-        }
-        scored.sort((a, b) => b.sim - a.sim);
-        for (const s of scored) if (s.sim >= 0.3) add([s.row]);
+      // semantic arm: embed stored summaries lazily and rank by cosine similarity
+      const inScope = await this.adapter.listInScope(args.scope_id);
+      const scored: Array<{ row: SearchRow; sim: number }> = [];
+      for (const row of inScope) {
+        const cached = await this.adapter.getEmbedding(row.episode_id);
+        const vec = cached
+          ? Float32Array.from(cached)
+          : await this.embedding.embed(row.summary);
+        if (!cached && vec)
+          await this.adapter.putEmbedding(row.episode_id, Array.from(vec));
+        if (vec) scored.push({ row, sim: cosineSimilarity(queryVec, vec) });
       }
+      scored.sort((a, b) => b.sim - a.sim);
+      for (const s of scored) if (s.sim >= 0.3) add([s.row]);
     }
     // Scope fallback ONLY when no arm produced candidates. Unconditional
     // fallback previously made EVERY query return the whole scope, and real

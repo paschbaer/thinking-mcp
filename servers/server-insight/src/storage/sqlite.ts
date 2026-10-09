@@ -99,6 +99,10 @@ export class SqliteAdapter implements StorageAdapter {
   }
 
   async close(): Promise<void> {
+    // Null-guard: init() may have failed (or never run) — close() must not
+    // throw on the uninitialized handle, because cleanup paths (warmup
+    // finally, shutdown) would turn that into an unhandled rejection.
+    if (!this.db) return;
     this.db.close();
   }
 

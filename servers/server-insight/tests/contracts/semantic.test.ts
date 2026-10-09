@@ -299,9 +299,7 @@ describe("semantic warmup + query-embed dedupe (provider fakes)", () => {
       .retrieval_notes as Record<string, unknown>;
     expect(notes.semantic_available).toBe(true);
     // every embed after warmup is the query itself — and it must fire ONCE
-    const queryEmbeds = out // placeholder to keep structure clear
-      ? provider.calls - before
-      : 0;
+    const queryEmbeds = provider.calls - before;
     expect(queryEmbeds).toBe(1);
   });
 
