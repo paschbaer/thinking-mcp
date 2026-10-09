@@ -1361,7 +1361,19 @@ export class EmmsService {
     // episode instead of a flat hit/miss set — the boost below must
     // differentiate WITHIN the result set, not just lift all hits equally.
     const ftsRank = new Map<string, number>();
-    for (const r of ftsRows) ftsRank.set(r.episode_id, r.fts_rank ?? 0);
+    for (const r of ftsRows) {
+      // Contract pin (SRCH-1-F3): rows returned by searchFullText MUST carry a
+      // numeric fts_rank (both shipped adapters always set it). Degrading to 0
+      // here would silently strip the graded-boost arm for a contract-violating
+      // adapter — fail loudly instead. SearchRow.fts_rank stays optional because
+      // non-FTS arms (exact/scope) legitimately omit the field.
+      if (typeof r.fts_rank !== "number" || !Number.isFinite(r.fts_rank)) {
+        throw new Error(
+          `StorageAdapter contract violation: searchFullText returned a row without a numeric fts_rank (episode_id=${r.episode_id}, adapter=${this.adapter.constructor.name}). Every FTS row must carry fts_rank; see the SearchRow contract in storage/adapter.ts.`,
+        );
+      }
+      ftsRank.set(r.episode_id, r.fts_rank);
+    }
     const ftsMax = Math.max(0, ...ftsRank.values());
     add(ftsRows);
     if (this.embedding && queryVec) {

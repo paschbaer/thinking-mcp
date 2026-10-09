@@ -168,3 +168,27 @@ describe("Retrieval ranking regression (multi-token FTS queries)", () => {
     }
   });
 });
+
+describe("fts_rank contract pin (SRCH-1-F3)", () => {
+  it("a searchFullText row without a numeric fts_rank fails loudly instead of degrading to boost 0", async () => {
+    // Minimal stub: only searchFullText is reached before the guard fires
+    // (no failure_signature_hash, embeddings disabled by constructor default).
+    const stub = {
+      constructor: { name: "ContractViolatingStubAdapter" },
+      searchFullText: async () => [
+        {
+          episode_id: "ep-contract-violation",
+          summary: "row without fts_rank",
+          state: "verified",
+          scope_id: CTX.scope_id,
+          last_verified_at: null,
+          // fts_rank deliberately OMITTED — the contract violation under test
+        },
+      ],
+    } as unknown as ConstructorParameters<typeof EmmsService>[0];
+    const svc = new EmmsService(stub, join(dir, "artifacts"));
+    await expect(
+      svc.search({ query: "contract violation", ...CTX }),
+    ).rejects.toThrow(/fts_rank/);
+  });
+});
