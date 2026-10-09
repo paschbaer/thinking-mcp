@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: CHAIN HEAD STARTED — 3-step follow-up chain CHFIX-10/CHFIX-12/CHFIX-11 (session-3e8e7829, verification-only)
+
+- Chain registered and server-side verified (chainSpec persisted, chainIndex 0, no step workflowIds — registry trap avoided): successors in order (1) CHFIX-10 (verify the 4 CHFIX-2/3/5 lessons exist in the EMMS store, then remove the transported artifact .guidance/state/pending-lessons-chfix235.json — file confirmed present), (2) CHFIX-12 (rewrite the three session_not_found message sites that falsely claim sessions 'do not survive a server restart'), (3) CHFIX-11 (in-process capability re-pin; design fork admin-op vs auto-re-pin vs hybrid — head recommendation HYBRID, successor must checkpoint the user via report_blocker if the chat answer is absent).
+- Head scope: coordination/verification only — no steps[] implementation.
+- Constraints for all successors: local git only (network git prompts for an SSH passphrase — user directive), index refresh via 'bash scripts/reindex-via-api.sh /mnt/d/repos/thinking-mcp' before complete_workflow, English artifacts, resubmit-on-transient-required-hook-failure (known successor-spawn race).
+
 ## 2026-10-09: memory-bank translated to English (user order)
 
 - All six German-language memory-bank files (activeContext, remaining-work-plan, progress, lessonsLearned, decisions, systemPatterns) translated to English via parallel sub-agents with disjoint file scopes; technical invariants (IDs, hashes, commands, paths, quoted error literals) preserved byte-identical; one deliberate exception: the FT-AXRAY-DE entry quotes the German marker keywords that assumption_xray detects (feature documentation, must stay verbatim). Completes the English-only migration alongside the AGENTS.md translation (resolves review finding F3 fully). Line counts within tolerance; structure verified (no split artifacts). Together with the guidance-chain translation convention, future entries are English-only per the existing Language Convention rule.
