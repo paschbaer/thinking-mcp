@@ -1061,3 +1061,11 @@ What works: CHFIX-9-Prämisse auf zwei Ebenen widerlegt und als Regressionstests
 What's left: Merge aller vier Feature-Branches (gn-d6 -> gn-d5 -> gnd1 -> chfix-9) nach develop; Container-Rebuild; Pfad B: Live-Restart-Experiment mit aktiver Session (verifiziert die Restart-Semantik produktiv).
 
 Current State: Kette 4/5 Sessions completed (CHFIX-9 in Completion); vier Feature-Branches + develop bereit zum sequentiellen Merge; live Experiment B nach Rebuild.
+
+## 2026-10-09 - Chain-Abschluss: Merges + Rebuild + Pfad B live verifiziert
+
+What works: Alle 4 Feature-Branches gemerged (gn-d6 -> gn-d5 -> gnd1 -> chfix-9, memory-bank-Konflikte beidseitig aufgeloest, 1 Duplikat-Header bereinigt); Branches geloescht; Vollsuite auf develop 731/731 gruen; Kanonischer Reindex lief erstmals produktiv via scripts/reindex-via-api.sh; Guidance-Container rebuilt (healthy). PFAD B LIVE VERIFIZIERT: Throwaway-Session gestartet, Container hart neu gestartet (docker restart), get_workflow_state resolvt die Session danach vollstaendig (active/understand, Metadaten intakt) — aktive Sessions ueberleben echte Server-Restarts produktiv; der Vorfall-Verlust war transport-/kompositionsbedingt, wie in CHFIX-9 analysiert.
+
+What's left: Push von develop nach origin (User-Entscheidung; lokal 7 Commits ahead); offene Follow-ups: CHFIX-11 (In-Process-Re-Pin), CHFIX-12 (session_not_found-Meldungstexte), GN-D6-R1/R2, GN-D5-R1, GND1-RESIDUALS-Trigger, GN-6/7/8, CHFIX-10.
+
+Current State: develop @ dfd22db (7 Commits vor origin), Kette GN-D6/GN-D5/GND1/CHFIX-9 vollstaendig abgeschlossen mit 0 offenen HIGH/CRITICAL; Stack mit neuem Stand deployed und live verifiziert.
