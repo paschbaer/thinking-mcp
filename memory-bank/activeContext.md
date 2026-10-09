@@ -1627,6 +1627,12 @@ User decision: clear-thought tools, like ALL other tools, are initially called D
 
 Instead of the simplification, the dedicated clear-thought rule was COMPLETELY dropped — clear-thought now follows default tool routing like any MCP server. The valuable knowledge (404/-32001 = evicted session, reconnect heals, do not repeat the route) was preserved as a GENERIC MCP lesson in lessonsLearned.md (applies equally to clear-thought, gitnexus and all HTTP MCP servers). Backup AGENTS.md.bak exists. Handover prompt corrected accordingly.
 
+## 2026-10-09: CHFIX-11-R1 + DEPS-OPS-1 CHAIN — head completed; successor 1 (CHFIX-11-R1) implemented (head session-92d3bbfb, successor session-fca4ca8f, feature/chfix-11-r1-docs-f2)
+
+- Head: verification-only cycle completed (all gates green after independent merge re-bless review, 0 open HIGH/CRITICAL); chain steps persisted server-side.
+- Successor 1 (CHFIX-11-R1): F-3 design decision documented in README (pin persistence & co-running engines, blocking re-assessment trigger preserved); F-2 assertNotDrifted removed (dual evidence: impact 0 callers + grep); 23/23 focused tests green, tsc clean. Remaining-work-plan reclassified.
+- Key successor-2 input (DEPS-OPS-1): PM-aware deps-install generation ALREADY EXISTS in ConfigAssistant (packageManager question, buildOperations PM strategies incl. yarn 4+); locate the instance-level npm-only operations source and apply per-workspace PM (yarn). WF-3: npm never at the yarn root. list_configured_operations returned [] at head — check instance config.
+
 ## 2026-10-08: GN-D6 tracked — API-based reindexing (verified), agent retreat from the checkout
 
 - **GN-D6 (remaining-work-plan):** POST /api/analyze {"path":"/mnt/d/repos/<repo>"} + GET /api/analyze/<jobId> (poll until complete) — verified live on 2026-10-08 (job 0→100 %, identity /mnt/d preserved). Recommended replacement of the wsl.exe reindexCommand; the switch belongs to the running chain (step 3 or the next trigger).

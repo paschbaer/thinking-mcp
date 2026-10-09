@@ -232,30 +232,6 @@ export class ClientManager {
     }
   }
 
-  /** Drift detection: compare a pinned hash against current discovery (FR-042). */
-  assertNotDrifted(
-    serverId: string,
-    toolName: string,
-    pinnedHash: string,
-  ): void {
-    const status = this.statuses.get(serverId);
-    const tool = status?.tools.find((t) => t.name === toolName);
-    if (!tool) {
-      throw new GuidanceError(
-        "downstream_capability_changed",
-        `tool ${toolName} disappeared from ${serverId}`,
-        { recoverable: false },
-      );
-    }
-    if (tool.inputSchemaHash !== pinnedHash) {
-      throw new GuidanceError(
-        "downstream_capability_changed",
-        `tool ${toolName} schema drifted on ${serverId}`,
-        { recoverable: false },
-      );
-    }
-  }
-
   /**
    * Invokes a tool and classifies transport vs tool-reported errors (FR-037).
    * When `requestTimeoutSeconds` is provided, the invocation is aborted after

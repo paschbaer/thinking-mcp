@@ -397,6 +397,38 @@ fails closed first; only the explicit release re-enables discovery. Like
 `call_downstream` and `run_operation`, the tool is not registered in remote
 mode (fail-closed; remote sessions produce no in-process pins).
 
+##### Pin persistence and co-running engines (design decision)
+
+Capability pins persist in `<stateDir>/capability-pins.jsonl` with
+merge-on-save semantics: a save merges the engine's in-memory pin set into
+the file instead of overwriting it, so legitimately co-running engine
+instances keep their pins across each other's saves. Removals (the explicit
+release) delete keys rather than merge them.
+
+**Supported wirings.** Merge-on-save is designed for the configurations
+Guidance actually composes: pool mode builds **one** boot composition per
+state directory, and remote mode gives each session an **isolated**
+per-session state directory. Under both, at most one engine writes pins to
+any given file.
+
+**Why multiple engines over one state directory are unsupported.** If two
+engine instances shared one state directory, a release on engine A (in-memory
+removal plus key deletion on disk) could be silently undone: engine B still
+holds the released pin in its in-memory set, and B's next save merges the pin
+back into the file — resurrecting on disk a pin that was deliberately
+released. The failure direction remains fail-closed: if the downstream
+capability actually drifted, the next call routed through the stale engine
+fails closed with `downstream_capability_changed`, is audited as
+`capability_pin_drift`, and heals via the explicit release. This self-heal is
+**conditional** — it fires only when a call actually routes through the
+stale engine; no call, no detection.
+
+**Decision.** Multi-engine-per-state-directory wiring is unsupported and
+must not be introduced without re-assessing this persistence contract first
+(e.g. per-engine ownership markers or a single-writer lock would be required
+instead of blind merge-on-save). Any design that composes more than one
+engine over the same state directory must resolve this before implementation.
+
 #### `run_operation` with argument overrides
 
 `run_operation` accepts an optional `arguments` record for `mcpTool`
