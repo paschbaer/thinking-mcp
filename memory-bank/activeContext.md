@@ -3,6 +3,10 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: AGENTS.md translated to English-only (user order)
+
+- The Guidance-MCP-Server deployment section (the only German block) is now English; technical invariants (commands, error codes, paths, mounts) byte-identical; backup protocol followed (AGENTS.md.bak created and removed after verification); clearthought consistency check passed. Resolves the rule-file side of review finding F3 (German memory-bank entries remain grandfathered).
+
 ## 2026-10-09: CHAIN SUCCESSOR 1 — GN-D6 API-Reindex umgesetzt (session-7c6ae379, feature/gn-d6-api-reindex)
 
 - **Umgesetzt:** Kanonischer Reindex auf die gitnexus-HTTP-API umgestellt (Job-Semantik Submit+Poll statt blockierender wsl.exe-CLI). Neu `scripts/reindex-via-api.sh` (POSIX sh, Git-Bash- und WSL-tauglich; Default-Server http://127.0.0.1:4747, `GITNEXUS_URL` übersteuerbar; 5 s Poll, 900 s Timeout, fail-loud bei unparseierbarem Status). `gitnexus.reindexCommand` in guidance.json, AGENTS.md (Architecture Map + Guidance-Sektion) und responses.json (Complete-Instruction) synchronisiert; REMEDY-Zeile des Frische-Gates rendert den neuen Befehl automatisch (verifiziert). WSL-CLI bleibt dokumentierter Fallback und EINZIGER Weg für `--force`-Storage-Heilung.

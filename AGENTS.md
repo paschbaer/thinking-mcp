@@ -477,116 +477,114 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   store written this way must be merged back via
   `servers/server-insight/scripts/migrate-stdio-store.mjs`.
 
-## Guidance MCP Server (Docker-Deployment)
+## Guidance MCP Server (Docker deployment)
 
-- Guidance läuft als HTTP-Server in Docker: `http://localhost:3003/mcp`
-  (kein Bearer-Token, loopback). specs/014 Pool-Betrieb: der Container
-  serviert den Repo-Pool unter `GUIDANCE_WORKSPACE_ROOT=/workspaces`
-  (Mount `D:\repos` → `/workspaces`); die Instanz-`.guidance` ist
-  registry-only. Dieses Repo ist als Workspace **`thinking-mcp`**
-  registriert (`/workspaces/Thinking-MCP`), zed als **`zed`**.
-- **`start_workflow` zwingend mit `workspace: "thinking-mcp"` bzw.
-  `workspace: "zed"` aufrufen** (registrierter NAME). Ein `workspaceRoot`
-  muss exakt einem registrierten Root entsprechen
-  (`/workspaces/Thinking-MCP`). Host-Pfade wie `D:\repos\Thinking-MCP`,
-  WSL-Notation `/mnt/d/…` und der frühere Root `/workspace` werden mit
-  „workspace_not_registered“ bzw. „escapes the configured workspace“
-  abgelehnt.
-- Downstream-Server: gitnexus (MCP, compose-DNS `http://gitnexus-server:4747`
-  innerhalb des Compose-Netzwerks; Host-Zugriff Editor/Tooling via
-  `127.0.0.1:4747`), insight (:3002), clear-thought (:3000) verbinden
-  **lazy**: `get_downstream_status` zeigt `disconnected`, bis eine Operation
-  sie das erste Mal nutzt — das ist normal und kein Fehler. Die Egress-
-  Allowlist nennt `gitnexus-server:4747` (Compose-DNS), nicht mehr
-  host.docker.internal.
-- **GitNexus-Topologie (wsl-writer-Modus, konsolidiert 2026-10-08):** :4747
-  wird vom **gitnexus-server-Container** bedient, der als **optionales Overlay**
-  `docker-compose.gitnexus.yml` Teil der Root-Orchestrierung ist (Image
-  `ghcr.io/abhigyanpatwari/gitnexus:latest`, DUAL-Mount `../:/workspaces` UND
-  `../:/mnt/d/repos` = kompletter Repo-Pool wie der guidance-Container,
-  Registry host-seitig unter `D:\repos\.gitnexus-home` via
-  `GITNEXUS_HOME=/workspaces/.gitnexus-home`). Rollen: Die **WSL-gitnexus-CLI
-  ist der SINGLE INDEX WRITER** — alle Pool-Repos liegen mit IN-REPO-Storage
-  (`<repo>/.gitnexus`) auf der vereinheitlichten Storage-Identität
-  `/mnt/d/repos/...`; der Container **serviert denselben Index read-only**
-  über den `/mnt/d/repos`-Mount (Path-Identität stimmt überein) und liest
-  Registry/Index **live** (kein Restart nach Reindex nötig). Container-Analyze
-  ist in diesem Modus VERBOTEN (flippt die Storage-Identität auf
-  `/workspaces/...` — der Server verliert das Repo; ein versehentlicher Lauf
-  wird mit `--force` im WSL-CLI-Heilungslauf korrigiert).
-  **Produkt/Deployment-Split:** Der Basis-Stack (`docker-compose.yml`)
-  umfasst NUR guidance/insight/clear-thought — Guidance selbst ist
-  GitNexus-agnostisch; Deployments mit GitNexus aktivieren das Overlay:
+- Guidance runs as an HTTP server in Docker: `http://localhost:3003/mcp`
+  (no bearer token, loopback). specs/014 pool operation: the container serves
+  the repo pool under `GUIDANCE_WORKSPACE_ROOT=/workspaces`
+  (mount `D:\repos` → `/workspaces`); the instance `.guidance` is
+  registry-only. This repo is registered as workspace **`thinking-mcp`**
+  (`/workspaces/Thinking-MCP`), zed as **`zed`**.
+- **`start_workflow` MUST be called with `workspace: "thinking-mcp"` or
+  `workspace: "zed"`** (registered NAME). A `workspaceRoot` must exactly
+  match a registered root (`/workspaces/Thinking-MCP`). Host paths such as
+  `D:\repos\Thinking-MCP`, WSL notation `/mnt/d/…` and the former root
+  `/workspace` are rejected with "workspace_not_registered" or "escapes
+  the configured workspace".
+- Downstream servers: gitnexus (MCP, compose DNS
+  `http://gitnexus-server:4747` inside the compose network; host access for
+  editor/tooling via `127.0.0.1:4747`), insight (:3002), clear-thought
+  (:3000) connect **lazily**: `get_downstream_status` shows `disconnected`
+  until an operation uses them for the first time — that is normal, not an
+  error. The egress allowlist names `gitnexus-server:4747` (compose DNS),
+  no longer host.docker.internal.
+- **GitNexus topology (wsl-writer mode, consolidated 2026-10-08):** :4747 is
+  served by the **gitnexus-server container**, which is part of the root
+  orchestration as an **optional overlay** `docker-compose.gitnexus.yml`
+  (image `ghcr.io/abhigyanpatwari/gitnexus:latest`, DUAL mount `../:/workspaces`
+  AND `../:/mnt/d/repos` = the complete repo pool like the guidance
+  container, registry on the host side under `D:\repos\.gitnexus-home` via
+  `GITNEXUS_HOME=/workspaces/.gitnexus-home`). Roles: the **WSL gitnexus CLI
+  is the SINGLE INDEX WRITER** — all pool repos live with IN-REPO storage
+  (`<repo>/.gitnexus`) on the unified storage identity `/mnt/d/repos/...`;
+  the container **serves the same index read-only** through the
+  `/mnt/d/repos` mount (path identity matches) and reads registry/index
+  **live** (no restart needed after a reindex). Container analyze is
+  FORBIDDEN in this mode (it flips the storage identity to
+  `/workspaces/...` — the server drops the repo; an accidental run is
+  corrected with `--force` in a WSL-CLI healing run).
+  **Product/deployment split:** the base stack (`docker-compose.yml`)
+  contains ONLY guidance/insight/clear-thought — Guidance itself is
+  GitNexus-agnostic; deployments with GitNexus enable the overlay:
   `docker compose -f docker-compose.yml -f docker-compose.gitnexus.yml up -d`
-  (oder `COMPOSE_FILE=...:...` in einer uncommitteten `.env`). Das Produkt
-  unterstützt beide Writer-Modi (`gitnexus.mode` in guidance.json):
-  `local-cli` (Host-CLI schreibt, Container liest — dieser Workspace) oder
-  `compose-container` (Container-Analyze schreibt — dann ist der Container
-  der Writer und es gilt KEIN Dual-Mount-Bedarf).
-  Der Workspace deklariert seine GitNexus-Capability in
+  (or `COMPOSE_FILE=...:...` in an uncommitted `.env`). The product supports
+  both writer modes (`gitnexus.mode` in guidance.json):
+  `local-cli` (host CLI writes, container reads — this workspace) or
+  `compose-container` (container analyze writes — then the container is the
+  writer and NO dual mount is required).
+  The workspace declares its GitNexus capability in
   `.guidance/guidance.json` (`gitnexus`: `state` required|optional|off,
-  `mode` local-cli|compose-container, `reindexCommand`) — der Config-Assistent
-  rendert Gates/Instruktionen/REMEDY daraus, und seit der Engine-Phase gilt:
-  `state=optional` + Server unerreichbar ⇒ Gates reporten
+  `mode` local-cli|compose-container, `reindexCommand`) — the config
+  assistant renders gates/instructions/REMEDY from it, and since the engine
+  phase: `state=optional` + server unreachable ⇒ gates report
   `skipped(capability-absent)` (never-installed ≠ configured-but-broken);
-  `state=required` failt weiterhin closed; eine Hybrid-Probe auditet
-  Deviationen (deklariert ≠ live) als `capability_state_deviation`.
-- **Reindex-Befehl (kanonisch, aus `gitnexus.reindexCommand` in
+  `state=required` still fails closed; a hybrid probe audits deviations
+  (declared ≠ live) as `capability_state_deviation`.
+- **Reindex command (canonical, from `gitnexus.reindexCommand` in
   guidance.json):** `bash scripts/reindex-via-api.sh /mnt/d/repos/thinking-mcp`
-  (aus Repo-Root; Submit + Poll über die gitnexus-HTTP-API, Default-Server
-  `http://127.0.0.1:4747`, überschreibbar via Argument oder `GITNEXUS_URL`).
-  Laufzeit inkrementell ~1–4 min (FTS-Phase bleibt optisch bei 85 % hängen —
-  kein Stall). Das Skript stellt AGENTS.md/CLAUDE.md nach erfolgreichen Jobs
-  wieder her (API schreibt die Stats-Zeile; nur wenn die Dateien vorher clean
-  waren). Fallback und EINZIGER Weg für `--force`-Storage-Heilung bleibt die
-  WSL-CLI: `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && .
+  (from the repo root; submit + poll over the gitnexus HTTP API, default
+  server `http://127.0.0.1:4747`, overridable via argument or `GITNEXUS_URL`).
+  Runtime incremental ~1-4 min (the FTS phase visually sticks at 85% — not a
+  stall). The script restores AGENTS.md/CLAUDE.md after successful jobs (the
+  API rewrites their stats line; only when the files were clean before).
+  Fallback and the ONLY path for `--force` storage-identity healing remains
+  the WSL CLI: `wsl.exe -e bash -lc 'export NVM_DIR=$HOME/.nvm && .
   $NVM_DIR/nvm.sh && cd /mnt/d/repos/thinking-mcp && gitnexus analyze
-  --no-stats [--force]'` (lowercase-Cwd; `--force` nur bei
-  Storage-Foreign-Meldung, z. B. nach versehentlichem Container-Analyze).
-  Die REMEDY-Zeile des Frische-Gates druckt diesen Befehl automatisch aus der
-  Workspace-Konfiguration.
-- Das `repository-analysis`-Gate (Phase complete) verifiziert nur, dass der
-  GitNexus-Index im **gitnexus-server-Container** vorhanden und queryable ist
-  (`check`) — er **erkennt keine Staleness und aktualisiert nichts**.
-  Deterministische Frische-Prüfung:
-  `node servers/server-guidance/scripts/check-index-freshness.mjs` (läuft im
-  **guidance-Container** auf demselben in-repo Index über den `/workspaces`-
-  Mount — seit der Migration prüfen beide Gates denselben Indexbestand).
-  Der Agent MUSS daher VOR `complete_workflow` den Index selbst aktualisieren
-  (kanonischer Reindex-Befehl oben; die REMEDY-Zeile des Gates nennt ihn
-  repo-spezifisch) — und das Ergebnis im Abschlussbericht nennen.
-- **Container-Start via `docker compose up -d`** — Basis-Stack aus der
-  Repo-Wurzel (Root-`docker-compose.yml` orchestriert guidance, insight,
-  clear-thought); Deployments mit GitNexus aktivieren zusätzlich das Overlay
-  (`docker compose -f docker-compose.yml -f docker-compose.gitnexus.yml up -d`). Beide Files müssen den Mount
-  `D:\repos` → `/workspaces` korrekt auflösen (Root-File: `- ../:/workspaces`,
-  Server-File: `- ../../../:/workspaces`) — bei Pfad-Änderungen gegenseitig
-  im Sync halten. Einen Container, der aus einem anderen Kontext/WSL-Pfad
-  erzeugt wurde, NIEMALS weiterverwenden: ein falscher `/workspaces`-Mount
-  (z. B. `bind /mnt -> /workspaces` oder `D:\\`, root-owned, für `USER node`
-  nicht schreibbar bzw. zu weit gefasst) crashet beim Start mit
-  `EACCES ... mkdir '/workspaces/.guidance'` oder bricht registrierte
-  Workspace-Pfade. Diagnose: `docker inspect <name> --format
-  "{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}"` und
-  Gegencheck mit `docker compose config`; Fix: `docker compose up -d
-  --force-recreate`, danach Alt-Container (`docker rm -v`) entfernen.
-- **Completion-Gate vs. Parallel-Work (Lesson 2026-09-26, session-3b7f96a5):**
-  Läuft ein anderer Agent/Prozess auf demselben Checkout, verliert der
-  `index-freshness`-Completion-Hook systematisch das Rennen (jede Quell-Datei
-  nach dem `analyze` macht den Index stale). Daher: VOR `complete_workflow`
-  sicherstellen, dass keine anderen Agenten in diesen Checkout schreiben —
-  entweder sequentiell arbeiten oder parallele Arbeit in separaten
-  **Worktrees** isolieren (eigenes `workspaceRoot`). Memory-bank-/Meta-Daten-
-  Updates möglichst VOR dem finalen Reindex (kanonischer API-Befehl oben)
-  erledigen;
-  fällt der Gate trotzdem wegen fremder Änderungen aus, ist das als
-  Scope-fremd zu klassifizieren (`report_blocker` statt Reindex-Schleife).
-  Das Gate failt laut mit dem exakten Host-Reindex-Befehl als REMEDY-Zeile
-  im Op-Ergebnis (`check-index-freshness.mjs`) — nach dem Heilungslauf
-  `retry_operation` aufrufen, nicht die Session neu starten.
-- **Chain-Recovery nach Agent-/Kontext-Verlust:** Chain-Zustand persistiert
-  server-side; nach Agent-Neustart KEIN Head-Neustart. Rezept (Session
-  lokalisieren → `activating`: `retry_operation`; `active`: Phase-Loop mit
-  `get_current_guidance` fortsetzen; Fortschritt steckt in
-  `chainSpec.chainedTaskIds`): siehe `servers/server-guidance/README.md`,
-  Abschnitt "Recovering a chain after agent/context death".
+  --no-stats [--force]'` (lowercase cwd; `--force` only on
+  storage-foreign messages, e.g. after an accidental container analyze).
+  The freshness gate's REMEDY line prints this command automatically from
+  the workspace configuration.
+- The `repository-analysis` gate (phase complete) only verifies that the
+  GitNexus index exists and is queryable in the **gitnexus-server
+  container** (`check`) — it **detects no staleness and updates nothing**.
+  Deterministic freshness check:
+  `node servers/server-guidance/scripts/check-index-freshness.mjs` (runs in
+  the **guidance container** on the same in-repo index via the `/workspaces`
+  mount — since the migration both gates check the same index stock).
+  The agent MUST therefore refresh the index itself BEFORE
+  `complete_workflow` (canonical reindex command above; the gate's REMEDY
+  line names it repo-specifically) — and state the result in the completion
+  report.
+- **Container start via `docker compose up -d`** — base stack from the repo
+  root (the root `docker-compose.yml` orchestrates guidance, insight,
+  clear-thought); deployments with GitNexus additionally enable the overlay
+  (`docker compose -f docker-compose.yml -f docker-compose.gitnexus.yml up -d`). Both files must resolve the mount
+  `D:\repos` → `/workspaces` correctly (root file: `- ../:/workspaces`,
+  server file: `- ../../../:/workspaces`) — keep them in sync on path
+  changes. NEVER keep using a container created from a different
+  context/WSL path: a wrong `/workspaces` mount (e.g. `bind /mnt ->
+  /workspaces` or `D:\`, root-owned, not writable for `USER node` or too
+  broad) crashes at start with `EACCES ... mkdir '/workspaces/.guidance'`
+  or breaks registered workspace paths. Diagnosis: `docker inspect <name>
+  --format "{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}"`
+  and cross-check with `docker compose config`; fix: `docker compose up -d
+  --force-recreate`, then remove the old container (`docker rm -v`).
+- **Completion gate vs. parallel work (lesson 2026-09-26, session-3b7f96a5):**
+  If another agent/process works on the same checkout, the `index-freshness`
+  completion hook systematically loses the race (every source file changed
+  after the `analyze` makes the index stale). Therefore: BEFORE
+  `complete_workflow` ensure no other agents write to this checkout — either
+  work sequentially or isolate parallel work in separate **worktrees** (own
+  `workspaceRoot`). Do memory-bank/meta updates BEFORE the final reindex
+  (canonical API command above) where possible;
+  if the gate still fails due to foreign changes, classify it as
+  out-of-scope (`report_blocker` instead of a reindex loop).
+  The gate fails loudly with the exact host reindex command as the REMEDY
+  line in the op result (`check-index-freshness.mjs`) — after the healing
+  run call `retry_operation`, do not restart the session.
+- **Chain recovery after agent/context loss:** chain state persists
+  server-side; after an agent restart do NOT restart the head. Recipe
+  (locate session → `activating`: `retry_operation`; `active`: continue the
+  phase loop with `get_current_guidance`; progress lives in
+  `chainSpec.chainedTaskIds`): see `servers/server-guidance/README.md`,
+  section "Recovering a chain after agent/context death".
