@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 4 — S016 container test flow; factory regressions fixed (feature/s016-container-test-flow, commits 74cd3d3+9c31f4c+f50bbc4)
+
+- Container test flow: Dockerfile.test (repo-root context, node:22-slim, npm ci --ignore-scripts + rebuild better-sqlite3/sharp, siblings servers/shared-workflow + server-guidance/scripts copied) + scripts/test-in-container.sh + README section. AC met: 2 consecutive FULL green in-container runs (31/31, 151 passed + 4 skipped each; reviewer reproduced independently) — S016-ENV-SQLITE reclassified RESOLVED environmental. Vendored-shared-hash + seed-lessons-script tests act as in-image sentinels guarding the build context.
+- R3/R4 AMENDMENT (regressions the focused suites missed, found by the first full run, fixed 9c31f4c): (1) single process-wide factory memo returned stale adapters to per-test stores — memo now keyed by (backend, resolved target); production still shares exactly one handle (same env → same key). (2) async mkdir in doInit broke the microtask-settled init assumption (first tool call could beat the db handle) — dir creation is mkdirSync INSIDE doInit (behind the init promise; R4 properties intact: pure defaultStoragePath, actionable EMMS_STORAGE_PATH error, no sync mkdir on the startup path). LESSON: adapter init() must settle microtask-fast — no real async FS before db assignment; full-suite (container) verification is mandatory for lifecycle refactors.
+- Independent review APPROVED 0 HIGH/CRITICAL (3 LOW: arg-hardening fixed f50bbc4; memo-eviction + event-loop-blocking-mkdir accepted with rationale).
+
 ## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 3 — SRCH-2-R4 async storage dir creation (feature/srch-2-r4-async-mkdir, commit fe90dee)
 
 - defaultStoragePath() pure (no mkdirSync); dir creation in SqliteAdapter.doInit via fs/promises mkdir recursive, wrapped with an actionable error (EMMS_STORAGE_PATH + permissions). Failures ride the init().catch chain — registerTools crashes loudly with the message, warmup logs; no sync throw in the listen callback. storage-factory 8/8; independent review APPROVED 0 HIGH/CRITICAL; new tracked follow-up R4-REV-5 (OperationRegistry lazy sync mkdirSync, same crash class, trigger: next startup/registry scope).
