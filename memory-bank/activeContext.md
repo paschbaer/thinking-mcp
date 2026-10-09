@@ -7,6 +7,7 @@
 
 - Chain registered and server-side verified (chainSpec persisted, chainIndex 0, no step workflowIds — registry trap avoided): successors in order (1) CHFIX-10 (verify the 4 CHFIX-2/3/5 lessons exist in the EMMS store, then remove the transported artifact .guidance/state/pending-lessons-chfix235.json — file confirmed present), (2) CHFIX-12 (rewrite the three session_not_found message sites that falsely claim sessions 'do not survive a server restart'), (3) CHFIX-11 (in-process capability re-pin; design fork admin-op vs auto-re-pin vs hybrid — head recommendation HYBRID, successor must checkpoint the user via report_blocker if the chat answer is absent).
 - Head scope: coordination/verification only — no steps[] implementation.
+- CHFIX-11 design fork RESOLVED by the user (2026-10-09, chat): option (c) HYBRID — auto-detect marks the drift + audit event, but the re-pin requires an explicit release/confirmation of the conscious infra event. Successor 3 implements hybrid; the report_blocker checkpoint is obsolete.
 - Constraints for all successors: local git only (network git prompts for an SSH passphrase — user directive), index refresh via 'bash scripts/reindex-via-api.sh /mnt/d/repos/thinking-mcp' before complete_workflow, English artifacts, resubmit-on-transient-required-hook-failure (known successor-spawn race).
 
 ## 2026-10-09: memory-bank translated to English (user order)
