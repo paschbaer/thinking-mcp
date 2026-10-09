@@ -27,6 +27,14 @@ run_suite() {
 }
 
 case "${1:-}" in
+  "" | --run-twice)
+    build
+    echo "[test-in-container] run 1/2"
+    run_suite
+    echo "[test-in-container] run 2/2"
+    run_suite
+    echo "[test-in-container] 2 consecutive green full runs — suite is deterministic in-container."
+    ;;
   --run-once)
     [[ "${2:-}" == "--no-build" ]] || build
     run_suite
@@ -35,11 +43,7 @@ case "${1:-}" in
     run_suite
     ;;
   *)
-    build
-    echo "[test-in-container] run 1/2"
-    run_suite
-    echo "[test-in-container] run 2/2"
-    run_suite
-    echo "[test-in-container] 2 consecutive green full runs — suite is deterministic in-container."
+    echo "usage: test-in-container.sh [--run-once [--no-build] | --no-build]" >&2
+    exit 2
     ;;
 esac
