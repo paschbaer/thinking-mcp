@@ -26,6 +26,10 @@ export interface SearchRow {
   last_verified_at?: string;
   normalized_hash: string;
   exact_tokens: string;
+  /** Graded full-text relevance from the adapter: HIGHER = more relevant.
+   * Scale-free per query (normalize against the best hit of the same
+   * result set). Undefined when the row did not come from the FTS arm. */
+  fts_rank?: number;
 }
 
 export interface StorageAdapter {

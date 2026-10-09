@@ -35,11 +35,19 @@ successful attempt resolves them.
 ### Hybrid retrieval with applicability-first ranking
 
 Four retrieval arms — exact failure-signature hash, normalized signature,
-SQLite FTS5 full-text, and local semantic embeddings (all-MiniLM-L6-v2,
-384 dims, fully offline) — combined with environment-compatibility scoring.
-A semantically similar but incompatible episode (other OS, other runtime
-major) is demoted below compatible ones and flagged `reference_only` with
-explicit mismatches. Known-bad attempts, contradictions, staleness, and
+SQLite FTS5 full-text (OR-joined tokens, graded bm25 relevance), and local
+semantic embeddings (all-MiniLM-L6-v2, 384 dims, fully offline) — combined
+with environment-compatibility scoring. Full-text matches are ranked by a
+graded boost normalized against the best hit of the same query (top match
+gets the full `EMMS_FTS_RELEVANCE_BOOST`, weaker matches proportionally
+less); the whole-scope fallback only fills results when no arm produced a
+candidate, so real hits are never crowded out. A semantically similar but
+incompatible episode (other OS, other runtime major) is demoted below
+compatible ones and flagged `reference_only` with explicit mismatches —
+environment keys the query does not provide are reported as `unknowns` and
+count neutrally (0.5) toward applicability. Known-bad attempts,
+contradictions, staleness (verified but older than 90 days — never-verified
+episodes report `verified: false` instead of being flagged stale), and
 harmful-feedback are visible per result.
 
 ### Per-response guidance
@@ -314,15 +322,15 @@ volume directory):
 
 #### Environment variables
 
-| Variable                    | Default                    | Meaning                                                                                                                                                                                                                                |
-| --------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                      | `3002`                     | HTTP listen port                                                                                                                                                                                                                       |
-| `EMMS_BIND_HOST`            | `127.0.0.1`                | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works.                                                                                                      |
-| `EMMS_AUTH_TOKEN`           | — (auth off)               | CB-20: when set, `/mcp` requires `Authorization: Bearer <token>` (timing-safe). `/health` stays open. Recommended whenever the server is reachable beyond loopback.                                                                    |
-| `EMMS_STORAGE_BACKEND`      | `sqlite`                   | `sqlite` \| `postgres` (both backends have full-text search at parity: sanitized AND-joined tsquery over goal summaries + first 500 chars of observations; live Postgres smoke test still pending — see remaining-work-plan follow-up) |
-| `EMMS_STORAGE_PATH`         | `~/.insight/emms-store.db` | SQLite store location                                                                                                                                                                                                                  |
-| `EMMS_PG_CONNECTION_STRING` | —                          | Postgres connection string (required when backend=postgres)                                                                                                                                                                            |
-| `EMMS_FTS_RELEVANCE_BOOST`  | `0.30`                     | Relevance boost for full-text matches in `experience_search` ranking; clamped to `[0, 0.39]` so signature-exact hits (0.40) always rank first                                                                                          |
+| Variable                    | Default                    | Meaning                                                                                                                                                                                                                                                      |
+| --------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PORT`                      | `3002`                     | HTTP listen port                                                                                                                                                                                                                                             |
+| `EMMS_BIND_HOST`            | `127.0.0.1`                | Listen address; default binds **localhost only** (default-secure). The Docker container sets `0.0.0.0` so the port mapping works.                                                                                                                            |
+| `EMMS_AUTH_TOKEN`           | — (auth off)               | CB-20: when set, `/mcp` requires `Authorization: Bearer <token>` (timing-safe). `/health` stays open. Recommended whenever the server is reachable beyond loopback.                                                                                          |
+| `EMMS_STORAGE_BACKEND`      | `sqlite`                   | `sqlite` \| `postgres` (both backends have full-text search at parity: sanitized OR-joined tsquery over goal summaries + first 500 chars of observations, graded relevance rank; live Postgres smoke test still pending — see remaining-work-plan follow-up) |
+| `EMMS_STORAGE_PATH`         | `~/.insight/emms-store.db` | SQLite store location                                                                                                                                                                                                                                        |
+| `EMMS_PG_CONNECTION_STRING` | —                          | Postgres connection string (required when backend=postgres)                                                                                                                                                                                                  |
+| `EMMS_FTS_RELEVANCE_BOOST`  | `0.30`                     | Relevance boost for full-text matches in `experience_search` ranking; clamped to `[0, 0.39]` so signature-exact hits (0.40) always rank first                                                                                                                |
 
 ```bash
 docker run -d -p 3002:3002 paschbaer/insight:latest

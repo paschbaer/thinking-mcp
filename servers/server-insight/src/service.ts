@@ -1308,7 +1308,12 @@ export class EmmsService {
       args.query.split(/\s+/).slice(0, 6).join(" "),
       args.scope_id,
     );
-    const ftsHitIds = new Set(ftsRows.map((r) => r.episode_id));
+    // Graded FTS relevance: keep the adapter rank (higher = better) per
+    // episode instead of a flat hit/miss set — the boost below must
+    // differentiate WITHIN the result set, not just lift all hits equally.
+    const ftsRank = new Map<string, number>();
+    for (const r of ftsRows) ftsRank.set(r.episode_id, r.fts_rank ?? 0);
+    const ftsMax = Math.max(0, ...ftsRank.values());
     add(ftsRows);
     if (this.embedding) {
       const qVec = await this.embedding.embed(args.query);
@@ -1329,7 +1334,12 @@ export class EmmsService {
         for (const s of scored) if (s.sim >= 0.3) add([s.row]);
       }
     }
-    add(await this.adapter.listInScope(args.scope_id));
+    // Scope fallback ONLY when no arm produced candidates. Unconditional
+    // fallback previously made EVERY query return the whole scope, and real
+    // hits drowned behind uniform scores. Zero-hit queries keep the
+    // fallback for recall.
+    if (candidates.size === 0)
+      add(await this.adapter.listInScope(args.scope_id));
 
     const results = [];
     for (const row of candidates.values()) {
@@ -1337,9 +1347,17 @@ export class EmmsService {
       const { harmful, useful } = await this.adapter.getFeedbackSummary(
         row.episode_id,
       );
-      const stale = row.last_verified_at
-        ? Date.now() - Date.parse(row.last_verified_at) > 90 * 24 * 3600 * 1000
-        : true;
+      // Never-verified (last_verified_at null) is NOT stale: it is simply
+      // unverified. The stale penalty (and the stale flag) applies only to
+      // episodes that WERE verified but longer than 90 days ago — previously
+      // every never-verified lesson was penalized −0.15 uniformly, which
+      // contributed to flattening the ranking.
+      const verifiedAt = row.last_verified_at
+        ? Date.parse(row.last_verified_at)
+        : null;
+      const verified = verifiedAt !== null && !Number.isNaN(verifiedAt);
+      const stale =
+        verified && Date.now() - (verifiedAt as number) > 90 * 24 * 3600 * 1000;
       const knownBad = (await this.adapter.listAttempts(row.episode_id))
         .filter(
           (a) =>
@@ -1351,16 +1369,22 @@ export class EmmsService {
           outcome: a.outcome ?? a.classification,
         }));
       const contradiction = await this.hasContradiction(row.episode_id);
-      const envMismatch = env
-        ? env.filter(
-            (e) =>
-              args.environment?.[e.key] !== undefined &&
-              args.environment[e.key] !== e.value,
-          )
+      // Known vs unknown environment keys: an episode env key is KNOWN when
+      // the query environment provides it, UNKNOWN otherwise. All-unknown is
+      // NEUTRAL (0.5) — it must not count as full applicability (the old
+      // formula scored 1.0 for any query without an environment filter,
+      // flattening the ranking for every such query).
+      const known = env
+        ? env.filter((e) => args.environment?.[e.key] !== undefined)
         : [];
-      const applicability = env
-        ? Math.max(0, 1 - envMismatch.length / Math.max(env.length, 1))
-        : 0.5;
+      const envMismatch = known.filter(
+        (e) => args.environment![e.key] !== e.value,
+      );
+      const envMatch = known.filter(
+        (e) => args.environment![e.key] === e.value,
+      );
+      const applicability =
+        known.length > 0 ? envMatch.length / known.length : 0.5;
       let score =
         (row.normalized_hash === args.failure_signature_hash ? 1 : 0) * 0.4 +
         applicability * 0.35 +
@@ -1369,11 +1393,16 @@ export class EmmsService {
           : 0.05) +
         Math.min(useful, 3) * 0.01;
       // Full-text matches must influence RANKING, not just candidate
-      // discovery: without this, FTS hits score identically to scope-fallback
-      // rows and get cut by the limit (observed: exact-slug queries returned
-      // arbitrary stale episodes). Boost stays config-bounded below the
+      // discovery — and the influence must be GRADED: normalizing the
+      // adapter rank (higher = better) against the best hit of THIS query
+      // gives the top full-text match the full config-bounded boost and
+      // weaker matches proportionally less, keeping the boost below the
       // signature-exact weight (0.40).
-      if (ftsHitIds.has(row.episode_id)) score += FTS_RELEVANCE_BOOST;
+      const ftsE = ftsRank.get(row.episode_id);
+      if (ftsE !== undefined) {
+        const graded = ftsMax > 0 ? Math.min(1, Math.max(0, ftsE) / ftsMax) : 1;
+        score += FTS_RELEVANCE_BOOST * graded;
+      }
       if (semanticAvailable && queryVec) {
         const eVec = await this.adapter.getEmbedding(row.episode_id);
         if (eVec) {
@@ -1391,18 +1420,19 @@ export class EmmsService {
         relevance: Math.max(0, Math.round(score * 1000) / 1000),
         applicability: {
           score: applicability,
-          matches: env
+          matches: envMatch.map((e) => e.key),
+          mismatches: envMismatch.map((e) => e.key),
+          unknowns: env
             ? env
-                .filter((e) => args.environment?.[e.key] === e.value)
+                .filter((e) => args.environment?.[e.key] === undefined)
                 .map((e) => e.key)
             : [],
-          mismatches: envMismatch.map((e) => e.key),
-          unknowns: [],
           hard_exclusions: [],
         },
         validation: {
           tier: row.state,
           last_verified_at: row.last_verified_at ?? null,
+          verified,
         },
         known_bad_attempts: knownBad,
         flags: { contradiction, duplicate: false, stale },

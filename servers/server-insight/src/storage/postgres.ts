@@ -595,19 +595,31 @@ export class PostgresAdapter implements StorageAdapter {
   async searchFullText(terms: string, scope_id: string): Promise<SearchRow[]> {
     // L257 SQLite parity (mirrors SqliteAdapter.searchFullText):
     // - sanitize terms to [\w\s]; bare operators cannot form tsquery syntax
-    // - AND-joined tokens (space-joined quoted tokens in SQLite FTS5)
+    // - OR-joined tokens (' | '): AND previously matched essentially never
+    //   for multi-token queries (same bug class as the SQLite implicit-AND)
     // - coverage: goal_summary AND first 500 chars of observations
     // - LEFT JOIN signatures: signature-less episodes (lessons) must not be
     //   dropped by an INNER JOIN (2026-09-22 bug class)
+    // - graded rank: ts_rank over summary OR observations (higher = better,
+    //   same fts_rank contract as SQLite's negated bm25)
     const safe = terms.replace(/[^\w\s]/g, " ").trim();
     if (!safe) return [];
-    const tsquery = safe.split(/\s+/).join(" & ");
+    const tsquery = safe.split(/\s+/).join(" | ");
     const params: unknown[] = [tsquery];
     const scopeFilter = scope_id === "" ? "" : "AND e.scope_id = $2";
     if (scope_id !== "") params.push(scope_id);
     const r = await this.client!.query(
       `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
-              e.last_verified_at, s.normalized_hash, s.exact_tokens
+              e.last_verified_at, s.normalized_hash, s.exact_tokens,
+              GREATEST(
+                ts_rank(to_tsvector('simple', e.goal_summary), to_tsquery('simple', $1)),
+                COALESCE((
+                  SELECT MAX(ts_rank(to_tsvector('simple', substr(o.content, 1, 500)), to_tsquery('simple', $1)))
+                  FROM observations o
+                  WHERE o.episode_id = e.experience_id
+                    AND to_tsvector('simple', substr(o.content, 1, 500)) @@ to_tsquery('simple', $1)
+                ), 0)
+              ) AS fts_rank
        FROM episodes e LEFT JOIN signatures s ON s.episode_id = e.experience_id
        WHERE (to_tsvector('simple', e.goal_summary) @@ to_tsquery('simple', $1)
               OR EXISTS (

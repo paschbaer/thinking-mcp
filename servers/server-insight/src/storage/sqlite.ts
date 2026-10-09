@@ -521,30 +521,40 @@ export class SqliteAdapter implements StorageAdapter {
     // CB-12: each token is quoted as an FTS5 string literal — bare operators
     // surviving sanitization (NOT/AND/OR/NEAR) would otherwise throw a raw
     // FTS5 syntax error. Only \w chars remain, so quoting is unambiguous.
+    // Tokens are OR-joined: the previous implicit-AND join required EVERY
+    // token in a single row, so multi-token queries matched essentially
+    // never and the FTS arm was dead for them.
     const matchArg = safe
       .split(/\s+/)
       .map((t) => `"${t}"`)
-      .join(" ");
+      .join(" OR ");
     // L256: match both the goal-summary index and the observation-contents
     // index; a hit in either makes the episode findable via full text.
+    // bm25() grades each hit (lower/more negative = better); an episode
+    // hitting BOTH indexes keeps its better rank.
     const ftsTables = ["episodes_fts", "observations_fts"];
-    const ids: { episode_id: string }[] = [];
+    const rankByEpisode = new Map<string, number>();
     for (const table of ftsTables) {
       const rows = this.db
         .prepare(
-          `SELECT episode_id FROM ${table} WHERE ${table} MATCH ? ${ftsScopeFilter}`,
+          `SELECT episode_id, bm25(${table}) AS rank FROM ${table} WHERE ${table} MATCH ? ${ftsScopeFilter}`,
         )
         .all(...(scope_id === "" ? [matchArg] : [matchArg, scope_id])) as {
         episode_id: string;
+        rank: number;
       }[];
-      ids.push(...rows);
+      for (const r of rows) {
+        const prev = rankByEpisode.get(r.episode_id);
+        if (prev === undefined || r.rank < prev)
+          rankByEpisode.set(r.episode_id, r.rank);
+      }
     }
-    if (!ids.length) return [];
-    // an episode may match in BOTH indexes — dedupe so the follow-up SELECT
-    // returns each episode exactly once
-    const uniqueIds = [...new Set(ids.map((i) => i.episode_id))];
+    if (!rankByEpisode.size) return [];
+    // fts_rank contract: HIGHER = better. bm25() is negative with lower =
+    // better, so negate; clamp at 0 so poor matches cannot go negative.
+    const uniqueIds = [...rankByEpisode.keys()];
     const placeholders = uniqueIds.map(() => "?").join(",");
-    return this.db
+    const rows = this.db
       .prepare(
         `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,
                 e.last_verified_at, s.normalized_hash, s.exact_tokens
@@ -552,6 +562,10 @@ export class SqliteAdapter implements StorageAdapter {
          WHERE e.experience_id IN (${placeholders})`,
       )
       .all(...uniqueIds) as SearchRow[];
+    return rows.map((r) => ({
+      ...r,
+      fts_rank: Math.max(0, -(rankByEpisode.get(r.episode_id) as number)),
+    }));
   }
 
   async listInScope(scope_id: string): Promise<SearchRow[]> {

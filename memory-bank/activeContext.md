@@ -3,6 +3,15 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: SEARCH-FIX CHAIN SUCCESSOR 1 — experience_search A+B+D implemented (session-b25dd900, feature/insight-search-fts-or-ranking)
+
+- Option A: sqlite.ts + postgres.ts searchFullText now OR-join sanitized tokens (the implicit/explicit AND join made multi-token queries match essentially never) and return a graded fts_rank (higher = better; SQLite negated bm25, Postgres GREATEST of summary/observation ts_rank; best rank kept across both FTS tables). SearchRow gained optional fts_rank.
+- Option B: service.ts scope fallback (listInScope) now only fills candidates when the exact/FTS/semantic arms produced ZERO candidates — previously every query returned the whole scope with uniform scores.
+- Option D (user-approved): applicability = matches/known over episode env keys the query PROVIDES, 0.5 neutral when none overlap (was 1.0 — flattened all rankings); unknowns surfaced in the response; stale now means verified-but->90d, never-verified reports validation.verified:false (no more −0.15 uniform penalty); FTS boost is graded: FTS_RELEVANCE_BOOST × min(1, e_i/e_max) per query (top hit 0.525 vs 0.225 base in tests).
+- Tests: new tests/contracts/retrieval-ranking.test.ts (6 tests: query-dependence, q2 top hit = chain-step-workflowid-registry-trap, fallback taming, zero-hit fallback, graded relevance, verified:false) — 6/6 ×2 runs; postgres-fts-parity.test.ts updated to OR expectations (5/5); focused affected suites green; full suite 24/30 files (evaluation/mcp-surface/seed-lessons = documented pre-existing better-sqlite3 worker-exit flake, seed-lessons crash reproduced on stashed develop baseline too).
+- Known env trap hit again: vitest worker-exit native crash multiplies with per-test adapters on WSL/drvfs — fixed in the new test via one shared beforeAll adapter.
+- Step 2 (C: slim base image, baked MiniLM model, warmup, semantic enablement) queued as chain successor.
+
 ## 2026-10-09: CHAIN SUCCESSOR 2 (CHFIX-12 chain) — session_not_found messages rewritten (session-b5a4c381, feature/chfix-12-session-messages)
 
 - All four message sites state their true PER-SITE condition (final review caught an initial uniform rewrite that misdescribed the auth-failure and TTL-expiry sites — fixed: file-not-found wording only where the file is actually missing; condition-neutral wording for the binding site preserving the no-existence-oracle design; explicit expiry wording for the TTL site); error code/leading token/recoverability byte-identical; consumer safety verified experimentally (no prose pins, full suite green, tsc clean).
