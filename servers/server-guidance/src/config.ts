@@ -13,6 +13,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import type { RawWorkspaceEntry } from "./workspace-registry.js";
 import { WorkspaceRegistry } from "./workspace-registry.js";
 import { toTrustLevel } from "./trust-level.js";
+import { ConfigurationError } from "./types/errors.js";
 
 export interface GuidanceMainConfig {
   version: number;
@@ -390,18 +391,6 @@ Object.assign(mainConfigSchema, {
     },
   },
 } as unknown);
-
-export class ConfigurationError extends Error {
-  readonly code: "configuration_not_found" | "configuration_invalid";
-  constructor(
-    code: "configuration_not_found" | "configuration_invalid",
-    message: string,
-  ) {
-    super(`${code}: ${message}`);
-    this.code = code;
-    this.name = "ConfigurationError";
-  }
-}
 
 type ValidateMain = (data: unknown) => boolean;
 let cachedValidateMain: ValidateMain | null = null;
