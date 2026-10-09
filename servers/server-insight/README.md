@@ -610,6 +610,25 @@ npm run dev          # stdio
 npm run dev:http     # HTTP on :3002
 ```
 
+### Deterministic test runs (container)
+
+On WSL/Windows hosts the full suite can hit native better-sqlite3
+worker-exit crashes that are environmental, not logical (tests pass
+individually and inside Linux containers). For a deterministic run on
+the deployment base image (node:22-slim, glibc, rebuilt bindings):
+
+```bash
+bash scripts/test-in-container.sh            # build + 2 consecutive full runs
+bash scripts/test-in-container.sh --run-once # build + a single full run
+bash scripts/test-in-container.sh --no-build # reuse the existing image
+```
+
+Embedding-model tests are disabled inside the container
+(`EMMS_DISABLE_EMBEDDINGS=1`) so runs are deterministic and need no
+model download. The build context is the repo root because some tests
+read repo siblings (`servers/shared-workflow`,
+`servers/server-guidance/scripts`).
+
 Test layout:
 
 - `tests/contracts/` — tool/storage/guidance/retrieval/isolation contracts

@@ -1,0 +1,38 @@
+# Build-context exclusions for Dockerfile.test (repo-root context).
+# Anchored patterns (leading /) apply to repo-root entries only — do NOT
+# add unanchored "scripts"-style patterns, they would strip the
+# server-guidance/scripts tree the suite needs.
+/.git
+/.gitnexus
+/.github
+/.claude
+/.githooks
+/.clinerules.bak
+/.guidance
+/scripts
+/memory-bank
+/specs
+/docs
+/examples
+/evals
+**/node_modules
+**/dist
+**/coverage
+**/.guidance
+**/emms-store.db*
+**/emms-artifacts
+**/*.log
+**/.env
+**/.env.*
+/servers/server-clear-thought
+/servers/server-stochasticthinking
+/servers/server-guidance/src
+/servers/server-guidance/tests
+/servers/server-guidance/dist
+/servers/server-guidance/prompts
+/servers/server-guidance/examples
+/servers/server-guidance/README.md
+/servers/server-insight/dist
+/servers/server-insight/emms-store.db*
+/servers/server-insight/emms-artifacts
+/servers/shared-workflow/dist
