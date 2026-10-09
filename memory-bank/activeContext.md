@@ -1634,6 +1634,7 @@ Instead of the simplification, the dedicated clear-thought rule was COMPLETELY d
 - Key successor-2 input (DEPS-OPS-1): PM-aware deps-install generation ALREADY EXISTS in ConfigAssistant (packageManager question, buildOperations PM strategies incl. yarn 4+); locate the instance-level npm-only operations source and apply per-workspace PM (yarn). WF-3: npm never at the yarn root. list_configured_operations returned [] at head — check instance config.
 
 - Successor 2 (DEPS-OPS-1) resolved: workspace operations.json → yarn profile via corepack (DEC-DEPSOPS-1); container-verified corepack yarn 4.6.0; npm never installs at the root; README generalized. Chain CHFIX-11-R1 + DEPS-OPS-1 fully resolved; remaining: merge decision (user).
+- 2026-10-09 follow-ups resolved in session-0bebc4bf (feature/cycle-fix-corepack-yarn): import cycle config.ts ↔ workspace-registry.ts BROKEN (ConfigurationError → types/errors.ts; suite 734/734); corepack yarn shim enabled in the guidance Dockerfile (image-verified: bare yarn = 4.6.0; running stack pending user-scheduled recreate).
 
 ## 2026-10-08: GN-D6 tracked — API-based reindexing (verified), agent retreat from the checkout
 
