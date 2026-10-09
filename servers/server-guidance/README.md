@@ -1376,6 +1376,35 @@ conversation. To resume:
 A `blocked` successor (failed mandatory gate) needs its blocker resolved or
 explicitly classified before the chain can continue.
 
+#### What survives a guidance server restart
+
+Session state is **file-backed**: every session (including chain state,
+`chainSpec`, submissions and phase) persists under the state directory the
+engine owns (`<stateDir>/sessions/<sessionId>.json`, written atomically per
+operation). A restarted server re-loads sessions from disk on demand — a
+fresh engine over the same state directory and workspace registry resolves
+existing sessions exactly as before, re-validating and re-binding them to
+the current configuration when it changed (completed sessions are exempt
+from re-validation). Operations that were recorded as `running` when the
+process died reconcile to `unknown` on the next read (state-changing ops
+block rather than re-run); recovery for those is `retry_operation`.
+
+What does **not** survive a restart:
+
+- The **MCP transport session** between the client and the HTTP server: a
+  client holding a pre-restart streamable-HTTP session id sees `404` /
+  JSON-RPC `-32001` until it reconnects (this is a transport-level eviction,
+  not a lost workflow session — reconnect and continue with the same
+  sessionId).
+- **In-flight operations**: child processes and HTTP requests that were
+  executing at shutdown are interrupted (reconciled to `unknown` as above).
+
+If a session is reported `session_not_found` after a restart although its
+JSON file exists on disk, the cause is above the session layer — check the
+instance composition (registered workspaces / default root) before
+touching any state files, and never delete session files as a "reset":
+start a new workflow instead.
+
 ### Mixed manifests (steps + source)
 
 `steps` and `source` may be **combined**: the explicit steps run first, then
