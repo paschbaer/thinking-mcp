@@ -442,7 +442,7 @@ export class RemoteSessionManager {
     if (meta.key === null || !this.pairs.authenticate(meta.key, bearerToken)) {
       throw new Error(
         "session_not_found" +
-          " — no session meta found at the expected state location. Sessions are file-backed and survive server restarts: check the instance composition first (see the README restart section); recover by starting a new workflow only if the session is truly gone",
+          " — the session could not be resolved (its binding or authentication failed, or it no longer exists — e.g. expired; no existence oracle by design). Sessions are file-backed and survive server restarts. Recover by starting a new workflow via start_workflow",
       ); // kein Existenz-Oracle
     }
   }
@@ -526,7 +526,7 @@ export class RemoteSessionManager {
     if (idleDays > TTL_DAYS)
       throw new Error(
         "session_not_found" +
-          " — no session meta found at the expected state location. Sessions are file-backed and survive server restarts: check the instance composition first (see the README restart section); recover by starting a new workflow only if the session is truly gone",
+          " — the session has expired and is no longer available (idle TTL exceeded; sessions are file-backed and survive server restarts, but expired sessions are gone). Recover by starting a new workflow via start_workflow",
       );
     meta.lastAccessAt = new Date().toISOString();
     writeFileSync(p, JSON.stringify(meta, null, 2));
