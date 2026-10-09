@@ -47,9 +47,13 @@ export class PostgresAdapter implements StorageAdapter {
   async init(): Promise<void> {
     // Idempotent AND race-free (memoized storage factory): a second init must
     // not open another pg Client connection, and concurrent callers share one
-    // initialization via the memoized promise.
+    // initialization via the memoized promise. A REJECTED initialization is
+    // not memoized — retry stays possible.
     if (!this.initPromise) {
-      this.initPromise = this.doInit();
+      this.initPromise = this.doInit().catch((e: unknown) => {
+        this.initPromise = null;
+        throw e;
+      });
     }
     return this.initPromise;
   }

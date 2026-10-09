@@ -61,6 +61,22 @@ describe("Storage factory (SRCH-2-R3)", () => {
     await adapter.close();
   });
 
+  it("a failed init is NOT memoized — retry after failure recovers", async () => {
+    // A FILE where a directory is needed: opening store.db under it fails
+    // (SQLITE_CANTOPEN); the rejection must not wedge the adapter forever.
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(join(dir, "blocker"), "x");
+    vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "blocker", "store.db"));
+    const { adapter } = buildStorageAdapter();
+    await expect(adapter.init()).rejects.toThrow();
+    // The rejected promise must NOT be memoized: a second init() re-attempts
+    // (fresh promise) instead of returning the stale rejection.
+    const memo = (adapter as unknown as { initPromise: Promise<void> | null })
+      .initPromise;
+    expect(memo).toBeNull();
+    await expect(adapter.init()).rejects.toThrow(); // fresh attempt, same cause
+  });
+
   it("sqlite backend stays the default without EMMS_STORAGE_BACKEND", () => {
     vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "store.db"));
     const { adapter } = buildStorageAdapter();

@@ -34,8 +34,12 @@ export class SqliteAdapter implements StorageAdapter {
     // shares ONE adapter across registerTools-per-session and the semantic
     // warmup): a second init must not open another Database handle and leak
     // the old one, and concurrent callers must share one initialization.
+    // A REJECTED initialization is not memoized — retry stays possible.
     if (!this.initPromise) {
-      this.initPromise = this.doInit();
+      this.initPromise = this.doInit().catch((e: unknown) => {
+        this.initPromise = null;
+        throw e;
+      });
     }
     return this.initPromise;
   }
