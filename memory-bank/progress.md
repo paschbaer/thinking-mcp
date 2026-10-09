@@ -1082,7 +1082,7 @@ Current State: docs-only commit; no code changes; EMMS store remains the single 
 
 ## 2026-10-09 - CHFIX-12 resolved (chain successor 2, session-b5a4c381, feature/chfix-12-session-messages)
 
-What works: all four session_not_found message sites state the true condition (file-backed persistence, composition-check-first, README restart reference, last-resort new workflow); error code/leading token/recoverability byte-identical; consumer safety verified experimentally (no prose pins, full suite 731/731, tsc clean).
+What works: the four session_not_found message sites state their true PER-SITE conditions (final review caught an initial uniform rewrite: load/resolve = file-not-found with composition-check-first; assertSessionBinding = condition-neutral, anti existence-oracle preserved; touch = TTL expiry with direct start-workflow recovery); error code/leading token/recoverability byte-identical; consumer safety verified experimentally (no prose pins, full suite 731/731 after both rounds, tsc clean).
 
 What's left: successor 3 (CHFIX-11 hybrid in-process re-pin - user decision c recorded).
 
