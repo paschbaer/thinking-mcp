@@ -3909,6 +3909,33 @@ export class WorkflowEngine {
         } as unknown as SubmitResult;
       }
       const target = this.selectTransition(phaseDef?.transitions ?? [], true);
+      // GND1-DESYNC-1 (live evidence 2026-10-09, two occurrences): a failed
+      // submit can leave the phase WITHOUT a recorded submission (hook
+      // failures before the persist, or error paths that never reach the
+      // persisting update). Re-running green hooks must not advance the
+      // phase on its own — the phase's submission contract is still
+      // unfulfilled; the agent simply resubmits (the hooks now pass). The
+      // complete phase is exempt: its 'submission' is the completion report
+      // held in pendingCompletion (GDS-6 finalization below).
+      if (
+        target &&
+        session.currentPhase !== "complete" &&
+        !session.submissions[session.currentPhase]
+      ) {
+        this.audit.append({
+          sessionId,
+          eventType: "operation_retried",
+          phase: session.currentPhase,
+          data: { retried: true, transitionHeld: "missing_phase_submission" },
+        });
+        return {
+          accepted: true,
+          sessionId,
+          currentPhase: session.currentPhase,
+          status: session.status,
+          operations: opResults,
+        } as SubmitResult;
+      }
       if (target) {
         const previousPhase = session.currentPhase;
         this.sessions.update(sessionId, (s) => {

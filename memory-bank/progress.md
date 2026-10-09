@@ -1046,3 +1046,10 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 **What's left:** Chain Successor 3 (GND1-TEST-1/RESIDUALS) und Successor 4 (CHFIX-9, HIGH). Neue Engine-Beobachtung fuer Successor 3: submit_understanding-Desync (transienter required_hook + retry_operation Phase-Skip ohne Submission). /tmp-Fuellung durch relocated-venv-Testrueckstaende (beobachtet, geraeumt; Recurrence bei haeufigen Vollsuite-Laufen moeglich). Hinweis: GN-D6-Eintraege in activeContext/progress/remaining-work-plan liegen auf feature/gn-d6-api-reindex (Branch-Disjunktionsseite); Merge beider Branches fuehrt die memory-bank-Diffs zusammen.
 
 **Current State:** feature/gn-d5-url-topology (von develop) haelt ConfigAssistant + Tests + README + memory-bank; feature/gn-d6-api-reindex parallel ungemergt (Code-Dateien disjunkt).
+## 2026-10-09 - GND1 Successor-Probe-Test + Desync-Fix (Chain Successor 3, session-0046f81b, feature/gnd1-probe-residuals)
+
+What works: Dedizierter Chain-Successor-Probe-Test (GND1-TEST-1, plainOps-Fixture + makeChainedEngine, bounded Poll, exactly-once, Head/Successor unabhaengig); GND1-DESYNC-1 gefixt: retryOperations-Guard haelt Phasen-Transition ohne recorded Submission (complete ausgenommen, GDS-6), Regressionstest in chain.test.ts pinnt beide Richtungen; Residuals (a)-(g) re-verifiziert, alle 7 unveraendert accepted (Entscheidungstabelle in activeContext). 37/37 zielgerichtet, Vollsuite 723/723, tsc clean.
+
+What's left: Chain Successor 4 (CHFIX-9, HIGH: Session-Persistenz ueber Server-Restart) — der Desync-Fix beruehrt Lebenszyklus, aber CHFIX-9 bleibt unberuehrt. Merge-Reihenfolge der 3 Feature-Branches beim User.
+
+Current State: feature/gnd1-probe-residuals (von develop) haelt WorkflowEngine-Guard + 2 Test-Dateien + memory-bank; parallele Branches gn-d6/gn-d5 ungemergt (Code disjunkt, memory-bank-Merge-Konflikte erwartet und loesbar).
