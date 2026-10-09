@@ -1039,3 +1039,10 @@ Fast-forward 18eaa2b..e3e5221 (10 commits: baseline typecheck fix, Final#1 degra
 **What's left:** Chain Successor 2 (GN-D5 URL-Topologie-Entkopplung), Successor 3 (GND1-TEST-1/RESIDUALS), Successor 4 (CHFIX-9, HIGH). GN-D6-Eintrag in remaining-work-plan auf resolved gesetzt.
 
 **Current State:** feature/gn-d6-api-reindex hält die GN-D6-Änderungen (Script + Config + Docs + memory-bank); Live-Verifikation grün (Job 0→100 %, INDEX FRESH mtime, Identität /mnt/d erhalten); wartet auf Final-Review + Completion.
+## 2026-10-09 — GN-D5 URL-Topologie-Entkopplung umgesetzt (Chain Successor 2, session-a073a6b4, feature/gn-d5-url-topology)
+
+**What works:** gitnexusTopology (compose-dns|host-gateway) als unabhängige Frage; gitnexusUrl()/buildPolicies()/containerRoute/Egress keyed on topology (nicht mehr auf Writer-Mode); Adopt-Ableitung aus der Live-Referenz-Downstream-URL (Mixed-Shape regenerierbar — Akzeptanzkriterium erfüllt); F-2 GITNEXUS_URL-Token-Render regressionsgetestet; Frage-Katalog-Pins (13->14) in Test + README aktualisiert. Suite 727/727, tsc clean.
+
+**What's left:** Chain Successor 3 (GND1-TEST-1/RESIDUALS) und Successor 4 (CHFIX-9, HIGH). Neue Engine-Beobachtung fuer Successor 3: submit_understanding-Desync (transienter required_hook + retry_operation Phase-Skip ohne Submission). /tmp-Fuellung durch relocated-venv-Testrueckstaende (beobachtet, geraeumt; Recurrence bei haeufigen Vollsuite-Laufen moeglich). Hinweis: GN-D6-Eintraege in activeContext/progress/remaining-work-plan liegen auf feature/gn-d6-api-reindex (Branch-Disjunktionsseite); Merge beider Branches fuehrt die memory-bank-Diffs zusammen.
+
+**Current State:** feature/gn-d5-url-topology (von develop) haelt ConfigAssistant + Tests + README + memory-bank; feature/gn-d6-api-reindex parallel ungemergt (Code-Dateien disjunkt).

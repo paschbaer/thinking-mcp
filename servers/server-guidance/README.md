@@ -482,7 +482,7 @@ call. Flow (which tool when) — the full configuration reference follows in
 
 | Step | Tool                                  | Purpose                                                                                                     |
 | ---- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1    | `setup_guidance_start`                | Returns the question catalog (13 questions) and the first question with help text and options               |
+| 1    | `setup_guidance_start`                | Returns the question catalog (14 questions) and the first question with help text and options               |
 | 2    | `setup_guidance_answer` `{answers}`   | Takes the accumulated answers, validates them, and returns the next open question                           |
 | 3    | … repeat `setup_guidance_answer`      | Until `done: true` — then `nextTool` points to `setup_guidance_generate`                                    |
 | 4    | `setup_guidance_generate` `{answers}` | Checks completeness and returns the complete `.guidance/` file set as a payload                             |
@@ -509,8 +509,12 @@ workspace's GitNexus capability: `required` = blocking index gates,
 GitNexus is absent, `off` = no GitNexus references at all; legacy
 yes/no answers stay compatible), `gitnexusMode`
 (`local-cli`/`compose-container` — the mode of the single index writer,
-asked only when GitNexus is not off) and `gitnexusReindexCommand`
-(the exact reindex command for compose-container deployments, stored as
+asked only when GitNexus is not off), `gitnexusTopology`
+(`compose-dns`/`host-gateway` — how the guidance container REACHES the
+server; independent of the writer mode, default derives from the mode,
+and adopt mode derives it from the reference downstream URL), and
+`gitnexusReindexCommand` (the exact reindex command for
+compose-container deployments, stored as
 `gitnexus.reindexCommand` in guidance.json and rendered into the
 completion instruction and the freshness-gate remedy), the `gates` preset
 (`standard`: lint opt + test opt + build REQ · `minimal`: build REQ only)
