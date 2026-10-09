@@ -21,6 +21,11 @@
  *      a missing connection string fails loudly (no silent sqlite fallback)
  *
  * Exit code 0 = all checks green; anything else prints the failing check.
+ *
+ * NOTE on side effects: init() runs the idempotent schema migrations
+ * (CREATE ... IF NOT EXISTS, CREATE EXTENSION IF NOT EXISTS) — the same DDL
+ * a deployment start runs. Data writes are smoke-tagged only (unique scope
+ * + slug per run); no existing rows are read-modified or deleted.
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
