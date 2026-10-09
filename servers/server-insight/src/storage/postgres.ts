@@ -45,6 +45,9 @@ export class PostgresAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
+    // Idempotent (memoized storage factory): a second init must not open
+    // another pg Client connection and leak the old one.
+    if (this.client) return;
     const { Client } = await import("pg");
     this.client = new Client({ connectionString: this.opts.connectionString });
     await this.client.connect();

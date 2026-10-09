@@ -34,6 +34,17 @@ describe("Storage factory (SRCH-2-R3)", () => {
     expect(a.artifactsDir).toBe(join(dir, "emms-artifacts"));
   });
 
+  it("adapter init is idempotent on the shared handle (no double-open)", async () => {
+    vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "store.db"));
+    const { adapter } = buildStorageAdapter();
+    await adapter.init();
+    const db1 = (adapter as unknown as { db: { open: boolean } | null }).db;
+    await adapter.init(); // second caller (warmup + registerTools)
+    const db2 = (adapter as unknown as { db: { open: boolean } | null }).db;
+    expect(db2).toBe(db1); // same handle, not a leaked second Database
+    await adapter.close();
+  });
+
   it("sqlite backend stays the default without EMMS_STORAGE_BACKEND", () => {
     vi.stubEnv("EMMS_STORAGE_PATH", join(dir, "store.db"));
     const { adapter } = buildStorageAdapter();

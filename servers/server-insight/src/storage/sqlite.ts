@@ -27,6 +27,10 @@ export class SqliteAdapter implements StorageAdapter {
   constructor(private readonly path: string) {}
 
   async init(): Promise<void> {
+    // Idempotent (required since the memoized storage factory shares ONE
+    // adapter across registerTools-per-session and the semantic warmup):
+    // a second init must not open another Database handle and leak the old one.
+    if (this.db) return;
     this.db = new Database(this.path);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
