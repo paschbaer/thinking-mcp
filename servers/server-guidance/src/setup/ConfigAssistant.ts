@@ -235,7 +235,9 @@ export interface GitNexusSetup {
 /** Mode-derived topology default: a compose-container server sits in the
  *  project network (compose DNS); a host-side CLI server is reached over
  *  the host gateway. Explicit answers override this. */
-function defaultTopology(mode: GitNexusSetup["mode"]): GitNexusSetup["topology"] {
+function defaultTopology(
+  mode: GitNexusSetup["mode"],
+): GitNexusSetup["topology"] {
   return mode === "compose-container" ? "compose-dns" : "host-gateway";
 }
 
@@ -374,7 +376,9 @@ export function deriveAdoptGn(
       .replace(/[\/].*$/, "")
       .replace(/:[0-9]+$/, "");
     gn.topology =
-      host === "host.docker.internal" || host === "localhost" || host === "127.0.0.1"
+      host === "host.docker.internal" ||
+      host === "localhost" ||
+      host === "127.0.0.1"
         ? "host-gateway"
         : "compose-dns";
   } else {
@@ -1204,7 +1208,10 @@ ${entryJson}`,
     let refGnUrl: string | undefined;
     try {
       const refDownstream = JSON.parse(
-        readFileSync(join(resolvedReference, "downstream-servers.json"), "utf8"),
+        readFileSync(
+          join(resolvedReference, "downstream-servers.json"),
+          "utf8",
+        ),
       ) as {
         servers?: Record<string, { transport?: { http?: { url?: string } } }>;
       };
