@@ -1039,3 +1039,11 @@ What works: Dedizierter Chain-Successor-Probe-Test (GND1-TEST-1, plainOps-Fixtur
 What's left: Chain Successor 4 (CHFIX-9, HIGH: Session-Persistenz ueber Server-Restart) — der Desync-Fix beruehrt Lebenszyklus, aber CHFIX-9 bleibt unberuehrt. Merge-Reihenfolge der 3 Feature-Branches beim User.
 
 Current State: feature/gnd1-probe-residuals (von develop) haelt WorkflowEngine-Guard + 2 Test-Dateien + memory-bank; parallele Branches gn-d6/gn-d5 ungemergt (Code disjunkt, memory-bank-Merge-Konflikte erwartet und loesbar).
+
+## 2026-10-09 - CHFIX-9 Evidence-Closure Pfad A (Chain Successor 4, session-f0015ea9, feature/chfix-9-session-persistence)
+
+What works: CHFIX-9-Prämisse auf zwei Ebenen widerlegt und als Regressionstests gepinnt (Engine-Restart-Survival + Pool-Restart-Survival registry-only); README-Restart-Semantik praezisiert (file-backed Sessions, Rebind, in-flight-Ops->unknown, MCP-Transport-Session ueberlebt nicht, kein Loeschen von Session-Dateien); CHFIX-11 (In-Process-Re-Pin) ausgekoppelt; CHFIX-9 mit Evidence + User-Sign-off resolved.
+
+What's left: Merge aller vier Feature-Branches (gn-d6 -> gn-d5 -> gnd1 -> chfix-9) nach develop; Container-Rebuild; Pfad B: Live-Restart-Experiment mit aktiver Session (verifiziert die Restart-Semantik produktiv).
+
+Current State: Kette 4/5 Sessions completed (CHFIX-9 in Completion); vier Feature-Branches + develop bereit zum sequentiellen Merge; live Experiment B nach Rebuild.

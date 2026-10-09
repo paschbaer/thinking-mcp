@@ -173,7 +173,7 @@ From a bare machine to a running multi-workspace instance:
    GitNexus references. Gate outcomes are three-valued for optional
    capabilities: when `state` is `optional` and the GitNexus server is
    unreachable, a non-required GitNexus gate reports `skipped
-   (capability-absent)` with a loud warning instead of a tolerated failure —
+(capability-absent)` with a loud warning instead of a tolerated failure —
    a reachable server that reports an error still fails visibly
    (configured-but-broken), and `required` gates always fail closed. At
    session start a non-blocking, timeout-bounded probe compares the declared
@@ -201,7 +201,7 @@ From a bare machine to a running multi-workspace instance:
    container restart needed after a reindex.
 
    **Container mode activation** (deployments using `gitnexus.mode:
-   compose-container`, where the container IS the single index writer):
+compose-container`, where the container IS the single index writer):
 
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.gitnexus.yml \
@@ -1336,8 +1336,8 @@ Three mechanics make a long sequential Form-B chain viable:
     "source": "spec_kit_tasks",
     "requestTemplate": "Execute task ${chain.taskId} …",
     "featureId": "018-guidance-beads-execution-adapter",
-    "maxChainDepthOverride": 70 // integer, hard cap 512; wins over config maxChainDepth
-  }
+    "maxChainDepthOverride": 70, // integer, hard cap 512; wins over config maxChainDepth
+  },
 }
 ```
 
@@ -1371,6 +1371,35 @@ conversation. To resume:
 
 A `blocked` successor (failed mandatory gate) needs its blocker resolved or
 explicitly classified before the chain can continue.
+
+#### What survives a guidance server restart
+
+Session state is **file-backed**: every session (including chain state,
+`chainSpec`, submissions and phase) persists under the state directory the
+engine owns (`<stateDir>/sessions/<sessionId>.json`, written atomically per
+operation). A restarted server re-loads sessions from disk on demand — a
+fresh engine over the same state directory and workspace registry resolves
+existing sessions exactly as before, re-validating and re-binding them to
+the current configuration when it changed (completed sessions are exempt
+from re-validation). Operations that were recorded as `running` when the
+process died reconcile to `unknown` on the next read (state-changing ops
+block rather than re-run); recovery for those is `retry_operation`.
+
+What does **not** survive a restart:
+
+- The **MCP transport session** between the client and the HTTP server: a
+  client holding a pre-restart streamable-HTTP session id sees `404` /
+  JSON-RPC `-32001` until it reconnects (this is a transport-level eviction,
+  not a lost workflow session — reconnect and continue with the same
+  sessionId).
+- **In-flight operations**: child processes and HTTP requests that were
+  executing at shutdown are interrupted (reconciled to `unknown` as above).
+
+If a session is reported `session_not_found` after a restart although its
+JSON file exists on disk, the cause is above the session layer — check the
+instance composition (registered workspaces / default root) before
+touching any state files, and never delete session files as a "reset":
+start a new workflow instead.
 
 ### Mixed manifests (steps + source)
 
@@ -2172,15 +2201,15 @@ as a blueprint: copy it to your project root and adapt the operations.
 
 ### Config file map
 
-| File                      | Purpose (key settings in this sample)                                                                                                                                                                                                                                      |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `guidance.json`           | Entry point: `project.name: "thinking-mcp"`, profile `spec-kit`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`)                   |
-| `workflow.json`           | The state machine — see the phase walkthrough below                                                                                                                                                                                                                        |
-| `responses.json`          | Per-phase agent instruction: title, instruction, `requiredActions`                                                                                                                                                                                                         |
+| File                      | Purpose (key settings in this sample)                                                                                                                                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `guidance.json`           | Entry point: `project.name: "thinking-mcp"`, profile `spec-kit`, `state.persistAfterEveryOperation: true`, fail-closed security (`allowAgentDefinedServers/Operations/Commands: false`, `restrictWorkingDirectory: true`, `redactSensitiveOutput: true`)                     |
+| `workflow.json`           | The state machine — see the phase walkthrough below                                                                                                                                                                                                                          |
+| `responses.json`          | Per-phase agent instruction: title, instruction, `requiredActions`                                                                                                                                                                                                           |
 | `operations.json`         | The gates: `build` (blocking, `npm run build`), `lint` (optional, prettier `--check`), `test` (optional, `npm test`), `repository-analysis` (blocking, MCP `check`), `capture-session-lessons` (blocking, seeds validated session lessons into the experience-memory server) |
-| `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight                                                    |
-| `policies.json`           | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3000`, `:3002`, `:4747`), redaction patterns, review-blocking severities `high\|critical`    |
-| `schemas/*.schema.json`   | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission                                                                                                                                                                                 |
+| `downstream-servers.json` | GitNexus, Clear-Thought and Insight as **HTTP downstreams** (Memory defined but disabled), all with wildcard tool allowlists (`tools: ["*"]`) and `containerRoute` fallback endpoints for gitnexus/clearthought/insight                                                      |
+| `policies.json`           | Trust levels (`untrusted` → `privileged`), `egress.httpHostAllowlist` (**mandatory and fail-closed** as soon as any enabled server uses HTTP transport: `host.docker.internal:3000`, `:3002`, `:4747`), redaction patterns, review-blocking severities `high\|critical`      |
+| `schemas/*.schema.json`   | One strict JSON-Schema (draft 2020-12, `additionalProperties: false`) per phase submission                                                                                                                                                                                   |
 
 ### ⚠️ Important: workspace binding under HTTP/Docker
 
@@ -2317,13 +2346,13 @@ Without the policy the gate is disabled (lenient default).
 
 #### 7. `complete` — final report under completion gates
 
-| Aspect                       | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Config                                                                                                                                           |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Aspect                       | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Config                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Instruction                  | Final completion report — summary, changed files, verification results, known limitations, remaining risks, deviations, deferred work, next steps. **Before submitting:** (1) refresh the GitNexus index via this repo's configured reindex command (`gitnexus.reindexCommand` in guidance.json — wsl-writer mode: the host CLI is the single index writer, the container serves read-only) and note it in the report; (2) write the session lessons file (contract below); (3) remaining-work impact review — update `memory-bank/remaining-work-plan.md` for follow-ups resolved, touched, or newly created by this run | `responses.json` → `complete`                                                                                                                    |
-| Submission                   | `complete_workflow` — required: `summary`; optional: `changedFiles`, `verificationSummary`, `knownLimitations`, `remainingRisks`, `deviations`, `deferredWork`, `nextSteps`                                                                                                                                                                                                                                                                                                                                                                     | `schemas/complete.schema.json`                                                                                                                   |
-| Gates on exit (`beforeExit`) | `index-freshness` (**required**: deterministic freshness check of `<root>/.gitnexus` against the working tree, no git binary needed; refresh via the configured reindex command), `repository-analysis` (**required**, MCP `check` against the GitNexus HTTP server — the server exposes no analyze tool and the guidance container has no gitnexus binary, so there is deliberately no process fallback) · `capture-session-lessons` (**required**, see contract below) — required failures block completion (`retry_operation` to re-run) | `workflow.json` → `phases.complete.lifecycle.beforeExit` · `operations.json` → `index-freshness`/`repository-analysis`/`capture-session-lessons` |
-| Transition                   | `required_operations_succeeded` → `completed` (terminal)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `workflow.json` → `phases.complete.transitions`                                                                                                  |
-| Impact review                | Remaining-work impact review is part of the instruction (step 3): the agent assesses how this run affects tracked follow-ups and updates the plan — deliberately an instruction duty, not a gate (plan adjustments are judgment, not deterministically checkable)                                                                                                                                                                                                                                                                               | `responses.json` → `complete.instruction` · `memory-bank/remaining-work-plan.md`                                                                 |
+| Submission                   | `complete_workflow` — required: `summary`; optional: `changedFiles`, `verificationSummary`, `knownLimitations`, `remainingRisks`, `deviations`, `deferredWork`, `nextSteps`                                                                                                                                                                                                                                                                                                                                                                                                                                               | `schemas/complete.schema.json`                                                                                                                   |
+| Gates on exit (`beforeExit`) | `index-freshness` (**required**: deterministic freshness check of `<root>/.gitnexus` against the working tree, no git binary needed; refresh via the configured reindex command), `repository-analysis` (**required**, MCP `check` against the GitNexus HTTP server — the server exposes no analyze tool and the guidance container has no gitnexus binary, so there is deliberately no process fallback) · `capture-session-lessons` (**required**, see contract below) — required failures block completion (`retry_operation` to re-run)                                                                               | `workflow.json` → `phases.complete.lifecycle.beforeExit` · `operations.json` → `index-freshness`/`repository-analysis`/`capture-session-lessons` |
+| Transition                   | `required_operations_succeeded` → `completed` (terminal)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `workflow.json` → `phases.complete.transitions`                                                                                                  |
+| Impact review                | Remaining-work impact review is part of the instruction (step 3): the agent assesses how this run affects tracked follow-ups and updates the plan — deliberately an instruction duty, not a gate (plan adjustments are judgment, not deterministically checkable)                                                                                                                                                                                                                                                                                                                                                         | `responses.json` → `complete.instruction` · `memory-bank/remaining-work-plan.md`                                                                 |
 
 **Session lessons contract (`capture-session-lessons`):** before calling
 `complete_workflow`, the agent reviews the session for recurring bugs, traps,
@@ -2357,7 +2386,7 @@ recorded) or ends the run via `cancel_workflow`.
   the index refresh is the **agent's responsibility before calling
   `complete_workflow`**: run the reindex inside the compose-managed
   gitnexus-server container (`docker compose exec -w /workspaces/<repo-dir>
-  gitnexus-server gitnexus analyze --no-stats`, see the repo's `AGENTS.md`)
+gitnexus-server gitnexus analyze --no-stats`, see the repo's `AGENTS.md`)
   and mention the refresh in the completion report. Two gates cover the index
   deterministically: `index-freshness` compares the in-repo `.gitnexus`
   state against the working tree — a stale index fails the gate instead of
@@ -2425,11 +2454,11 @@ helpers, insight capture, index gates — needs the companion servers of this
 repository. All downstream servers must be reachable from the Guidance
 container via `host.docker.internal` (see `downstream-servers.json`).
 
-| Server                      | Kind                                         | Powers                                                                                             | Without it                                                                                                                                                                                                                                           |
-| --------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Clear-Thought (`:3000/mcp`) | agent-side context server (not a downstream) | the Clear-Thought duties in all four reasoning phases (`understand`, `plan`, both reviews)         | instructions cannot be fulfilled (instruction-enforced — technically tolerated, but the reasoning quality contract is broken)                                                                                                                        |
-| Insight (`:3002/mcp`)       | downstream MCP, `required: false`            | `query-project-insights` (entering `understand`) and `capture-session-lessons` (before `complete`) | insight query fails as a tolerated failure; the capture gate is **two-stage**: an empty lessons file succeeds without ever contacting Insight, while non-empty lessons make Insight a **hard dependency** (blocking failure, `complete` unreachable) |
-| GitNexus (`:4747/api/mcp`)  | downstream MCP, `required: true`             | `repository-analysis` gate before `complete` (MCP `check`; index refresh runs via the workspace reindex command — the host CLI in this repo's wsl-writer mode, not through this MCP endpoint)     | gate fails and blocks completion                                                                                                                                                                                                                     |
+| Server                      | Kind                                         | Powers                                                                                                                                                                                        | Without it                                                                                                                                                                                                                                           |
+| --------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clear-Thought (`:3000/mcp`) | agent-side context server (not a downstream) | the Clear-Thought duties in all four reasoning phases (`understand`, `plan`, both reviews)                                                                                                    | instructions cannot be fulfilled (instruction-enforced — technically tolerated, but the reasoning quality contract is broken)                                                                                                                        |
+| Insight (`:3002/mcp`)       | downstream MCP, `required: false`            | `query-project-insights` (entering `understand`) and `capture-session-lessons` (before `complete`)                                                                                            | insight query fails as a tolerated failure; the capture gate is **two-stage**: an empty lessons file succeeds without ever contacting Insight, while non-empty lessons make Insight a **hard dependency** (blocking failure, `complete` unreachable) |
+| GitNexus (`:4747/api/mcp`)  | downstream MCP, `required: true`             | `repository-analysis` gate before `complete` (MCP `check`; index refresh runs via the workspace reindex command — the host CLI in this repo's wsl-writer mode, not through this MCP endpoint) | gate fails and blocks completion                                                                                                                                                                                                                     |
 
 Config locations: transport and capabilities in `downstream-servers.json`, gate wiring in `operations.json` and `workflow.json`, agent duties in `responses.json`.
 

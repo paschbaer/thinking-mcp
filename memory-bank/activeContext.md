@@ -3,6 +3,13 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: CHAIN SUCCESSOR 4 — CHFIX-9 Evidence-Closure Pfad A (session-f0015ea9, feature/chfix-9-session-persistence)
+
+- **Prämisse widerlegt (2 Regressionstests):** Sessions überleben Restarts auf Engine- UND Pool-Ebene (SessionRepository file-backed; registry-only-Instanz re-resolvt Workspace-Sessions nach Neustart-Simulation). Der Live-Verlust (session-78776317) liegt oberhalb (MCP-Transport 404/-32001 oder Boot-/Mount-Timing) — in-process nicht reproduzierbar.
+- **User-Entscheidung:** Pfad A (Evidence-Closure + README-Präzisierung) JETZT; Merge der vier Branches in Empfehlungsreihenfolge gn-d6 → gn-d5 → gnd1 → chfix-9; Pfad B (Live-Restart-Experiment mit aktiver Session) nach Merge + Container-Rebuild.
+- **Umgesetzt (Pfad A):** README-Recovery-Rezept erweitert (Restart-Semantik: was überlebt / was nicht / korrektes Recovery pro Schicht / niemals Session-Dateien löschen); CHFIX-11 (In-Process-Re-Pin) als eigenes Follow-up ausgekoppelt; CHFIX-9 mit Evidence resolved.
+- **Branch:** feature/chfix-9-session-persistence (auf gnd1-Tip gestapelt): 2 Restart-Survival-Regressionstests + README + memory-bank.
+
 ## 2026-10-09: CHAIN SUCCESSOR 3 — GND1 Successor-Probe-Test + Desync-Fix (session-0046f81b, feature/gnd1-probe-residuals)
 
 - **GND1-TEST-1 gelöst:** Dedizierter Chain-Successor-Probe-Test in capability-skip-semantics.test.ts (plainOps-Fixture-Variante + makeChainedEngine): Chained Head → completeWorkflow → Successor-Session bekommt GENAU EIN capability_state_deviation {kind required-unreachable, source probe} (bounded Poll, kein Sync-Annahme), Exactly-once über Creation-Pfad + manuellen Re-Probe, Head-Event unabhängig.
