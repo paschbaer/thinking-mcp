@@ -45,9 +45,18 @@ export class PostgresAdapter implements StorageAdapter {
   }
 
   async init(): Promise<void> {
-    // Idempotent (memoized storage factory): a second init must not open
-    // another pg Client connection and leak the old one.
-    if (this.client) return;
+    // Idempotent AND race-free (memoized storage factory): a second init must
+    // not open another pg Client connection, and concurrent callers share one
+    // initialization via the memoized promise.
+    if (!this.initPromise) {
+      this.initPromise = this.doInit();
+    }
+    return this.initPromise;
+  }
+
+  private initPromise: Promise<void> | null = null;
+
+  private async doInit(): Promise<void> {
     const { Client } = await import("pg");
     this.client = new Client({ connectionString: this.opts.connectionString });
     await this.client.connect();
@@ -60,6 +69,8 @@ export class PostgresAdapter implements StorageAdapter {
   async close(): Promise<void> {
     await this.client?.end();
     this.client = null;
+    // Allow re-initialization after an explicit close.
+    this.initPromise = null;
   }
 
   private async runMigrations(): Promise<void> {

@@ -23,14 +23,24 @@ import { runMigrations } from "./migrations.js";
 export class SqliteAdapter implements StorageAdapter {
   private db!: Database.Database;
   private seq = 0;
+  /** Memoized init promise — concurrent init() callers must not race the
+   * guard-then-assign window (shared adapter, see storage/factory.ts). */
+  private initPromise: Promise<void> | null = null;
 
   constructor(private readonly path: string) {}
 
-  async init(): Promise<void> {
-    // Idempotent (required since the memoized storage factory shares ONE
-    // adapter across registerTools-per-session and the semantic warmup):
-    // a second init must not open another Database handle and leak the old one.
-    if (this.db) return;
+  init(): Promise<void> {
+    // Idempotent AND race-free (required since the memoized storage factory
+    // shares ONE adapter across registerTools-per-session and the semantic
+    // warmup): a second init must not open another Database handle and leak
+    // the old one, and concurrent callers must share one initialization.
+    if (!this.initPromise) {
+      this.initPromise = this.doInit();
+    }
+    return this.initPromise;
+  }
+
+  private async doInit(): Promise<void> {
     this.db = new Database(this.path);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
@@ -108,6 +118,9 @@ export class SqliteAdapter implements StorageAdapter {
     // finally, shutdown) would turn that into an unhandled rejection.
     if (!this.db) return;
     this.db.close();
+    // Allow re-initialization after an explicit close (the memoized init
+    // promise must not resurrect the closed handle).
+    this.initPromise = null;
   }
 
   private nextSeq(): number {
