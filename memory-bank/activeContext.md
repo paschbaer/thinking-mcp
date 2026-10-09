@@ -3,6 +3,12 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 2 — SRCH-2-R3 backend-aware storage factory (feature/srch-2-r3-warmup-backend-aware, commits 4890a62..1337b3b)
+
+- NEW src/storage/factory.ts: buildStorageAdapter() memoizes StorageHandle {adapter, artifactsDir}; sqlite default unchanged; EMMS_STORAGE_BACKEND=postgres → PostgresAdapter, fail-closed throw on missing EMMS_PG_CONNECTION_STRING; artifacts stay filesystem-based. registerTools + launchSemanticWarmup rewired onto the singleton; warmup no longer closes it.
+- Review-driven hardening: init() idempotent + race-free via memoized initPromise (guard-then-assign had a real concurrent-init window); rejected init NOT memoized (retry possible — a transient sqlite open failure previously would have wedged the process-wide adapter); close() resets the memo (re-init works). storage-factory.test.ts 7/7 (memoization, fail-closed, postgres construction, double-init identity, concurrent init, re-init after close, failed-init retry); independent review 0 HIGH/CRITICAL.
+- CHAIN TRAP (new lesson): per-step chain workflowIds resolve against the workflow registry — but ANY variant workflowId (not just spec-kit-development) activates the spec-kit gating machinery (batch cadence, convergence snapshot at verify). Without a spec-kit feature the successor wedges at verify (convergence_snapshot_unavailable). Chain steps must OMIT workflowId entirely (default standard-development has no variant gating). The 6 alias variant files were removed again; guidance successor session-8117d7b7 cancelled; R3 verification done outside the session lifecycle (all suites green, review APPROVED). Remaining chain (R4, container test flow, postgres smoke) restarted as a fresh no-workflowId chain.
+
 ## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 1 — SRCH-1-F3 fts_rank contract pinned (session-178b8743, feature/srch-1-f3-fts-rank-contract)
 
 - service.ts FTS-arm consumption now fail-fast: searchFullText rows must carry a finite numeric fts_rank (typeof + Number.isFinite) or the search throws a contract error naming the adapter constructor + episode_id; SearchRow.fts_rank deliberately stays optional (non-FTS arms omit it). Zero behavior change for the shipped adapters (verified: sqlite/postgres always emit the field).
