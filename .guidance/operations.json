@@ -102,6 +102,19 @@
       "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
       "output": { "returnToAgent": "normalized", "retainRawResult": true }
     },
+    "gitnexus-reindex": {
+      "description": "Auto-reindex before the freshness gate (design 1(b)): submit an incremental analyze job to the gitnexus HTTP API from inside the guidance container and poll it to completion; restores AGENTS.md/CLAUDE.md stats lines + mtimes so the tree stays clean. Incremental only — full rebuilds (--force) are documented manual procedures. required:false — the authoritative index-freshness gate follows immediately after and blocks on any failure this op leaves behind.",
+      "type": "process",
+      "executable": "node",
+      "args": [".guidance/scripts/reindex-api.mjs"],
+      "required": false,
+      "invocableByAgent": true,
+      "timeoutSeconds": 1800,
+      "riskClass": "workspace_write",
+      "validation": { "protocolRequestMustSucceed": true, "exitCodeMustBeZero": true },
+      "output": { "returnToAgent": "summary_and_errors", "retainRawResult": true },
+      "failure": { "remainInPhase": true, "allowManualRetry": true, "reportToAgent": true }
+    },
     "index-freshness": {
       "description": "Verify the GitNexus index is FRESH: the in-repo .gitnexus state must cover the working tree (mtime signal, commit coverage when git is readable in the analysis container). Deterministic freshness check (GUID-6) — the git state is resolved by reading .git files, no git binary required. Refresh via the compose-managed gitnexus-server container: docker compose exec -w /workspaces/<repo-dir> gitnexus-server gitnexus analyze --no-stats.",
       "type": "process",

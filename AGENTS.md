@@ -550,11 +550,19 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   Deterministic freshness check:
   `node servers/server-guidance/scripts/check-index-freshness.mjs` (runs in
   the **guidance container** on the same in-repo index via the `/workspaces`
-  mount — since the migration both gates check the same index stock).
-  The agent MUST therefore refresh the index itself BEFORE
-  `complete_workflow` (canonical reindex command above; the gate's REMEDY
-  line names it repo-specifically) — and state the result in the completion
-  report.
+  mount — since the migration both gates check the same index stock). The
+  scan generically skips SQLite runtime sidecars (`.db-shm`/`.db-wal`/
+  `.db-journal`, any depth — gitignored live-database state, not analysis
+  sources; a plain `.db` file is NOT skipped).
+  **Auto-reindex (design 1(b)):** the completion hook list runs the
+  `gitnexus-reindex` operation (`.guidance/scripts/reindex-api.mjs`:
+  submit+poll an incremental analyze job against the gitnexus HTTP API from
+  inside the guidance container, restores AGENTS.md/CLAUDE.md stats lines +
+  mtimes) immediately BEFORE `index-freshness` — completion self-heals and
+  the agent no longer needs to run the reindex manually for the gate.
+  Full rebuilds (`--force`) remain manual documented procedures (CLI or
+  API with `force:true`). The manual canonical command above stays valid
+  for host-side use.
 - **Container start via `docker compose up -d`** — base stack from the repo
   root (the root `docker-compose.yml` orchestrates guidance, insight,
   clear-thought); deployments with GitNexus additionally enable the overlay

@@ -115,4 +115,47 @@ describe("check-index-freshness remedy output (deployment-agnostic)", () => {
     expect(run.code).toBe(0);
     expect(run.stderr).not.toContain("REMEDY");
   }, 30_000);
+
+  it("GENERIC runtime-artifact skip: newer SQLite sidecars (.db-shm/.db-wal/.db-journal, root and nested) do NOT trip the gate", async () => {
+    initRepo();
+    mkdirSync(join(repo, ".gitnexus"), { recursive: true });
+    const now = new Date();
+    const later = new Date(now.getTime() + 120_000);
+    const ph = join(repo, ".gitnexus/placeholder");
+    writeFileSync(ph, "{}");
+    utimesSync(ph, now, new Date(now.getTime() + 60_000)); // index newer than sources
+    // sidecars NEWER than the index — the old unhealable-loop driver
+    const sidecars = [
+      join(repo, "live.db-wal"),
+      join(repo, "live.db-shm"),
+      join(repo, "nested/deep/store.db-journal"),
+    ];
+    mkdirSync(join(repo, "nested/deep"), { recursive: true });
+    for (const f of sidecars) {
+      writeFileSync(f, "runtime state");
+      utimesSync(f, later, later);
+    }
+    const run = await runScript();
+    expect(run.code).toBe(0);
+    expect(run.stderr).not.toContain("REMEDY");
+  }, 30_000);
+
+  it("CONTROL (skip boundary): a real source newer than the index still fails, and a plain .db file is NOT skipped", async () => {
+    initRepo();
+    mkdirSync(join(repo, ".gitnexus"), { recursive: true });
+    const now = new Date();
+    const ph = join(repo, ".gitnexus/placeholder");
+    writeFileSync(ph, "{}");
+    utimesSync(ph, now, new Date(now.getTime() + 60_000));
+    // plain .db (not a sidecar) newer than the index — must still count
+    writeFileSync(join(repo, "data.db"), "x");
+    utimesSync(
+      join(repo, "data.db"),
+      new Date(now.getTime() + 90_000),
+      new Date(now.getTime() + 90_000),
+    );
+    const run = await runScript();
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("data.db");
+  }, 30_000);
 });

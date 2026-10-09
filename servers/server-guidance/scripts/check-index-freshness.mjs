@@ -35,10 +35,19 @@ const SKIP_DIRS = new Set([
   "coverage",
 ]);
 const SKIP_PREFIXES = [".guidance/state"];
+// Generic runtime-artifact skip (any depth, suffix match): SQLite WAL sidecars
+// (.db-shm / .db-wal / .db-journal) are gitignored live-database state, not
+// analysis sources — they mutate on every DB write, so counting them as
+// "newest source" makes the gate unhealable (the analyze job itself ignores
+// them and writes nothing). Same class as the WF-5 skip dirs. Deliberately
+// narrow: the .db file itself is NOT skipped — it stays a scan-able artifact.
+const SKIP_SUFFIXES = [".db-shm", ".db-wal", ".db-journal"];
 
 function isSkipped(rel) {
   if (rel.split("/").some((seg) => SKIP_DIRS.has(seg))) return true;
-  return SKIP_PREFIXES.some((p) => rel === p || rel.startsWith(`${p}/`));
+  return SKIP_PREFIXES.some(
+    (p) => rel === p || rel.startsWith(`${p}/`),
+  ) || SKIP_SUFFIXES.some((s) => rel.endsWith(s));
 }
 
 function fail(message) {

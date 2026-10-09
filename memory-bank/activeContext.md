@@ -1691,3 +1691,9 @@ Instead of the simplification, the dedicated clear-thought rule was COMPLETELY d
 
 - **GN-D6 (remaining-work-plan):** POST /api/analyze {"path":"/mnt/d/repos/<repo>"} + GET /api/analyze/<jobId> (poll until complete) — verified live on 2026-10-08 (job 0→100 %, identity /mnt/d preserved). Recommended replacement of the wsl.exe reindexCommand; the switch belongs to the running chain (step 3 or the next trigger).
 - **Parallel-work observation:** WorkflowEngine.ts changed at 19:06 through another session (presumably chain step 2 active with the handover prompt). This agent (sessions head+step1+docs) retreats from the checkout — the last write action is this memory-bank entry (targeted commit of only the two memory-bank files).
+
+## 2026-10-09: GN-D7 — Frische-Gate-Skip + Auto-Reindex-Op (session-cb837a7a, feature/gate-db-artifact-skip)
+
+- **Umgesetzt:** (1) GENERISCHER Suffix-Skip in check-index-freshness.mjs (.db-shm/.db-wal/.db-journal, beliebige Tiefe; .db NICHT geskippt — Control-Test) — beendet die unheilbare REMEDY-Schleife gegen die laufende Insight-DB; (2) Auto-Reindex-Op gitnexus-reindex (Design 1(b), inkrementell): .guidance/scripts/reindex-api.mjs (Submit+Poll gegen die gitnexus-HTTP-API aus dem guidance-Container, Stats+mtime-Restore portiert), beforeExit VOR index-freshness — Completion self-healed; beforeExit-Sequenzialität aus Engine-Quelle bestätigt (OperationEngine.executeRequired for-await, Listenreihenfolge).
+- **Live-Beweise:** Container-Job 145 s exit 0, Baum sauber, INDEX FRESH trotz aktiver Insight-DB; config-Load im Container OK (neue beforeExit-Liste).
+- **Deviation:** run_operation agent-seitig erst nach Container-Neustart beweisbar (Pool-Engine-Ops-Cache ab Boot; aktive Session nicht orphanen — CHFIX-9-Reihenfolge).
