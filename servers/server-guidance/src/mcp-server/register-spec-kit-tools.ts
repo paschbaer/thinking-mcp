@@ -221,6 +221,14 @@ export function registerSpecKitTools(
   );
 
   server.tool(
+    "next_feature_number",
+    "Nächste freie Feature-Nummer für den Workspace (read-only)",
+    { ...sessionId },
+    async ({ sessionId: sid }) =>
+      toJson({ nextFeatureId: resolver.resolve(sid).nextFeatureNumber() }),
+  );
+
+  server.tool(
     "import_spec_kit_artifacts",
     "Importiert spec.md/plan.md/tasks.md usw. und erzeugt einen Snapshot",
     { ...sessionId, ...featureId },

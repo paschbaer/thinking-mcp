@@ -112,6 +112,7 @@ export const WORKFLOW_TOOL_NAMES = [
 
 export const SPEC_KIT_TOOL_NAMES = [
   "discover_spec_kit_feature",
+  "next_feature_number",
   "import_spec_kit_artifacts",
   "get_spec_kit_status",
   "get_next_task",

@@ -18,6 +18,7 @@ import { join, relative, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { GuidanceError } from "../../types/errors.js";
 import { parseTasks, PARSER_VERSION, type ParsedTask } from "./parser.js";
+import { nextFeatureNumber } from "./feature-numbering.js";
 
 /** specs/010 FR-954: documentation-relevant paths — a changedFiles hit makes docsImpact mandatory in submit_task_implementation evidence. */
 export const DOCS_RELEVANT_PATTERNS = [
@@ -348,6 +349,12 @@ export class SpecKitEngine {
     }) => void,
     private readonly sessionId: string,
   ) {}
+
+  /** specs/017 FR-10: next feature number for this workspace's specs root
+   *  (same rule as .specify create-new-feature.sh). */
+  nextFeatureNumber(): string {
+    return nextFeatureNumber(join(this.workspaceRoot, this.config.featureRoot));
+  }
 
   /** FR-061: exactly one feature; explicit strategy is authoritative. */
   discoverFeature(featureId?: string): {
