@@ -764,3 +764,10 @@ Contents identical to the entries above (batch lessons).
 - **Copy-pasteable remedies must match the invoking workspace:** a hardcoded host-side command in a shared gate script misdirects every OTHER registered workspace in pool deployments (final-review F-1 / CHFIX-6) — derive paths from argv/workspace when the gate is reused.
 - **Per-test timeouts over global raises:** a known-slow test (25s isolated) under full-suite load on slow filesystems needs an explicit it(..., 60_000); a global testTimeout raise would blind hang-detection for ~680 other tests.
 - **Doc pointers must be checked against engine reality:** get_workflow_state is fail-closed for 'activating' sessions (throws chain_activation_incomplete instead of showing status) — recovery docs must branch on session status BEFORE recommending state reads (F-3 / CHFIX-8).
+- **Zwei Registries, ein Index (2026-10-10, GN-6-Auflösung):** Der WSL-CLI-Reindex
+  aktualisiert `~/.gitnexus/registry.json` (WSL-eigene, Legacy), der Container-Server liest
+  `D:/repos/.gitnexus-home/registry.json` — ein WSL-Reindex lässt die Container-Registry
+  unverändert (indexedAt/lastCommit bleiben alt/leer), obwohl der Index selbst frisch ist.
+  → Prevention: Registry-relevante Werte (lastCommit, indexedAt) NUR über den kanonischen
+  API-Weg aktualisieren lassen; WSL-CLI ist Fallback für --force-Heilung, nicht für
+  Registry-Updates.
