@@ -1151,3 +1151,9 @@ Current State: two scopes implemented on feature branch; verification green.
 **What's left:** Push nach origin (3 Commits ahead); WSL-Legacy-Registry-Aufräumarbeiten (optional); GN-D5 (Generator-URL-Topologie) und CHFIX-9 bleiben mit Triggern getrackt.
 
 **Current State:** Guidance-Container lief bereits mit der Op-Komposition (Probe-Session grün); Stack 5 Services über -f-Kette; Frische-Gate grün trotz aktiver Insight-DB.
+
+### 2026-10-07 (Chain complete): followups scope A2/B1/C2 on feature/017-followups
+- Session e658e3a5 (head, A2): clarify self-declaration guard — variant understand requires {clarify:{asked, blockerId?}}; asked=true needs an ANSWERED clarify blocker; violations rejected (spec_kit_clarify_declaration_invalid); declarations audited. c754c17/3f408ba.
+- Session c8098fa8 (B1): read-only tool next_feature_number (FR-10 wired). f106351/0dfb1f3/1966f88/8005deb.
+- Session 5a438c3c (C2): limits fail-closed + bridge diagnostics passthrough + per-entry audit semantics documented. e413e05/1b78cf8/1d774a3.
+- All sessions completed with green gates; suite 752/752 green; typecheck clean. A3/B2/C3 tracked as OPEN follow-ups; chain-successor silent-end engine-bug candidate tracked (medium, 2 repros). Next: merge review of feature/017-followups into develop, push (user-side SSH).
