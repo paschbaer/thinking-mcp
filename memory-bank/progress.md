@@ -1140,3 +1140,11 @@ What works: (1) Import cycle config.ts ↔ workspace-registry.ts broken — Conf
 What's left: stack recreate to activate the new image; merge decision; push decision. — DONE (2026-10-09): merged to develop as 4e405c9 (pre-merge detect_changes: critical risk classified as verified-safe relocation per Review Evidence Protocol); branch deleted; guidance container rebuilt + recreated (healthy; bare yarn = 4.6.0 live-verified; guidance MCP responsive). Remaining: push (develop ahead of origin) — user decision.
 
 Current State: two scopes implemented on feature branch; verification green.
+
+## 2026-10-09 — GN-D7: Frische-Gate-Skip + Self-Healing-Reindex gemerged
+
+**What works:** develop @ bdc68eb enthält GN-D7 vollständig: generischer SQLite-Sidecar-Skip in der Frische-Gate (beendet die unheilbare REMEDY-Schleife gegen die laufende Insight-DB) + gitnexus-reindex-Auto-Op (Design 1(b), inkrementell, Submit+Poll gegen die gitnexus-HTTP-API aus dem guidance-Container, Stats-Restore + Frische-Stempel gegen EPERM auf root-owned Dateien), beforeExit VOR index-freshness. Bewiesen in drei Ebenen (Unit/Contract-Tests, Container-Exec, agent-seitiger run_operation nach Neustart); zwei Reviews 0 HIGH/CRITICAL; Branch gelöscht.
+
+**What's left:** Push nach origin (3 Commits ahead); WSL-Legacy-Registry-Aufräumarbeiten (optional); GN-D5 (Generator-URL-Topologie) und CHFIX-9 bleiben mit Triggern getrackt.
+
+**Current State:** Guidance-Container lief bereits mit der Op-Komposition (Probe-Session grün); Stack 5 Services über -f-Kette; Frische-Gate grün trotz aktiver Insight-DB.
