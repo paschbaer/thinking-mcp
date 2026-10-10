@@ -4061,17 +4061,40 @@ export class WorkflowEngine {
             },
           });
           const pending = session.pendingCompletion;
-          this.sessions.update(sessionId, (s) => {
-            delete s.pendingCompletion;
-          });
+          // Silent-end hardening (chain-finalize regression): when the
+          // finalize completes a chained head WITHOUT a retained report, the
+          // successor would previously be lost silently. The completion
+          // itself is legitimate (the report was already finalized by the
+          // original attempt or never stored because ops succeeded inline),
+          // so keep the flow but make the anomaly observable.
+          if (!pending && session.chainSpec?.steps?.length) {
+            this.audit.append({
+              sessionId,
+              eventType: "chain_end_without_successor",
+              phase: "completed",
+              data: {
+                workflowId: session.workflowId,
+                chainUpNext: session.chainUpNext ?? 0,
+                steps: session.chainSpec.steps.length,
+              },
+            });
+          }
           if (pending) {
             finalizeRequestId = pending.requestId;
-            return this.createChainSuccessorLocked(
+            const finalizeResult = this.createChainSuccessorLocked(
               session,
               pending.report,
               finalResult,
               pending.requestId,
             );
+            // Delete the retained report only AFTER a non-throwing successor
+            // creation — losing the report on a throw would turn every later
+            // retry into the no-pending fallback (report-loss hardening,
+            // chain-finalize regression T2).
+            this.sessions.update(sessionId, (s) => {
+              delete s.pendingCompletion;
+            });
+            return finalizeResult;
           }
           return finalResult;
         }
