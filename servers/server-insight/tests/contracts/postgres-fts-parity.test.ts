@@ -70,6 +70,8 @@ describe("PostgresAdapter.searchFullText (L257 parity)", () => {
     );
     expect(sql).toMatch(/o\.episode_id = e\.experience_id/);
     expect(sql).toContain("e.scope_id = $2");
+    // public inclusion parity: scope OR visibility filter on the base query
+    expect(sql).toContain("OR e.visibility = 'public'");
     // graded relevance column (higher = better, negated-bm25 parity)
     expect(sql).toContain("AS fts_rank");
     expect(sql).toContain("ts_rank(");

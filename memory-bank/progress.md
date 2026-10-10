@@ -3,7 +3,7 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-10-09
+**Last updated:** 2026-10-10
 
 ## What Works
 

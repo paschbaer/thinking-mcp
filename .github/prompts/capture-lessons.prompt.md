@@ -84,13 +84,16 @@ experience_seed_lessons {
 ```
 
 - Publish each seeded lesson explicitly (audited, revertible via
-  `lesson_unpublish`). Mutations require the current episode revision:
-  pass `expected_revision` from the seed result's guidance envelope
-  (`revision`) — omitting it fails with `STALE_REVISION (expected -1)`;
-  the error envelope names the current revision, retry with it:
+  `lesson_unpublish`). Mutations require the episode's CURRENT revision
+  (optimistic-concurrency guard). The seed result does NOT carry it —
+  query `workflow_status { workflow_id }` first and use its guidance
+  envelope `revision`; if the call still fails with `STALE_REVISION`
+  (expected -1 / mismatch), the error envelope names `current_revision` —
+  retry once with it:
 
 ```
-lesson_publish { workflow_id, experience_id, expected_revision: <current revision>, client_context: { scope_id: 'shared-lessons', ... } }
+workflow_status { workflow_id }
+lesson_publish { workflow_id, experience_id, expected_revision: <revision from workflow_status guidance envelope>, client_context: { scope_id: 'shared-lessons', ... } }
 ```
 
 - Verify the cross-scope round-trip: `experience_search` from THIS

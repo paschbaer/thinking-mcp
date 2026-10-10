@@ -46,6 +46,42 @@ const FOREIGN_LESSONS = [
 
 let publishedId: string;
 
+/**
+ * Mutations require the episode's CURRENT revision (optimistic-concurrency
+ * guard, fail-closed). The seed result does not carry it — query it via
+ * workflow_status (guidance envelope `revision`), and retry once with the
+ * `current_revision` from a STALE_REVISION error envelope as the fallback
+ * (same pattern the capture prompt teaches for manual publishing).
+ */
+async function publishWithRevision(
+  service: EmmsService,
+  workflow_id: string,
+  experience_id: string,
+  ctx: typeof CTX_B,
+): Promise<void> {
+  const status = await service.status(workflow_id, ctx);
+  const revision = (status.guidance as { revision?: number } | undefined)
+    ?.revision;
+  try {
+    await service.lesson_publish({
+      workflow_id,
+      experience_id,
+      expected_revision: revision,
+      client_context: ctx,
+    });
+  } catch (e) {
+    const current = (e as { details?: { current_revision?: number } })?.details
+      ?.current_revision;
+    if (current === undefined) throw e;
+    await service.lesson_publish({
+      workflow_id,
+      experience_id,
+      expected_revision: current,
+      client_context: ctx,
+    });
+  }
+}
+
 async function seed(
   service: EmmsService,
   lessons: typeof LOCAL_LESSONS,
@@ -76,11 +112,12 @@ describe("FTS public-inclusion across scopes", () => {
       (l) => l.slug === "general-widget-gasket-sequencing",
     )!;
     publishedId = target.experience_id;
-    await service.lesson_publish({
-      workflow_id: target.workflow_id,
-      experience_id: target.experience_id,
-      client_context: CTX_B,
-    });
+    await publishWithRevision(
+      service,
+      target.workflow_id,
+      target.experience_id,
+      CTX_B,
+    );
   });
   afterAll(async () => {
     await adapter.close();
