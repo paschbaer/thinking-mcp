@@ -1179,3 +1179,7 @@ Fast-forward 875e808..12d51e1 (4 commits: finalize hardening [report-loss fix], 
 - develop remains ahead of origin (1ece14c + this branch's merge) — push pending.
 
 **Current State:** All CHFIX items from the Form-B chain-hardening series are now closed or trigger-bound observations. Long-chain operation is unblocked: sessions survive restarts, pins re-pin in-process, recovery recipe is precise.
+
+## 2026-10-10 — Merge feature/chfix8-recovery-doc to develop (fast-forward)
+
+Merged 4dc30c1 to develop (rebase semantics: develop had not moved since branching, fast-forward applied), feature branch deleted per branch-cleanup rule. develop is now 2 commits ahead of origin/develop (1ece14c + 4dc30c1) — push pending.
