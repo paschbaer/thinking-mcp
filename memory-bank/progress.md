@@ -1157,3 +1157,6 @@ Current State: two scopes implemented on feature branch; verification green.
 - Session c8098fa8 (B1): read-only tool next_feature_number (FR-10 wired). f106351/0dfb1f3/1966f88/8005deb.
 - Session 5a438c3c (C2): limits fail-closed + bridge diagnostics passthrough + per-entry audit semantics documented. e413e05/1b78cf8/1d774a3.
 - All sessions completed with green gates; suite 752/752 green; typecheck clean. A3/B2/C3 tracked as OPEN follow-ups; chain-successor silent-end engine-bug candidate tracked (medium, 2 repros). Next: merge review of feature/017-followups into develop, push (user-side SSH).
+
+### 2026-10-07 (Merge): 017 follow-ups chain (A2/B1/C2) merged to develop
+Fast-forward onto linear history (develop had advanced in the meantime; merged clean, no conflicts). Scope: clarify self-declaration guard (A2), next_feature_number tool (B1/FR-10 wiring), limits fail-closed + bridge diagnostics (C2). Suite 754/754 green post-merge, typecheck 0 errors (baseline eliminated earlier in the chain). Branch deleted. Tracked follow-ups: A3/B2/C3 options, chain-successor silent-end engine-bug candidate (2 repros). Push pending (user-side SSH).
