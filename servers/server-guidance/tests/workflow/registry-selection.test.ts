@@ -1,11 +1,10 @@
 /** specs/017 AC1 + FR-1/FR-2/FR-9: workflow selection at session start. */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config.js";
 import { WorkflowEngine } from "../../src/workflow/WorkflowEngine.js";
-import { checkArtifactPattern } from "../../src/integrations/spec-kit/SpecKitEngine.js";
 
 const FIXTURE = join(import.meta.dirname, "fixtures/guidance-speckit");
 
