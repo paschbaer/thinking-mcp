@@ -1421,10 +1421,14 @@ Chain state lives entirely server-side (sessions, `chainSpec`,
 conversation. To resume:
 
 1. **Locate the session.** The last completion response you saw carries the
-   successor's `nextSessionId` — `get_workflow_state` on it shows phase and
-   status. If NO sessionId is known (fresh context), list the workspace state
-   sessions directory (`<repo>/.guidance/state/sessions/`) and pick the
-   newest session that is not `completed` and carries a `chainSpec`.
+   successor's `nextSessionId`. Note that `get_workflow_state` is fail-closed
+   for `activating` sessions: it throws `chain_activation_incomplete` (the
+   error message itself names the remedy, `retry_operation`) instead of
+   showing status — for those, read the status from the sessions-directory
+   JSON (`<repo>/.guidance/state/sessions/<sessionId>.json`) or go straight
+   to step 2. If NO sessionId is known (fresh context), list the workspace
+   state sessions directory and pick the newest session that is not
+   `completed` and carries a `chainSpec`.
 2. **Successor status `activating`** (the agent died inside the crash window
    before activation finished): call `retry_operation` on that session — it
    finalizes activation and, for a retained completion report, still creates

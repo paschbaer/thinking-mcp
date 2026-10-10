@@ -1166,3 +1166,16 @@ Fast-forward onto linear history (develop had advanced in the meantime; merged c
 
 ### 2026-10-07 (Merge): chain silent-end fix merged to develop
 Fast-forward 875e808..12d51e1 (4 commits: finalize hardening [report-loss fix], chain_end_without_successor latched diagnostic, 2 regression tests, memory-bank lifecycle). Root cause empirically pinned: in-process finalize path proven working; production silent end lives in the routed/child-engine topology — instrumented (chain_end_without_successor, latched) and tracked OPEN[medium] until a production occurrence is diagnosed. Suite 756/756 green, typecheck 0 errors post-merge. Branch deleted. Push pending (user-side SSH).
+
+## 2026-10-10 — CHFIX-8 resolved + CHFIX-9 Path B live experiment PASS (feature/chfix8-recovery-doc)
+
+**What works:**
+- CHFIX-8: README recovery step 1 now precise — get_workflow_state is fail-closed for 'activating' sessions (throws chain_activation_incomplete naming the remedy); status readable via sessions-dir JSON or go straight to retry_operation. Trigger had fired (multiple chain-section edits since 2026-10-08).
+- CHFIX-9 Path B (live restart experiment, session-bdcc4d26): container restart (~15 s) with an active session — state resolved from disk IDENTICALLY (status/phase/configVersion), MCP transport eviction transparent to the client, get_current_guidance worked, phase submission accepted (understand -> plan), cancel_workflow graceful. ZERO deviations; design confirmed live.
+
+**What's left:**
+- Merge feature/chfix8-recovery-doc to develop (rebase per branch rules).
+- CHFIX-1 (SC-011 deviation spec text in specs/017) still trigger-bound, not due.
+- develop remains ahead of origin (1ece14c + this branch's merge) — push pending.
+
+**Current State:** All CHFIX items from the Form-B chain-hardening series are now closed or trigger-bound observations. Long-chain operation is unblocked: sessions survive restarts, pins re-pin in-process, recovery recipe is precise.
