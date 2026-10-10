@@ -476,6 +476,13 @@ experience_search { query: "<keywords>", scope_id: "thinking-mcp-lessons" }
   (HTTP, or `EMMS_SEED_TRANSPORT=stdio`) is a CI convenience only; a stdio
   store written this way must be merged back via
   `servers/server-insight/scripts/migrate-stdio-store.mjs`.
+- Cross-project lessons: generalized traps (tool/library behavior, platform
+  quirks, testing patterns) live in the scope `shared-lessons` (slug prefix
+  `general-`, visibility public) and are included automatically in every
+  scope's search results via the public-visibility arms — no separate lookup
+  needed. To contribute one, follow capture-lessons.prompt.md step 7:
+  generalize + strictly redact, seed into `shared-lessons`, publish via
+  `lesson_publish` (explicit, audited, revertible).
 
 ## Guidance MCP Server (Docker deployment)
 

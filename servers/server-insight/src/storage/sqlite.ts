@@ -553,12 +553,22 @@ export class SqliteAdapter implements StorageAdapter {
   }
 
   async searchFullText(terms: string, scope_id: string): Promise<SearchRow[]> {
-    // scope filter belongs to the FTS query (its own scope_id column), NOT
+    // Scope filter belongs to the FTS query (its own scope_id column), NOT
     // to the episodes follow-up query (alias e) — the previous placement
     // ('AND f.scope_id = ?' appended to the episodes query) threw SQLITE_ERROR
     // 'no such column: f.scope_id' whenever the FTS index was non-empty
     // (masked for months by the empty index).
-    const ftsScopeFilter = scope_id === "" ? "" : "AND scope_id = ?";
+    // Public inclusion: repository episodes are matched only in their own
+    // scope, public episodes (visibility='public', e.g. published shared
+    // lessons) are full-text-matchable from EVERY scope — same semantics as
+    // the exact/semantic/fallback arms (listInScope). Query-side join via
+    // the episodes table instead of denormalizing visibility into the FTS
+    // indexes: no schema migration, no insert-path change. The empty-scope
+    // case (scope_id === "") omits the filter entirely.
+    const ftsScopeFilter =
+      scope_id === ""
+        ? ""
+        : "AND episode_id IN (SELECT experience_id FROM episodes WHERE scope_id = ? OR visibility = 'public')";
     const safe = terms.replace(/[^\w\s]/g, " ").trim();
     if (!safe) return [];
     // CB-12: each token is quoted as an FTS5 string literal — bare operators

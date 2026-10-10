@@ -94,6 +94,26 @@ episodes in the MVP (negative knowledge is retained).
 | False/rotten memory found                         | `experience_invalidate` (audited, privileged)                                                                                         |
 | Sharing lessons with other projects               | `lesson_publish` (widen to public) / `lesson_unpublish` (narrow back)                                                                 |
 
+### Scope conventions
+
+Search is scope-bound: an episode is only visible to queries from its own
+scope, plus episodes explicitly widened to `visibility: 'public'`.
+Established scope taxonomy:
+
+| Scope            | Contents                                                                 |
+| ---------------- | ------------------------------------------------------------------------ |
+| `<repo>`         | Workflow episodes captured during guided development runs                |
+| `<repo>-lessons` | Validated session lessons (project-specific wording, repository-private) |
+| `shared-lessons` | Generalized, published cross-project lessons (`public` visibility)       |
+
+Generalized lessons strip project names, paths, and organizational context
+(stricter redaction standard than repository content), use the `general-`
+slug prefix (idempotency keys are global per slug, so the prefix prevents
+replay collisions with repo-scope twins), and are seeded into
+`shared-lessons` followed by an explicit `lesson_publish`. Published lessons
+are discoverable from every scope through all retrieval arms, full text
+included.
+
 ## Tool Reference
 
 **Naming:** tool names use `snake_case` with underscore family prefixes

@@ -624,7 +624,11 @@ export class PostgresAdapter implements StorageAdapter {
     if (!safe) return [];
     const tsquery = safe.split(/\s+/).join(" | ");
     const params: unknown[] = [tsquery];
-    const scopeFilter = scope_id === "" ? "" : "AND e.scope_id = $2";
+    // Public inclusion (SQLite parity): repository episodes match only in
+    // their own scope; public episodes are full-text-matchable from every
+    // scope — same semantics as the exact/semantic/fallback arms.
+    const scopeFilter =
+      scope_id === "" ? "" : "AND (e.scope_id = $2 OR e.visibility = 'public')";
     if (scope_id !== "") params.push(scope_id);
     const r = await this.client!.query(
       `SELECT e.experience_id AS episode_id, e.goal_summary AS summary, e.state, e.scope_id,

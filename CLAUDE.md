@@ -65,3 +65,8 @@ Seed via the `experience_seed_lessons` MCP tool (server-side, idempotent; see
 `.github/prompts/capture-lessons.prompt.md`). The thin client
 `scripts/seed-lessons.mjs` is a CI convenience only; a stdio store written
 that way must be merged back via `scripts/migrate-stdio-store.mjs`.
+Cross-project lessons: generalized traps live in the scope `shared-lessons`
+(slug prefix `general-`, visibility public) and are included automatically in
+every scope's search results — to contribute one, follow
+capture-lessons.prompt.md step 7 (generalize + strictly redact, seed into
+`shared-lessons`, publish via `lesson_publish`).
