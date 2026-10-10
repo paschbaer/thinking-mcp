@@ -3,9 +3,11 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-10-10
+**Last updated:** 2026-10-09
 
 ## What Works
+
+- **shared-lessons scope LIVE (2026-10-09, session-8537e64a, feature/shared-lessons-scope):** FTS public-inclusion (query-side join, sqlite+postgres parity, no migration; regression suite incl. fallback-suppression + isolation control), scope taxonomy docs (README + AGENTS/CLAUDE EMMS notes with .bak backups per rule protocol), capture-prompt step 7 (generalize + redact + seed + publish incl. expected_revision hint), 5 general-* lessons published live; cross-scope proof: general lesson outranks its repo twin from the repo scope (0.722 vs 0.663). Publishing explicit/audited/revertible; capture gate untouched.
 
 - **Responses options-gate implemented (2026-10-10, feature/response-options-gate, uncommitted):** plan-phase instruction now mandates per-issue scopes + ≥2 presented solution alternatives with explicit user option decision before implementation; understand-phase lists multi-issue requests as separate scopes. Template (ConfigAssistant.buildResponses + examples/default-guidance/responses.json) and live .guidance/responses.json updated; 59/59 contract tests green, typecheck clean.
 - **Open:** merge feature/response-options-gate to develop after user review; check workspace `zed` for its own .guidance/responses.json (outside this repo).

@@ -3,6 +3,13 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-09: shared-lessons scope established (session-8537e64a, feature/shared-lessons-scope)
+
+- FTS public-inclusion landed (sqlite query-side join `episode_id IN (SELECT experience_id FROM episodes WHERE scope_id = ? OR visibility = 'public')`, postgres `(e.scope_id = $2 OR e.visibility = 'public')` parity; NO schema migration) — published lessons are now full-text-matchable AND ranked from every scope; regression tests/contracts/shared-lessons.test.ts pin the fallback-suppression case + repository-isolation control.
+- Scope taxonomy documented (README): `<repo>` workflows / `<repo>-lessons` private / `shared-lessons` public; capture-lessons.prompt.md step 7 = generalize + strict public redaction checklist + seed into shared-lessons + explicit lesson_publish (+ expected_revision hint — live-found: mutation without expected_revision fails STALE_REVISION expected -1, retry with the revision from the error envelope) + cross-scope round-trip verification. AGENTS.md/CLAUDE.md EMMS notes added (backups AGENTS.md.bak/CLAUDE.md.bak created first per rule protocol; restore offer open).
+- Backfill LIVE: 5 general-* lessons seeded into shared-lessons and published (npm-ci-ignore-scripts-transitive-natives; fts5-implicit-and; musl-vs-glibc-onnxruntime; per-test-db-adapters-worker-crash; prettier-batch-reflow). Live cross-scope proof: experience_search from thinking-mcp-lessons ranks general-npm-ci-ignore-scripts… (0.722, public foreign scope) ABOVE its repo twin (0.663) — FTS + semantic both armed.
+- general- slug prefix is FUNCTIONALLY required (idempotency keys global per slug) — un-prefixed twins would replay-skip.
+
 ## 2026-10-10: RESPONSES OPTIONS-GATE — plan-phase option-presentation mandate (feature/response-options-gate, uncommitted)
 
 - Generalized the user's preferred chat pattern ("set up scopes for all issues, present solution alternatives, user decides") into the guidance response instructions: plan phase now mandates ONE bounded scope per issue, ≥2 worked solution alternatives (decision_framework/swot_analysis) with trade-offs/effort/risks PRESENTED as selectable options, no pre-selection and no implementation before the user's explicit choice; ambiguous "solve it" resolves to presenting options. understand phase adds: multi-issue requests must list separate scopes in the summary.
