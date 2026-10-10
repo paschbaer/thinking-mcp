@@ -70,8 +70,9 @@ async function publishWithRevision(
       client_context: ctx,
     });
   } catch (e) {
-    const current = (e as { details?: { current_revision?: number } })?.details
-      ?.current_revision;
+    // Service-level StaleRevisionError carries current_revision at the TOP
+    // level (the details-wrapping happens only in the MCP tool layer).
+    const current = (e as { current_revision?: number })?.current_revision;
     if (current === undefined) throw e;
     await service.lesson_publish({
       workflow_id,
