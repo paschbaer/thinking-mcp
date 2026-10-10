@@ -85,6 +85,20 @@ describe("next_feature_number tool (specs/017 FR-10 / B1)", () => {
     expect(payload.nextFeatureId).toBe("001");
   });
 
+  it("returns 001 when the feature root directory is missing entirely", async () => {
+    rmSync(join(ws, "specs"), { recursive: true, force: true });
+    start();
+    await connect();
+    const res = await client.callTool({
+      name: "next_feature_number",
+      arguments: { sessionId: "s1" },
+    });
+    const payload = JSON.parse(
+      (res.content as { type: string; text: string }[])[0]!.text,
+    ) as { nextFeatureId: string };
+    expect(payload.nextFeatureId).toBe("001");
+  });
+
   it("is registered on the server", async () => {
     start();
     await connect();
