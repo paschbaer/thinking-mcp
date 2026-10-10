@@ -1160,3 +1160,6 @@ Current State: two scopes implemented on feature branch; verification green.
 
 ### 2026-10-07 (Merge): 017 follow-ups chain (A2/B1/C2) merged to develop
 Fast-forward onto linear history (develop had advanced in the meantime; merged clean, no conflicts). Scope: clarify self-declaration guard (A2), next_feature_number tool (B1/FR-10 wiring), limits fail-closed + bridge diagnostics (C2). Suite 754/754 green post-merge, typecheck 0 errors (baseline eliminated earlier in the chain). Branch deleted. Tracked follow-ups: A3/B2/C3 options, chain-successor silent-end engine-bug candidate (2 repros). Push pending (user-side SSH).
+
+### 2026-10-07 (Merge): chain silent-end fix merged to develop
+Fast-forward 875e808..12d51e1 (4 commits: finalize hardening [report-loss fix], chain_end_without_successor latched diagnostic, 2 regression tests, memory-bank lifecycle). Root cause empirically pinned: in-process finalize path proven working; production silent end lives in the routed/child-engine topology — instrumented (chain_end_without_successor, latched) and tracked OPEN[medium] until a production occurrence is diagnosed. Suite 756/756 green, typecheck 0 errors post-merge. Branch deleted. Push pending (user-side SSH).
