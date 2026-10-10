@@ -205,4 +205,50 @@ describe("workflow registry $include resolution (specs/017 FR-3)", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("fails closed on invalid limits values (C2: no silent defaults)", () => {
+    const dir = makeConfigDir();
+    try {
+      writeFileSync(
+        join(dir, "workflows", "variant.json"),
+        JSON.stringify({
+          version: 2,
+          workflow: { id: "variant", initialPhase: "plan" },
+          phases: {
+            plan: { $include: "workflow.json#/phases/plan" },
+            review_and_adjust_plan: { transitions: [] },
+          },
+          limits: { maxReviewRoundsPerBatch: 0 },
+        }),
+      );
+      expect(() => loadWorkflowFile(dir, "variant")).toThrowError(
+        /limits\.maxReviewRoundsPerBatch/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("defaults absent limits keys to 5 (backward compatible)", () => {
+    const dir = makeConfigDir();
+    try {
+      writeFileSync(
+        join(dir, "workflows", "variant.json"),
+        JSON.stringify({
+          version: 2,
+          workflow: { id: "variant", initialPhase: "plan" },
+          phases: {
+            plan: { $include: "workflow.json#/phases/plan" },
+            review_and_adjust_plan: { transitions: [] },
+          },
+          limits: { maxReviewRoundsPerBatch: 2 },
+        }),
+      );
+      const loaded = loadWorkflowFile(dir, "variant");
+      expect(loaded.limits.maxReviewRoundsPerBatch).toBe(2);
+      expect(loaded.limits.maxConvergencePasses).toBe(5);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

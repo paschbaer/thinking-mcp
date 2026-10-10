@@ -35,5 +35,10 @@
     "allowAgentProvidedCommands": false,
     "restrictWorkingDirectory": true,
     "redactSensitiveOutput": true
+  },
+  "chain": {
+    "enabled": true,
+    "maxChainDepth": 8,
+    "maxStepsPerManifest": 16
   }
 }

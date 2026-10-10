@@ -132,10 +132,11 @@ export function createSpecKitBridges(
           `[guidance] warning: specKitArtifactCheck failed for ${sessionId}: ${String(err)}\n`,
         );
       }
-      return {
-        present: false,
-        reason: "no imported spec-kit state for session",
-      };
+      const reason =
+        err instanceof GuidanceError && err.code === "spec_kit_artifact_missing"
+          ? "no imported spec-kit state for session"
+          : `specKitArtifactCheck failed: ${err instanceof Error ? err.message : String(err)}`;
+      return { present: false, reason };
     }
   };
   // Chain fix (2026-10-08): copy the spec-kit state to a chain successor —

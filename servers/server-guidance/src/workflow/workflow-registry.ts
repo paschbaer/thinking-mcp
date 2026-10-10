@@ -321,17 +321,24 @@ export function loadWorkflowFile(
     maxReviewRoundsPerBatch?: unknown;
     maxConvergencePasses?: unknown;
   };
+  // specs/017 follow-up C2 (final review F7): fail-closed limits — a PRESENT
+  // key with an invalid value is a configuration error, not a silent default;
+  // ABSENT keys keep the 5 default (backward compatible).
+  const parseLimit = (key: string): number | undefined => {
+    const value = limitsRaw[key as keyof typeof limitsRaw];
+    if (value === undefined) return undefined;
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      throw configurationInvalid(
+        `workflow file ${workflowId}: limits.${key} must be a positive number (got ${String(value)})`,
+      );
+    }
+    return value;
+  };
+  const maxReviewRounds = parseLimit("maxReviewRoundsPerBatch");
+  const maxConvergence = parseLimit("maxConvergencePasses");
   const limits: VariantLimits = {
-    maxReviewRoundsPerBatch:
-      typeof limitsRaw.maxReviewRoundsPerBatch === "number" &&
-      limitsRaw.maxReviewRoundsPerBatch > 0
-        ? limitsRaw.maxReviewRoundsPerBatch
-        : 5,
-    maxConvergencePasses:
-      typeof limitsRaw.maxConvergencePasses === "number" &&
-      limitsRaw.maxConvergencePasses > 0
-        ? limitsRaw.maxConvergencePasses
-        : 5,
+    maxReviewRoundsPerBatch: maxReviewRounds ?? 5,
+    maxConvergencePasses: maxConvergence ?? 5,
   };
 
   return {
