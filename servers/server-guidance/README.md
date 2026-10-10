@@ -858,6 +858,7 @@ All registered `ERROR_CODES` (exact-surface snapshot):
 | `spec_kit_artifact_missing`                | Spec Kit Artifact Missing                                                                                                             |
 | `spec_kit_batch_gate`                      | Spec Kit Batch Gate                                                                                                                   |
 | `spec_kit_convergence_unclassified`        | Spec Kit Convergence Unclassified                                                                                                     |
+| `spec_kit_clarify_declaration_invalid`      | Spec Kit Clarify Declaration Invalid                                                                                                  |
 | `convergence_snapshot_unavailable`         | Convergence Snapshot Unavailable                                                                                                      |
 | `spec_kit_artifact_unreadable`             | Spec Kit Artifact Unreadable                                                                                                          |
 | `spec_kit_artifact_empty`                  | Spec Kit Artifact Empty                                                                                                               |

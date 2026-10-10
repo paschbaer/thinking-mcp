@@ -67,6 +67,7 @@ describe("artifact-bound phases (specs/017 FR-4)", () => {
     const res = await startVariant();
     const out = await engine.submit(res.sessionId, "understand", {
       summary: "spec summary",
+      clarify: { asked: false },
     });
     expect(out.accepted).toBe(false);
     expect(out.error?.code).toBe("spec_kit_artifact_missing");
@@ -79,11 +80,13 @@ describe("artifact-bound phases (specs/017 FR-4)", () => {
     const res = await startVariant();
     const before = await engine.submit(res.sessionId, "understand", {
       summary: "spec summary",
+      clarify: { asked: false },
     });
     expect(before.accepted).toBe(false);
     writeArtifact("spec.md");
     const after = await engine.submit(res.sessionId, "understand", {
       summary: "spec summary",
+      clarify: { asked: false },
     });
     expect(after.accepted).toBe(true);
     expect(after.currentPhase).toBe("plan");

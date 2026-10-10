@@ -7,7 +7,10 @@
     "terminalStates": ["completed", "cancelled"]
   },
   "phases": {
-    "understand": { "$include": "workflow.json#/phases/understand" },
+    "understand": {
+      "$include": "workflow.json#/phases/understand",
+      "submissionSchema": "schemas/spec-kit/understand.schema.json"
+    },
     "plan": {
       "$include": "workflow.json#/phases/plan",
       "transitions": [{ "to": "checklist", "when": "submission_valid" }]

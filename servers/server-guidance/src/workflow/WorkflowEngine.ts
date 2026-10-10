@@ -4442,7 +4442,8 @@ export class WorkflowEngine {
       code:
         | "spec_kit_batch_gate"
         | "spec_kit_convergence_unclassified"
-        | "convergence_snapshot_unavailable",
+        | "convergence_snapshot_unavailable"
+        | "spec_kit_clarify_declaration_invalid",
       message: string,
     ) => {
       const err = new GuidanceError(code, message, {
@@ -4556,6 +4557,55 @@ export class WorkflowEngine {
       }
       // No outcome: fall through to the standard severity gate / selection.
       return {};
+    }
+
+    // understand: FR-5 attended-clarify self-declaration (specs/017 follow-up
+    // A2). asked=true requires blockerId of an ANSWERED blocker
+    // (resume_workflow keeps the entry and sets .resolution); asked=false
+    // forbids blockerId. Valid declarations are audited.
+    if (phase === "understand") {
+      const clarify = payload.clarify as
+        { asked?: unknown; blockerId?: unknown } | undefined;
+      if (clarify && typeof clarify.asked === "boolean") {
+        if (clarify.asked) {
+          const blockerId =
+            typeof clarify.blockerId === "string" ? clarify.blockerId : "";
+          const answered = blockerId
+            ? (session.blockers ?? []).some(
+                (b) => b.blockerId === blockerId && !!b.resolution,
+              )
+            : false;
+          if (!answered) {
+            return {
+              reject: fail(
+                "spec_kit_clarify_declaration_invalid",
+                blockerId
+                  ? `clarify declaration references blocker "${blockerId}" which does not exist or has not been answered via resume_workflow`
+                  : "clarify declaration with asked=true requires the blockerId of a clarify blocker answered via resume_workflow",
+              ),
+            };
+          }
+        } else if (
+          clarify.blockerId !== undefined &&
+          clarify.blockerId !== ""
+        ) {
+          return {
+            reject: fail(
+              "spec_kit_clarify_declaration_invalid",
+              "clarify declaration with asked=false must not carry a blockerId",
+            ),
+          };
+        }
+        this.audit.append({
+          sessionId: session.sessionId,
+          eventType: "clarify_declared",
+          phase,
+          data: {
+            asked: clarify.asked,
+            blockerId: clarify.blockerId ?? null,
+          },
+        });
+      }
     }
 
     // verify: hash-based convergence classification (DQ-1).
@@ -4690,6 +4740,9 @@ export class WorkflowEngine {
       if (phase === "understand") {
         lines.push(
           "- Attended clarify (FR-5): surface open questions via report_blocker with requiresUserDecision: true — NEVER answer clarify questions yourself; resume_workflow continues the phase.",
+        );
+        lines.push(
+          '- Clarify declaration (required in this submission): {"clarify": {"asked": true, "blockerId": "<answered clarify blocker>"}} when questions were surfaced and answered, or {"clarify": {"asked": false}} when the spec has no open questions. Submissions are rejected until the declaration matches an answered blocker.',
         );
       }
     }

@@ -1747,3 +1747,9 @@ Occasion: the user wanted to start a workflow in a fresh repo ("zed") and receiv
 - [OPEN][low] Final#2 final-review F1 (session e028f587): stale convergenceUnavailable flag/note on verify re-entry — recovery outside verify (implement detour) suppresses the entry retake until the first submission; the guidance note may be stale until then. Trigger point: next touch of verify entry logic or guidance.
 - [OPEN][low] Final#2 final-review F3: the entry-guard re-suppression branch (!convergenceUnavailable preventing re-audit on re-entry) has no dedicated test. Trigger point: next converge-loop test batch.
 - [ACCEPTED][low] Final#2 final-review F4: sessions.update persists the (possibly stale-read) specKit object reference — pattern-consistent with surrounding code, no regression suspicion.
+
+## 2026-10-07 — Decision scope-017-followups (user decision)
+- Decision: implement A2 (clarify self-declaration), B1 (next_feature_number tool), C2 (edge-case cheap fixes); TRACK the stronger alternatives as possible follow-ups:
+- [OPEN][info] A3: dedicated report_clarify_questions tool with understand-exit gate (stronger FR-5 anchoring than self-declaration; ~1-2d). Trigger point: if audit shows clarify declarations violated or FR-5 becomes a product feature.
+- [OPEN][info] B2: chain requestTemplate {{nextFeatureNumber}} integration (automated numbering in spec_kit_tasks chains; ~1d). Trigger point: when Form-B chains start creating features.
+- [OPEN][low] C3: full edge-case batch — configurable gate-phase roles (renamed custom variants keep enforcement) + registry cache invalidation (live degradation/config changes without restart); both need spec amendment (~2-3d). Trigger point: custom variant adoption or live-restart pain.
