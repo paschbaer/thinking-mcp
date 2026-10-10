@@ -4066,8 +4066,17 @@ export class WorkflowEngine {
           // successor would previously be lost silently. The completion
           // itself is legitimate (the report was already finalized by the
           // original attempt or never stored because ops succeeded inline),
-          // so keep the flow but make the anomaly observable.
-          if (!pending && session.chainSpec?.steps?.length) {
+          // so keep the flow but make the anomaly observable — exactly once
+          // per session (latched), not once per retry.
+          if (
+            !pending &&
+            session.chainSpec?.steps?.length &&
+            !session.chainEndAudited
+          ) {
+            session.chainEndAudited = true;
+            this.sessions.update(sessionId, (s) => {
+              s.chainEndAudited = true;
+            });
             this.audit.append({
               sessionId,
               eventType: "chain_end_without_successor",

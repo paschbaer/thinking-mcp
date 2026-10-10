@@ -195,6 +195,9 @@ export interface WorkflowSession {
    *  unresolvable (boot-definition fallback with an audit signal). */
   variantResolved?: boolean;
   variantDegraded?: boolean;
+  /** specs/017 follow-up: latched — the chain_end_without_successor
+   *  diagnostic was already emitted for this session (once-only guard). */
+  chainEndAudited?: boolean;
   /** specs/017: spec-kit variant state — artifacts_present skips, strict
    *  batch cadence (review rounds per batch) and the converge-loop snapshot. */
   specKit?: {

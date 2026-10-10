@@ -196,5 +196,18 @@ describe("chain finalize via retry_operations (silent end regression)", () => {
     ).toHaveLength(1);
     const s = engine.getSession(start.sessionId);
     expect(s.status).toBe("completed");
+
+    // Second retry: the diagnostic is latched — still exactly one event.
+    engine.sessions.update(start.sessionId, (s) => {
+      s.status = "active";
+      s.currentPhase = "complete";
+    });
+    const retry2 = await engine.retryOperations(start.sessionId);
+    expect(retry2.accepted, JSON.stringify(retry2.error ?? retry2)).toBe(true);
+    expect(
+      engine.audit
+        .read(start.sessionId)
+        .filter((e) => e.eventType === "chain_end_without_successor"),
+    ).toHaveLength(1);
   });
 });
