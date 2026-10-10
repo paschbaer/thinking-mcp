@@ -720,7 +720,7 @@ export function buildResponses(
     understand: {
       title: "Understand the Request",
       instruction:
-        "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least two sequential_thinking calls to structure the analysis (a single call is pointless — use the second to challenge or refine the first) and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas." +
+        "Analyze the development request before proposing an implementation, using the Clear-Thought tools: run at least two sequential_thinking calls to structure the analysis (a single call is pointless — use the second to challenge or refine the first) and reference its conclusions in the submission. Provide a concise summary, assumptions, open questions, constraints, risks, measurable acceptance criteria, and affected areas. When the request names multiple issues, list them as separate scopes in the summary; do not merge them into one undifferentiated task." +
         idempotency +
         " Do not create an implementation plan yet." +
         shellSentence +
@@ -736,12 +736,13 @@ export function buildResponses(
     plan: {
       title: "Create the Implementation Plan",
       instruction:
-        "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. Do not start implementation yet." +
+        "Create a concrete implementation plan with stable task identifiers, affected files, dependencies, planned tests, and verification, using the Clear-Thought tools: decompose and prioritize via sequential_thinking (and decision_framework when weighing alternatives), and reference the reasoning results in the submission. When the request covers multiple issues, define ONE clearly bounded scope per issue first. For every scope with more than one viable solution, work out at least two solution alternatives (e.g. via decision_framework or swot_analysis) including trade-offs, effort, and risks, and PRESENT them as selectable options to the user — the user decides which option is implemented. Do not pre-select an option and do not start implementing any option before the user's explicit choice; an ambiguous instruction to \"solve it\" resolves to presenting options first, not to acting. Do not start implementation yet." +
         idempotency +
         timeoutPolicy +
         questionsSentence("openQuestions"),
       requiredActions: [
         "Run at least two Clear-Thought reasoning passes (sequential_thinking or decision_framework) for decomposition/prioritization and reference its results in the plan submission.",
+        "For multi-issue requests: establish one bounded scope per issue and present solution alternatives per scope as selectable options; record the user's option decision in the plan before implementation.",
       ],
     },
     review_and_adjust_plan: {

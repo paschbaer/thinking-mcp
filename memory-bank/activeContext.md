@@ -3,6 +3,13 @@
 > Current work focus, recent changes, next steps.
 > Update after every significant change (AGENTS.md → Memory Bank Protocol).
 
+## 2026-10-10: RESPONSES OPTIONS-GATE — plan-phase option-presentation mandate (feature/response-options-gate, uncommitted)
+
+- Generalized the user's preferred chat pattern ("set up scopes for all issues, present solution alternatives, user decides") into the guidance response instructions: plan phase now mandates ONE bounded scope per issue, ≥2 worked solution alternatives (decision_framework/swot_analysis) with trade-offs/effort/risks PRESENTED as selectable options, no pre-selection and no implementation before the user's explicit choice; ambiguous "solve it" resolves to presenting options. understand phase adds: multi-issue requests must list separate scopes in the summary.
+- Changed: `servers/server-guidance/src/setup/ConfigAssistant.ts` (buildResponses understand+plan instruction, plan requiredActions), builtin template `servers/server-guidance/examples/default-guidance/responses.json` (regenerated via tsx, drift-guard clean), live `.guidance/responses.json` (same insertions, adapted instance text preserved).
+- Config-Assistant evaluation: buildResponses IS the assistant's generator — covered by the template change; the wizard question catalog needs no change (the options-gate is an unconditional behavioral baseline, not deployment-specific). `scaffold.ts` phaseResponse (minimal pre-assistant bootstrap placeholder) deliberately left generic.
+- Validation: config-assistant-extensions.test.ts 59/59 green (incl. FR-991 AC-1 drift guard), tsc --noEmit clean. NOTE: registered workspace `zed` may carry its own .guidance/responses.json outside this repo — not updated (outside project root).
+
 ## 2026-10-09: SRCH/S016 CHAIN SUCCESSOR 5 (FINAL) — live Postgres smoke; listInScope parity bug fixed (feature/live-postgres-smoke, commits 7257f3d+6d38769)
 
 - NEW scripts/smoke-postgres.mjs (docker-decoupled; connection string as argv/env; unique slugs per run → idempotent reruns): verifies schema init incl. pgvector extension, seedLessons upsert + listInScope retrieval, OR-joined multi-token FTS with numeric graded fts_rank, LEFT JOIN (signature-less lessons returned), end-to-end service.search (top hit correct), backend-aware factory + fail-closed wiring. Live runs: 2× ALL CHECKS GREEN against a temporary pgvector/pgvector:pg16 container (127.0.0.1:55432); container removed afterwards (image kept locally for future smokes).

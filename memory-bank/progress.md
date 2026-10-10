@@ -3,9 +3,12 @@
 > What works, what's left, current state. Update before ending a session
 > (AGENTS.md → Session Termination).
 
-**Last updated:** 2026-10-09
+**Last updated:** 2026-10-10
 
 ## What Works
+
+- **Responses options-gate implemented (2026-10-10, feature/response-options-gate, uncommitted):** plan-phase instruction now mandates per-issue scopes + ≥2 presented solution alternatives with explicit user option decision before implementation; understand-phase lists multi-issue requests as separate scopes. Template (ConfigAssistant.buildResponses + examples/default-guidance/responses.json) and live .guidance/responses.json updated; 59/59 contract tests green, typecheck clean.
+- **Open:** merge feature/response-options-gate to develop after user review; check workspace `zed` for its own .guidance/responses.json (outside this repo).
 
 - **SRCH/S016/POSTGRES CHAIN MERGED to develop (2026-10-09, fast-forward 13a5e3c → e454e9b, all 5 stacked feature branches deleted after merge):** SRCH-1-F3 (fts_rank contract pin), SRCH-2-R3 (backend-aware memoized storage factory + idempotent/race-free adapter init), SRCH-2-R4 (async-safe storage dir creation), S016-ENV-SQLITE (container test flow, environmental confirmed by 2× full green in-container runs), live-postgres-smoke (reusable smoke script, 2× ALL CHECKS GREEN vs temp pgvector; live-found listInScope parity bug fixed). Pre-merge validation: full insight suite in-container at merge HEAD (152 passed + 4 skipped). develop ahead of origin by 21 commits — push pending (user decision). Net diff: 15 files, +803/−52 (service/factory/sqlite/postgres/tools + 3 test files + Dockerfile.test/script/README + memory-bank).
 - **Open:** push of develop (user decision, known SSH-key trap); tracked follow-ups R4-REV-5 (OperationRegistry lazy mkdirSync) and PG-DEP-1 (pg@9 concurrent-query deprecation) with their triggers.
