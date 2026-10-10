@@ -4567,12 +4567,18 @@ export class WorkflowEngine {
       const clarify = payload.clarify as
         { asked?: unknown; blockerId?: unknown } | undefined;
       if (clarify && typeof clarify.asked === "boolean") {
+        // Normalize an empty-string blockerId to absent (F2: asked=false with
+        // blockerId: "" must behave exactly like no blockerId).
+        if (clarify.blockerId === "") clarify.blockerId = undefined;
         if (clarify.asked) {
           const blockerId =
             typeof clarify.blockerId === "string" ? clarify.blockerId : "";
           const answered = blockerId
             ? (session.blockers ?? []).some(
-                (b) => b.blockerId === blockerId && !!b.resolution,
+                (b) =>
+                  b.blockerId === blockerId &&
+                  b.category === "clarify" &&
+                  !!b.resolution,
               )
             : false;
           if (!answered) {
@@ -4580,7 +4586,7 @@ export class WorkflowEngine {
               reject: fail(
                 "spec_kit_clarify_declaration_invalid",
                 blockerId
-                  ? `clarify declaration references blocker "${blockerId}" which does not exist or has not been answered via resume_workflow`
+                  ? `clarify declaration references blocker "${blockerId}" which does not exist, is not a clarify blocker, or has not been answered via resume_workflow`
                   : "clarify declaration with asked=true requires the blockerId of a clarify blocker answered via resume_workflow",
               ),
             };

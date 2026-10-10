@@ -156,6 +156,34 @@ describe("clarify self-declaration guard (specs/017 follow-up A2)", () => {
     expect(out.error?.code).toBe("submission_invalid");
   });
 
+  it("asked=true with an ANSWERED non-clarify blocker is rejected (F1)", async () => {
+    const res = await startAtUnderstand();
+    await engine.reportBlocker(res.sessionId, {
+      category: "infrastructure",
+      description: "unrelated blocker",
+      requiresUserDecision: true,
+    });
+    const s = engine.getSession(res.sessionId);
+    const blocker = s.blockers.at(-1)!;
+    await engine.resumeWorkflow(res.sessionId, { decision: "ok" });
+    const out = await engine.submit(res.sessionId, "understand", {
+      summary: "s",
+      clarify: { asked: true, blockerId: blocker.blockerId },
+    });
+    expect(out.accepted).toBe(false);
+    expect(out.error?.code).toBe("spec_kit_clarify_declaration_invalid");
+  });
+
+  it("asked=false with an empty-string blockerId behaves like absent (F2)", async () => {
+    const res = await startAtUnderstand();
+    const out = await engine.submit(res.sessionId, "understand", {
+      summary: "s",
+      clarify: { asked: false, blockerId: "" },
+    });
+    expect(out.accepted).toBe(true);
+    expect(out.currentPhase).toBe("plan");
+  });
+
   it("standard-development understand submissions are unaffected (FR-2)", async () => {
     const res = await engine.startWorkflow({
       workspaceRoot: ws,
