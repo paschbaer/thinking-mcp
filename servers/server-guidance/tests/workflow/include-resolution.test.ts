@@ -209,21 +209,23 @@ describe("workflow registry $include resolution (specs/017 FR-3)", () => {
   it("fails closed on invalid limits values (C2: no silent defaults)", () => {
     const dir = makeConfigDir();
     try {
-      writeFileSync(
-        join(dir, "workflows", "variant.json"),
-        JSON.stringify({
-          version: 2,
-          workflow: { id: "variant", initialPhase: "plan" },
-          phases: {
-            plan: { $include: "workflow.json#/phases/plan" },
-            review_and_adjust_plan: { transitions: [] },
-          },
-          limits: { maxReviewRoundsPerBatch: 0 },
-        }),
-      );
-      expect(() => loadWorkflowFile(dir, "variant")).toThrowError(
-        /limits\.maxReviewRoundsPerBatch/,
-      );
+      for (const bad of [0, -1, "3", Number.NaN, Number.POSITIVE_INFINITY]) {
+        writeFileSync(
+          join(dir, "workflows", "variant.json"),
+          JSON.stringify({
+            version: 2,
+            workflow: { id: "variant", initialPhase: "plan" },
+            phases: {
+              plan: { $include: "workflow.json#/phases/plan" },
+              review_and_adjust_plan: { transitions: [] },
+            },
+            limits: { maxReviewRoundsPerBatch: bad },
+          }),
+        );
+        expect(() => loadWorkflowFile(dir, "variant")).toThrowError(
+          /limits\.maxReviewRoundsPerBatch/,
+        );
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
