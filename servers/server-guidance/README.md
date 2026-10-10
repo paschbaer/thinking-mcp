@@ -2802,7 +2802,7 @@ Stateless wizard for designing a `.guidance/` configuration — see
 | `setup_guidance_answer`   | `answers`            | Validates the accumulated answers and returns the next open question, or `done: true` with `nextTool: setup_guidance_generate`        |
 | `setup_guidance_generate` | `answers`            | Returns the complete `.guidance/` file set as a payload (files + notes); the agent writes them — the server never writes config files |
 
-### Spec-Kit tools (16 — registered on every instance)
+### Spec-Kit tools (17 — registered on every instance)
 
 All tools operate on the Spec-Kit state of the session (created by
 `import_spec_kit_artifacts` and persisted per session).

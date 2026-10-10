@@ -5,10 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import {
-  registerSpecKitTools,
-  SpecKitStateStore,
-} from "../../src/mcp-server/register-spec-kit-tools.js";
+import { registerSpecKitTools } from "../../src/mcp-server/register-spec-kit-tools.js";
 import { createGuidanceServer } from "../../src/mcp-server/GuidanceServer.js";
 
 let ws: string;
@@ -134,4 +131,3 @@ describe("next_feature_number tool (specs/017 FR-10 / B1)", () => {
 });
 
 // Keep the store import referenced (stateDir wiring parity with siblings).
-void SpecKitStateStore;
