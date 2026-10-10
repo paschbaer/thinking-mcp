@@ -1403,7 +1403,7 @@ Three mechanics make a long sequential Form-B chain viable:
     "source": "spec_kit_tasks",
     "requestTemplate": "Execute task ${chain.taskId} …",
     "featureId": "018-guidance-beads-execution-adapter",
-    "maxChainDepthOverride": 70, // integer, hard cap 512; wins over config maxChainDepth
+    "maxChainDepthOverride": 70,
   },
 }
 ```

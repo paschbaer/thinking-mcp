@@ -129,5 +129,3 @@ describe("next_feature_number tool (specs/017 FR-10 / B1)", () => {
     }
   });
 });
-
-// Keep the store import referenced (stateDir wiring parity with siblings).
